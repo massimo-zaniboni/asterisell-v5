@@ -1,0 +1,7 @@
+fillin:
+  enabled: true
+
+fields:
+  ar_cdr_provider{internal_name}:
+    required:
+      msg: Required

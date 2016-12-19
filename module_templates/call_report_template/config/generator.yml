@@ -1,0 +1,203 @@
+<?php
+
+// see notes in the generator for more info...
+require 'generator_header.php';
+
+?>
+
+################################################################
+#!!!                                                        !!!#
+#!!! WARNING: This file is automatic generated.             !!!#
+#!!!                                                        !!!#
+#!!! In order to modify this file change the content of     !!!#
+#!!!                                                        !!!#
+#!!!    /module_template/call_report_template               !!!#
+#!!!                                                        !!!#
+#!!! and execute                                            !!!#
+#!!!                                                        !!!#
+#!!!    php asterisell activate                             !!!#
+#!!!                                                        !!!#
+################################################################
+
+generator:
+  class:              sfPropelAdminGenerator
+  param:
+    model_class:      ArCdr
+
+    theme:            default
+
+    # NOTE: if you update list remember to update templates/exportToCsvSuccess.php
+    #
+    list:
+      max_per_page: 60
+
+      title: ''
+
+      actions: {}
+
+      fields:
+        internal_telephone_number: { name: Account, help: "The internal VoIP account that is target or source of the incoming / outgoing call." }
+        external_location:        { name: Location, help: "Where resides the called / calling external telephone number." }
+        external_connection_type: { name: Connection, help: "The technology used for telephone connection: fixed line, mobile line and so on." }
+        owner:                   { name: Customer, help: "The owner of called / calling internal VoIP account." }
+        office:                  { name: Office, help: "The office where resides the called / calling internal VoIP account." }
+        calldate:                { name: Date, sort_on_column: calldate }
+        mycalldate:              { name: Date, sort_on_column: calldate, help: "The starting timestamp of the call." }  
+        external_telephone_number: { name: Tel. Nr., sort_on_column: dst, help: "Called / calling external telephone number." }
+        billmin:                 { name: Duration, sort_on_column: billsec, help: "Call duration." }
+        direction:               { name: Dir., help: "The direction of the call: incoming, outcomig or internal." }
+        my_income_from_customer: { name: <?php if (FieldsToShow::isFieldToShow($generateForAdmin, FieldsToShow::EARN)) { echo "Income"; } else { echo "Cost"; } ?>, sort_on_column: income, help: "<?php if ($generateForAdmin) { echo "The amount payed from the customer in order to make / receive the call."; } else { echo "The cost of the call."; } ?>"  }
+        my_vendor_cost:          { name: Cost, sort_on_column: cost, help: "The amount requested from the telephone vendor in order to route the call." }
+        ar_vendor:               { name: Vendor, help: "The telephone vendor that routed / managed the call." }
+        ar_vendor_id:            { name: Vendor, help: "The telephone vendor that routed / managed the call." }
+        earn:                    { name: Earn, help: "The difference between the income and the cost of the call." }
+        filter_on_party:         { name: Customer, filter_criteria_disabled: true }
+        filter_on_office:        { name: Office, filter_criteria_disabled: true }
+        filter_on_account:       { name: "VoIP account", filter_criteria_disabled: true }
+        filter_on_timeframe:     { name: "Time frame", filter_criteria_disabled: true }
+        filter_on_calldate_from: { name: "From (inclusive)", filter_criteria_disabled: true }
+        filter_on_calldate_to:   { name: "To (exclusive)", filter_criteria_disabled: true }
+        filter_on_external_telephone_number:  { name: "External tel.number prefix", filter_criteria_disabled: true }
+        filter_on_dst_operator_type:  { name: "Tel. number connection type", filter_criteria_disabled: true }
+        filter_on_vendor_cost:  { name: "Vendor Cost", filter_criteria_disabled: true }
+        filter_on_dst_geographic_location: { name: "Tel. number location", filter_criteria_disabled: true }
+        filter_on_destination_type:  { name: "Call Direction", filter_criteria_disabled: true }
+        is_redirect:                 { name: "Is redirected", filter_criteria_disabled: true }
+        ar_call_end_point_type_id: { name: "Tel. Operator"    }
+        end_point_type:            { name: "Tel. Number Type" }
+        count_of_calls:            { name: "Nr.", help: "Number of calls" }
+        communication_channel:     { name: "Communication Channel", help: "The method used for routing the call." }
+        ar_communication_channel_type_id: { name: "Communication Channel", help: "The method used for routing the call." }
+        cost_saving:               { name: "Cost Saving", help: "The saving cost of ENUM Calls, respect the same call routed using SIP operators." }
+        filter_on_organization:    { name: "Organization" }
+        filter_on_proper_organization:    { name: "Organization" }
+        filter_on_voip_account:    { name: "Extension" }
+        filter_on_voip_account_short_code: { name: "Extension Code" }
+        show_masked_telephone_numbers: { name: "Show" }
+
+      sort: [calldate, desc]
+
+<?php
+    // Produce static code for showing fields according static parameters
+
+    $fieldsToShow = FieldsToShow::getFieldsToShowInCallReport($generateForAdmin);
+
+    $display = '_internal_telephone_number';
+    $filter = '_filter_on_proper_organization, _filter_on_voip_account';
+
+    if (sfConfig::get('app_show_extension_code')) {
+      $filter .= ',_filter_on_voip_account_short_code';
+    }
+
+    // the order of fields, is the same showing order
+    foreach($fieldsToShow as $fieldToShow) {
+        switch($fieldToShow) {
+            case FieldsToShow::ORGANIZATION_ID:
+            // note: already displayed as default value
+            break;
+
+            case FieldsToShow::CALL_DIRECTION:
+            $display .= ',_direction';
+            $filter .= ', _filter_on_destination_type, is_redirect';
+            break;
+
+            case FieldsToShow::EXTERNAL_TELEPHONE_NUMBER:
+            $display .= ', _external_telephone_number';
+            $filter .= ', _filter_on_external_telephone_number';
+            break;
+
+            case FieldsToShow::GEOGRAPHIC_LOCATION:
+            $display .= ', _external_location';
+            $filter .= ', _filter_on_dst_geographic_location';
+            break;
+
+            case FieldsToShow::OPERATOR_TYPE:
+            $display .= ', _external_connection_type';
+            $filter .= ', _filter_on_dst_operator_type';
+            break;
+
+            case FieldsToShow::CALL_DATE:
+            $display .= ', _mycalldate';
+            $filter .= ', _filter_on_timeframe, _filter_on_calldate_from, _filter_on_calldate_to';
+            break;
+
+            case FieldsToShow::BILL_SEC:
+            $display .= ', _billmin';
+            break;
+
+            case FieldsToShow::COST:
+            $display .= ', _my_vendor_cost';
+            break;
+
+            case FieldsToShow::INCOME:
+            $display .= ', _my_income_from_customer';
+            break;
+
+            case FieldsToShow::EARN:
+            $display .= ', _earn';
+            break;
+
+            case FieldsToShow::COST_SAVINGS:
+            $display .= ', cost_saving';
+            break;
+
+            case FieldsToShow::VENDOR:
+            $display .= ', ar_vendor';
+            $filter .= ', ar_vendor_id, _filter_on_vendor_cost';
+            break;
+
+            case FieldsToShow::COMMUNICATION_CHANNEL:
+            $display .= ', communication_channel';
+            $filter .= ', ar_communication_channel_type_id';
+            break;
+
+            case FieldsToShow::COUNT_OF_CALLS:
+            $display .= ', count_of_calls';
+            break;
+
+            case FieldsToShow::ORGANIZATION_LEVEL:
+            break;
+
+            case FieldsToShow::CURRENCY:
+            break;
+
+            case FieldsToShow::DEBUG_COST_RATE:
+                    break;
+
+            case FieldsToShow::DEBUG_INCOME_RATE:
+                    break;
+
+            case FieldsToShow::DEBUG_RESIDUAL_CALL_DURATION:
+                    break;
+
+            case FieldsToShow::DEBUG_RESIDUAL_CALL_DURATION:
+                    break;
+
+            case FieldsToShow::DEBUG_BUNDLE_ORGANIZATION_ID:
+                    break;
+
+            case FieldsToShow::DEBUG_BUNDLE_LEFT_CALLS:
+                    break;
+
+            case FieldsToShow::DEBUG_BUNDLE_LEFT_DURATION:
+                    break;
+
+            case FieldsToShow::DEBUG_BUNDLE_LEFT_COST:
+                    break;
+
+
+            default:
+            $fileName = basename($_SERVER['PHP_SELF']);
+            die('Not supported FieldShow case in file ' . $fileName);
+            break;
+        }
+    }
+
+    if ($generateForAdmin) {
+      $filter .= ', _show_masked_telephone_numbers';
+    }
+
+?>
+      display: [<?php echo $display ?>]
+
+      filters: [<?php echo $filter ?>]

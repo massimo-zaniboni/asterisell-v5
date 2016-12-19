@@ -1,0 +1,36 @@
+generator:
+  class:              sfPropelAdminGenerator
+  param:
+    model_class:      ArService
+    theme:            default
+
+    fields:
+      is_enabled:           { name: Is Enabled, help: "False for services that can not be anymore sold to new customers." }
+      internal_name:        { name: Internal Code, help: "An optional internal identifier that can be used from internal code procedures, and so on. Usually it is empty. "}
+      vendor_name:          { name: Name, help: "The name of the service, used from the Vendor, but not showed to customers. "}
+      vendor_description:   { name: Description, help: "A description of the service, from the point of view of the Vendor. It is not showed to the customer. "}
+      customer_name:        { name: Name, help: "The name of the service, as displayed in the invoices, and to the customer. " }
+      customer_description: { name: Description, help: "A description of the service, that can be read from the Customer. "}
+      customer_price_depend_from_activation_date: { name: "Proportional to activation date", help: "True if the price of the service is proportional to the activation date of the service. For example if a monthly service is activated in the middle of the month, then a 50% discount is applied." }
+      customer_price_change_with_price_list: { name: "Price can change", help: "True if the price of the service, billed to a customer, is updated if the related cost in the price list change. False if the price of the service depends only from the price in the price list at the moment of activation of the service, and it is not affected from next changes in price list. " }
+      is_applied_only_one_time: { name: "One time cost", help: "true if the service is applied only one time to the customer. " }
+      schedule_timeframe: { name: "Time Frame", help: "\"monthly\" for billing the service every month. \"weekly\" for billing the service every week. " }
+      schedule_from: { name: "From", help: "A number between 1 and 28 for the start of the billing time frame, in case of monthly schedule. \"Monday\", \"Tuesday\", and so on, in case of weekly schedule." }
+      select_scheduling: { name: "Time Frame", help: "\"monthly\" for billing the service every month. \"weekly\" for billing the service every week. " }
+      select_schedule_from: { name: "From", help: "A number between 1 and 28 for the start of the billing time frame, in case of monthly schedule. \"Monday\", \"Tuesday\", and so on, in case of weekly schedule." }
+      external_crm_code: { name: "CRM code", help: "A optional service code identifying the service, in the vendor CRM application." }
+
+    list:
+      title: Services
+      display: [=vendor_name, customer_name, is_enabled ]
+      filters: [vendor_name, customer_name, is_enabled, external_crm_code]
+      sort: [vendor_name, asc]
+
+    edit:
+      title: Service
+
+      display:
+        Vendor: [is_enabled, vendor_name, external_crm_code, vendor_description]
+        Customer: [customer_name, customer_description]
+        Scheduling: [is_applied_only_one_time, _select_scheduling, _select_schedule_from]
+        Billing: [customer_price_change_with_price_list, customer_price_depend_from_activation_date]

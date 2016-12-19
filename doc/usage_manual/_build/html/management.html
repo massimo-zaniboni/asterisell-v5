@@ -1,0 +1,399 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Management &mdash; Asterisell 5 documentation</title>
+    
+    <link rel="stylesheet" href="_static/classic.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '5',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="top" title="Asterisell 5 documentation" href="index.html" />
+    <link rel="next" title="Configuration and Usage" href="usage.html" />
+    <link rel="prev" title="Installation" href="installation.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="usage.html" title="Configuration and Usage"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="installation.html" title="Installation"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">Asterisell 5 documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="management">
+<h1>Management<a class="headerlink" href="#management" title="Permalink to this headline">¶</a></h1>
+<p>Instances are administered from the Management Tool installed in the host.</p>
+<div class="section" id="management-commands">
+<h2>Management Commands<a class="headerlink" href="#management-commands" title="Permalink to this headline">¶</a></h2>
+<p>The most useful management commands are described in</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span>fab help
+</pre></div>
+</div>
+<p>Inside every instance, there is also a low level management shell. For
+viewing the available commands:</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span>fab help
+fab connect:INSTANCE_NAME
+php asterisell.php
+</pre></div>
+</div>
+<p>You must not know all of them, because they are used mainly during development.
+Some useful commands are:</p>
+<ul class="simple">
+<li><code class="docutils literal"><span class="pre">php</span> <span class="pre">asterisell.php</span> <span class="pre">cron</span> <span class="pre">force-execution-of-all-jobs</span></code> for forcing
+the execution of all pending jobs, also jobs scheduled to start later</li>
+<li><code class="docutils literal"><span class="pre">php</span> <span class="pre">asterisell.php</span> <span class="pre">data</span> <span class="pre">backup</span></code> make a full backup of the
+database, dumping its content on a separate file</li>
+<li><code class="docutils literal"><span class="pre">php</span> <span class="pre">asterisell.php</span> <span class="pre">debug</span> <span class="pre">jobs</span></code> run jobs in debug mode, signaling
+more problems respect normal mode$</li>
+</ul>
+</div>
+<div class="section" id="docker-management">
+<h2>Docker Management<a class="headerlink" href="#docker-management" title="Permalink to this headline">¶</a></h2>
+<p>Asterisell does not use Docker in the suggested way, because it puts in the same container all the required servers.
+In any case log rotation, and other maintanance tasks are regularly done on the server, because it is
+managed by supervisord.</p>
+<p>You can see how the container is configured studying the content of directory <code class="docutils literal"><span class="pre">fabric_data/config_files_templates/docker</span></code>.</p>
+<p>One disavantage of a monolithic Docker container,
+it is that for each instance there will be a distinct MySQL server running and using a lot of RAM,
+mainly for caching the DB data. In case of multiple instances, it should be better using a unique
+database server, sharing the RAM between different instances.</p>
+<p>Up to date there is no automatic update of the Docker container Linux system.
+So you can do it manually, in a non-dockerized way, executing something like</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span>fab connect:INSTANCE
+yum update
+</pre></div>
+</div>
+<p>For seeing the active Docker containers, and managing them, execute</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span>docker ps -a
+docker inspect SOME_CONTAINER_NAME
+docker stop SOME_CONTAINER_NAME
+docker restart SOME_CONTAINER_NAME
+
+# warning: you are removing a container
+# but the VOLUME with data will remain
+docker rm SOME_CONTAINER_NAME
+</pre></div>
+</div>
+<p>See the instance deletion howto for a description of how to remove completely an instance,
+and its volume with data.</p>
+</div>
+<div class="section" id="application-upgrade">
+<h2>Application Upgrade<a class="headerlink" href="#application-upgrade" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="git-repository-upgrade">
+<h3>Git Repository Upgrade<a class="headerlink" href="#git-repository-upgrade" title="Permalink to this headline">¶</a></h3>
+<p>Instances can be upgraded to a new version of Asterisell, using the
+Instance Management Tool, and Git.</p>
+<p>The Instance Management Tool is a Git repository. Thanks to this Asterisell official versions
+can be merged with local customizations.</p>
+<p>The passage are something like this:</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span>cd INSTANCE_MANAGEMENT_TOOL_DIR
+
+# view pending local changes
+git status
+
+# add new files
+git add SOME_NEW_FILE
+
+# save local customizations
+git commit -a -m &quot;Custom settings.&quot;
+
+# download a new version and merge
+git pull
+</pre></div>
+</div>
+<p>In case there are conflicts to merge, Git signal them to you. Then you
+must:</p>
+<ul class="simple">
+<li><code class="docutils literal"><span class="pre">git</span> <span class="pre">status</span></code> for seeing the files with problems</li>
+<li>edit one of the file with problems, searching for strings like
+<code class="docutils literal"><span class="pre">&gt;&gt;&gt;&gt;&gt;</span></code> inserted from Git</li>
+<li><code class="docutils literal"><span class="pre">git</span> <span class="pre">add</span> <span class="pre">&lt;file-with-problem&gt;</span></code> for signaling that the problems in
+file are fixed</li>
+<li><code class="docutils literal"><span class="pre">git</span> <span class="pre">status</span></code> for seeing if there are other files with problems</li>
+<li><code class="docutils literal"><span class="pre">git</span> <span class="pre">commit</span> <span class="pre">-a</span> <span class="pre">-m</span> <span class="pre">&quot;Resolved</span> <span class="pre">conflicts.&quot;</span></code> for merging the changes,
+when all the files are fixed</li>
+</ul>
+</div>
+<div class="section" id="instances-upgrade">
+<h3>Instances Upgrade<a class="headerlink" href="#instances-upgrade" title="Permalink to this headline">¶</a></h3>
+<p>When the Instance Management Tool contains the last version of Asterisell,
+with applied customizations, single instances on Docker containers can be upgraded.</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span>cd
+fab help
+</pre></div>
+</div>
+<p>returns the list of upgradable instances.</p>
+<p>The command</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span>fab upgrade:INSTANCE
+</pre></div>
+</div>
+<p>can be used for upgrading an instance.</p>
+<p>For upgrading all the instances</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span>fab upgrade:all
+</pre></div>
+</div>
+</div>
+<div class="section" id="change-of-configurations">
+<h3>Change of Configurations<a class="headerlink" href="#change-of-configurations" title="Permalink to this headline">¶</a></h3>
+<p>Instance configurations are on <cite>fabric_data/asterisell_instances.py</cite> file.</p>
+<p>After changing the file you must upgrade the instances, using the
+<code class="docutils literal"><span class="pre">fab</span> <span class="pre">upgrade:INSTANCE</span></code> command.</p>
+</div>
+</div>
+<div class="section" id="data-backup">
+<h2>Data Backup<a class="headerlink" href="#data-backup" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="quick-undo-restore">
+<h3>Quick Undo/Restore<a class="headerlink" href="#quick-undo-restore" title="Permalink to this headline">¶</a></h3>
+<p>Asterisell saves partial copies of rates, and organization/customer
+changes, in case they must be quickly restored after a bad change from
+an administrator. It is a sort of UNDO function.</p>
+<p>The web interface contains info on how restoring quickly this information.</p>
+</div>
+<div class="section" id="container-data-backup">
+<h3>Container Data Backup<a class="headerlink" href="#container-data-backup" title="Permalink to this headline">¶</a></h3>
+<p>Asterisell performs a daily backup of configurations, reports, rated
+CDRs on the directory <code class="docutils literal"><span class="pre">data_files/messages/backup</span></code>, that can be the backuped on external hosts.</p>
+<p>It is a fast incremental backup of data, storing always the last state
+of the system. From the content of this directory, it is possible
+recreating the complete Asterisell instance.</p>
+<p>The only disavantage it is that the CDRs are repeated in many places:</p>
+<ol class="arabic simple">
+<li>source CDRs in ar_source_cdr table, stored in VoIP server native
+format. They are compressed from TokuDB engine.</li>
+<li>rated CDRs in ar_cdr table, stored in Asterisell format. They are
+compressed from the TokuDB engine.</li>
+<li>daily CDRs backup copy of source CDRs in VoIP server format</li>
+<li>daily CDRs backup copy of rated CDRs in Asterisell format</li>
+</ol>
+<p>Nowdays storage is cheap, so in this case reliability and full access to
+data, is favored respect reduction of data duplication.</p>
+<p>Maybe in future a compressed file system can be used, for reducing further
+the space usage.</p>
+</div>
+<div class="section" id="remote-backup">
+<h3>Remote Backup<a class="headerlink" href="#remote-backup" title="Permalink to this headline">¶</a></h3>
+<p>Create a backup server, distinct from Asterisell server.</p>
+<p>Install on it the <code class="docutils literal"><span class="pre">rdiff-backup</span></code> utility.</p>
+<p>Create a unix backup user, something like <code class="docutils literal"><span class="pre">asterisell_backup</span></code>.</p>
+<p>Enable the automatic SSH login from Asterisell instance, to this server,
+using <code class="docutils literal"><span class="pre">asterisell_backup</span></code> user.</p>
+<p>In Asterisell deploy management directory, configure a new job for
+making the backup. Create the file <code class="docutils literal"><span class="pre">apps/asterisell/lib/jobs/data_backup/MyRDIffBackupJob.php</span></code></p>
+<p>You can configure also additional parameters, consulting the
+<code class="docutils literal"><span class="pre">RDiffBackupJob</span></code> source code. This command by default will make an
+incremental backup using an rsync encrypted protocol, and retaining old
+versions of the files (in change-diff compressed format) for 7 days
+before deleting them.</p>
+<p>Add the backup job to the list of jobs to execute. In file
+<code class="docutils literal"><span class="pre">fabric_data/directly_managed_instances/&lt;your-instance-code&gt;/instances.py</span></code>,
+find the definition of your instance, and add a line like this:</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span><span class="n">custom_export_cdrs_jobs</span> <span class="o">=</span> <span class="p">[</span> <span class="s1">&#39;MyRDiffBackupJob&#39;</span> <span class="p">]</span>
+</pre></div>
+</div>
+<p>Upgrade your instance</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span>fab help
+fab upgrade:INSTANCE
+</pre></div>
+</div>
+<p>If you want force the test of the backup</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span>fab help
+fab connect:INSTANCE
+php asterisell.php cron force-execution-of-all-jobs
+php asterisell.php run jobs
+exit
+</pre></div>
+</div>
+<p>The Asterisell job will backup all important directories:</p>
+<ul class="simple">
+<li><code class="docutils literal"><span class="pre">/etc</span></code> of your instance</li>
+<li><code class="docutils literal"><span class="pre">instance/web/uploads</span></code></li>
+<li><code class="docutils literal"><span class="pre">instance/data_files/messages/backup</span></code></li>
+</ul>
+</div>
+<div class="section" id="backup-of-management-tool">
+<h3>Backup of Management Tool<a class="headerlink" href="#backup-of-management-tool" title="Permalink to this headline">¶</a></h3>
+<p>The backup of instances does not suffices, because you need also a backup
+of the Instance Management Tool, on your host system, containing all
+the configurations, for recreating the instances.</p>
+<p>In the host add this file
+<code class="docutils literal"><span class="pre">/etc/cron.daily/asterisell_deploy_backup.sh</span></code> with a content like this content</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span>#!/bin/sh
+
+BACKUP_SERVER= TODO_COMPLETE-ME
+BACKUP_USER= TODO_COMPLETE-ME
+
+SRC_DIR=TODO_YOUR_ASTERISELL_MANAGEMENT_DIRECTORY
+
+rdiff-backup  --create-full-path $SRC_DIR $BACKUP_USER@$BACKUP_SERVER::asterisell5-deploy
+rdiff-backup  --remove-older-than 12M $BACKUP_USER@$BACKUP_SERVER::asterisell5-deploy
+</pre></div>
+</div>
+<p>Make it executable</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span>chmod u+x /etc/cron.daily/asterisell_deploy_backup.sh
+</pre></div>
+</div>
+<p>Test it</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span>/etc/cron.daily/asterisell_deploy_backup.sh
+</pre></div>
+</div>
+</div>
+<div class="section" id="data-restore">
+<h3>Data Restore<a class="headerlink" href="#data-restore" title="Permalink to this headline">¶</a></h3>
+<p>Recreate an instance of the application.</p>
+<p>Put data backup</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span>fab help
+fab connect:INSTANCE
+
+# TODO RESTORE_DATA IN DIRECTORY data_files/messages/backup
+
+php asterisell.php data restore
+exit
+
+fab upgrade:INSTANCE
+</pre></div>
+</div>
+</div>
+</div>
+<div class="section" id="security">
+<h2>Security<a class="headerlink" href="#security" title="Permalink to this headline">¶</a></h2>
+<p>Asterisell tries to enforce security applying different strategies.</p>
+<p>Every Asterisell instance exposes two distinct PHP WEB applications:</p>
+<ul class="simple">
+<li>admin application</li>
+<li>customer application</li>
+</ul>
+<p>The admin application is accessed using a MySQL database user with
+complete rights on the database.</p>
+<p>The customer application is accessed using a MySQL database user, that
+can only read the content of the table, but he can not write anything,
+except the information about the read reports.</p>
+<p>The Asterisell code accessed from Customer is very few, and it is
+carefully reviewed. All input strings are sanitized both from Symfony framework code,
+and from Asterisell code.</p>
+<p>The Asterisell code accessed from Admin is very complex, but it is on a
+separate application, and it can be executed only from Admins, having no
+reason to compromise the application.</p>
+<p>The Asterisell code processing the calls, is called from the cron
+processor at regular interval. The code process the CDRs, and there is
+no info inserted explicitely from the customer, so it can not be
+directly compromised.</p>
+<p>A customer can change his password. He has access only in append mode
+(&#8220;insert mode&#8221;), to a separated table, containing only the requests of
+change of password, and nothing else.</p>
+<p>Up to date, Asterisell jobs are executed using the root account, instead
+of a specific account, with limited privileges. This is not best practice,
+but as mitigation, there is the fact that there is no input from regular
+users, but only from administrators.</p>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Management</a><ul>
+<li><a class="reference internal" href="#management-commands">Management Commands</a></li>
+<li><a class="reference internal" href="#docker-management">Docker Management</a></li>
+<li><a class="reference internal" href="#application-upgrade">Application Upgrade</a><ul>
+<li><a class="reference internal" href="#git-repository-upgrade">Git Repository Upgrade</a></li>
+<li><a class="reference internal" href="#instances-upgrade">Instances Upgrade</a></li>
+<li><a class="reference internal" href="#change-of-configurations">Change of Configurations</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#data-backup">Data Backup</a><ul>
+<li><a class="reference internal" href="#quick-undo-restore">Quick Undo/Restore</a></li>
+<li><a class="reference internal" href="#container-data-backup">Container Data Backup</a></li>
+<li><a class="reference internal" href="#remote-backup">Remote Backup</a></li>
+<li><a class="reference internal" href="#backup-of-management-tool">Backup of Management Tool</a></li>
+<li><a class="reference internal" href="#data-restore">Data Restore</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#security">Security</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="installation.html"
+                        title="previous chapter">Installation</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="usage.html"
+                        title="next chapter">Configuration and Usage</a></p>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/management.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="usage.html" title="Configuration and Usage"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="installation.html" title="Installation"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">Asterisell 5 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &copy; Copyright 2016, Massimo Zaniboni.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.3.6.
+    </div>
+  </body>
+</html>

@@ -1,0 +1,16 @@
+fillin:
+  enabled: true
+
+fields:
+  ar_vendor_domain{ar_vendor_id}:
+    required:
+      msg: Required
+  ar_vendor_domain{ar_communication_channel_type_id}:
+    required:
+      msg: Required
+  ar_vendor_domain{domain}:
+    required:
+      msg: Required
+  ar_vendor_domain{from}:
+    required:
+      msg: Required

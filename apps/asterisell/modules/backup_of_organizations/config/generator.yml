@@ -1,0 +1,30 @@
+generator:
+  class: sfPropelAdminGenerator
+
+  param:
+    model_class:      ArOrganizationBackupOfChanges
+    theme:            default
+
+    fields:
+
+      id: { name: Id  }
+
+      backup_at_date: { name: Date, help: "The date of the backup." }
+
+      application_version: { name: App.Version, help: "The version of the application at the time of the backup. The backup contains tables, that can change after an upgrade of the application. " }
+
+      download_sql: { name: "SQL content", help: "The complete backup of the SQL tables, with current version, and past history." }
+      download_yaml: { name: "YAML content", help: "A human readable view of the last organizations/extensions, without changes of the past. " }
+
+    list:
+      title: Backup of Organizations
+
+      display: [id, =backup_at_date, application_version]
+
+      filters: [backup_at_date]
+
+      sort: [backup_at_date, desc]
+
+    edit:
+      title: Backup of Organizations
+      display: [id, backup_at_date, application_version, _download_sql, _download_yaml]

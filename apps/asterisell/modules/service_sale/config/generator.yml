@@ -1,0 +1,34 @@
+generator:
+  class:              sfPropelAdminGenerator
+  param:
+    model_class:      ArAssignedService
+    theme:            default
+
+    fields:
+      ar_service_id:        { name: "Service" }
+      ar_service:           { name: "Service" }
+      select_service:       { name: "Service" }
+      from_date:            { name: "From Date", help: "Apply this sale starting from the specified date. Before this date the old number of sales are considered. "}
+      internal_name:        { name: Internal Code, help: "An optional internal identifier that can be used from internal code procedures, and so on. Usually it is empty. "}
+      external_crm_code: { name: "CRM code", help: "A optional service code identifying the service sale, in the vendor CRM application." }
+      ar_organization_unit_id: { name: "Customer", help: "The customer buying this service. "}
+      select_organization: { name: "Customer" }
+      filter_on_organization: { name: "Customer", filter_criteria_disabled: true }
+      display_organization: { name: "Customer" }
+      discount: { name: "Discount", help: "A number betwen 0% and 100% (without the \"%\" sign)." }
+      note: { name: Note, help: "Internal vendor notes.", type: textarea_tag, params: size=70x5 }
+      nr_of_items: { name: "Quantity", help: "The number of sold service units. This number will replace previous number of assigned service units. Use 0 for setting the services assigned to the customer to nothing, from the specified date. " }
+
+    list:
+      title: Service Sales
+      display: [=_display_organization, ar_service, from_date, nr_of_items, discount]
+      filters: [_filter_on_organization, from_date]
+      sort: [from_date, asc]
+
+    edit:
+      title: Service Sale
+
+      display:
+        Service: [_display_organization, _select_organization, _select_service]
+        Sell: [from_date, nr_of_items, discount]
+        Additional Info: [external_crm_code, note]

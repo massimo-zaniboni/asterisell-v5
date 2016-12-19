@@ -1,0 +1,1317 @@
+<?xml version="1.0" ?>
+<xliff version="1.0">
+  <file original="global" source-language="en_US" datatype="plaintext">
+  <body>
+
+      Note: all costs are VAT excluded.
+
+      <trans-unit id="1">
+          <source>Note: all costs are VAT excluded.</source>
+          <target>Nota: i costi sono da considerarsi IVA esclusa.</target>
+      </trans-unit>
+
+      <trans-unit id="1">
+          <source>__Account </source>
+          <target>Utente </target>
+    </trans-unit>
+
+      <trans-unit id="2">
+          <source>__Login</source>
+          <target>Accedi</target>
+      </trans-unit>
+
+      <trans-unit id="221">
+          <source>__Direction</source>
+          <target>Direzione</target>
+      </trans-unit>
+      <trans-unit id="221">
+          <source>Direction</source>
+          <target>Direzione</target>
+      </trans-unit>
+
+      <trans-unit id="221">
+          <source>__Location</source>
+          <target>Luogo</target>
+      </trans-unit>
+
+      <trans-unit id="221">
+          <source>Location</source>
+          <target>Luogo</target>
+      </trans-unit>
+
+      <trans-unit id="221">
+          <source>Currency</source>
+          <target>Valuta</target>
+      </trans-unit>
+
+      <trans-unit id="221">
+          <source>Cost (VAT excluded)</source>
+          <target>Costo (IVA esclusa)</target>
+      </trans-unit>
+
+      <trans-unit id="221">
+          <source>__incoming</source>
+          <target>in entrata</target>
+      </trans-unit>
+
+      <trans-unit id="222">
+          <source>__outgoing</source>
+          <target>in uscita</target>
+      </trans-unit>
+
+      <trans-unit id="223">
+          <source>__internal</source>
+          <target>interna</target>
+      </trans-unit>
+
+      <trans-unit id="224">
+          <source>__unprocessed</source>
+          <target>da classificare</target>
+      </trans-unit>
+
+      <trans-unit id="225">
+          <source>__ignored</source>
+          <target>da ignorare</target>
+      </trans-unit>
+
+      <trans-unit id="225">
+          <source>__Unknown</source>
+          <target>Sconosciuto</target>
+      </trans-unit>
+
+      <trans-unit id="225">
+          <source>Current Password:</source>
+          <target>Password attuale:</target>
+      </trans-unit>
+
+      <trans-unit id="225">
+          <source>New Password:</source>
+          <target>Nuova password:</target>
+      </trans-unit>
+
+      <trans-unit id="225">
+          <source>Repeat Password:</source>
+          <target>Verifica password:</target>
+      </trans-unit>
+
+      <trans-unit id="225">
+          <source>Change Password</source>
+          <target>Cambia Password</target>
+      </trans-unit>
+
+      <trans-unit id="225">
+          <source>Return to Call Report</source>
+          <target>Ritorna all'elenco delle chiamate</target>
+      </trans-unit>
+
+      <trans-unit id="225">
+          <source>The new password will replace the old password within few minutes.</source>
+          <target>La password sara` aggiornata fra qualche minuto.</target>
+      </trans-unit>
+
+      <trans-unit id="225">
+          <source>New password and repeated password are not equal.</source>
+          <target>La nuova password e la password di verifica non sono uguali.</target>
+      </trans-unit>
+
+      <trans-unit id="225">
+          <source>New password can not be empty.</source>
+          <target>La nuova password non e` corretta.</target>
+      </trans-unit>
+
+      <trans-unit id="225">
+          <source>Invalid Current Password.</source>
+          <target>Password non valida.</target>
+      </trans-unit>
+
+      <trans-unit id="1">
+      <source>Account </source>
+      <target>Utente </target>
+    </trans-unit>
+
+      <trans-unit id="1">
+          <source>Account</source>
+          <target>Utenza</target>
+      </trans-unit>
+
+      <trans-unit id="1">
+          <source>Organization Level</source>
+          <target>Utenza al livello</target>
+      </trans-unit>
+
+    <trans-unit id="2">
+      <source>Login</source>
+      <target>Accedi</target>
+    </trans-unit>
+
+    <trans-unit id="2">
+      <source>Logout</source>
+      <target>Esci</target>
+    </trans-unit>
+
+    <trans-unit id="2b">
+      <source>Login:</source>
+      <target>Nome Utente:</target>
+    </trans-unit>
+
+    <trans-unit id="2">
+      <source>User:</source>
+      <target>Utente:</target>
+    </trans-unit>
+
+    <trans-unit id="2">
+      <source>User</source>
+      <target>Utente</target>
+    </trans-unit>
+
+    <trans-unit id="3">
+      <source>Password</source>
+      <target>Password</target>
+    </trans-unit>
+
+    <trans-unit id="3b">
+      <source>Password:</source>
+      <target>Password:</target>
+    </trans-unit>
+
+
+    <trans-unit id="4">
+      <source>Disconnect</source>
+      <target>Disconnetti</target>
+    </trans-unit>
+
+    <trans-unit id="6">
+      <source>Type</source>
+      <target>Tipo</target>
+    </trans-unit>
+
+      <trans-unit id="6">
+          <source>new</source>
+          <target>nuovi</target>
+      </trans-unit>
+
+      <trans-unit id="6">
+          <source> of </source>
+          <target> su </target>
+      </trans-unit>
+
+      <trans-unit id="6">
+          <source>calls </source>
+          <target>chiamate </target>
+      </trans-unit>
+
+      <trans-unit id="6">
+          <source>documents</source>
+          <target>documenti</target>
+      </trans-unit>
+
+      <trans-unit id="6b">
+      <source>Type:</source>
+      <target>Tipo:</target>
+    </trans-unit>
+
+    <trans-unit id="7">
+      <source>Name</source>
+      <target>Nome</target>
+    </trans-unit>
+
+    <trans-unit id="7b">
+      <source>Name:</source>
+      <target>Nome:</target>
+    </trans-unit>
+
+    <trans-unit id="37">
+      <source>Date</source>
+      <target>Data</target>
+    </trans-unit>
+
+    <trans-unit id="37b">
+      <source>Date:</source>
+      <target>Data:</target>
+    </trans-unit>
+
+    <trans-unit id="38">
+      <source>Duration</source>
+      <target>Durata</target>
+    </trans-unit>
+
+    <trans-unit id="39">
+      <source>Cost</source>
+      <target>Costo</target>
+    </trans-unit>
+
+    <trans-unit id="43">
+      <source>Time Frame</source>
+      <target>Periodo</target>
+    </trans-unit>
+
+    <trans-unit id="43">
+      <source>Time Frame:</source>
+      <target>Periodo:</target>
+    </trans-unit>
+
+    <trans-unit id="44">
+      <source>Calls Report</source>
+      <target>Report Chiamate</target>
+    </trans-unit>
+
+    <trans-unit id="45">
+      <source>Nr. of Calls: </source>
+      <target>Nr. di chiamate: </target>
+    </trans-unit>
+
+    <trans-unit id="46">
+      <source>Total Billed Seconds: </source>
+      <target>Tempo chiamate totale: </target>
+    </trans-unit>
+
+    <trans-unit id="48">
+      <source>Total Cost: </source>
+      <target>Costi totali: </target>
+    </trans-unit>
+
+    <trans-unit id="50">
+      <source>Export to CSV</source>
+      <target>Esporta come CSV</target>
+    </trans-unit>
+
+    <trans-unit id="67">
+      <source>Submit</source>
+      <target>Entra</target>
+    </trans-unit>
+
+    <trans-unit id="69">
+      <source>Address</source>
+      <target>Indirizzo</target>
+    </trans-unit>
+
+    <trans-unit id="69b">
+      <source>Address:</source>
+      <target>Indirizzo:</target>
+    </trans-unit>
+
+    <trans-unit id="70">
+      <source>Contacts</source>
+      <target>Recapiti</target>
+    </trans-unit>
+
+    <trans-unit id="70">
+      <source>Contacts:</source>
+      <target>Recapiti:</target>
+    </trans-unit>
+
+    <trans-unit id="79">
+      <source>list</source>
+      <target>elenco</target>
+    </trans-unit>
+
+    <trans-unit id="83">
+      <source>filters</source>
+      <target>filtra su</target>
+    </trans-unit>
+
+    <trans-unit id="85">
+      <source>filter</source>
+      <target>applica</target>
+    </trans-unit>
+
+    <trans-unit id="86">
+      <source>Page not found.</source>
+      <target>Pagina non presente.</target>
+    </trans-unit>
+
+    <trans-unit id="87">
+      <source>Operation is not permitted.</source>
+      <target>Operazione non permessa.</target>
+    </trans-unit>
+
+    <trans-unit id="92">
+      <source>Found Problems</source>
+      <target>Problemi riscontrati</target>
+    </trans-unit>
+
+    <trans-unit id="93">
+      <source>no result</source>
+      <target>nessun elemento</target>
+    </trans-unit>
+
+    <trans-unit id="94">
+      <source>VAT</source>
+      <target>Partita IVA</target>
+    </trans-unit>
+
+    <trans-unit id="95">
+      <source>VAT:</source>
+      <target>Partita IVA:</target>
+    </trans-unit>
+
+    <trans-unit id="100">
+      <source>today</source>
+      <target>oggi</target>
+    </trans-unit>
+
+    <trans-unit id="101">
+      <source>last two days</source>
+      <target>oggi e ieri</target>
+    </trans-unit>
+
+    <trans-unit id="102">
+      <source>this week</source>
+      <target>ultimi 7 giorni</target>
+    </trans-unit>
+
+    <trans-unit id="103">
+      <source>last two weeks</source>
+      <target>ultimi 14 giorni</target>
+    </trans-unit>
+
+    <trans-unit id="104">
+      <source>this month</source>
+      <target>mese corrente</target>
+    </trans-unit>
+
+    <trans-unit id="104">
+      <source>last month</source>
+      <target>mese scorso</target>
+    </trans-unit>
+
+
+      <trans-unit id="225">
+          <source>recent calls</source>
+          <target>recenti</target>
+      </trans-unit>
+
+      <trans-unit id="225">
+          <source>this year</source>
+          <target>anno corrente</target>
+      </trans-unit>
+
+      <trans-unit id="225">
+          <source>last year</source>
+          <target>anno scorso</target>
+      </trans-unit>
+
+      <trans-unit id="105">
+      <source>last two month</source>
+      <target>ultimi due mesi</target>
+    </trans-unit>
+
+    <trans-unit id="106">
+      <source>last four month</source>
+      <target>ultimi 4 mesi</target>
+    </trans-unit>
+
+    <trans-unit id="107b">
+      <source>Tel. Operator:</source>
+      <target>Operatore Tel.:</target>
+    </trans-unit>
+
+    <trans-unit id="108">
+      <source>Telephone Operators</source>
+      <target>Operatori Telefonici</target>
+    </trans-unit>
+
+    <trans-unit id="109">
+      <source>Telephone Prefixes</source>
+      <target>Prefissi Telefonici</target>
+    </trans-unit>
+
+    <trans-unit id="114">
+      <source>Short Code</source>
+      <target>Codice</target>
+    </trans-unit>
+
+    <trans-unit id="114b">
+      <source>Short Code:</source>
+      <target>Codice:</target>
+    </trans-unit>
+
+    <trans-unit id="115">
+      <source>Number Prefix</source>
+      <target>Prefisso</target>
+    </trans-unit>
+
+    <trans-unit id="115b">
+      <source>Number Prefix:</source>
+      <target>Prefisso:</target>
+    </trans-unit>
+
+    <trans-unit id="116">
+      <source>Operator</source>
+      <target>Operatore</target>
+    </trans-unit>
+
+    <trans-unit id="116b">
+      <source>Operator:</source>
+      <target>Operatore:</target>
+    </trans-unit>
+
+    <trans-unit id="117">
+      <source>From</source>
+      <target>Da</target>
+    </trans-unit>
+
+    <trans-unit id="117b">
+      <source>From:</source>
+      <target>Da:</target>
+    </trans-unit>
+
+    <trans-unit id="118">
+      <source>A</source>
+      <target>A</target>
+    </trans-unit>
+
+    <trans-unit id="118b">
+      <source>A:</source>
+      <target>A:</target>
+    </trans-unit>
+
+    <trans-unit id="124">
+      <source>Telephone Operators</source>
+      <target>Operatori Telefonici</target>
+    </trans-unit>
+
+    <trans-unit id="125">
+      <source>Telephone Operator</source>
+      <target>Operatore Telefonico</target>
+    </trans-unit>
+
+    <trans-unit id="128">
+      <source>Customer Invoice</source>
+      <target>Fattura Cliente</target>
+    </trans-unit>
+
+    <trans-unit id="130">
+      <source>Calls from (inclusive):</source>
+      <target>Chiamate da (incluso):</target>
+    </trans-unit>
+
+    <trans-unit id="131">
+      <source>Calls to (exclusive):</source>
+      <target>Chiamate fino a (escluso):</target>
+    </trans-unit>
+
+    <trans-unit id="132">
+      <source>Invoice Number:</source>
+      <target>Numero Fattura:</target>
+    </trans-unit>
+
+    <trans-unit id="133">
+      <source>Details:</source>
+      <target>Dettagli chiamate:</target>
+    </trans-unit>
+
+    <trans-unit id="134">
+      <source>Total Amount (tax not included):</source>
+      <target>Importo totale (tasse escluse):</target>
+    </trans-unit>
+
+    <trans-unit id="135">
+      <source>VAT %:</source>
+      <target>VAT %:</target>
+    </trans-unit>
+
+    <trans-unit id="136">
+      <source>Total VAT:</source>
+      <target>Totale VAT:</target>
+    </trans-unit>
+
+    <trans-unit id="137">
+      <source>Total Amount:</source>
+      <target>Importo Totale:</target>
+    </trans-unit>
+
+
+    <trans-unit id="138">
+      <source>Sent?:</source>
+      <target>Spedita:</target>
+    </trans-unit>
+
+    <trans-unit id="139">
+      <source>Actions:</source>
+      <target>Azioni:</target>
+    </trans-unit>
+
+    <trans-unit id="140">
+      <source>Destination</source>
+      <target>Destinazione</target>
+    </trans-unit>
+
+    <trans-unit id="141">
+      <source>Calls</source>
+      <target>Chiamate</target>
+    </trans-unit>
+
+    <trans-unit id="142">
+      <source>Minutes</source>
+      <target>Minuti Conversazione</target>
+    </trans-unit>
+
+    <trans-unit id="143">
+      <source>Amount</source>
+      <target>Importo</target>
+    </trans-unit>
+
+    <trans-unit id="144">
+      <source>__Totals</source>
+      <target>Totali</target>
+    </trans-unit>
+
+    <trans-unit id="151">
+      <source>__Invoice Date:</source>
+      <target>Data delle fatture:</target>
+    </trans-unit>
+
+    <trans-unit id="152">
+      <source>__Total Billed Minutes: </source>
+      <target>Minuti totali conversazione: </target>
+    </trans-unit>
+
+    <trans-unit id="153">
+      <source>__Cost Limit for last 30 days: </source>
+      <target>Costo massimo mensile: </target>
+    </trans-unit>
+
+    <trans-unit id="154">
+      <source>__Total Call Cost for last 30 days: </source>
+      <target>Costo delle chiamate negli ultimi 30 giorni: </target>
+    </trans-unit>
+
+    <trans-unit id="155">
+      <source>Export to MS Excel</source>
+      <target>Esporta come MS Excel</target>
+    </trans-unit>
+
+    <trans-unit id="156">
+      <source>Cost Currency</source>
+      <target>Moneta Costo</target>
+    </trans-unit>
+
+    <trans-unit id="168">
+      <source>Calldate:</source>
+      <target>Data Chiamata:</target>
+    </trans-unit>
+
+    <trans-unit id="172">
+      <source>Last 30 days Limit</source>
+      <target>Limite spese mensile</target>
+    </trans-unit>
+
+    <trans-unit id="173">
+      <source>Last 30 days Cost</source>
+      <target>Spese degli ultimi 30 giorni</target>
+    </trans-unit>
+
+    <trans-unit id="184">
+      <source>End Point Code</source>
+      <target>Operatore Tel.</target>
+    </trans-unit>
+
+    <trans-unit id="190">
+      <source>There are </source>
+      <target>Ci sono </target>
+    </trans-unit>
+
+    <trans-unit id="195">
+      <source>Details are accessible at </source>
+      <target>I dettagli sono accessibili accedendo a </target>
+    </trans-unit>
+
+    <trans-unit id="196">
+      <source>Destination</source>
+      <target>Destinazione</target>
+    </trans-unit>
+
+    <trans-unit id="197">
+      <source>Calls</source>
+      <target>Nr. Chiamate</target>
+    </trans-unit>
+
+    <trans-unit id="198">
+      <source>Minutes</source>
+      <target>Tempo</target>
+    </trans-unit>
+
+    <trans-unit id="199">
+      <source>Amount</source>
+      <target>Costo</target>
+    </trans-unit>
+
+    <trans-unit id="200">
+      <source>Totals</source>
+      <target>Totali</target>
+    </trans-unit>
+
+    <trans-unit id="201">
+      <source>sec</source>
+      <target>sec</target>
+    </trans-unit>
+
+    <trans-unit id="202">
+      <source>rounded to 1 minute</source>
+      <target>sono arrotondati ad 1 minuto</target>
+    </trans-unit>
+
+    <trans-unit id="203">
+      <source>Costumer:Account</source>
+      <target>Cliente:Utente</target>
+    </trans-unit>
+
+    <trans-unit id="206">
+      <source>Connection</source>
+      <target>Connessione</target>
+    </trans-unit>
+
+    <trans-unit id="208">
+      <source>Call Type</source>
+      <target>Classificazione Chiamata</target>
+    </trans-unit>
+
+    <trans-unit id="209">
+      <source>Time frame</source>
+      <target>Periodo</target>
+    </trans-unit>
+
+    <trans-unit id="211">
+      <source>last 4 months</source>
+      <target>ultimi 4 mesi</target>
+    </trans-unit>
+
+    <trans-unit id="212">
+      <source>last 60 days</source>
+      <target>ultimi 60 giorni</target>
+    </trans-unit>
+
+    <trans-unit id="213">
+      <source>last 30 days</source>
+      <target>ultimi 30 giorni</target>
+    </trans-unit>
+
+    <trans-unit id="214">
+      <source>last 14 days</source>
+      <target>ultimi 14 giorni</target>
+    </trans-unit>
+
+    <trans-unit id="215">
+      <source>last 7 days</source>
+      <target>ultimi 7 giorni</target>
+    </trans-unit>
+
+    <trans-unit id="216">
+      <source>last 2 days</source>
+      <target>ultimi 2 giorni</target>
+    </trans-unit>
+
+    <trans-unit id="218">
+      <source>Specific date range</source>
+      <target>Intervallo specifico</target>
+    </trans-unit>
+
+    <trans-unit id="218">
+      <source>specific date range</source>
+      <target>intervallo specifico</target>
+    </trans-unit>
+
+    <trans-unit id="219">
+      <source>Tel. number connection type</source>
+      <target>Tipo di connessione</target>
+    </trans-unit>
+
+    <trans-unit id="220">
+      <source>Tel. number location</source>
+      <target>Ubicazione</target>
+    </trans-unit>
+
+    <trans-unit id="220">
+      <source>External tel.number prefix</source>
+      <target>Prefisso</target>
+    </trans-unit>
+
+    <trans-unit id="221">
+      <source>incoming</source>
+      <target>in entrata</target>
+    </trans-unit>
+
+    <trans-unit id="222">
+      <source>outgoing</source>
+      <target>in uscita</target>
+    </trans-unit>
+
+    <trans-unit id="223">
+      <source>internal</source>
+      <target>interna</target>
+    </trans-unit>
+
+    <trans-unit id="224">
+      <source>unprocessed</source>
+      <target>da classificare</target>
+    </trans-unit>
+
+    <trans-unit id="225">
+      <source>ignored</source>
+      <target>da ignorare</target>
+    </trans-unit>
+
+    <trans-unit id="228">
+      <source>Tel.Nr.</source>
+      <target>Tel.</target>
+    </trans-unit>
+
+    <trans-unit id="229">
+      <source>Month Limit</source>
+      <target>Limite mensile</target>
+    </trans-unit>
+
+    <trans-unit id="229">
+      <source>Current Month Cost</source>
+      <target>Totale del mese</target>
+    </trans-unit>
+
+    <trans-unit id="204">
+      <source>Time frame:</source>
+      <target>Periodo:</target>
+    </trans-unit>
+
+    <trans-unit id="204">
+      <source>Specific call date from:</source>
+      <target>Da:</target>
+    </trans-unit>
+
+    <trans-unit id="204">
+      <source>Specific call date to:</source>
+      <target>A:</target>
+    </trans-unit>
+
+    <trans-unit id="204">
+      <source>Tel. number connection type:</source>
+      <target>Tipo di connessione</target>
+    </trans-unit>
+
+    <trans-unit id="204">
+      <source>Tel. number location:</source>
+      <target>Ubicazione</target>
+    </trans-unit>
+
+    <trans-unit id="204">
+      <source>External tel.number prefix:</source>
+      <target>Prefisso telefonico</target>
+    </trans-unit>
+
+    <trans-unit id="218">
+      <source>Fixed line</source>
+      <target>Rete fissa</target>
+    </trans-unit>
+
+    <trans-unit id="218">
+      <source>Mobile line</source>
+      <target>Rete mobile</target>
+    </trans-unit>
+
+    <trans-unit id="218">
+      <source>Params</source>
+      <target>Parametri</target>
+    </trans-unit>
+
+    <trans-unit id="218">
+      <source>Call Type:</source>
+      <target>Tipo chiamata:</target>
+    </trans-unit>
+
+    <trans-unit id="218">
+      <source>Telephone Number</source>
+      <target>Numero Telefono Esterno</target>
+    </trans-unit>
+
+    <trans-unit id="218">
+      <source>Connection type</source>
+      <target>Tipo Connessione</target>
+    </trans-unit>
+
+    <trans-unit id="218">
+      <source>Operator name</source>
+      <target>Nome Operatore</target>
+    </trans-unit>
+
+    <trans-unit id="218">
+      <source>Duration in seconds</source>
+      <target>Durata (in secondi)</target>
+    </trans-unit>
+
+    <trans-unit id="218">
+      <source>__PAGE</source>
+      <target>PAGINA</target>
+    </trans-unit>
+
+    <trans-unit id="218">
+      <source>__DATE</source>
+      <target>DATA</target>
+    </trans-unit>
+
+    <trans-unit id="218">
+      <source>__DESTINATION</source>
+      <target>DESTINAZIONE</target>
+    </trans-unit>
+      <trans-unit id="218">
+          <source>__DESCRIPTION</source>
+          <target>DESCRIZIONE</target>
+      </trans-unit>
+      <trans-unit id="218">
+          <source>__QUANTITY</source>
+          <target>QUANTITA`</target>
+      </trans-unit>
+
+    <trans-unit id="218">
+      <source>__CALLS</source>
+      <target>NR.CHIAMATE</target>
+    </trans-unit>
+
+    <trans-unit id="218">
+      <source>__DURATION</source>
+      <target>TEMPO TOT.</target>
+    </trans-unit>
+
+    <trans-unit id="218">
+      <source>__COST</source>
+      <target>COSTO</target>
+    </trans-unit>
+
+    <trans-unit id="218">
+      <source>__VAT</source>
+      <target>P.IVA</target>
+    </trans-unit>
+
+    <trans-unit id="218">
+      <source>__tel:</source>
+      <target>tel:</target>
+    </trans-unit>
+
+    <trans-unit id="218">
+      <source>__Amount</source>
+      <target>Imponibile</target>
+    </trans-unit>
+
+    <trans-unit id="218">
+      <source>__VAT:</source>
+      <target>P.IVA:</target>
+    </trans-unit>
+
+    <trans-unit id="218">
+      <source>__VAT Tax</source>
+      <target>IVA</target>
+    </trans-unit>
+
+    <trans-unit id="218">
+      <source>__% VAT</source>
+      <target>Aliq.IVA</target>
+    </trans-unit>
+
+    <trans-unit id="218">
+      <source>__Total</source>
+      <target>Totale</target>
+    </trans-unit>
+
+     <trans-unit id="218">
+      <source>__Period</source>
+      <target>Periodo</target>
+    </trans-unit>
+
+   <trans-unit id="218">
+      <source>__Invoiced Period</source>
+      <target>Periodo Fatturato</target>
+    </trans-unit>
+
+    <trans-unit id="218">
+      <source>__NR.</source>
+      <target>NR.</target>
+    </trans-unit>
+
+    <trans-unit id="218">
+      <source>from</source>
+      <target>da</target>
+    </trans-unit>
+
+    <trans-unit id="218">
+      <source>to</source>
+      <target>a</target>
+    </trans-unit>
+
+    <trans-unit id="218">
+          <source>__from</source>
+          <target>da</target>
+    </trans-unit>
+
+    <trans-unit id="218">
+        <source>__to</source>
+        <target>a</target>
+    </trans-unit>
+
+    <trans-unit id="218">
+      <source>Reported Period</source>
+      <target>a</target>
+    </trans-unit>
+
+    <trans-unit id="117">
+      <source>From (inclusive):</source>
+      <target>Da (incluso):</target>
+    </trans-unit>
+
+      <trans-unit id="117">
+          <source>__(inclusive)</source>
+          <target>(incluso)</target>
+      </trans-unit>
+      <trans-unit id="117">
+          <source>__(exclusive)</source>
+          <target>(escluso)</target>
+      </trans-unit>
+
+    <trans-unit id="117">
+      <source>To (exclusive):</source>
+      <target>A (escluso):</target>
+    </trans-unit>
+
+      <trans-unit id="117">
+          <source>__From (inclusive):</source>
+          <target>Da (incluso):</target>
+      </trans-unit>
+
+      <trans-unit id="117">
+          <source>__To (exclusive):</source>
+          <target>A (escluso):</target>
+      </trans-unit>
+
+
+      <trans-unit id="117">
+      <source>__VAT:</source>
+      <target>P.IVA:</target>
+    </trans-unit>
+
+    <trans-unit id="117">
+      <source>__from company</source>
+      <target>intestatario</target>
+    </trans-unit>
+
+    <trans-unit id="117">
+      <source>__with this data </source>
+      <target>con i seguenti dettagli </target>
+    </trans-unit>
+
+    <trans-unit id="117">
+      <source>__Invoice number: </source>
+      <target>Numero fattura: </target>
+    </trans-unit>
+
+    <trans-unit id="117">
+      <source>__Invoice date: </source>
+      <target>Data fattura: </target>
+    </trans-unit>
+
+    <trans-unit id="117">
+      <source>__Telephone calls from </source>
+      <target>Traffico telefonico da </target>
+    </trans-unit>
+
+    <trans-unit id="117">
+      <source>__Total without tax: </source>
+      <target>Imponibile: </target>
+    </trans-unit>
+
+    <trans-unit id="117">
+      <source>__VAT %: </source>
+      <target>Aliquota IVA: </target>
+    </trans-unit>
+
+    <trans-unit id="117">
+      <source>__Total VAT: </source>
+      <target>Iva: </target>
+    </trans-unit>
+
+    <trans-unit id="117">
+      <source>__Total with tax: </source>
+      <target>Importo totale: </target>
+    </trans-unit>
+
+    <trans-unit id="117">
+      <source>__Invoice Notification for customer </source>
+      <target>Fattura per </target>
+    </trans-unit>
+
+    <trans-unit id="117">
+      <source>__ from company </source>
+      <target> da </target>
+    </trans-unit>
+
+    <trans-unit id="117">
+      <source>Source:</source>
+      <target>Sorgente:</target>
+    </trans-unit>
+
+    <trans-unit id="117">
+      <source>Destination:</source>
+      <target>Destinazione:</target>
+    </trans-unit>
+
+    <trans-unit id="117">
+      <source>Source</source>
+      <target>Sorgente</target>
+    </trans-unit>
+
+    <trans-unit id="117">
+      <source>excluded</source>
+      <target>escluso</target>
+    </trans-unit>
+
+    <trans-unit id="200">
+      <source>Show:</source>
+      <target>Visualizza:</target>
+    </trans-unit>
+
+      <trans-unit id="200">
+          <source>Already viewed</source>
+          <target>Letto</target>
+      </trans-unit>
+      <trans-unit id="200">
+          <source>Already viewed:</source>
+          <target>Letto</target>
+      </trans-unit>
+
+      <trans-unit id="200">
+          <source>Description</source>
+          <target>Descrizione</target>
+      </trans-unit>
+
+      <trans-unit id="200">
+          <source>From date (inclusive)</source>
+          <target>Da</target>
+      </trans-unit>
+
+      <trans-unit id="200">
+          <source>From date (inclusive):</source>
+          <target>Da</target>
+      </trans-unit>
+
+      <trans-unit id="200">
+          <source>Generation date:</source>
+          <target>Creato il:</target>
+      </trans-unit>
+
+      <trans-unit id="200">
+          <source>Show Call Report</source>
+          <target>Mostra Chiamate</target>
+      </trans-unit>
+
+      <trans-unit id="200">
+          <source>Documents</source>
+          <target>Documenti</target>
+      </trans-unit>
+
+      <trans-unit id="200">
+          <source>All calls of</source>
+          <target>Tutte le chiamate di</target>
+      </trans-unit>
+
+      <trans-unit id="200">
+          <source>Account:</source>
+          <target>Utenza:</target>
+      </trans-unit>
+
+      <trans-unit id="200">
+          <source>Extension:</source>
+          <target>Terminale:</target>
+      </trans-unit>
+
+      <trans-unit id="200">
+          <source>Extension Code:</source>
+          <target>Codice Terminale:</target>
+      </trans-unit>
+
+      <trans-unit id="200">
+          <source>Call Direction:</source>
+          <target>Direzione Chiamata:</target>
+      </trans-unit>
+
+      <trans-unit id="200">
+          <source>Is redirected:</source>
+          <target>Chiamata reindirizzata:</target>
+      </trans-unit>
+
+      <trans-unit id="200">
+          <source>yes</source>
+          <target>si</target>
+      </trans-unit>
+
+      <trans-unit id="200">
+          <source>yes</source>
+          <target>no</target>
+      </trans-unit>
+
+      <trans-unit id="200">
+          <source>yes or no</source>
+          <target>qualunque valore</target>
+      </trans-unit>
+
+      <trans-unit id="200">
+          <source>connection type </source>
+          <target>tipo connessione </target>
+      </trans-unit>
+
+      <trans-unit id="200">
+          <source>telephone number location </source>
+          <target>luogo chiamata </target>
+      </trans-unit>
+
+      <trans-unit id="200">
+          <source>external telephone number starting with </source>
+          <target>prefisso telefonico </target>
+      </trans-unit>
+
+      <trans-unit id="200">
+          <source>vendor </source>
+          <target>vendor </target>
+      </trans-unit>
+
+      <trans-unit id="200">
+          <source>unknown vendor</source>
+          <target>vendor sconosciuto</target>
+      </trans-unit>
+
+      <trans-unit id="200">
+          <source>communication channel </source>
+          <target>canale di comunicazione </target>
+      </trans-unit>
+
+      <trans-unit id="200">
+          <source>unknown channel</source>
+          <target>canale di comunicazione sconosciuto</target>
+      </trans-unit>
+
+      <trans-unit id="200">
+          <source> redirected </source>
+          <target> reindirizzate </target>
+      </trans-unit>
+
+      <trans-unit id="200">
+          <source> no redirected </source>
+          <target> non reindirizzate </target>
+      </trans-unit>
+
+      <trans-unit id="200">
+          <source>of </source>
+          <target>di </target>
+      </trans-unit>
+
+      <trans-unit id="200">
+          <source>__of</source>
+          <target>di</target>
+      </trans-unit>
+
+      <trans-unit id="200">
+          <source>__Summary of Calls</source>
+          <target>Report</target>
+      </trans-unit>
+
+      <trans-unit id="200">
+          <source>__Summary of Invoiced Calls</source>
+          <target>Report delle chiamate fatturate</target>
+      </trans-unit>
+      <trans-unit id="200">
+          <source>__summary_of_invoiced_calls_</source>
+          <target>report_fatturazione_</target>
+      </trans-unit>
+      <trans-unit id="200">
+          <source>__calls_cost_summary_</source>
+          <target>report_costo_chiamate</target>
+      </trans-unit>
+      <trans-unit id="200">
+          <source>__Invoice</source>
+          <target>Fattura</target>
+      </trans-unit>
+      <trans-unit id="200">
+          <source>__invoice_</source>
+          <target>fattura_</target>
+      </trans-unit>
+
+      <trans-unit id="200">
+          <source>__Totals:</source>
+          <target>Totali:</target>
+      </trans-unit>
+      <trans-unit id="200">
+          <source>__Nr</source>
+          <target>Nr</target>
+      </trans-unit>
+      <trans-unit id="200">
+          <source>__Duration</source>
+          <target>Durata</target>
+      </trans-unit>
+      <trans-unit id="200">
+          <source>__Income</source>
+          <target>Ricavo</target>
+      </trans-unit>
+      <trans-unit id="200">
+          <source>__Cost</source>
+          <target>Costo</target>
+      </trans-unit>
+      <trans-unit id="200">
+          <source>__Earn</source>
+          <target>Guadagno</target>
+      </trans-unit>
+      <trans-unit id="200">
+          <source>__Note: all costs are VAT excluded</source>
+          <target>Nota: tutti i costi sono IVA esclusa</target>
+      </trans-unit>
+      <trans-unit id="200">
+          <source>__VAT:</source>
+          <target>IVA:</target>
+      </trans-unit>
+      <trans-unit id="200">
+          <source>__tel:</source>
+          <target>tel:</target>
+      </trans-unit>
+      <trans-unit id="200">
+          <source>__tel:</source>
+          <target>tel:</target>
+      </trans-unit>
+      <trans-unit id="200">
+          <source>__incoming</source>
+          <target>entrata</target>
+      </trans-unit>
+      <trans-unit id="200">
+          <source>__outgoing</source>
+          <target>uscita</target>
+      </trans-unit>
+      <trans-unit id="200">
+          <source>__internal</source>
+          <target>interne</target>
+      </trans-unit>
+      <trans-unit id="200">
+          <source>__Call directions</source>
+          <target>Direzione chiamate</target>
+      </trans-unit>
+      <trans-unit id="200">
+          <source>__Vendors</source>
+          <target>Vendor</target>
+      </trans-unit>
+
+      <trans-unit id="200">
+          <source>__Channels</source>
+          <target>Canali di comunicazione</target>
+      </trans-unit>
+      <trans-unit id="200">
+          <source>__Locations</source>
+          <target>Destinazioni</target>
+      </trans-unit>
+      <trans-unit id="200">
+          <source>__Child organizations</source>
+          <target>Utente</target>
+      </trans-unit>
+      <trans-unit id="200">
+          <source>__, restricted to vendor</source>
+          <target>, del vendor </target>
+      </trans-unit>
+      <trans-unit id="200">
+          <source>__all organizations</source>
+          <target>tutti gli utenti</target>
+      </trans-unit>
+
+  </body>
+  </file>
+</xliff>

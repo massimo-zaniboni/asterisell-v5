@@ -1,0 +1,32 @@
+generator:
+  class: sfPropelAdminGenerator
+  param:
+    model_class:           ArRole
+    theme:                 admin
+    non_verbose_templates: true
+    with_show:             false
+    singular:              ArRole
+    plural:                ArRoles
+    route_prefix:          ar_role
+    with_propel_route:     1
+    actions_base_class:    sfActions
+
+    fields:
+      name: { name: Name }
+      description: { name: Description }
+      power: { name: Power level, help: "0 for a role with more privileges than 10 and so on. Used only for nice ordered display of roles, from the more powerful to the least powerful. " }
+
+    list:
+      title: User Roles
+
+      display: [=name, description]
+      filters: [name]
+      sort: [power, asc]
+
+    edit:
+      title: User Role
+      fields:
+        role_permissions: { type: admin_check_list, params: through_class=ArRoleHasPermission }
+
+      display: [name, description, power, role_permissions]
+

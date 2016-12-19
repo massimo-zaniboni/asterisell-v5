@@ -1,0 +1,53 @@
+generator:
+  class: sfPropelAdminGenerator
+  param:
+    model_class:           ArReportSet
+    theme:                 default
+
+    fields:
+      ar_report_scheduler_id: { name: "Report Scheduler", help: "The report scheduler that generated the report set. " }
+
+      from_date: { name: "Calls from", help: "The report contains calls starting from the specified date. ", params: disabled=true  }
+
+      to_date: { name: "Calls to", help: "The report contains calls to the specified date (exclusive). ", params: disabled=true  }
+
+      short_description: { name: Name, type: textarea_tag, params: disabled=true size=80x8  }
+      additional_description: { name: Description, type: textarea_tag, params: disabled=true size=80x8  }
+      note: { name: Note, type: textarea_tag, params: disabled=true size=80x8  }
+
+      link_to_report_scheduler: { name: Report Scheduler, help: "A link to the report scheduler, that generated the reports set." }
+
+    list:
+      peer_method: doSelectJoinArReportScheduler
+
+      title: Reports Set
+      actions: []
+      fields:
+        must_be_reviewed: { name: "To Review", help: "True if the associated reports are not visible to users, and they must be reviewed, before sending them to users." }
+        # NOTE: I'm repeating here, because I want enable in list for filter porpouse, and disable in edit
+
+      display: [=from_date, must_be_reviewed, _short_description ]
+
+      sort: [from_date, desc]
+
+      filters: [from_date, to_date, must_be_reviewed]
+
+    edit:
+      title: Reports Set
+
+      fields:
+        create_report_action: { name: "Generate", help: "Reports will be generated according the current date, and the scheduling of the report. In case, the old generated reports will be replaced by this new reports, and they must be reviewed again." }
+        confirm_all_reports_action: { name: "Confirm", help: "Reports, are confirmed, and they can be view from users. In case of changes of user permissions, update also users that can view them, or that can not anymore view them. " }
+        delete_all_reports_action: { name: "Delete", help: "Delete reports." }
+        generated_reports: { name: Generated Reports }
+        must_be_reviewed: { name: "To Review", help: "True if the associated reports are not visible to users, and they must be reviewed, before sending them to users.", params: disabled=true  }
+
+      display:
+        Main Params: [_short_description, _link_to_report_scheduler, _additional_description, _note, from_date, to_date, must_be_reviewed]
+        Actions: [ _create_report_action, _delete_all_reports_action, _confirm_all_reports_action ]
+        Generated Reports: [ _generated_reports ]
+
+      actions:
+        _list: ~
+        _delete: ~
+

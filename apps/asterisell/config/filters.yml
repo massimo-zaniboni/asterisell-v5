@@ -1,0 +1,12 @@
+rendering: ~
+security:  ~
+
+# generally, you will want to insert your own filters here
+
+cache:     ~
+execution: ~
+
+myUtf8ConnectionFilter:
+  class: myUtf8ConnectionFilter
+  activate: on
+

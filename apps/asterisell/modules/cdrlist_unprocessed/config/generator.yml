@@ -1,0 +1,20 @@
+generator:
+  class:              sfPropelAdminGenerator
+  param:
+    model_class:      ArCdr
+    theme:            default
+
+    list:
+      title: Calls with Rating Errors
+
+      fields:
+        id:                       { name: id }
+        calldate:                 { name: Timestamp }
+        my_suggested_destination_type: { name: Suggested Destination Type }
+        cached_external_telephone_number: { name: External number }
+        to_problem:                    { name: Related problem }
+
+      display: [=_to_problem, id, calldate, _my_suggested_destination_type, cached_external_telephone_number]
+
+      actions: {}
+      sort: [calldate, desc]

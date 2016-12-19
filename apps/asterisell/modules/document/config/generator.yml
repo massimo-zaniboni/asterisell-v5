@@ -1,0 +1,38 @@
+generator:
+  class:              sfPropelAdminGenerator
+  param:
+    model_class:      ArDocument
+    theme:            default
+
+    fields:
+
+      id:
+
+      ar_party_id: { name: Sent to, help: "The customer that can view the document." }
+
+      ar_party: { name: Sent to, help: "The customer that can view the document." }
+
+      document_name: { name: Name, help: "Document human readable name / title." }
+
+      display_file_name: { name: File Name }
+
+      document_date: { name: Date, help: "Documents are showed in descending order by date." }
+
+      already_opened: { name: Opened from the customer, help: "True if the customer has opened it " }
+
+    list:
+      title: Documents Sent to Customers
+
+      display: [document_date, document_name, =_display_file_name, ar_party, already_opened]
+      sort:    [document_date, desc]
+      filters: [ar_party_id, document_name, document_date, already_opened]
+
+    edit:
+      fields:
+        upload_file: { name: Document to upload }
+        download_file: { name: Download }
+
+      title: Documents Sent to Customer
+
+      display: [ar_party_id, document_date, document_name, _upload_file, _display_file_name, _download_file, already_opened]
+

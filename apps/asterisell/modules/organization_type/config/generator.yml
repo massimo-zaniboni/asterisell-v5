@@ -1,0 +1,25 @@
+generator:
+  class: sfPropelAdminGenerator
+  param:
+    model_class:           ArOrganizationUnitType
+    theme:                 defaultd
+
+
+    fields:
+      name:            { name: Complete Name }
+      short_code:      { name: Short Name, help: "Short name used as prefix before the organization name." }
+      internal_name:   { name: Internal Code, help: "Internal code, used from the application code, for accessing specific organization types. " }
+
+    list:
+         title: Types of Organization Unit
+         display: [=name, short_code]
+         filters: [name, short_code]
+         sort: [name, asc]
+
+
+    edit:
+         title: Type of Organization Unit
+
+         display:
+           Info: [name, short_code]
+           Internal Details: [internal_name]

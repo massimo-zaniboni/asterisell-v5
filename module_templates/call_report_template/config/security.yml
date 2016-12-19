@@ -1,0 +1,29 @@
+<?php
+
+require 'generator_header.php';
+
+?>
+
+################################################################
+#!!!                                                        !!!#
+#!!! WARNING: This file is automatic generated.             !!!#
+#!!!                                                        !!!#
+#!!! In order to modify this file change the content of     !!!#
+#!!!                                                        !!!#
+#!!!    /module_template/call_report_template               !!!#
+#!!!                                                        !!!#
+#!!! and execute                                            !!!#
+#!!!                                                        !!!#
+#!!!    php asterisell activate                             !!!#
+#!!!                                                        !!!#
+################################################################
+
+all:
+  is_secure: on
+<?php 
+if ($generateForAdmin) { 
+  echo "  credentials: admin\n"; 
+} else {
+  echo "  credentials: user\n";
+}
+?>

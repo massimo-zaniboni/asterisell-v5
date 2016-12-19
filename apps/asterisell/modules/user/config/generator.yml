@@ -1,0 +1,40 @@
+generator:
+  class: sfPropelAdminGenerator
+  param:
+    model_class:           ArUser
+    theme:                 default
+
+    fields:
+      ar_party_id: { name: Party, help: "Account info." }
+      ar_party: { name: Party, help: "Account info."  }
+      go_to_party: { name: Edit Party Info, help: "Configure account info, and in particular email, if he must be advised by email." }
+      login: { name: "Login"  }
+      disable_login_action: { name: Actions, help: "Clear the password, disabling the login. The account can still receive emails with generated reports. " }
+      newpassword: { name: "Password ", help: "Insert a new password, only if you want change it. Leave empty for using the current password. Note that users can change password themself, selecting their account in the upper right corner." }
+      is_root_admin: { name: System administrator, help: "True if the account is the administrator of the application. In this case it has complete permissions on every part of the application. Enable also for accountants needing to receive reports with information not accessible from normal users, like cost calls, and so on." }
+      is_enabled: { name: Enabled Account, help: "True if the account can login in the system, and he can be notified by email (only if his email is set). " }
+      derived_name: { name: Name }
+      display_roles_and_permissions: { name: Roles and Permissions }
+      display_all_permissions: { name: All Permissions, help: "The permissions of the account derived from his roles, and from direct assigned permissions." }
+      select_organization: { name: "Organization", help: "The organization for which the account has permissions. Leave empty for web accounts having the specified rights on all organizations. "  }
+      display_organization: { name: "Organization", help: "The organization for which the account has permissions. Leave empty for web accounts having the specified rights on all organizations. "  }
+      select_party: { name: Account Party, help: "The party identifying the account. Leave empty for using the same party of the associated organization. Note: these are the info of the account, that can be distinct from the organization for wich the account has permissions. " }
+      access_status: { name: Access Status }
+
+    list:
+      title: Web Accounts
+
+      display: [=login, _display_organization, is_root_admin, is_enabled]
+      filters: [ar_party_id, login, is_enabled, is_root_admin]
+      sort: [login, asc]
+
+    edit:
+      title: Web Account
+      fields:
+        user_roles: { name: "Account roles", help: "The roles played by the account. Note: Reports already assigned and visible to accounts, are not affected by these changes. In case the administrator must confirm and send them to accounts again. ", type: admin_check_list, params: through_class=ArUserHasRole }
+        user_permissions: { name: "Additional permissions", help: "Permissions directly assigned to the account, in addition to permissions derived from his role. Note: Reports already assigned and visible to accounts, are not affected by these changes. In case the administrator must confirm and send them to accounts again. ", type: admin_check_list, params: through_class=ArUserHasPermission }
+
+      display:
+        Login: [login, _newpassword, _disable_login_action, is_enabled, _access_status]
+        Permissions: [ is_root_admin, _select_organization, _display_all_permissions, user_roles, user_permissions, ]
+        Account Info: [_select_party, _go_to_party,]

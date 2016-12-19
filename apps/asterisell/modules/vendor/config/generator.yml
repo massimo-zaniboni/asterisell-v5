@@ -1,0 +1,25 @@
+generator:
+  class: sfPropelAdminGenerator
+  param:
+    model_class:           ArVendor
+    theme:                 default
+
+    fields:
+          ar_party_id: { name: Party, help: "Optional for internal Vendors. " }
+          ar_party: { name: Party, help: "Optional for internal Vendors. " }
+          select_party: { name: Party, help: "Optional for internal Vendors. " }
+          derived_name: { name: Name }
+          is_internal: { name: Is Internal, help: "False for normal VoIP vendors, that must be paid for theirs service. True for internal VoIP services, that are not paid for routing the calls. Internal vendors are not displayed on reports." }
+          internal_name: { name: Reference Name, help: "A unique reference/identifier name, used in rate specifications. Use names like \"some-name\"" }
+          go_to_party: { name: Edit Party Info, help: "Configure vendor info." }
+
+    list:
+          title: Vendors
+
+          display: [=_derived_name, is_internal, internal_name]
+          filters: [is_internal]
+          sort: [internal_name, asc]
+
+    edit:
+          title: Vendor
+          display: [internal_name, _select_party, _go_to_party, is_internal]

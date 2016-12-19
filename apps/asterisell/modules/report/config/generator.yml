@@ -1,0 +1,97 @@
+generator:
+  class: sfPropelAdminGenerator
+  param:
+    model_class:           ArReport
+    theme:                 admin
+    non_verbose_templates: true
+    with_show:             false
+    singular:              ArReport
+    plural:                ArReports
+    route_prefix:          ar_report
+    with_propel_route:     1
+    actions_base_class:    sfActions
+
+    fields:
+        id: { name: "Id", help: "Identifier" }
+        select_premade_report: { name: "Template", help: "After selection, complete only the params that make sense for the report template. All other params will be derived automatically during report creation." }
+        produced_report_generation_date: { name: "Generation date" }
+        produced_report_short_description: { name: "Type" }
+        ar_organization_unit_id: { name: "Organization", help: "Set for reports having a organization as parameter." }
+        ar_organization_unit: { name: "Organization", help: "Set for reports having a organization as parameter." }
+        ar_user_id: { name: "User", help: "Set for reports having a user as parameter." }
+        ar_user: { name: "User", help: "Set for reports having a user as parameter." }
+        from_date: { name: "Reference date", help: "In case of custom report, the starting date of calls to process. In case of pre-made reports, with a predictable date range, a date inside the range. For example every day of a month for a monthly report does not make difference, because it will always identify the start of the month after report generation." }
+        to_date: { name: "Second reference date", help: "Leave empty for pre-made reports with a predictable date range, because the first reference date is suficent. The ending date (exclusive) of calls to process, in case of custom report." }
+        download_file: { name: "Report file" }
+        param_show_masked_telephone_numbers: { name: "Show masked telephone numbers", help: "False for showing complete (non masked) telephone numbers. Report will be accessible only from users with the proper permissions. " }
+        param_show_call_cost: { name: "Show call costs", help: "Show also calls costs. Report will be accessible only from users with the proper permissions. " }
+        param_show_call_income: { name: "Show call incomes", help: "Show also calls incomes. Report will be accessible only from users with the proper permissions. " }
+        param_show_also_outgoing_calls: { name: "Show outgoing calls" }
+        param_show_also_system_calls: { name: "Show system calls", help: "Usually system calls should be viewed only from the administrator of the system, and not customers."}
+        param_show_also_incoming_calls: { name: "Show also incoming calls" }
+        param_show_also_internal_calls: { name: "Show also internal calls" }
+        param_show_call_details: { name: "Show call details", help: "If the report type support it, show every call." }
+        param_show_voip_provider: { name: "Show VoIP Vendor", help: "If the report support it, show VoIP Vendor informations. " }
+        param_show_communication_channel: { name: "Show communication channel", help: "If the report support it, show communication channel informations. Some reports support only VoIP or channel, and not both. Other reports support both, and contemporaney. " }
+        param_show_geographic_location: { name: "Show geographic location", help: "If the report support it, show information about the geographic location of the call. " }
+        param_show_connection_type: { name: "Show connection type", help: "If the report support it, show inforamtion about the connection type, e.g., Mobile, Fixed line. " }
+        param_show_cost_saving: { name: "Show cost savings", help: "Show cost saving." }
+        param_expand_to_level: { name: "Expand until level", help: " 0 for expanding all the sub organizations, 1 for showing only the info of the starting organization, 2 for expanding only the direct sub organizations, 3 for expanding the sub organizations of direct sub organization, and so on..." }
+        param_is_legal: { name: "Billing Document", help: "True for invoices, and other legal documents, that must be sent also to the official email address of the billing party. Use True also in case of call reports, if they must be sent to the official email address of the billed party, otherwise they will be sent only to the (few) subscribed web accounts. At least one legal/official report should be configured, because it is used for advancing the official call date, and it is used for deciding which calls can be rerated, in case there are changes in rate params." }
+        produced_report_additional_description: { name: "Description", help: "It will be compiled from the system, after report genaration. ", type: textarea_tag, params: disabled=true size=80x5 }
+        is_template: { name: "Used as template", help: "True for using as template for scheduled reports. The report must be generated in any case, in order to complete the calculated fields. Template reports are not visible to users, because they are used only as template for generating other scheduled reports."}
+
+        filter_on_end_time: { name: Applicable at , }
+
+        filter_on_organization: { name: "Organization", filter_criteria_disabled: true }
+        select_organization: { name: "Organization", help: "Reports are generated for the specified organization."  }
+        ar_organization_unit: { name: "Organization", help: "Reports are generated for the specified organization."  }
+        select_proper_organization: { name: "Organization", help: "Reports are generated for the specified organization. Empty for reports associated to all the defined customers/organizations."  }
+        select_voip_account: { name: "Extension", help: "Reports are generated for the specified extension. Note: in case also an organization is specified, this filter takes the precedence, because it is more selective."  }
+
+        select_vendor: { name: "Vendor", help: "The report is restricted to this vendor. Empty for including all vendors. Note: this option is not supported from all the reports. " }
+
+        ar_report_order_of_children_id: { name: "Order", help: "The order to use for report elements. " }
+
+        report_name: { name: "Name", help: "Empty for using the default report name. Otherwise a short report name/description, to use as name of the report. "}
+
+        report_mail_subject: { name: "Email subject", help: "If empty a default email subject will be used. The subject to use, when the report is sent by email otherwise. " }
+        report_mail_body: { name: "Email body", help: "If empty a default email body will be used. The text to use in the email otherwise. You can use the macro `${ORGANIZATION}` as place holder for the name of the organization associated to the report.", type: textarea_tag, params: size=80x5  }
+        report_attachment_file_name: { name: "Attachment name", help: "File name to use for email attachment. Empty for using a default name. Note: specify only the name, the suffix of the attachment (.pdf, .csv, etc.) will be added automatically, according the type of report generated." }
+        report_attachment_file_name_add_report_date: { name: "Attachment name with date", help: "True for appending to file name of the attachment, also the starting date of the report, in YYYY-MM-DD format. " }
+
+        legal_consecutive_nr: { name: "Legal nr.", help: "In case of legal/fiscal document (for example invoices), it is the consecutive unique number. See the notes on the footer, about how consecutive numbers are set. " }
+        legal_nr_prefix: { name: "Legal nr. prefix", help: "In case of legal/fiscal document (for example invoices), it is the optianl prefix to use before the consecutive unique number. " }
+        legal_date: { name: "Legal date", help: "In case of legal/fiscal document (for example invoices), it is the document date. " }
+
+    list:
+        title: Reports
+        fields:
+          produced_report_is_draft: { name: "Draft", help: "True if the report contains not correctly processed CDRs, and it can not be considered definitive." }
+          produced_report_already_reviewed: { name: "Confirmed", help: "True if the report can be viewed from users, or sent by email. False if the report must be reviewed from administrators, before sending to users. Note: a draft report if confirmed, is sent to users in any case. " }
+          # note: I'm repeating this, because in edit they are disbled, and in filter they are enabled
+
+        display: [is_template, =from_date, id, produced_report_short_description, ar_organization_unit, produced_report_already_reviewed, produced_report_is_draft]
+        sort: [from_date, desc]
+        filters: [produced_report_already_reviewed, produced_report_is_draft, from_date, _filter_on_organization, produced_report_generation_date, is_template]
+
+    edit:
+        title: Report
+        fields:
+          display_generation_date: { name: "Generation date" }
+          create_report_action: { name: "Generate", help: "Generate or replace the already generated report." }
+          confirm_report_action: { name: "Confirm", help: "The report content is correct, and it can be sent to users. In case of changes of user permissions, update also users that can view them, or that can not anymore view them." }
+          report_also_for: { name: "Send to", help: "The report can be viewed from web accounts having one of the specified roles for an organization that is the same of the report organization. The conditions on roles are in logical \"or\" togheter. Legal documents are sent by default also to the email of the associated billable party, indipendently from the values of these fields.", type: admin_check_list, params: through_class=ArReportAlsoFor }
+          link_to_report_set: { name: "Reports Set", help: "The reports set containing this report. Empty in case of single reports, not generated from a report scheduler." }
+          produced_report_is_draft: { name: "Draft", help: "True if the report contains not correctly processed CDRs, and it can not be considered definitive.", params: disabled=true  }
+          produced_report_already_reviewed: { name: "Confirmed", help: "True if the report can be viewed from users, or sent by email. False if the report must be reviewed from administrators, before sending to users. Note: a draft report if confirmed, is sent to users in any case. ", params: disabled=true  }
+
+        display:
+          Main Params (to set for generating the report): [is_template, _link_to_report_set, _select_premade_report, report_name, produced_report_additional_description, _select_proper_organization, _select_voip_account, _select_vendor, report_also_for, from_date ]
+          Optional Params (to set only for user defined reports): [to_date, param_is_legal, param_expand_to_level, ar_report_order_of_children_id, param_show_also_outgoing_calls, param_show_also_system_calls, param_show_also_incoming_calls, param_show_also_internal_calls, param_show_call_cost, param_show_call_income, param_show_cost_saving, param_show_voip_provider, param_show_communication_channel, param_show_geographic_location, param_show_connection_type, param_show_masked_telephone_numbers, param_show_call_details]
+          Legal and Fiscal Params (only for invoices): [legal_consecutive_nr, legal_nr_prefix, legal_date]
+          Email:  [report_mail_subject, report_mail_body, report_attachment_file_name, report_attachment_file_name_add_report_date]
+          State:  [produced_report_is_draft, produced_report_already_reviewed]
+          Report: [_create_report_action, _confirm_report_action, _display_generation_date, _download_file]
+
+        actions: ~

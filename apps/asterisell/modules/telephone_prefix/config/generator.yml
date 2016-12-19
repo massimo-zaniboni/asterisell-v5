@@ -1,0 +1,28 @@
+generator:
+  class:              sfPropelAdminGenerator
+  param:
+    model_class:      ArTelephonePrefix
+    theme:            default
+
+    fields:
+      prefix: { name: Telephone Prefix }
+      
+      operator_type: { name: Connection Type }
+      
+      name: { name: Operator Name }
+      
+      geographic_location: { name: Geographic Location }
+
+      match_only_numbers_with_n_digits: { name: "Require exact lenght", help: "This prefix is applicable only if the telephone number has exactly this number of digits. 0 or NULL for disabling this condition. " }
+
+    list:
+      title: Telephone Prefixes
+
+      display: [=prefix, operator_type, geographic_location, name]
+
+      filters: [prefix, operator_type, geographic_location, name]
+      sort: [prefix, asc]
+
+    edit:
+      title: Telephone Prefix
+      fields: [prefix, match_only_numbers_with_n_digits, operator_type, name, geographic_location]

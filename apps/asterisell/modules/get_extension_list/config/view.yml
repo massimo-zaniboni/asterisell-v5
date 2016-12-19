@@ -1,0 +1,14 @@
+exportToCsvSuccess:
+  has_layout: false
+  http_metas:
+    cache-control: private
+    pragma: private
+    content-type: text/plain
+    content-disposition: inline; filename="extension_list_at_current_time.yaml"
+# NOTE:
+#
+# cache-control "private" and pragma "private" are needed
+# as a workaround for bug
+#
+# http://support.microsoft.com/kb/323308/en-us
+

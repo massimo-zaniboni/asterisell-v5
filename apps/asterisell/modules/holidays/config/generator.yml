@@ -1,0 +1,22 @@
+generator:
+  class: sfPropelAdminGenerator
+  param:
+    model_class:           ArHoliday
+    theme:                 default
+
+    fields:
+      day_of_month: { name: "Day of month", help: "A number between 1-31" }
+      month: { name: "Month", help: "A number between 1-12" }
+      year: { name: "Year", help: "Empty for holidays repeated every year at the same day and month. An year in YYYY format otherwise." }
+      day_of_week: { name: "Day of week", help: "Empty for holidays associated to a day of the year. A day of the week (for example Sunday) for holidays associated to a day of the week. Usually if this field is specified, then the other fields are empty. The format is 1 for Monday, 2 for Tuesday, and 5 for Sunday. " }
+      human_readable_description: { name: "Description" }
+
+    list:
+      title: Holidays
+      display: [=human_readable_description]
+      filters: [year]
+
+    edit:
+      title: Holiday
+
+      display: [human_readable_description, day_of_month, month, year, day_of_week]

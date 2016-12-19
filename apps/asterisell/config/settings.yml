@@ -1,0 +1,58 @@
+all:
+  .actions:
+    login_module: login     # To be called when a non-authenticated user
+    login_action: index     # Tries to access a secure page
+
+    default_module:         exception   # Default module and action to be called when
+    default_action:         error404     # A routing rule doesn't set it
+
+    error_404_module:       exception  # To be called when a 404 error is raised
+    error_404_action:       error404   # Or when the requested URL doesn't match any route
+
+    secure_module:          exception   # To be called when a user doesn't have
+    secure_action:          secure      # The credentials required for an action
+
+    module_disabled_module: exception   # To be called when a user requests 
+    module_disabled_action: error404    # A module disabled in the module.yml
+
+    unavailable_module:   exception   # To be called when a user requests a page
+    unavailable_action:   error404  # From an application disabled via the available setting below
+
+prod:
+  .settings:
+    logging_enabled:        false
+    error_reporting:        341
+    no_script_name:         false
+    use_security:           true        
+    i18n:                   true
+    default_culture:        en
+    cache:                  true
+    use_process_cache:      true
+    escaping_strategy:      true
+    escaping_method:        ESC_SPECIALCHARS
+
+dev:
+  .settings:
+    # E_ALL | E_STRICT = 4095
+    error_reporting:        <?php echo (E_ALL | E_STRICT)."\n" ?>
+    web_debug:              false
+    cache:                  true
+    no_script_name:         false
+    etag:                   true
+    use_security:           true        
+    i18n:                   true
+    default_culture:        en
+    escaping_strategy:      true
+    escaping_method:        ESC_SPECIALCHARS
+
+test:
+  .settings:
+    # E_ALL | E_STRICT & ~E_NOTICE = 2047
+    error_reporting:        <?php echo ((E_ALL | E_STRICT) ^ E_NOTICE)."\n" ?>
+    cache:                  true
+    web_debug:              false
+    no_script_name:         false
+    etag:                   true
+    escaping_strategy:      true
+    escaping_method:        ESC_SPECIALCHARS
+

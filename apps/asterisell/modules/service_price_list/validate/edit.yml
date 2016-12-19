@@ -1,0 +1,14 @@
+fillin:
+  enabled: true
+
+fields:
+  ar_service_price{from_date}:
+    required:
+      msg: Required
+  ar_service_price{select_service}:
+    required:
+      msg: Required
+  ar_service_price{my_price_editor}:
+    required:
+      msg: Required
+

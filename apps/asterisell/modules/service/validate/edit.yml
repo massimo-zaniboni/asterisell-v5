@@ -1,0 +1,17 @@
+fillin:
+  enabled: true
+
+fields:
+  ar_service{customer_name}:
+    required:
+      msg: Required
+  ar_service{vendor_name}:
+    required:
+      msg: Required
+  ar_service{select_scheduling}:
+    required:
+      msg: Required
+  ar_service{select_schedule_from}:
+    required:
+      msg: Required
+

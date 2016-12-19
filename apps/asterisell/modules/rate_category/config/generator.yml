@@ -1,0 +1,20 @@
+generator:
+  class:              sfPropelAdminGenerator
+  param:
+    model_class:      ArRateCategory
+    theme:            default
+
+    fields:
+      name: { name: Name, help: "Human readable name" }
+      internal_name: { name: Reference Name, help: "A unique reference/identifier name, used in rate specifications, and for recognizing the price category. Use names like \"discounted/land-lines/UK\", for specifying a  price category that is a logical sub case of price category \"discounted/land-lines\"." }
+      short_description: { name: Description, help: "Human readable name, and short description of the price category. " }
+
+    list:
+      title: Price Categories
+      display: [=internal_name, short_description]
+      filters: [internal_name, short_description]
+      sort: [internal_name, asc]
+    
+    edit:
+      title: Price Category
+      display: [internal_name, short_description]

@@ -1,0 +1,43 @@
+Overview
+========
+
+Start with CSV files produced from each VoIP server.
+
+Perform a calls flow merge, producing a single CDR.
+
+CProceduresGenerator.php parse an high level specification of call flow merge rules, 
+and produce C code that must be compiled togheter with the rest of the code,
+for obtaining the final tool.
+
+Ragel parser/state-machine is used for parsing the CSV fields.
+
+Judy arrays are used for retrieving CDR matching the call flow.
+
+The final tool is called from the PHP code, inside CDR jobs.
+
+Status
+======
+
+Does not work (require porting) in version 5 of Asterisell.
+
+Works on version 4 of Asterisell.
+
+Development Notes
+=================
+
+This project is in C instead of C++ because I'm using the JudyArray library
+that can not be compiled without errors inside C++ (at level of macro).
+
+This code uses RAGEL parse generator, that is rather low-level to use,
+and the resulting code is not so elegant, due to my inexperience in using
+RAGEL in a more elegant mode.
+
+MakeFile
+========
+
+It is produced from 
+
+  CProceduresGenerator.php 
+
+code.
+

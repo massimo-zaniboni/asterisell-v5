@@ -1,0 +1,36 @@
+generator:
+  class:              sfPropelAdminGenerator
+  param:
+    model_class:      ArCurrentProblem
+    theme:            default
+
+    fields:
+      created_at:        { name: Found at }
+      description:       { name: Description, type: textarea_tag, params: size=70x10 }
+      effect:            { name: Effect, type: textarea_tag, params: size=70x10 }
+      proposed_solution: { name: Proposed Solution, type: textarea_tag, params: size=70x10 }
+      is_garbage_collected: { name: "Tested every time", help: "True for errors that are automatically removed from the list, when they are solved. False for errors, that must be explicitely removed from the user. " }
+      my_error_type: { name: "Severity Level" }
+      ar_problem_type_id: { name: "Severity Level" }
+      ar_problem_type: { name: "Severity Level" }
+      ar_problem_domain_id: { name: "Domain" }
+      ar_problem_responsible_id: { name: "Responsible" }
+      ar_problem_domain: { name: "Domain" }
+      ar_problem_responsible: { name: "Responsible" }
+      my_domain: { name: "Domain" }
+      my_responsible: { name: "Responsible" }
+      maybe_count_of_cdrs: { name: "Unbilled CDRs", help: "How many unbilled CDRs are affected by this problem." }
+
+    list:
+      title: Problems
+      actions: []
+      display: [=_my_error_type, _maybe_count_of_cdrs, _my_responsible, _my_domain, created_at, _is_garbage_collected, description, effect, proposed_solution]
+      sort:    [created_at, desc]
+      filters:  [ar_problem_type_id, ar_problem_responsible_id, ar_problem_domain_id ]
+
+    edit:
+      title: Problem
+      actions:
+        _list: ~
+        _save: ~
+      display: [_my_error_type, _maybe_count_of_cdrs, _my_responsible, _my_domain, =created_at, _is_garbage_collected, description, effect, proposed_solution]

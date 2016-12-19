@@ -1,0 +1,13 @@
+fillin:
+  enabled: true
+
+fields:
+  ar_rate{from_time}:
+    required:
+      msg: Required
+  ar_rate{internal_name}:
+    required:
+      msg: Required
+  ar_rate{select_rate_format}:
+    required:
+      msg: Required

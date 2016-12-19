@@ -1,0 +1,659 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>FAQ and HOWTOS &mdash; Asterisell 5 documentation</title>
+    
+    <link rel="stylesheet" href="_static/classic.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '5',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="top" title="Asterisell 5 documentation" href="index.html" />
+    <link rel="prev" title="Configuration and Usage" href="usage.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="usage.html" title="Configuration and Usage"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">Asterisell 5 documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="faq-and-howtos">
+<h1>FAQ and HOWTOS<a class="headerlink" href="#faq-and-howtos" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="how-removing-an-instance-completely">
+<h2>How Removing an Instance Completely<a class="headerlink" href="#how-removing-an-instance-completely" title="Permalink to this headline">¶</a></h2>
+<div class="highlight-python"><div class="highlight"><pre><span></span># First remove the Docker container
+docker stop INSTANCE
+docker remove INSTANCE
+
+# But now the Docker VOLUME with DB data, log files,
+# bakup files and so on is still present.
+#
+# Only in case you are sure that all Docker orphan VOLUMES
+# (volumes without any container using them)
+# are for sure unusued volumes, execute
+fab remove_orphan_volumes
+</pre></div>
+</div>
+</div>
+<div class="section" id="conversion-of-files-to-utf-8-format">
+<h2>Conversion of files to UTF-8 format<a class="headerlink" href="#conversion-of-files-to-utf-8-format" title="Permalink to this headline">¶</a></h2>
+<p>Asterisell read, and import files in UTF-8 format.</p>
+<p>This command show the character-set of a file:</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span><span class="nb">file</span> <span class="o">-</span><span class="n">bi</span>
+</pre></div>
+</div>
+<p>A command for converting a file to another locale</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span>iconv -f ISO-8859-1 -t UTF-8  &gt; t
+rm
+mv t
+</pre></div>
+</div>
+<p>or a probably better command with in-place conversion:</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span>yum install recode
+recode ISO-8859-1..UTF8
+</pre></div>
+</div>
+</div>
+<div class="section" id="fixing-errors-in-source-cdrs">
+<h2>Fixing Errors in Source CDRs<a class="headerlink" href="#fixing-errors-in-source-cdrs" title="Permalink to this headline">¶</a></h2>
+<p>The utility <code class="docutils literal"><span class="pre">php</span> <span class="pre">asterisell.php</span> <span class="pre">data</span> <span class="pre">export-cdrs</span></code> accessible after executing <code class="docutils literal"><span class="pre">fab</span> <span class="pre">connect:INSTANCE</span></code>
+can export source CDRs of a time-frame. They can be changed. There are
+some utilities on directory <code class="docutils literal"><span class="pre">admin/script/source\_cdrs\_fix</span></code>, and other can be created.</p>
+<p>The transformed files, can be put into instance directory <code class="docutils literal"><span class="pre">admin/data_files/messages/input</span></code>
+and they will be imported again in Asterisell. They are status files, so
+the previos version of source CDRs on the same time-frame will be
+deleted, and replaced with the new version.</p>
+<p>A copy of the original exported source-cdrs can be maintained for a
+while, in order to restore them in case of errors.</p>
+</div>
+<div class="section" id="how-updating-the-ssl-certificates-of-an-instance">
+<h2>How Updating the SSL Certificates of an Instance<a class="headerlink" href="#how-updating-the-ssl-certificates-of-an-instance" title="Permalink to this headline">¶</a></h2>
+<p>Change the configurations in <code class="docutils literal"><span class="pre">fabric_data/asterisell_instances.py</span></code>, and then <code class="docutils literal"><span class="pre">fab</span> <span class="pre">restart:INSTANCE</span></code>.</p>
+</div>
+<div class="section" id="moving-cdrs-from-an-instance-to-another">
+<h2>Moving CDRs from an instance to another<a class="headerlink" href="#moving-cdrs-from-an-instance-to-another" title="Permalink to this headline">¶</a></h2>
+<p>Put in <code class="docutils literal"><span class="pre">ar_voip_extension_to_move</span></code> table of the instance,
+the extension code to export,
+specified in the Asterisell format, so you can use also &#8220;*&#8221; and &#8220;X&#8221; and
+other pattern matching values.</p>
+<p>Rerate the calls in the time frame you want export:</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span>fab connect:INSTANCE
+php asterisell.php debug rerate YYYY-MM-DD
+php asterisell.php run jobs
+</pre></div>
+</div>
+<p>The table <code class="docutils literal"><span class="pre">ar_source_cdr_to_move</span></code> will now contain the IDs of the CDRs
+to export.</p>
+<p>For exporting the CDRS, use the commands</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span>fab connect:INSTANCE
+php asterisell.php data export-cdrs-to-move YYYY-MM-DD
+</pre></div>
+</div>
+<p>Move the file with the CDRs to export, into the destination instance
+input directory.</p>
+<p>IMPORTANT: source CDRs will be moved on external files, and removed from
+instance <code class="docutils literal"><span class="pre">ar_source_cdr</span></code> table.</p>
+<p>Probably when you are sure to having exported all the CDRs, you can
+clean the content of table <code class="docutils literal"><span class="pre">ar_voip_extension_to_move</span></code></p>
+<div class="section" id="low-level-details">
+<h3>Low Level Details<a class="headerlink" href="#low-level-details" title="Permalink to this headline">¶</a></h3>
+<p>During rating, a <code class="docutils literal"><span class="pre">source_cdr</span></code> is assigned to the extension.</p>
+<p>So <code class="docutils literal"><span class="pre">ar_source_cdr</span></code> to export are recognized during rating phase.</p>
+<p>They are put in a table.</p>
+<p>The content of the table is safe because usually <code class="docutils literal"><span class="pre">ar_source_cdr</span></code> are not
+removed. The exception is about status files, and few other cases.</p>
+<p>So the export command remove the <code class="docutils literal"><span class="pre">ar_source_cdr</span></code> from the table, and
+export them in files.</p>
+<p>Then a rerating command must be generated (it is generated automatically
+from the utility) because CDRs in the CDR table, must be deleted and
+rerated, and in this case there are no any more the corresponding
+<code class="docutils literal"><span class="pre">ar_source_cdr</span></code>.</p>
+<p>IMPORTANT: after a moving operation, the <code class="docutils literal"><span class="pre">ar_source_cdr_to_move</span></code>
+content is deleted, so a rerating must be done again, if another date
+must be exported.</p>
+<p>The CDRs will be removed from source instance after rerating on the
+source instance, because the rerating passage will remove the rated
+CDRs, and there are any more the source CDRs.</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span>fab run_jobs:INSTANCE
+</pre></div>
+</div>
+</div>
+</div>
+<div class="section" id="scheduled-report-generation">
+<h2>Scheduled Report Generation<a class="headerlink" href="#scheduled-report-generation" title="Permalink to this headline">¶</a></h2>
+<p>&gt; I&#8217;m generating many reports in the past, setting the scheduler to 4
+months in the past, but only the first set is generated</p>
+<p>Asterisell checks for new reports to generate not at every passage of
+the cron processor, but it wait some time.</p>
+<p>In the JobLog you can see how much it is post-poned.</p>
+<p>So if you wait some time, another batch of reports will be executed.</p>
+</div>
+<div class="section" id="on-reports-the-total-cost-of-vendors-does-not-match-the-grand-total-on-the-report">
+<h2>On reports the total cost of vendors does not match the grand total on the report<a class="headerlink" href="#on-reports-the-total-cost-of-vendors-does-not-match-the-grand-total-on-the-report" title="Permalink to this headline">¶</a></h2>
+<p>Check in the online call report if you have some internal vendors with
+costs. Internal vendors are not showed on reports</p>
+</div>
+<div class="section" id="error-messages">
+<h2>Error Messages<a class="headerlink" href="#error-messages" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="intimidating-rating-errors">
+<h3>Intimidating Rating Errors<a class="headerlink" href="#intimidating-rating-errors" title="Permalink to this headline">¶</a></h3>
+<p>Sometimes the application generate long error messages like</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span>/var/www/tsnet/admin/scripts/RateEngine --rate  --debug-mode 0 --is-voip-reseller 1
+--load-rate-categories /var/www/tsnet/admin/data_files/messages/params/rate_category.csv
+--load-vendors /var/www/tsnet/admin/data_files/messages/params/vendors.csv
+--load-channels-types /var/www/tsnet/admin/data_files/messages/params/channel_types.csv
+--load-channel-domains /var/www/tsnet/admin/data_files/messages/params/channel_domains.csv
+--load-telephone-prefixes /var/www/tsnet/admin/data_files/messages/params/telephone_prefixes.csv
+--digits-to-mask 3 --default-telephone-prefix 39
+--currency-precision 4
+--load-extensions /var/www/tsnet/admin/data_files/messages/params/extensions.csv
+--load-rate-plan-changes /var/www/tsnet/admin/data_files/messages/params/rate_plan.csv
+--load-rate-plan /var/www/tsnet/admin/data_files/messages/params/rate_plan_id_
+--load-services /var/www/tsnet/admin/data_files/messages/params/services.csv
+--load-service-price-list /var/www/tsnet/admin/data_files/messages/params/services_price_list.csv
+--load-assigned-services /var/www/tsnet/admin/data_files/messages/params/assigned_services.csv
+--debug-file /var/tmp/var/www/tsnet/admin/rate_debug.info
+--from-date &quot;2016-11-01 00:00:00&quot;
+--to-date &quot;2016-12-01 10:45:03&quot;
+--from-date &quot;null&quot;  --to-date &quot;null&quot;  --rate-unbilled-calls true
+--db-name tsnet
+
+/var/www/tsnet/admin/data_files/messages/params/rate_plan_id_44.rate: hClose: invalid argument (Bad file descriptor)
+</pre></div>
+</div>
+<p>In the majority of these errors the important part is at the bottom. In this case</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span>/var/www/tsnet/admin/data_files/messages/params/rate_plan_id_44.rate: hClose: invalid argument (Bad file descriptor)
+</pre></div>
+</div>
+<p>So it suffices in this case opening the rate with id 44, on the web-interface, and see if there are formatting errors.</p>
+<p>The problem of this error messages it is that the rate plan language is very powerful and it is not
+easy to generate meaningful error messages.</p>
+</div>
+<div class="section" id="specific-rating-errors">
+<h3>Specific Rating Errors<a class="headerlink" href="#specific-rating-errors" title="Permalink to this headline">¶</a></h3>
+<p>Open always fully the error message, because it is formatted in a clear way, with correct indentation.</p>
+<p>It is possible inspecting the applied rate to a CDR, in the online call
+report, clicking on the cost or income.</p>
+<p>It is possible generating more debug info, about applied and unapplied
+rates, rating in debug mode. In the Asterisell instance admin directory:</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span>fab help
+
+fab cron_disable:INSTANCE
+# because every time CDRs are rerated
+# the debug info will be lost.
+
+fab connect:INSTANCE
+
+php asterisell.php debug rerate YYYY-MM-DD
+php asterisell.php debug jobs
+
+# debug and change rates, and then
+php asterisell.php debug rerate YYYY-MM-DD
+php asterisell.php debug jobs
+
+exit
+fab cron_enable:INSTANCE
+</pre></div>
+</div>
+<p>It is possible inspecting the reason of an unrated CDR, in the
+<code class="docutils literal"><span class="pre">Calls</span> <span class="pre">-&gt;</span> <span class="pre">Calls</span> <span class="pre">with</span> <span class="pre">Errors</span></code> menu entry.</p>
+</div>
+<div class="section" id="lock-wait-timeout-exceeded-try-restarting-transaction">
+<h3>Lock wait timeout exceeded; try restarting transaction<a class="headerlink" href="#lock-wait-timeout-exceeded-try-restarting-transaction" title="Permalink to this headline">¶</a></h3>
+<p>If it signaled a problem like</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span>ConnectionError {
+  errFunction = \&quot;query\&quot;,
+  errNumber = 1205,
+  errMessage = \&quot;Lock wait timeout exceeded; try restarting transaction\&quot;
+}
+</pre></div>
+</div>
+<p>there can be pending transactions on MySQL.</p>
+<p>Enter into the asterisell database using the root MySQL user.</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span>fab help
+fab connect:INSTANCE
+
+cat config/databases.yml
+# for seeing the database name, and admin user
+
+mysql -u root -pTHE_SAME_PASSWORD_DISPLAYED_FROM_CAT THE_DB_OF_CAT
+
+show open tables where in_use&gt;0;
+    +------------+------------------------+--------+-------------+
+  | Database   | Table                  | In_use | Name_locked |
+  +------------+------------------------+--------+-------------+
+  | asterisell | ar_cdr                 |      1 |           0 |
+  | asterisell | ar_daily_status_job    |      1 |           0 |
+  | asterisell | ar_daily_status_change |      1 |           0 |
+  +------------+------------------------+--------+-------------+
+  3 rows in set (0.00 sec)
+
+show processlist;
+  +----+-------+-----------+------------+---------+------+----------------------+------------------------------------------------------------------------------------------------------+----------+
+  | Id | User  | Host      | db         | Command | Time | State                | Info                                                                                                 | Progress |
+  +----+-------+-----------+------------+---------+------+----------------------+------------------------------------------------------------------------------------------------------+----------+
+  | 19 | tsnet | localhost | asterisell | Sleep   |  969 |                      | NULL                                                                                                 |    0.000 |
+  | 20 | tsnet | localhost | asterisell | Sleep   |  970 |                      | NULL                                                                                                 |    0.000 |
+  | 21 | tsnet | localhost | asterisell | Query   |  918 | After opening tables | LOAD DATA INFILE &#39;/var/tmp/var/www/asterisell/admin/pipe2&#39; INTO TABLE ar_cdr  CHARACTER SET &#39;utf8&#39;   |    0.000 |
+  | 33 | root  | localhost | asterisell | Query   |    0 | init                 | show processlist                                                                                     |    0.000 |
+  +----+-------+-----------+------------+---------+------+----------------------+------------------------------------------------------------------------------------------------------+----------+
+  4 rows in set (0.00 sec)
+
+
+# kill the process with the problems
+kill 21;
+</pre></div>
+</div>
+</div>
+</div>
+<div class="section" id="configuration-of-resellers">
+<h2>Configuration of Resellers<a class="headerlink" href="#configuration-of-resellers" title="Permalink to this headline">¶</a></h2>
+<p>An Asterisell server instance can send CSV files with CDRs to other
+Asterisell servers. The sender server is playing the role of a provider, while the receiver
+server plays the role of a VoIP reseller. The income of the provider, is the cost of calls
+for the reseller.</p>
+<div class="admonition warning">
+<p class="first admonition-title">Warning</p>
+<p>Up to date there are only Asterisell reseller instances running directly on
+virtual machines, and not on Docker. So the instructions on this section
+are not tested for the Docker case, and for sure must be adapted.</p>
+<p class="last">They are only a guideline.</p>
+</div>
+<div class="section" id="export-of-cdrs-on-provider-side">
+<h3>Export of CDRS on Provider Side<a class="headerlink" href="#export-of-cdrs-on-provider-side" title="Permalink to this headline">¶</a></h3>
+<p>Add a PHP class like
+<code class="docutils literal"><span class="pre">apps/asterisell/lib/provider_specific/&lt;your_customer_code&gt;/ExportTo&lt;your_reseller&gt;.php</span></code>,
+that is subclass of <code class="docutils literal"><span class="pre">ExportCDRSToReseller</span></code> and define abstract/missing
+methods</p>
+<p>The code is often something of very simple like</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span>class ExportToMiniTel extends ExportCDRSToReseller
+{
+
+    /**
+     * @return string
+     */
+    function getResellerCode() {
+        return &#39;mini-tel&#39;;
+    }
+
+    public function getActivationDate() {
+        // NOTE: before this date the info is manually sent, retrieving from the historic data.
+        // From this data the info is sent live, the rates are aligned.
+        return strtotime(&#39;2014-01-01&#39;);
+    }
+
+}
+</pre></div>
+</div>
+<p>Add the job to the list of jobs, for exporting the CDRs. Usually it is a
+line like this in file <code class="docutils literal"><span class="pre">fabric_data/.../instances.py</span></code></p>
+<div class="highlight-python"><div class="highlight"><pre><span></span><span class="n">custom_export_cdrs_jobs</span> <span class="o">=</span> <span class="p">[</span> <span class="s1">&#39;ExportToMiniTel&#39;</span> <span class="p">]</span>
+</pre></div>
+</div>
+<p>The suggested directory to use for exchanging files is
+<code class="docutils literal"><span class="pre">/var/opt/asterisell/&lt;provider-code&gt;/&lt;export-code&gt;</span></code></p>
+</div>
+<div class="section" id="reseller-code-on-provider-side">
+<h3>Reseller Code on Provider Side<a class="headerlink" href="#reseller-code-on-provider-side" title="Permalink to this headline">¶</a></h3>
+<p>In the <code class="docutils literal"><span class="pre">Entities</span> <span class="pre">-&gt;</span> <span class="pre">Resellers</span></code> menu define a reseller with the same
+code.</p>
+<p>In the <code class="docutils literal"><span class="pre">Entities</span> <span class="pre">-&gt;</span> <span class="pre">Customers</span></code> menu, create a customer associated to
+the Reseller. The reseller association is made in the <code class="docutils literal"><span class="pre">party</span></code> section
+of the customer.</p>
+</div>
+<div class="section" id="extensions-codes">
+<h3>Extensions Codes<a class="headerlink" href="#extensions-codes" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="provider-side">
+<h4>Provider Side<a class="headerlink" href="#provider-side" title="Permalink to this headline">¶</a></h4>
+<p>Create VoIP accounts associated to the reseller, and that are child
+organizations/extensions of the main reseller organization.</p>
+<p>Specify for each extension the <code class="docutils literal"><span class="pre">export</span> <span class="pre">code</span></code>. The calls of the
+exported extension will be sent to the provider, using the
+<code class="docutils literal"><span class="pre">export</span> <span class="pre">code</span></code> as VoIP account identifier. It is possible to execute
+this action in batch mode, with the command</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span>php asterisell.php data complete-reseller-export-code
+  given the id of an organization (the unique identifier in a URL like &quot;view/id/123&quot;), complete the export-code field of the children extensions, with the first value in extensions codes. Only extensions with an empty value are affected. This is a sane default value, that can be used for extensions to export to resellers, in case a batch initialization is needed. These values can be specified individually also in the user interface.
+</pre></div>
+</div>
+<p>In case there are services associated to organizations shared with a
+reseller, then also every customer organization must have an export-code
+on the provider side, that is the same code used for identifying the
+organization on the reseller side:</p>
+<ul class="simple">
+<li>specify the organization code in the <code class="docutils literal"><span class="pre">export-code</span></code> section on the
+provider side</li>
+<li>on the reseller side create a pseudo extension, associated to the
+shared organization, and specify the <code class="docutils literal"><span class="pre">export-code</span></code></li>
+</ul>
+</div>
+<div class="section" id="reseller-side">
+<h4>Reseller Side<a class="headerlink" href="#reseller-side" title="Permalink to this headline">¶</a></h4>
+<p>Resellers see only the provider exported code.</p>
+</div>
+</div>
+<div class="section" id="rates">
+<h3>Rates<a class="headerlink" href="#rates" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="id1">
+<h4>Provider Side<a class="headerlink" href="#id1" title="Permalink to this headline">¶</a></h4>
+<p>Identify the income rates associated to the price-category of the
+reseller. These rates must/can be configured as automatically exported
+to the reseller. In case choose a name and notes making sense also on
+the reseller side.</p>
+</div>
+<div class="section" id="id2">
+<h4>Reseller Side<a class="headerlink" href="#id2" title="Permalink to this headline">¶</a></h4>
+<p>Service on the provider, can be exported to the reseller as cost. They
+will be imported as &#8220;system&#8221; call, and they will be not visible to end
+customers. An example of cost rate for managing them is this:</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span>rate {
+  id: vendor-services
+  match-call-direction: system
+  match-vendor: some-vendor-name
+  match-communication-channel: system-service-cdr
+
+  set-cost-on-call: expected
+}
+</pre></div>
+</div>
+<p>In this case the cost associated to the service, is the same cost
+calculated from the vendor. So there should be some trust that the
+vendor is fair. Up to date services are not rated using rate plan, but
+using special service definitions, so they can not be double checked on
+the reseller side, as in case of normal calls.</p>
+<p>This is an example of income rate, for imported services:</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span>rate {
+  id: vendor-services
+  match-call-direction: system
+  match-vendor: some-vendor-name
+  match-communication-channel: system-service-cdr
+
+  set-cost-on-call: 0
+}
+</pre></div>
+</div>
+<p>Imported services has no (usually) cost and income, as in case of normal
+calls, because they are not (usually) calculated from rate plans, but
+from service definitions. So the income of a service is 0. In case the
+service is reselled from the provider, it should be defined in a
+distinct way, using the service menu.</p>
+<p>Maybe in the future also services will be generated using rate plans,
+and so there will be a 1:1 relation ship between services on the
+provider side (cost) and on the reseller side (income), like in case of
+normal calls.</p>
+</div>
+</div>
+<div class="section" id="communication-channels">
+<h3>Communication Channels<a class="headerlink" href="#communication-channels" title="Permalink to this headline">¶</a></h3>
+<p>Communication channels are eported following the settings in this method</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span>/**
+ * Allows exporting info about used communication channels,
+ * in case they must be known from the Reseller, for applying different rates on them.
+ *
+ * The used name, is `ar_communication_channel_type.internal_name`.
+ *
+ * @return array a map between channel name on provider, and name to use when exporting to the reseller.
+ * Channels that are not matching will be exported to the reseller using the default channel name.
+ * Channel Names are exported in this way:
+ * - empty string when there is no channel info exported
+ * - the channel name otherwise
+ * Channel Names are imported on the reseller side in this way:
+ * - &quot;provider-name&quot; when there is no channel info exported
+ * - &quot;provider-name-&quot; otherwise
+ * By default (without specifying nothing) the services are exported like &#39;system-service-cdr&#39;
+ */
+public function exportedCommunicationChannels() {
+    return array();
+}
+</pre></div>
+</div>
+</div>
+<div class="section" id="import-cdrs-on-reseller-side">
+<h3>Import CDRs on Reseller Side<a class="headerlink" href="#import-cdrs-on-reseller-side" title="Permalink to this headline">¶</a></h3>
+<p>Create a subclass of type <code class="docutils literal"><span class="pre">ImportCDRSFromLocalAsterisellProvider</span></code>.
+Something like</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span>class MiniTelImportCDRSFromInternationalVoipVendor extends ImportCDRSFromLocalAsterisellProvider
+{
+
+    function getCDRProviderName() {
+        return &#39;international_voip_vendor&#39;;
+    }
+}
+</pre></div>
+</div>
+<p>Add the job to the list of jobs, for importing CDRs. Something like</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span><span class="n">import_cdrs_jobs</span> <span class="o">=</span> <span class="p">[</span> <span class="s1">&#39;MiniTelImportCDRSFromInternationalVoipVendor&#39;</span> <span class="p">]</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="remote-resellers">
+<h3>Remote Resellers<a class="headerlink" href="#remote-resellers" title="Permalink to this headline">¶</a></h3>
+<p>Up to date it is possible sending files to a remote Reseller, sending
+them to a local directory, accessible from the Remote Server using
+WebDav protocol:</p>
+<ul class="simple">
+<li>the provider send the files to a local directory</li>
+<li>the provider share the directory content using WebDAV protocol:<ul>
+<li>https encription</li>
+<li>secret password shared with the reseller</li>
+</ul>
+</li>
+<li>the reseller access the webdav resources, using standard curl
+interface</li>
+</ul>
+<p>The advantage of this approach are:</p>
+<ul class="simple">
+<li>WebDAV is a standard protocol based on HTTP connections</li>
+<li>HTTPS encryption encrypt the traffic</li>
+<li>the traffic can pass through firewalls</li>
+</ul>
+<div class="section" id="webdav-configuration-on-the-server">
+<h4>WebDAV Configuration on the Server<a class="headerlink" href="#webdav-configuration-on-the-server" title="Permalink to this headline">¶</a></h4>
+<p>You must define in <code class="docutils literal"><span class="pre">instance.py</span></code>, something like</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span><span class="n">server_site</span> <span class="o">=</span> <span class="n">asterisell_http_conf</span><span class="o">.</span><span class="n">AsterisellInstanceSite</span><span class="p">()</span>
+<span class="n">server_site</span><span class="o">.</span><span class="n">webdav_users</span> <span class="o">=</span> <span class="p">[(</span><span class="s1">&#39;client-code&#39;</span><span class="p">,</span><span class="s1">&#39;some-password&#39;</span><span class="p">)]</span>
+</pre></div>
+</div>
+<p>The installation tool, will create the webdav configurations for you.</p>
+<p>If the webdav server is accessible also on a private network address,
+because the server and the client reside on the same private network,
+you can add for the server the private IP, something like:</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span><span class="n">server_domain</span><span class="o">.</span><span class="n">domain2</span> <span class="o">=</span> <span class="s1">&#39;127.0.0.1&#39;</span>
+</pre></div>
+</div>
+<p>Inspect the generated configuration files in
+<code class="docutils literal"><span class="pre">/etc/nginx/asterisell-instances.d</span></code> for the comments about:</p>
+<ul class="simple">
+<li>the directory to create</li>
+<li>the password file to generate</li>
+<li>assign the apache user ownership to the directories</li>
+</ul>
+<div class="highlight-python"><div class="highlight"><pre><span></span>chown -R apache:apache /var/opt/asterisell/*
+</pre></div>
+</div>
+<p>Generate manually the password</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span># Up to date password file is not automatically generated.
+# Use the reseller code as user name, and a shared password.
+htpasswd -c /etc/nginx/${instance_code}-${webdav_instance}.passwd ${webdav_instance}
+</pre></div>
+</div>
+</div>
+<div class="section" id="webdav-configuration-on-the-client">
+<h4>WebDav configuration on the client<a class="headerlink" href="#webdav-configuration-on-the-client" title="Permalink to this headline">¶</a></h4>
+<p>Create a Job like this</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span>class FooImportCDRSFromBar extends ImportCDRSFromRemoteAsterisellProvider
+{
+
+    function getCDRProviderName() {
+        return &#39;bar&#39;;
+    }
+
+}
+</pre></div>
+</div>
+<p>Configure something like this</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span><span class="n">import_cdrs_jobs</span> <span class="o">=</span> <span class="p">[</span> <span class="s1">&#39;FooImportCDRSFromBar&#39;</span> <span class="p">]</span>
+
+<span class="k">def</span> <span class="nf">conf_connectionParams</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">r</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="n">c</span> <span class="o">=</span> <span class="n">asterisell_instance</span><span class="o">.</span><span class="n">ConnectionParams</span><span class="p">()</span>
+    <span class="n">c</span><span class="o">.</span><span class="n">connection_name</span> <span class="o">=</span> <span class="s1">&#39;bar&#39;</span>
+    <span class="n">c</span><span class="o">.</span><span class="n">user</span> <span class="o">=</span> <span class="s1">&#39;foo&#39;</span>
+    <span class="n">c</span><span class="o">.</span><span class="n">password</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+    <span class="n">c</span><span class="o">.</span><span class="n">host</span> <span class="o">=</span> <span class="s1">&#39;https:///get-foo&#39;</span>
+    <span class="n">c</span><span class="o">.</span><span class="n">port</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+    <span class="n">r</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">c</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">r</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="section" id="current-limitations">
+<h3>Current Limitations<a class="headerlink" href="#current-limitations" title="Permalink to this headline">¶</a></h3>
+<p>All these limitations can be removed in next releases of Asterisell. In
+case contact the assistance for funding them. Known limitations are:</p>
+<ul class="simple">
+<li>both the provider and the reseller, must use the same precision
+digits</li>
+<li>only new rated CDRs are sent/resent to a reseller. In case rerate
+CDRs until the reseller configuration is not 100% correct and it is
+receiving all the info</li>
+<li>every time there is a new call, all the calls of the day are exported
+again to the reseller. In case of many daily calls, this can be a
+problem, because big files must be transferred multiple times in a
+day, and the reseller must calculate them every time</li>
+<li>CDRs are not transferred immediately from a provider to a reseller,
+and one or two cron job processor passes can be needed. Future
+versions of the application can speedup this, or comunicate when a
+provider signal as ready to be billed the CDRs</li>
+</ul>
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">FAQ and HOWTOS</a><ul>
+<li><a class="reference internal" href="#how-removing-an-instance-completely">How Removing an Instance Completely</a></li>
+<li><a class="reference internal" href="#conversion-of-files-to-utf-8-format">Conversion of files to UTF-8 format</a></li>
+<li><a class="reference internal" href="#fixing-errors-in-source-cdrs">Fixing Errors in Source CDRs</a></li>
+<li><a class="reference internal" href="#how-updating-the-ssl-certificates-of-an-instance">How Updating the SSL Certificates of an Instance</a></li>
+<li><a class="reference internal" href="#moving-cdrs-from-an-instance-to-another">Moving CDRs from an instance to another</a><ul>
+<li><a class="reference internal" href="#low-level-details">Low Level Details</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#scheduled-report-generation">Scheduled Report Generation</a></li>
+<li><a class="reference internal" href="#on-reports-the-total-cost-of-vendors-does-not-match-the-grand-total-on-the-report">On reports the total cost of vendors does not match the grand total on the report</a></li>
+<li><a class="reference internal" href="#error-messages">Error Messages</a><ul>
+<li><a class="reference internal" href="#intimidating-rating-errors">Intimidating Rating Errors</a></li>
+<li><a class="reference internal" href="#specific-rating-errors">Specific Rating Errors</a></li>
+<li><a class="reference internal" href="#lock-wait-timeout-exceeded-try-restarting-transaction">Lock wait timeout exceeded; try restarting transaction</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#configuration-of-resellers">Configuration of Resellers</a><ul>
+<li><a class="reference internal" href="#export-of-cdrs-on-provider-side">Export of CDRS on Provider Side</a></li>
+<li><a class="reference internal" href="#reseller-code-on-provider-side">Reseller Code on Provider Side</a></li>
+<li><a class="reference internal" href="#extensions-codes">Extensions Codes</a><ul>
+<li><a class="reference internal" href="#provider-side">Provider Side</a></li>
+<li><a class="reference internal" href="#reseller-side">Reseller Side</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#rates">Rates</a><ul>
+<li><a class="reference internal" href="#id1">Provider Side</a></li>
+<li><a class="reference internal" href="#id2">Reseller Side</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#communication-channels">Communication Channels</a></li>
+<li><a class="reference internal" href="#import-cdrs-on-reseller-side">Import CDRs on Reseller Side</a></li>
+<li><a class="reference internal" href="#remote-resellers">Remote Resellers</a><ul>
+<li><a class="reference internal" href="#webdav-configuration-on-the-server">WebDAV Configuration on the Server</a></li>
+<li><a class="reference internal" href="#webdav-configuration-on-the-client">WebDav configuration on the client</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#current-limitations">Current Limitations</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="usage.html"
+                        title="previous chapter">Configuration and Usage</a></p>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/FAQ.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="usage.html" title="Configuration and Usage"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">Asterisell 5 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &copy; Copyright 2016, Massimo Zaniboni.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.3.6.
+    </div>
+  </body>
+</html>

@@ -1,0 +1,23 @@
+fillin:
+  enabled: true
+
+fields:
+  ar_party{name}:
+    required:
+      msg: Required
+
+  ar_party{email}:
+    sfEmailValidator:
+      strict:       true
+      email_error:  This email address is invalid
+
+  ar_party{max_limit_30}:
+    sfNumberValidator:
+      nan_error:    Please enter an integer
+
+  ar_party{reseller_code}:
+    sfRegexValidator:
+      match:        true
+      match_error:  it can not contains special characters, or spaces
+      pattern:      /^[a-zA-Z0-9_\-]+$/
+      

@@ -1,0 +1,8 @@
+fields:
+  ar_organization_unit_type{internal_name}:
+    required:
+      msg: Required
+
+  ar_organization_unit_type{name}:
+    required:
+      msg: Required

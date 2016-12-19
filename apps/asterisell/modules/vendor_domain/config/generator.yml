@@ -1,0 +1,26 @@
+generator:
+  class: sfPropelAdminGenerator
+  param:
+    model_class:           ArVendorDomain
+    theme:                 default
+
+    fields:
+          ar_vendor_id: { name: Vendor }
+          ar_vendor: { name: Vendor }
+          domain: { name: Channel, help: "The channel prefix used in the CDR channel field. This value is case sensitive. This value is generated from Asterisell import code, and from the content of imported CDRs. Contact the assistace, or review Asterisell error message for discover what specify there."}
+          is_prefix: { name: Is Prefix, help: "True if it is selected the longest channel code that is prefix of the queried Vendor domain. False if this domain can be selected only if it is exactly equal to the queried domain. " }
+          from: { name: From, help: "From when, inclusive, the domain association is valid" }
+          to: { name: To, help: "When the domain association is not valid anymore. Empty for an association that is still valid. " }
+          ar_communication_channel_type: { name: Communication channel, help: "The type of communication channel used for routing the call. Specify `VoIP Vendor` for simple cases when the vendor apply the same rate for routing all the calls." }
+          ar_communication_channel_type_id: { name: Communication channel, help: "The type of communication channel used for routing the call. Specify `VoIP Vendor` for simple cases when the vendor apply the same rate for routing all the calls." }
+
+    list:
+          title: Channels
+
+          display: [=ar_vendor, ar_communication_channel_type, domain, from, to]
+          filters: [ar_vendor_id, ar_communication_channel_type_id, domain, from]
+          sort: [domain, asc]
+
+    edit:
+          title: Channel
+          display: [ar_vendor_id, ar_communication_channel_type_id, domain, is_prefix, from, to]

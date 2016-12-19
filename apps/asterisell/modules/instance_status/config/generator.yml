@@ -1,0 +1,50 @@
+generator:
+  class: sfPropelAdminGenerator
+  param:
+    model_class:           ArInstanceStatus
+    theme:                 default
+
+
+    fields:
+      ar_organization_unit_id: { name: Instance, help: "A server where is installed the billing application. " }
+      ar_organization_unit: { name: Instance, help: "A server where is installed the billing application. " }
+      application_version: { name: Version, help: "The version of the currently installed application." }
+      nr_of_critical_errors: { name: "Critical Errors" }
+      nr_of_important_errors: { name: "Important Errors" }
+      nr_of_warning_errors: { name: "Warning Errors" }
+      nr_of_extensions: { name: "Total Extensions" }
+      nr_of_unspecified_extensions: { name: "Unspecified Extensions" }
+      property_nr_errors_outgoing_previous_month: { name: "Errors on outgoing calls in previous month" }
+      property_nr_errors_incoming_previous_month: { name: "Errors on incoming calls in previous month" }
+      property_nr_errors_internal_previous_month: { name: "Errors on internal calls in previous month" }
+      property_nr_errors_outgoing_last30_days: { name: "Errors on outgoing calls in last 30 days" }
+      property_nr_errors_incoming_last30_days: { name: "Errors on incoming calls in last 30 days" }
+      property_nr_errors_internal_last30_days: { name: "Errors on interal calls in last 30 days" }
+      property_nr_outgoing_previous_month: { name: "Rated outgoing calls in previous month" }
+      property_nr_incoming_previous_month: { name: "Rated incoming calls in previous month" }
+      property_nr_internal_previous_month: { name: "Rated internal calls in previous month" }
+      property_nr_outgoing_last30_days: { name: "Rated outgoing calls in last 30 days" }
+      property_nr_incoming_last30_days: { name: "Rated incoming calls in last 30 days" }
+      property_nr_internal_last30_days: { name: "Rated internal calls in last 30 days" }
+      info_timestamp: { name: "Status updated at" }
+      str_perc_correct_outgoing_previous_month: { name: "Perc. rated outgoing calls in previous month" }
+      str_perc_correct_incoming_previous_month: { name: "Perc. rated incoming calls in previous month" }
+      str_perc_correct_internal_previous_month: { name: "Perc. rated internal calls in previous month" }
+      str_perc_correct_outgoing_last30_days: { name: "Perc. rated outgoing calls in last 30 days" }
+      str_perc_correct_incoming_last30_days: { name: "Perc. rated incoming calls in last 30 days" }
+      str_perc_correct_internal_last30_days: { name: "Perc. rated internal calls in last 30 days" }
+      last_rated_cdr_timestamp: { name: "Last rated CDR" }
+      my_hours_of_difference_between_now_and_last_info_update: {name: "Info Update" }
+      diff_with_last_rated_cdr: { name: "Last rated CDR" }
+
+    list:
+      title: Instances Status
+
+      display: [_my_hours_of_difference_between_now_and_last_info_update, _diff_with_last_rated_cdr, =ar_organization_unit, application_version, str_perc_correct_outgoing_previous_month, str_perc_correct_outgoing_last30_days, nr_of_critical_errors, nr_of_important_errors, nr_of_warning_errors, nr_of_unspecified_extensions, nr_of_extensions, str_perc_correct_outgoing_last30_days, property_nr_errors_outgoing_last30_days, property_nr_outgoing_last30_days, str_perc_correct_outgoing_previous_month, property_nr_outgoing_previous_month, property_nr_errors_outgoing_previous_month, str_perc_correct_incoming_last30_days, property_nr_incoming_last30_days, property_nr_errors_incoming_last30_days, str_perc_correct_incoming_previous_month, property_nr_incoming_previous_month, property_nr_errors_incoming_previous_month, str_perc_correct_internal_last30_days, property_nr_internal_last30_days, property_nr_errors_internal_last30_days, str_perc_correct_internal_previous_month, property_nr_internal_previous_month, property_nr_errors_internal_previous_month]
+      sort: [property_nr_errors_outgoing_previous_month, desc]
+      max_per_page:   120
+
+    edit:
+
+      title: Instance Status
+      display: [info_timestamp, _diff_with_last_rated_cdr, ar_organization_unit, application_version, str_perc_correct_outgoing_previous_month, str_perc_correct_outgoing_last30_days, nr_of_critical_errors, nr_of_important_errors, nr_of_warning_errors, nr_of_unspecified_extensions, nr_of_extensions, str_perc_correct_outgoing_last30_days, property_nr_errors_outgoing_last30_days, property_nr_outgoing_last30_days, str_perc_correct_outgoing_previous_month, property_nr_outgoing_previous_month, property_nr_errors_outgoing_previous_month, str_perc_correct_incoming_last30_days, property_nr_incoming_last30_days, property_nr_errors_incoming_last30_days, str_perc_correct_incoming_previous_month, property_nr_incoming_previous_month, property_nr_errors_incoming_previous_month, str_perc_correct_internal_last30_days, property_nr_internal_last30_days, property_nr_errors_internal_last30_days, str_perc_correct_internal_previous_month, property_nr_internal_previous_month, property_nr_errors_internal_previous_month]

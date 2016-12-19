@@ -1,0 +1,25 @@
+generator:
+  class:              sfPropelAdminGenerator
+  param:
+    model_class:      ArServicePrice
+    theme:            default
+
+    fields:
+      ar_service_id:        { name: "Service" }
+      ar_service:           { name: "Service" }
+      select_service:       { name: "Service" }
+      from_date:            { name: "From Date", help: "Apply this price starting from the specified date. Before this date the old price of the service is applied. "}
+      internal_name:        { name: Internal Code, help: "An optional internal identifier that can be used from internal code procedures, and so on. Usually it is empty. "}
+      my_price:             { name: Price }
+      my_price_editor:      { name: Price, help: "The price of the service, specified using the application locale, as decimal separator. "}
+
+    list:
+      title: Service Prices List
+      display: [=ar_service, _my_price, from_date, ]
+      filters: [ar_service_id, from_date]
+      sort: [from_date, asc]
+
+    edit:
+      title: Service Price
+
+      display: [from_date, _select_service, _my_price_editor]

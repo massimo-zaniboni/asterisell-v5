@@ -1,0 +1,20 @@
+generator:
+  class: sfPropelAdminGenerator
+  param:
+    model_class:           ArCdrProvider
+    theme:                 default
+
+    fields:
+      internal_name: { name: "Internal identifier", help: "A compact identifier of the cdr provider, that can be used also as part of a filename. As separators use \"_\", or \"-\", but not \" \" and \"__\"." }
+      description: { name: "Description" }
+
+    list:
+      title: CDR Providers
+      display: [=internal_name, description]
+      filters: [internal_name]
+      sort: [internal_name, asc]
+
+    edit:
+      title: CDR Provider
+
+      display: [internal_name, description]

@@ -1,0 +1,23 @@
+generator:
+  class:              sfPropelAdminGenerator
+  param:
+    model_class:      ArCdr
+    theme:            default
+
+    fields:
+
+      error_description:       { name: Error Description, type: textarea_tag, params: size=70x10, help: "NOTE: this error message can contain details about a CDR that is not the current CDR, but the first CDR having a similar problem. This because only one error message is generated for all CDRs with a common problem. " }
+      error_effect:            { name: Effect, type: textarea_tag, params: size=70x10 }
+      error_proposed_solution: { name: Proposed Solution, type: textarea_tag, params: size=70x10 }
+      my_error_type:           { name: "Severity Level" }
+      my_domain:               { name: "Domain" }
+      my_responsible:          { name: "Responsible" }
+      describe_cdr:            { name: "CDR details" }
+
+    list: []
+    edit:
+      title: Info
+      actions:
+        _list: ~
+        _save: ~
+      display: [=_my_error_type, _my_responsible, _my_domain, _describe_cdr, _error_description, _error_effect, _error_proposed_solution]

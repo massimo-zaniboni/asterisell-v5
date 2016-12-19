@@ -1,0 +1,53 @@
+generator:
+  class:              sfPropelAdminGenerator
+  param:
+    model_class:      ArParty
+    theme:            default
+
+    fields:
+      is_active:            { name: Is Active, help: "True if this is an active customer. Invoices are not sent to inactive customers." }
+      mycv:                 { name: Type, sort_on_column: customer_or_vendor }
+      name:                 { name: Name, help: "The name identifing the customer / vendor. It will be used also in invoices." }
+      compact_name:         { name: Short Name, help: "Optional short name used only in internal parts of the user interface, but not in official reports. " }
+      external_crm_code:    { name: CRM Code, help: "The code associated to the customer in you Customer Relationship Management (CRM) tool." }
+      vat:                  { name: VAT, help: "VAT Registration Number" }
+      legal_address:        { name: Address }
+      legal_city:           { name: City }
+      legal_zipcode:        { name: ZIP }
+      legal_state_province: { name: "State / Province", help: "If not empty, it will be displayed in address." }
+      legal_country:        { name: Country, help: "If not empty, it will be displayed in address."  }
+      email:                { name: email, help: "Where sending invoices and notifications." }
+      phone:                { name: Telephon 1 }
+      phone2:               { name: Telephon 2 }
+      fax:                  { name: Fax }
+      language:             { name: Language }
+      filter_on_cv:         { name: Type, filter_criteria_disabled: true }
+      ar_reseller_id:       { name: "Reseller", help: "A reseller is a customer who resells VoIP calls to his own customers. See the manual for more details. " }
+      my_max_limit:         { name: Monthly Limit }
+      is_billable:          { name: Is Billable, help: "True if the organization can be directly billed, and it is responsible for all the costs of his direct and indirected extensions. You must re-rate CDRs, and regenerate invoices, for seeing the changes. Note that if you change this information, and you re-rate CDRs, and re-generate invoices of the past, the application will use always the new billable state, and not the (maybe correct) billable status at the report date." }
+      associated_user:      { name: Corresponding Web Account }
+      migration_field_for_telephone: { name: Telephonic Service, help: "The migration field, that the customer must supply for migrating the telephone services" }
+      migration_field_for_adsl: { name: Internet Service, help: "The migration field, that the customer must supply for migrating the Internet related services" }
+
+    list:
+      title: Customers and Vendors
+      display: [is_active, is_billable, =name, external_crm_code, legal_city, legal_state_province, legal_country, _my_max_limit]
+      filters: [name, external_crm_code, legal_city, legal_state_province, is_billable, ar_reseller_id]
+      sort: [name, asc]
+
+    edit:
+      title: Customer or Vendor
+
+      fields:
+        editcv:      { name: Type }
+        insert_money_value:   { name: Limit, help: "Max admitted calls cost of the last 30 days/current month (depending from the setting inside apps/asterisell/config/app.yml). If you set a limit of 0 (or NULL) then the cost limit check is disabled." }
+        associated_organization: { name: Corresponding Organization }
+        associated_vendor: { name: Corresponding Vendor }
+
+      display:
+        State: [name, compact_name, is_active, is_billable, _associated_organization, _associated_user, _associated_vendor]
+        Contacts: [email, phone, phone2, fax]
+        Reseller: [ar_reseller_id]
+        Invoicing: [vat, external_crm_code, legal_address, legal_city, legal_zipcode, legal_state_province, legal_country]
+        Service Migrations: [migration_field_for_telephone, migration_field_for_adsl]
+        Calls Cost Limit for last 30 days: [_insert_money_value]

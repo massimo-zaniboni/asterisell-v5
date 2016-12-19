@@ -1,0 +1,20 @@
+generator:
+  class: sfPropelAdminGenerator
+  param:
+    model_class:      ArReseller
+    theme:            default
+
+    fields:
+      internal_name: { name: "Internal Code", help: "A unique distinct internal code, for identifying the reseller during exporting of info. It can be used also in file names, so it should not contain spaces and special characters. Read the manual for more details." }
+      name: { name: "Name", help: "Name of the reseller." }
+      note: { name: "Note", help: "Notes about the reseller." }
+
+    list:
+      title: Resellers
+      display: [=name, internal_name]
+      filters: [name, internal_name]
+      sort: [name, asc]
+
+    edit:
+      title: Reseller
+      display: [name, internal_name, note]

@@ -1,0 +1,16 @@
+fillin:
+  enabled: true
+
+fields:
+  ar_assigned_service{from_date}:
+    required:
+      msg: Required
+  ar_assigned_service{select_service}:
+    required:
+      msg: Required
+  ar_assigned_service{select_organization}:
+    required:
+      msg: Required
+  ar_assigned_service{nr_of_items}:
+    required:
+      msg: Required

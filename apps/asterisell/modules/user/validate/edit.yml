@@ -1,0 +1,7 @@
+fillin:
+  enabled: true
+
+fields:
+  ar_user{login}:
+    required:
+      msg: Required

@@ -1,0 +1,10 @@
+fillin:
+  enabled: true
+
+fields:
+  ar_vendor{select_party}:
+    required:
+      msg: Required
+  ar_vendor{select_party}:
+    required:
+      msg: Required

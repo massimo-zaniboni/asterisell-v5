@@ -1,0 +1,82 @@
+generator:
+  class: sfPropelAdminGenerator
+  param:
+    model_class:           ArReportScheduler
+    theme:                 admin
+    non_verbose_templates: true
+    with_show:             false
+    singular:              ArReportScheduler
+    plural:                ArReportSchedulers
+    route_prefix:          ar_report_scheduler
+    with_propel_route:     1
+    actions_base_class:    sfActions
+
+    fields:
+        id: { name: "Id", help: "Identifier" }
+
+        is_active: { name: "Is enabled", help: "Reports can be generated automatically from the scheduler, when the conditions are meet. " }
+
+        last_execution_date: { name: "Last execution", params: disabled=true }
+
+        last_to_date: { name: "To date", help: "Last generated reports, contain calls until the the specifed date (exclusive)." }
+
+        ar_report_id: { name: "Template Report", help: "The report to use as template, for generating all these scheduled reports. " }
+
+        select_report_template: { name: "Template Report", help: "The report to use as template, for generating all these scheduled reports. " }
+
+        produced_report_must_be_reviewed: { name: "Must be reviewed", help: "Produced reports, must be reviewed from administrators, before they are viewable from normal users, or they can be sent by email. If not checked, generated reports are sent to users immediately if they does not contain errors." }
+
+        filter_on_organization: { name: "Organization", filter_criteria_disabled: true }
+
+        select_organization: { name: "Organization", help: "Reports are generated starting from the specified organization. This overrides the organization used in the report template. Leave empty for generating reports for every root organization. " }
+        select_proper_organization: { name: "Organization", help: "Reports are generated starting from the specified organization. This overrides the organization used in the report template. Leave empty for generating reports for every root organization, in case the 'Generate For' field is set for generating multiple reports, or leave empty for generating a single report with the summary of all organizations, in case the 'Generate For' field is set for generating a single reeport. "  }
+        select_voip_account: { name: "Extension", help: "Reports are generated for the specified extension. Note: in case also an organization is specified, this filter takes the precedence, because it is more selective."  }
+
+        ar_organization_unit: { name: "Organization", help: "Reports are generated starting from the specified organization. This overrides the organization used in the report template." }
+
+        additional_description: { name: "Description", help: "This will be completed from the system, after reports will be generated. ", type: textarea_tag, params: disabled=true size=80x8 }
+
+        note: { name: "Notes", help: "Internal notes, viewable only to administrators, describing the porpouse of the reports. ", type: textarea_tag, params: size=80x8 }
+
+        short_description: { name: "Name" }
+
+        ar_report_generation_id: { name: "Generate for", help: "Generate a single report, or multiple reports. NOTE: if you change the billable state of an organization, or add responsible users to an organization, you must regenarte reports, for sending them to new users." }
+
+        start_generation_after_x_hours: { name: "Generate after some hours", help: "Delay reports generation of some hours, in order to give time to automatic jobs and/or administrators to execute some administration work. Note: this setting does not affect the time range of reports, but only the scheduler execution time. " }
+
+        schedule_every_x_months: { name: "Months", help: "Monthly frequency of the reports generation." }
+
+        schedule_every_x_days: { name: "Days", help: "Daily frequency of the reports generation. If also months frequency is specified, then add these days to the monthly frequency. " }
+
+        last_from_date: { name: "From date", help: "Generated reports will contain calls starting from this date. A monthly report, generated starting from 3rd of the month, will be genereted always at 3rd of each month. A weekly report (7 days), generated at Wednesday, will be always generated at Wednesday. You can select a date, and use the button 'Generate Reports' for generating new reports, and changing the scheduling date of future scheduled reports." }
+
+        generate_only_if_there_is_cost: { name: "Only if there is cost", help: "Generate reports only if there is a cost greather than zero. Do not generate if there is no cost associated. " }
+
+        select_legal_date_generation_method: { name: "Legal date", help: "The method to use for associating (optionally) a legal/fiscal date to a document. Empty for no fiscal/legal reports. NOTE: you can use this for setting a base date, and then add some days to it, for aligning to a fixed day of the month, or day of the week. " }
+        is_yearly_legal_numeration: { name: "Yearly legal numeration", help: "True if every year the legal numeration start again from 1." }
+        days_to_add_to_legal_date_generation_method: { name: "Days to add to legal date", help: "After calculating the legal/fiscal date, add these days to it. " }
+        go_to_template_report: {name: "Template Report", help: "This report will be used as template for generating the scheduled reports." }
+
+    list:
+        title: Scheduled Reports
+        display: [is_active, last_execution_date, id, =additional_description, note]
+        filters: [is_active, _filter_on_organization]
+
+    edit:
+        title: Scheduled Reports
+        fields:
+          create_report_action: { name: "Generate", help: "Use this button the first time, for activating a report scheduler. Use this button for fixing errors in last generated reports: new reports will replace older reports having the same starting date." }
+          confirm_all_reports_action: { name: "Confirm", help: "Generated reports of the last execution time, are confirmed, and they can be view from users. In case of changes of user permissions, update also users that can view them, or that can not anymore view them. " }
+          delete_all_reports_action: { name: "Delete", help: "Delete generated reports of the last execution time." }
+          generated_report_sets: { name: "Last generated reports" }
+
+        display:
+          Main Params: [additional_description, note ]
+          Report Content: [_select_report_template, _go_to_template_report, _select_proper_organization, _select_voip_account, ar_report_generation_id ]
+          Legal/Fiscal Params (complete only for invoices): [generate_only_if_there_is_cost, _select_legal_date_generation_method, days_to_add_to_legal_date_generation_method, is_yearly_legal_numeration]
+          Schedule Frequency: [ last_from_date, schedule_every_x_months, schedule_every_x_days, start_generation_after_x_hours]
+          Report Workflow: [is_active, produced_report_must_be_reviewed]
+          Actions: [ _create_report_action, _delete_all_reports_action, _confirm_all_reports_action]
+          State:  [ last_execution_date, _generated_report_sets ]
+
+        actions: ~

@@ -1,0 +1,15 @@
+# Rate Engine
+
+Rate calls applying complex rating rules described using a domain specific language.
+
+# Code Guidelines
+
+For `runSafeT`, and `bracket` follow these guidelines
+
+  https://github.com/massimo-zaniboni/ghc_lazy_file_content_error
+
+otherwise resources can be deallocated before they are completely consumed.
+
+In particulare if they are assigned to lazy evaluation thunks pretending
+to have consumed all the input.
+

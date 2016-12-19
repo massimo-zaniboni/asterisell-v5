@@ -1,0 +1,20 @@
+generator:
+  class: sfPropelAdminGenerator
+  param:
+    model_class:           ArCommunicationChannelType
+    theme:                 default
+
+    fields:
+          name: { name: Name, help: "Human readable name." }
+          description:  { name: Description }
+          internal_name: { name: Reference Name, help: "A unique reference/identifier name, used in rate specifications. Use names like \"some-name\"" }
+
+    list:
+          title: Communication Channel Types
+
+          display: [=name, description, internal_name]
+          sort: [name, asc]
+
+    edit:
+          title: Communication Channel Types
+          display: [internal_name, name, description]

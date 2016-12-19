@@ -1,0 +1,84 @@
+generator:
+  class:              sfPropelAdminGenerator
+  param:
+    model_class:      ArParams
+    theme:            default
+
+    fields:
+      name: { name: Name }
+
+      service_name: { name: Website Name, help: "Name of the VoIP service associated to the website / company, displayed also as title of the tab." }
+
+      service_provider_website: {name: "Website address", help: "The URL of the website containing this Asterisell installation." }
+
+      service_provider_email: { name: Email }
+
+      logo_image: { name: Logo image, help: "Logo image to show inside website." }
+
+      logo_html_color: { name: Logo color, help: "Optional logo main color, in HTML format (Hexadeciaml RGB), that can be used for customizing invoices, screens and reports according the logo color. Null for default color." }
+
+      slogan:  { name: Slogan, help: Slogan message displayed under the logo image }
+
+      logo_image_in_invoices: { name: "Logo image inside invoices", help: "Logo image to show in invoices. Usually it has an higher resolution respect logo image inside website. The image is scaled to a fixed width inside invoice templates, mantainig its proportions. So for some logo you must use an image with empty space on the right. Alpha channel (transparency) is not supported. If you uploda images manually, they must be put inside web/images directory." }
+
+      footer: { name:  Footer text }
+ 
+      user_message:         { name: User message, help: Wellcome message displayed to customers / users after login. }
+
+      legal_name:           { name: Company name }
+
+      vat:                  { name: VAT, help: VAT registration number }
+
+      vat_tax_perc_as_php_decimal: { name: Tax %, type: input_tag, help: "VAT Tax % to apply in invoices. Something like '19.5' without the '%' symbol and '.' as decimal separator." }
+
+      legal_address:        { name: Address }
+
+      legal_city:           { name: City }
+
+      legal_zipcode:        { name: ZIP }
+
+      legal_state_province: { name: Province / State, help: "This can be empty." }
+
+      legal_country:        { name: Country, help: "This can be empty." }
+
+      legal_email:          { name: email, help: "If not empty, it will be displayed in address." }
+
+      legal_website:        { name: Company web site }
+
+      legal_phone:          { name: Telephon 1, help: "If not empty, it will be displayed in address." }
+
+      phone2:               { name: Telephon 2 }
+
+      invoice_notes:        { name: Invoice footer notes, help: "Invoice footer notes.", type: textarea_tag, params: size=60x5 }
+
+      invoice_payment_terms: { name: Invoice payment terms, help: "Invoice payment terms, and other legal terms.", type: textarea_tag, params: size=60x5 }
+
+      legal_fax:            { name: Fax, help: "If not empty, it will be displayed in address." }
+
+      invoicing_email_address: { name: Email address }
+
+      sender_name_on_invoicing_emails: { name: Sender name, help: "The name used in emails. "}
+
+      html_notes_on_the_login_form: { name: Notes on login form, help: "HTML content to display in the login form. ", type: textarea_tag, params: size=60x5 }
+
+      official_calldate: { name: "Official call date", help: "Calls after this date can be freely rerated in case rating params are changed, because they are not yet included in official billing reports to users. Calls before this date can be rerated only from explicit admin commands. This param is automatically updated, when there are billing reports that are confirmed from admin, and sent to users. You can update this call date also manually." }
+
+    list:
+      title: Params
+      actions: []
+      display: [=name, service_name, service_provider_website]
+
+    edit:
+      title: Params
+      actions:
+        _save: ~
+
+      fields:
+        my_logo_image: { name: Logo image, help: "Logo image to show inside website, uploaded using the 'Upload Files' module." }
+        my_logo_image_in_invoices: { name: "Logo image inside invoices", help: "Logo image to show in invoices. Usually it has an higher resolution respect logo image inside website. The image is scaled to a fixed width inside invoice templates, mantainig its proportions. So for some logo you must use an image with empty space on the right. Alpha channel (transparency) is supported. If you upload images manually, they must be put inside web/images directory." }
+
+      display:
+        Params: [name, official_calldate]
+        VoIP service information (used on website): [service_name, service_provider_website, service_provider_email, _my_logo_image, logo_html_color, slogan, footer, html_notes_on_the_login_form]
+        Company legal information (used on invoices): [legal_name, vat, vat_tax_perc_as_php_decimal, legal_address, legal_city, legal_zipcode, legal_state_province, legal_country, legal_email, legal_website, legal_phone, phone2, legal_fax, invoice_notes, invoice_payment_terms, _my_logo_image_in_invoices]
+        Parameters for emails, used for sending to customer invoices and/or reports: [invoicing_email_address, sender_name_on_invoicing_emails ]

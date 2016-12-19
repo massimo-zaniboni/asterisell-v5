@@ -1,0 +1,8 @@
+# Version of stack.yml used for CentOS deploying.
+flags: {}
+packages:
+- '.'
+extra-deps:
+- cereal-text-0.1.0.2
+- quicklz-1.5.0.11
+resolver: lts-6.26

@@ -1,0 +1,7 @@
+fillin:
+  enabled: true
+
+fields:
+  ar_report_scheduler{select_report_template}:
+    required:
+      msg: Required

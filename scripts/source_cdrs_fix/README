@@ -1,0 +1,8 @@
+In this directory there are scripts for changing the content of files exported with the command
+
+  php asterisell.php data export-cdrs
+
+The transformed files can be imported again into Asterisell.
+
+See the manual for more information.
+

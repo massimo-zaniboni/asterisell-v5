@@ -1,0 +1,65 @@
+
+################################################################
+#!!!                                                        !!!#
+#!!! WARNING: This file is automatic generated.             !!!#
+#!!!                                                        !!!#
+#!!! In order to modify this file change the content of     !!!#
+#!!!                                                        !!!#
+#!!!    /module_template/call_report_template               !!!#
+#!!!                                                        !!!#
+#!!! and execute                                            !!!#
+#!!!                                                        !!!#
+#!!!    sh generate_modules.sh                              !!!#     
+#!!!                                                        !!!#
+################################################################
+
+generator:
+  class:              sfPropelAdminGenerator
+  param:
+    model_class:      ArInvoice
+    theme:            default
+
+    fields:
+      nr:                    { name: Invoice Number }
+      is_revenue_sharing:    { name: Is Revenue Sharing }
+      invoice_date:          { name: Invoice Date }
+      ar_cdr_from:           { name: Calls from }
+      ar_cdr_to:             { name: Calls to, help: "This date is exclusive. So 1 October includes all the calls of 31 September, but not the calls of 1 October." }
+      my_total_without_tax:  { name: "Total amount (ex VAT)", help: "Total amount, excluding VAT, automatically calculated" }
+      total:                 { name: "Total amount (inc VAT)", help: "Total amount, including VAT, automatically calculated" }
+      my_total:              { name: "Total amount (inc VAT)", help: "Total amount, including VAT, automatically calculated" }
+      my_total_vat:          { name: Total VAT, help: Automatically calculated }
+      my_vat_perc:           { name: VAT %, help: It will be automatically completed during invoice generation }
+      already_sent:          { name: Sent }
+      my_details:            { name: Details }
+      ar_party:              { name: Customer  }
+      filter_on_party_name:  { name: Name, filter_criteria_disabled: true }
+      already_sent:          { name: Sent Email?, help: "Marked when an email was successfully sent and it must not be sent again" }
+      displayed_online:      { name: Displayed Online?, help: "Marked when the invoice can be displayed online to customers" }
+      my_total_bundle_without_tax:  { name: "Total bundle cost (ex VAT)", help: "Total amount of bundle cost, excluding VAT, automatically calculated" }
+      my_total_calls_without_tax:  { name: "Total calls cost (ex VAT)", help: "Total amount of calls cost, excluding VAT, automatically calculated" }
+
+    list:
+      peer_method: doSelectJoinArParty
+
+      title: Customer Invoices
+      display: [invoice_date, nr, =ar_party, ar_cdr_from, ar_cdr_to, is_revenue_sharing, _my_total_without_tax, _my_total, already_sent, displayed_online]
+
+      sort:    [invoice_date, desc]
+
+      filters: [nr, ar_party_id, is_revenue_sharing, ar_cdr_to, displayed_online]
+
+    edit:
+      title: Customer Invoice
+      fields:
+        ar_party_id:           { name: Customer , params: peer_method=getOnlyCustomers include_blank=false }
+        ar_params_id:          { name: Filter to params, help: "Calculate cost only for customers associated to the specified params/resellers. This is mandatory for VENDOR invoices." }
+        my_info_image1: { name: Info Image 1, help: "An info or ads image to put inside invoices, if the invoice template support this. "}
+        my_info_image2: { name: Info Image 2, help: "An info or ads image to put inside invoices, if the invoice template support this. "}
+
+      creation_actions:        { name: Actions                  }
+        download_pdf_invoice   { name: Download PDF Report      }
+
+      display: [ar_party_id,   nr, invoice_date, is_revenue_sharing, ar_cdr_from, ar_cdr_to, _my_details, _my_total_calls_without_tax, _my_total_bundle_without_tax, _my_total_without_tax, _my_vat_perc, _my_total_vat, _my_total, already_sent, displayed_online, _my_info_image1, _my_info_image2, _creation_actions]
+
+

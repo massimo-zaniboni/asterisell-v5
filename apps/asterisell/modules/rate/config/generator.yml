@@ -1,0 +1,36 @@
+generator:
+  class:              sfPropelAdminGenerator
+  param:
+    model_class:      ArRate
+    theme:            default
+   
+    fields:
+      id: { name: Id  }
+      from_time: { name: Applicable From (inclusive), help: "From this date, the rate specification became active, and replace the old version having the same reference name." }
+      select_rate_format: { name: Source File Format, help: "Open `Rates->Rate Formats` menu entry for a detailed description of the supported rate formats." }
+      internal_name: { name: Reference Name, help: "A unique reference/identifier name, used in rate specifications. Use names like \"some-name\"" }
+      short_description: { name: Short Description, help: "Brief description of the rate porpouse. Useful for identifying quickly CSV rates to change when prices are updated, without reading the complete rate plan. In case of a rate shared with a reseller these notes are sent too. So use a name that can be understood also from the reseller. For you this is a rate of income, but for the reseller is a rate of cost."  }
+      note: { name: Notes, help: "In case of a rate shared with a reseller, these notes are not sent to the reseller.", type: textarea_tag, params: size=70x5 }
+      input_file: { name: "Source Data File", help: "A file containing rate specification or data." }
+      download_file: { name: "Source Date File", help: "The source data file with the rate specification or data." }
+      download_backup_file: { name: "Backup Source Data File", help: "The previous version of the source data file, to use in case the current source data file is not the correct one. " }
+      save_action: { name: "Fix", help: "Fix current selected rate. Use this for fixing errors in rate specification, or during initial configuration of a rate."}
+      add_action: { name: "Add New", help: "Add a new version of this rate, keeping the old version too. This new version of the rate, will be applied on CDRs with a call date equal or greather than the rate applicable date. The older CDRs will be rated according the older version of the rate, also in case of recalculations."}
+      ar_rate_format_id: {name: "Rate Format" }
+      shared_resellers: { name: "Export to Reseller", help: "The selected resellers will receive automatically this rate. In this way a rate can be inserted only one time on the main instance, and then resellers will receive the last version. The rate plan of this instance must use this rate for calculating incomes, while the rate plan on the reseller side must use this rate for calculating costs. So usually only external CSV rates are shared between a provider and a reseller, while rate plan referencing them are keep private. Also the rate description field is sent to reseller, so use an unambigous description for the rate.", type: admin_check_list, params: through_class=ArRateSharedWithReseller }
+      ar_vendor_id: { name: "Shared with Vendor", help: "The rate is received from the specified Astersell Vendor instance. Every time the Vendor change the rate, it is automatically updated also on this instance, acting like a reseller." }
+      select_vendor: { name: "Shared with Vendor", help: "The rate is received from the specified Astersell Vendor instance. Every time the Vendor change the rate, it is automatically updated also on this instance, acting like a reseller. NOTE: a Vendor must be associated to a Party, to be inside this selector. NOTE: the fields of a rate imported from vendor are overwritten every time there is a new version from the vendor." }
+
+    list:
+      title: Rates
+      display: [=id, =internal_name, short_description, from_time]
+      filters: [from_time, internal_name, short_description, ar_rate_format_id, ar_vendor_id]
+      sort: [from_time, desc]
+
+    edit:
+      title: Rate
+      display:
+        "Description": [internal_name, short_description, note]
+        "Chain of Asterisell Providers and Resellers": [_select_vendor, shared_resellers]
+        "Specification": [_select_rate_format, _input_file, _download_file, _download_backup_file]
+        "Applicability": [from_time,  _add_action, _save_action]

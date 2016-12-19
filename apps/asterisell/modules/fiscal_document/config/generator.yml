@@ -1,0 +1,47 @@
+generator:
+  class: sfPropelAdminGenerator
+  param:
+    model_class:           ArReport
+    theme:                 admin
+    non_verbose_templates: true
+    with_show:             false
+    singular:              ArReport
+    plural:                ArReports
+    route_prefix:          ar_report
+    with_propel_route:     1
+    actions_base_class:    sfActions
+
+    fields:
+
+        legal_consecutive_nr: { name: "Nr." }
+        legal_date: { name: "Date" }
+
+        legal_sender_name: { name: "Sender name" }
+        legal_sender_vat: { name: "Sender VAT" }
+        legal_sender_address: { name: "Sender Address" }
+
+        legal_receiver_name: { name: "Receiver name" }
+        legal_receiver_vat: { name: "Receiver VAT" }
+        legal_receiver_address: { name: "Receiver address" }
+
+        frm_total_without_tax: { name: "Totals without taxes" }
+
+        frm_tax: { name: "Tax" }
+
+        frm_applied_vat: { name: "VAT" }
+
+        frm_total_with_tax: { name: "Total with taxes" }
+
+        produced_report_already_reviewed: { name: "Confirmed", help: "True if the report can be viewed from users, or sent by email. False if the report must be reviewed from administrators, before sending to users. Note: a draft report if confirmed, is sent to users in any case. " }
+
+        download_file: { name: "Report file" }
+
+
+    list:
+        title: Fiscal Documents
+        actions: []
+        display: [produced_report_already_reviewed, legal_consecutive_nr, legal_date, legal_receiver_name, legal_receiver_vat, _frm_total_without_tax, _frm_applied_vat, _frm_total_with_tax, _download_file]
+        sort: [legal_consecutive_nr, desc]
+        filters: [produced_report_already_reviewed, legal_date, legal_receiver_name, legal_receiver_vat]
+
+    edit: ~

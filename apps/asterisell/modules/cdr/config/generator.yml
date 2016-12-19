@@ -1,0 +1,19 @@
+generator:
+  class:              sfPropelAdminGenerator
+  param:
+    model_class:      ArCdr
+    theme:            default
+
+    list:
+      title: Low level report of unprocessed and ignored calls
+
+      filters: [calldate, id]
+
+
+      actions: []
+
+    edit:
+      title: CDR can not be modified
+      display: []
+      actions: []
+

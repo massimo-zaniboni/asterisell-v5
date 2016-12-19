@@ -1,0 +1,21 @@
+generator:
+  class: sfPropelAdminGenerator
+
+  param:
+    model_class:      ArOrganizationUnit
+    theme:            default
+
+    route_prefix:          root_organizations
+
+    fields:
+      ar_party_id: { name: Associated to party  }
+      ar_party: { name: Associated to party  }
+      to_unit_organization_full_view: { name: Name }
+      filter_on_party_name: { name: Name }
+
+    list:
+      title: Organizations at root level
+      display: [_to_unit_organization_full_view]
+      filters: [_filter_on_party_name]
+
+    edit: []

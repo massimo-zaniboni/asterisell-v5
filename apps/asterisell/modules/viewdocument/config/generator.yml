@@ -1,0 +1,40 @@
+generator:
+  class:              sfPropelAdminGenerator
+  param:
+    model_class:           ArReportToReadUserView
+    theme:                 admin
+    non_verbose_templates: true
+    with_show:             false
+    singular:              ArReportToReadUserView
+    plural:                ArReportToReadUserViews
+    route_prefix:          ar_report_to_read_user_view
+    with_propel_route:     1
+    actions_base_class:    sfActions
+
+    fields:
+        produced_report_generation_date: { name: "Generation date", params: disabled=true }
+        produced_report_short_description: { name: "Type", params: disabled=true  }
+        from_date: { name: "From date (inclusive)", help: "The report contains calls starting from this date.", params: disabled=true  }
+        to_date: { name: "To date (exclusive)", help: "The report contains calls until this date, exclusive.", params: disabled=true   }
+        download_file: { name: "File" }
+        produced_report_additional_description: { name: "Description", type: textarea_tag, params: disabled=true size=80x5 }
+        seen_or_received_from_user: { name: "Already viewed", params: disabled=true }
+
+    list:
+        title: Documents
+        actions:
+          showcallreport: { name: "Show Call Report", action: showcallreport }
+        fields:
+        display: [ =from_date, seen_or_received_from_user, produced_report_short_description, produced_report_additional_description ]
+        sort: [from_date, desc]
+        filters: [ seen_or_received_from_user, from_date, produced_report_generation_date ]
+
+    edit:
+        title: Document
+
+        display:
+          Params: [ produced_report_short_description, produced_report_additional_description, from_date, to_date ]
+          Document: [_download_file, produced_report_generation_date ]
+
+        actions:
+          _list: ~

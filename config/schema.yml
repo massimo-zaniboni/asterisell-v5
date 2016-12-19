@@ -1,0 +1,2000 @@
+propel:
+
+  # NOTE: do not use `index: false` because the index is generated.
+  # NOTE: init procedures can create additional SQL tables, views and procedures
+
+  ar_cdr:
+  #
+  # the table where Asterisell (but not Asterisk Server) put call-detail-records for each call.
+  # IMPORTANT: every time this schema is changed, update also:
+  # - BackupCDRS
+  # - create an upgrade job, signaling that CDR table is changed
+
+    id:
+
+    calldate:    { type: timestamp, required: true }
+    # start of call (date/time).
+    # NOTE: disable the index in this place,
+    # but enable the index on this field later in index section, giving the exact name.
+
+    to_calldate: { type: timestamp, index: true }
+    # For normal CDR is NULL.
+    # In case of ServiceCDRS associated to bundle-rates,
+    # the `calldate` represent the start date of the timeframe (inclusive),
+    # while this field the ending calldate of the timeframe (exclusive).
+    # So this field identifies in an explicit way service-cdrs, from normal calls.
+
+    is_imported_service_cdr: { type: boolean, required: true, default: false }
+    # 1 (true) if it is a service-cdr imported from an external provider.
+    # 0 (false) if it is a normal-cdr or a service-cdr calculated from this instance.
+
+    count_of_calls: { type: integer, required: true, default: 1 }
+    # how many calls are associated to this line.
+    # Usually 1.
+    # Used for storing aggregate totals on some CDR.
+
+    destination_type: { type: integer, size: 1, required: true, default: 0 }
+    # the direction of the call
+    # See "apps/asterisell/lib/DestinationType.php" for a list of available
+    # "destination_type": for incoming/outgoing/internal/ignorable calls.
+
+    is_redirect: { type: boolean, required: true, default: false }
+
+    duration:    { type: integer, required: true }
+    # total time in system, in seconds from ring to hangup,
+    # NOTE: it is different from billsec, that is when the call was answered (and it is billed)
+
+    billsec:     { type: integer, required: true }
+    # total time call is up, in seconds, from answer to hangup
+
+    ar_organization_unit_id:
+    # the most specific `ar_organization_unit` that is responsable of the call.
+
+    cached_parent_id_hierarchy: { type: varchar, size: 850, required: false }
+    # a string like "123/45/456" identifying the root parent, and other parents in the hierarchy.
+    # In this way are possible efficient queries in the call report, about all the accountcode owned
+    # from a certain organization.
+
+    billable_ar_organization_unit_id: integer
+
+    bundle_ar_organization_unit_id: integer
+
+    income: { type: bigint, required: false, default: null }
+    # what the customer must pay for the call
+    #
+    # NULL if the call is not already rated,
+    # 0 if the call has no income associated.
+
+    cost_saving: { type: bigint, required: false, default: null }
+    # what the customer saved if there were no discounts.
+    # Used for showing possible savings to customers.
+
+    ar_vendor_id:
+    # NULL before the rating process,
+    # the ar_vendor which must be paid for call routing service
+
+    ar_communication_channel_type_id:
+    # NULL before rating process
+
+    cost: { type: bigint, required: false, default: null }
+    # the income of the vendor that has managed the call
+
+    expected_cost: { type: bigint, required: false, default: null }
+    # the expected cost, according the calculations on the service provider side.
+
+    ar_telephone_prefix_id:
+    # the prefix associated to the called telephone number.
+    # This association: 
+    #   * is made during rating process;
+    #   * does not depend from the rate method but only from the ar_telephone_prefix table;
+    #   * allows to filter efficiently calls according the operator type of the called number;
+    #   * breaks normalization rules because this property can be derived 
+    #     (with a big amount of work) from ar_cdr fields;
+    #   * breaking normalization rules became out of synchro 
+    #     if after CDR rating the ar_telephone_prefix table is changed;
+
+    cached_external_telephone_number: { type: varchar, size: 1024, required: false }
+    # NULL for unrated/unprocessed calls.
+    # The proper external telephone number of the call, as displayed in the CALL REPORT
+    # This field allow to cache a not so easy calculation, that depends also from
+    # configuration parameters of "apps/asterisell/config/app.yml", in order to 
+    # support filtering and ordering on this field.
+    # See "apps/asterisell/config/app.yml" comments for a detailed description 
+    # of the meaning of internal and external telephone numbers.
+
+    external_telephone_number_with_applied_portability: { type: varchar, size: 1024, required: false }
+    # The external telephone number with applied number portability.
+    # This is the telephone number on wich must work rates.
+
+    cached_masked_external_telephone_number: { type: varchar, size: 1024, required: false }
+    # as "cached_external_telephone_number" but with a mask on its last part
+    # if it is specified in the application configuration file.
+
+    error_destination_type: { type: integer, size: 1, required: true, default: 0 }
+    # in case of an imported CDR with an error, the probably destination_type of the CDR,
+    # if it can be rated correctly.
+    # 0 if there is no error.
+
+    ar_problem_duplication_key: varchar(255)
+    # an optional reference to the error associated to this CDR.
+    # I'm not using a SQL reference, because I want to delete freely the error table,
+    # without any warning.
+    # I'm not using id because errors are generated inside distinct transactions and connections
+    # and the ID can change after the COMMIT.
+    # NOTE: I don't need to speed-up with an index because the link is between the CDR and the
+    # problem, and on the side of the problem this link has an index.
+
+    debug_cost_rate: varchar(2048)
+    # NULL for pure service CDRS, not NULL for bundle rates, and normal calls
+
+    debug_income_rate: varchar(2048)
+    # NULL for pure service CDRS, not NULL for bundle rates, and normal calls
+
+    debug_residual_income_rate: varchar(2048)
+
+    debug_residual_call_duration: integer
+
+    debug_bundle_left_calls: integer
+
+    debug_bundle_left_duration: integer
+
+    debug_bundle_left_cost: bigint
+
+    debug_rating_details: varchar(10000)
+
+    _indexes:
+
+      ar_cdr_calldate_index: [calldate, cached_parent_id_hierarchy]
+      # added cached_parent_id_hierarchy for speeding up reports on a specific organization
+
+  ar_cached_grouped_cdr:
+  # store precomputed CDRS sums, for speeding up the web interface on common filters
+
+    id:
+
+    calldate:    { type: date, required: true, index: true }
+    # a day of the year like YYYY-MM-DD, without the date part
+
+    cached_parent_id_hierarchy: { type: varchar, size: 850 }
+
+    destination_type: { type: integer, size: 1, required: true }
+    # the direction of the call
+    # See "apps/asterisell/lib/DestinationType.php" for a list of available
+    # "destination_type": for incoming/outgoing/internal/ignorable calls.
+
+    count_of_calls: { type: integer, required: true }
+
+    billsec:     { type: integer, required: true }
+
+    income: { type: bigint, required: true }
+
+    cost_saving: { type: bigint, required: true  }
+
+    cost: { type: bigint, required: true }
+
+  ar_destination_type:
+    id:
+
+    internal_id: integer
+
+    name: varchar(1024)
+
+  ar_number_portability:
+  #
+  # mantain info about known telephone numbers that are ported to a new number.
+  # DEV-NOTE: the better behaviour is adding info to this table:
+  # * the "from_date" invalidate previous version of a record
+  # * each deletion causes the entire export of the table again
+  #
+  # DEV-NOTE: se si aggiungono fields, occorre rivedere i triggers in InitWithDefaultMySQLStoredProcedures
+
+    id:
+
+    telephone_number: { type: varchar, size: 255, required: true, index: true }
+    #
+    # the source telephone number
+
+    ported_telephone_number: { type: varchar, size: 255, required: true }
+    #
+    # the destination telephone number
+
+    from_date:    { type: timestamp, required: false, index: true }
+
+    is_exported_to_rating_engine: { type: boolean, index: true, required: true, default: false }
+
+  ar_rating_engine_export_status:
+  # info about the synchro status of the external rating engine, and internal data
+
+    id:
+
+    internal_name: { type: varchar, size: 255, required: false, unique: true, index: unique }
+
+    check_value: varchar(1024)
+
+  ar_party:
+  #
+  # a customer or a vendor.
+  # DEV-NOTE: every time new fields are added, the YAML export must be updated
+
+    id:
+
+    name: varchar(255)
+
+    compact_name: varchar(255)
+    #
+    # a compact/very-short name used, where space is a premium, and in internal/local communications/filters,
+    # because to the external it is better using the complete name
+
+    external_crm_code: varchar(255)
+
+    vat: varchar(255)
+    #
+    # VAT registration number
+
+    is_billable: { type: boolean, index: true, required: true, default: false }
+    #
+    # TRUE if the unit can be billed for all the costs of his direct and indirected extensions.
+    # FALSE if the  costs must be passed to his first billable parent.
+
+    legal_address: varchar(255) 
+
+    legal_city: varchar(255)
+
+    legal_zipcode: varchar(255)
+
+    legal_state_province: varchar(255)
+
+    legal_country: varchar(255)
+
+    email: varchar(255)
+
+    phone: varchar(255)
+
+    phone2: varchar(255)
+
+    fax: varchar(255)
+
+    max_limit_30: { type: integer, required: false, default: NULL }
+    #
+    # the max cost of calls for last 30 days.
+
+    last_email_advise_for_max_limit_30: timestamp
+    #
+    # when the customer was advised 
+
+    is_active: { type: boolean, index: true, required: true, default: 1 }
+    #
+    # TRUE if it is an active customer/vendor.
+
+    ar_reseller_id:
+    # NULL if it is not a reseller
+
+    migration_field_for_telephone: varchar(255)
+    # the migration field, that the user must supply for migrating the telephone services
+
+    migration_field_for_adsl: varchar(255)
+    # the migration field, that the customer must supply for migrating the adsl services
+
+  ar_params:
+  #
+  # Params/resellers associated to customer/account
+
+    id:
+
+    name: varchar(255)
+    #
+    # identifies the params 
+
+    is_default: boolean
+    #
+    # if TRUE use these parameters are applied also to login form
+    # and when there are no other available params
+
+    service_name: varchar(255)
+    #
+    # the name of the VoIP service offered from the Company
+
+    service_provider_website: varchar(255)
+    #
+    # the web site address where the user can retrieve info about its telephone traffics. 
+    # In other word, it is where Asterisell is installed.
+
+    service_provider_email: varchar(255)
+    #
+    # the mail associated to the VoIP service
+
+    vat_tax_perc: { type: integer, required: true, default: 0 }
+    #
+    # VAT tax to apply to invoice amount, using the decimal format 
+    # used also for incomes/costs.
+
+    logo_image: varchar(255)
+    #
+    # the logo to display
+
+    slogan: varchar(1024)
+    #
+    # the slogan to display near the logo
+
+    logo_image_in_invoices: varchar(255)
+    #
+    # the logo to use in invoices
+
+    footer: varchar(255)
+    #
+    # the text to display in the footer
+ 
+    user_message: varchar(255)
+    #
+    # an optional informative message to show after login of the account
+
+    legal_name: varchar(255)
+
+    external_crm_code: varchar(255)
+
+    vat: varchar(255)
+    #
+    # VAT registration number
+
+    legal_address: varchar(255) 
+
+    legal_website: varchar(255)
+    #
+    # Note: this is the company web site, not where Asterisell is installed.
+
+    legal_city: varchar(255)
+
+    legal_zipcode: varchar(255)
+
+    legal_state_province: varchar(255)
+
+    legal_country: varchar(255)
+
+    legal_email: varchar(255)
+
+    legal_phone: varchar(255)
+
+    phone2: varchar(255)
+
+    legal_fax: varchar(255)
+
+    invoice_notes: varchar(255)
+ 
+    invoice_payment_terms: varchar(2048)
+
+    sender_name_on_invoicing_emails: varchar(255)
+    #
+    # the name used in invoices/reports
+
+    invoicing_email_address: varchar(255)
+    #
+    # the sender mail address used for invoicing/reports
+
+    logo_html_color: varchar(12)
+    #
+    # The main color of the logo, that can be used for customizing invoices, reports and screens
+
+    html_notes_on_the_login_form: varchar(2048)
+    #
+    # notes to display on the login form of the user
+
+    official_calldate: timestamp
+    # from this date the CDRs can be rerated, because they are not considered official/billed/shipped to customers
+
+    scheduled_rerate_from_official_calldate: { type: boolean, required: true, default: false }
+    # true for rerating from the official_calldate
+
+    new_imported_cdrs_from_calldate: timestamp
+    # not NULL if there are new imported CDRs to rate
+
+    new_imported_cdrs_to_calldate: timestamp
+    # not NULL if there are new imported CDRs to rate
+
+    scheduled_rerate_from_specific_calldate: timestamp
+    # not NULL for forcing a rerate.
+    # This is a user specified time-frame.
+
+    scheduled_rerate_to_specific_calldate: timestamp
+    # NULL for rating all CDRs (only in case scheduled_rerate_from_specific_calldate is not NULL)
+    # a specific calldate for rating all CDRs until this date (exclusive).
+
+    scheduled_imported_services_rerate_from_specific_calldate: timestamp
+    # not NULL for forcing a rerate only of imported services
+
+    scheduled_imported_services_rerate_to_specific_calldate: timestamp
+
+    current_count_of_rerating_failed_attempts: { type: integer, required: true, default: 0 }
+
+    current_rerating_event_is_running: { type: boolean, required: true, default: false }
+
+    should_reschedule_rerate_from_official_calldate:  { type: boolean, required: true, default: false }
+    # used during rerating event, for taking note of thi global rerating was failed, and it must be rescheduled
+
+    wait_for_scheduled_rerate: { type: boolean, required: true, default: true }
+    # true for waiting a cron processor passage, before rerating.
+    # Used for not rerating continuosly when there are many ongoing changes from the admin.
+
+    clean_error_table: { type: integer, required: true, default: 0 }
+    # flag to true for deleting all the errors from the error table, and starting with a clean situation.
+    # After cleaning it is reverted to false value.
+    # 0 for no cleaning.
+    # 1 for scheduled cleaning
+    # 2 for activated cleaning
+
+  ar_reseller:
+  # a VoIP vendor reselling the calls of this Asterisell instance, to his own customers.
+    id:
+
+    internal_name: { type: varchar, size: 255, required: false, unique: true, index: unique }
+
+    name: { type: varchar, size: 1204, required: true }
+
+    note: { type: varchar, size: 2048, required: false }
+
+  ar_rate_category:
+  # every customer can be assigned to a certain rate_category
+    id:
+
+    internal_name: { type: varchar, size: 255, required: false, unique: true, index: unique }
+    # an internal name, used from management jobs for recognizing the ar_rate_category.
+    # I'm using only an "internal_name" and not also a "name", because rate categories are used internally,
+    # and the name is directly the internal_name
+
+    short_description: longvarchar
+    # human readable name, with a description of the meaning of the price category
+
+  ar_rate_format:
+  # a named format for a rate specification or data (CSV file for example)
+
+    id:
+
+    short_description: longvarchar
+    #
+    # a short description of the format
+
+    detailed_description: longvarchar
+    #
+    # an HTML detailed description of the format. It serves also as reference for the user.
+
+    internal_name: { type: varchar, size: 255, required: true, unique: true, index: unique }
+    #
+    # an internal name, used from management jobs, and as reference in rate declarations.
+    # It is displayed also in the user selection.
+
+    order_name: varchar(255)
+    #
+    # an internal code used for ordering logically the rates, according their importance
+
+  ar_rate:
+    id:
+
+    ar_vendor_id:
+    # a rate can be shared with a vendor
+
+    ar_rate_format_id:
+
+    from_time: { type: timestamp, required: true, index: true }
+    #
+    # when the rate become applicable
+
+    internal_name: { type: varchar, size: 512, required: false, index: true, unique: false }
+    # an internal name, used from management jobs for recognizing the rate.
+    # NOTE: a rate with the same internal_name overrides a rate with the same internal-name
+    # if it has a more recent "from_time".
+    # 'rate-plan" is a special name referencing the main rate plan.
+
+    ar_rate_id:
+    # null if this in a new rate.
+    # The overridden rate otherwise.
+    # NOTE: this is used for being sure that there are not mismatched rate configurations,
+    # so it is a repeadet information respect "internal-name", but for good reasons.
+
+    short_description: varchar(1024)
+
+    note: longvarchar
+    #
+    # user notes
+
+    is_exported_to_resellers: { type: boolean, required: true, default: false, index: true }
+    # 1 if the rate was exported to the resellers
+
+    was_compiled: { type: boolean, required: true, default: false, index: true }
+    # true if the rate was sent to the rating engine.
+
+    source_data_file: blob
+    #
+    # the source file in gzip format and base64 encoded, used for generating the rate
+
+    backup_source_data_file: blob
+    #
+    # a backup of the previoun version of source_data_file
+
+    html_description: blob
+    #
+    # an HTML representation of the rate, in gzip format and base64 encoded
+
+  ar_rate_shared_with_reseller:
+  # a rate can be shared with one or many resellers.
+
+    ar_rate_id: { type: integer, foreignTable: ar_rate, foreignReference: id, onDelete: cascade, required: false }
+
+    ar_reseller_id:
+
+    is_exported: { type: boolean, required: true, default: false, index: true }
+    # true if the rate was sent to the reseller.
+
+  ar_telephone_prefix:
+  #
+  # A telephone prefix identifing a certain area or telephone operator.
+
+    id:
+  
+    prefix: { type: varchar(255), required: true, unique: true, index: unique }
+    # IMPORTANT: leave this unique, otherwise the code updating it, can generate too much duplicates
+
+    match_only_numbers_with_n_digits: integer
+    #
+    # if not NULL the matching telephone number (but not the prefix)
+    # must be exactly of the specified length. Useful for special (short)
+    # telephone numbers.
+    # This has always the priority respect also longer prefixes.
+
+    name: varchar(1024)
+    
+    geographic_location: varchar(1024)
+    #
+    # where (mainly) user of the prefix are geographically located.
+    # In case of pseudo calls like ServiceCDRS, this is the detailed description of the type of the call.
+    
+    operator_type: { type: varchar(1024), index: true }
+    #
+    # something like "mobile" or "fixed" or "VoIP"
+    # that describes the type of transmission technology
+    # associated to the prefix.
+    # NULL if there is more than one type of connection
+    # associated to the prefix.
+    # In case of pseudo calls like ServiceCDRS, this is the main type of the service, or a generic "Sevice"
+
+    display_priority_level: { type: integer, required: true, default: 0 }
+    # a progressive number indicating the priority class of this prefix.
+    # 0 for normal priority.
+    # 1 for higher priority and so on.
+
+  ar_organization_unit:
+  #
+  # A unitary element of the organization hieararchy.
+
+    id:
+
+    internal_name: { type: varchar, size: 200, required: false, unique: true, index: unique }
+    #
+    # an internal name, used from management jobs for recognizing the ar_organization_unit.
+
+    internal_name2: { type: varchar, size: 200, required: false, unique: true, index: unique }
+    #
+    # another internal name, used from management jobs for recognizing the ar_organization_unit.
+
+    export_code: { type: varchar, size: 200, required: false, unique: true, index: unique }
+    # in case of extensions exported to resellers, this is the code used as extension/internal number
+    # and that must be used from the reseller instance for matching the call.
+
+    automatically_managed_from: { type: integer, required: true, default: 0 }
+    # identifies an automatic procedure managing it
+    # 0 for user defined organizations
+
+  ar_organization_unit_type:
+  #
+  # the type of an organization.
+  # For example in "Department X", "X" is the ar_organization unit,
+  # and "Department" is the ar_organization_unit_type.
+
+    id:
+
+    name: { type: varchar, size: 200, required: true, unique: true, index: unique }
+
+    short_code: varchar(255)
+    #
+    # the short code to display as title of the organization unit type.
+    # If NULL, the name value is used.
+
+    internal_name: { type: varchar, size: 200, required: false, unique: true, index: unique }
+    #
+    # an internal name, used from management jobs for recognizing the ar_rate_category
+
+  ar_organization_unit_has_structure:
+  #
+  # model a many-to-many relation like
+  # `organization-unit has-type organization-unit-type and-has-parent organization-unit- from timestamp to timestamp`
+  #
+  # unit descriptions are never deleted, but replaced with new descriptions.
+  # So all the history of a unit can be retrieved and reports can be generated also in the past.
+  #
+  # All the info that can change over time, but that make sense keeping also the history of the past,
+  # must be put in this table.
+  #
+  # Units associated to extensions, can not have children. This is required for allowing the user interface
+  # to map to proper selection widgets the parts of the user interface.
+
+    id:
+
+    ar_organization_unit_id:
+
+    ar_organization_unit_type_id:
+
+    ar_parent_organization_unit_id: { type: integer, required: false, primaryKey: false, foreignTable: ar_organization_unit, foreignReference: id }
+    #
+    # NULL for Root Organizations
+
+    from: { type: timestamp, required: true, index: true }
+    #
+    # change the structure of the unit, starting from this date,
+    # and until there is another change in the structure.
+    # NOTE: the index is needed for speeding upd the queries of export of data to the rating engine
+
+    exists: { type: boolean, required: true, default: 1 }
+    #
+    # false if the corresponding organization_unit is removed from the organization,
+    # and does not exists
+
+    ar_rate_category_id:
+    #
+    # NULL if the price category is the same of the parent organization
+
+    ar_party_id:
+    #
+    # NULL if it is an extension.
+
+    extension_codes: { type: varchar, size: 5024 }
+    #
+    # EMPTY or NULL for organizations, a code for extensions.
+    #
+    # The internal VoIP account codes, to associate to the extension.
+    # They must be in this format:
+    #
+    # > "1222","1753","1557","1555"XXX,"1575"
+    #
+    # where "1555"XXX match all the numbers with last chars left unspecified.
+    #
+    # NOTE: in case of an extension "125" and "12"X,
+    # the first "125" is stronger than the generic version "12"X.
+
+    extension_name: varchar(1024)
+    #
+    # NULL if it is not an extension, and the unit is associated to a party,
+    # and it is a proper non terminal organization.
+    #
+    # NOT NULL if it an extension.
+    #
+    # The name to show to the user in case of an extension.
+    # The empty string if the name of the parent must be showed.
+
+    extension_user_code: varchar(1024)
+    #
+    # NULL if it is not an extension
+    #
+    # The main code associated to an extension, and that can be shown in the user interface,
+    # if app.yml is configured accordingly.
+    #
+    # For example in "John Smith (5321)", "John Smith" is the extension_name,
+    # and "5321" the extension_user_code.
+    #
+    # The empty string if it must be not showed.
+
+    _uniques:
+      avoid_conflicting_changes_on_the_same_date: [ar_organization_unit_id, from]
+
+  ar_organization_backup_of_changes:
+  # save a list of changes made to organization structure, made using the YAML file importer and exporter
+
+    id:
+
+    backup_at_date: { type: timestamp, required: true, index: true }
+
+    application_version: varchar
+    # The version of Asterisell application, at the moment of the backup.
+
+    md5_sum: varchar(2048)
+    # used for understanding when a new backup must be saved.
+
+    yaml_export_at_date: blob
+    # This is a base64 and gzipped compressed version of the data.
+    # It corresponds to the backup of the organization info, viewing at "backup_at_date".
+    # The YAML view is not a complete view of all the history, but it is human readable.
+
+    sql_tables: blob
+    # This is a base64 and gzipped compressed version of the SQL dump of tables.
+    # It save all the history of changes.
+    # It is not compatible with previous version of the application, in case of change of schema.
+
+  ar_vendor:
+  #
+  # a VoIP service provider
+
+    id:
+
+    internal_name: { type: varchar, size: 200, required: false, unique: true, index: unique }
+    #
+    # an internal name, used from management jobs for recognizing the vendor.
+
+    ar_party_id:
+
+    is_internal: { type: boolean, required: true, default: false }
+    # the calls are internal, so it is a "fake" vendor, or an internal server
+
+  ar_communication_channel_type:
+  #
+  # something like PSTN, SIP, enum.local
+  # used for identifying the communication channel used for routing the call.
+
+    id:
+
+    name: { type: varchar, size: 255, required: true, unique: true, index: unique }
+
+    description:  { type: varchar, size: 2048, required: false }
+
+    internal_name: { type: varchar, size: 200, required: false, unique: true, index: unique }
+    #
+    # an internal name, used from management jobs
+
+
+  ar_vendor_domain:
+  #
+  # a domain associated to a vendor
+
+    id:
+
+    internal_name: { type: varchar, size: 200, required: false, unique: true, index: unique }
+    #
+    # an internal name, used from management jobs
+
+    ar_vendor_id:
+
+    ar_communication_channel_type_id:
+    #
+    # if not null, the default communication channel to associate to the domain.
+    # if null, other methods will be used in the system for making the association.
+
+    domain: { type: varchar, size: 255, required: true, unique: true, index: unique }
+
+    is_prefix: { type: boolean, required: true, default: false }
+    #
+    # True if the domain can be matched by prefix.
+    # The longest prefix of the `same ar_vendor_domain_type_id` is selected
+    #
+    # False if the domain must be matched exactly.
+
+    is_suffix: { type: boolean, required: true, default: false }
+    #
+    # True if this domain match a domain having this domain as suffix.
+
+    from: { type: timestamp, required: true }
+    #
+    # from when (inclusive) the domain association is valid
+
+    to: { type: timestamp, required: false }
+    #
+    # null if it is still valid.
+    #
+    # the date (exclusive) until the domain association is valid
+
+  ar_user:
+  #
+  # a person with roles, permissions, web account, extensions and so on.
+  #
+  # NOTE: users must not deleted, but set `is_enabled` to FALSE,
+  # because info about their extensions used in the past (and so on...), can be still useful.
+  #
+  # NOTE: users can do on the system, only according their permissions and roles.
+
+    id:
+
+    ar_party_id:
+    #
+    # data about the identity of the user
+
+    ar_organization_unit_id:
+    #
+    # the user has roles and permissions for only this part of the organization
+
+    login: { type: varchar, size: 255, required: true, unique: true, index: unique }
+
+    password: varchar(1024)
+    #
+    # md5 hashed password
+
+    is_enabled: { type: boolean, required: true, default: true }
+
+    is_root_admin: { type: boolean, required: true, default: false }
+    #
+    # TRUE if it is the main administrator with administration privileges on all the system
+
+  ar_user_change_password_request:
+  # Store all requests for changing a password.
+
+    id:
+
+    ar_user_id:
+
+    at_date:  { type: timestamp, required: true }
+
+    old_password: varchar(1024)
+
+    new_password: varchar(1024)
+
+    is_processed: { type: boolean, required: true, default: false, index: true }
+
+  ar_user_has_role:
+
+    ar_user_id: { type: integer, foreignTable: ar_user, foreignReference: id, onDelete: cascade, required: false }
+
+    ar_role_id:
+
+  ar_user_has_permission:
+
+    ar_user_id: { type: integer, foreignTable: ar_user, foreignReference: id, onDelete: cascade, required: false }
+
+    ar_permission_id:
+
+  ar_view_all_user_permissions:
+  #
+  # NOTE: this is a read-only table, because it will transformed in a view from init code
+  # NOTE: the user is associated to a unique organization, so the permission is implicitely related
+  # to the organization of the user
+
+    ar_user_id: { primaryKey: true }
+
+    ar_permission_id: { primaryKey: true }
+
+  ar_role:
+  #
+  # Give a name to a set of common permissions. For example define what can do an Administrator or an Operator.
+
+    id:
+
+    name: varchar(1024)
+
+    power: { type: integer, size: 5, required: true }
+    #
+    # 0 is more powerful than 10 and so on
+
+    description: longvarchar
+
+    internal_name: { type: varchar, size: 200, required: false, unique: true, index: unique }
+    #
+    # an internal name, used from management jobs for recognizing the extension.
+
+
+  ar_role_has_permission:
+  #
+  # add many permissions to ar_role
+  # It models something like:
+  # `role has permission`
+
+    ar_permission_id:
+
+    ar_role_id:
+
+  ar_global_permissions:
+  #
+  # the permisions that are given by default to all users (but not administrators),
+  # and that depends from the static setting of the Asterisell instance
+
+    id:
+
+    show_call_cost: boolean
+
+    show_call_income: boolean
+
+    show_outgoing_calls: boolean
+
+    show_incoming_calls: boolean
+
+    show_internal_calls: boolean
+
+    show_voip_provider: boolean
+
+    show_communication_channel: boolean
+
+    show_cost_saving: boolean
+
+  ar_permission:
+  #
+  # what a user can do.
+  # `ArPermission` class, contains the code of the hard-coded permission,
+  # so this table is not user writable.
+
+    id: { type: integer, primaryKey: true }
+
+    name: varchar(1024)
+
+    description: longvarchar
+
+    power: { type: integer, required: true }
+    #
+    # 0 is more powerful than 10 and so on
+
+  ar_report_order_of_children:
+  #
+  # how ordering organization children in a report.
+  # The value of this table will be populated with automatic values from the application.
+
+    id: { type: integer, primaryKey: true }
+
+    name: varchar(255)
+
+    description: varchar(1024)
+
+  ar_report:
+  #
+  # a generated report, with parameters.
+  # "input_param_" identifies the input params for the report
+  # "produced_report_" identifies a property of the final report
+  # If not specified, both a parameter and a property.
+
+    id:
+
+    is_template: { type: boolean, required: true, index: true, default: false }
+    # true for using as template
+
+    ar_report_set_id: { type: integer, foreignTable: ar_report_set, foreignReference: id, onDelete: cascade, required: false }
+    #
+    # NULL if the report was created from a user.
+    # The set associated to the scheduler pass, otherwise.
+
+    ar_organization_unit_id:
+    #
+    # the report is associated to this organization/extension, or NULL if it is not applicable
+
+    ar_user_id:
+    #
+    # the report is associated to this user, or NULL if it is not applicable
+
+    ar_vendor_id:
+    #
+    # the report is associated to this vendor, or NULL if it is not applicable
+
+    from_date:    { type: timestamp, required: false, index: true }
+    #
+    # inclusive timestamp
+
+    to_date:    { type: timestamp, required: false, index: true }
+    #
+    # exclusive timestamp
+
+    param_show_masked_telephone_numbers: { type: boolean, required: true, default: true }
+
+    param_show_call_cost: { type: boolean, required: true, default: false }
+
+    param_show_call_income: { type: boolean, required: true, default: false }
+
+    param_show_also_outgoing_calls: { type: boolean, required: true, default: false }
+
+    param_show_also_system_calls: { type: boolean, required: true, default: false }
+
+    param_show_also_incoming_calls: { type: boolean, required: true, default: false }
+
+    param_show_also_internal_calls: { type: boolean, required: true, default: false }
+
+    param_show_call_details: { type: boolean, required: true, default: false }
+
+    param_show_voip_provider: { type: boolean, required: true, default: false }
+
+    param_show_communication_channel: { type: boolean, required: true, default: false }
+
+    param_show_geographic_location: { type: boolean, required: true, default: false }
+
+    param_show_connection_type: { type: boolean, required: true, default: false }
+
+    param_show_cost_saving: { type: boolean, required: true, default: false }
+
+    param_is_legal: { type: boolean, required: true, default: false }
+    # legal documents are sent also to the party (not user) official email address
+
+    param_expand_to_level: { type: integer, size: 4, required: true, default: 0 }
+    # 0 for expanding all the childs
+    # otherwise expand the childs only until the specified level
+
+    ar_report_order_of_children_id:
+
+    php_class_name: varchar(1024)
+    #
+    # the name of a ReportGenerator PHP class,
+    # generating the report, according the values of this record.
+
+    produced_report_generation_date: { type: timestamp, required: false, index: true }
+
+    report_name: varchar(1024)
+    #
+    # a short name for the report. NULL for using the default report name.
+    # In this way the user can specify a custom name for the report.
+
+    produced_report_short_description: varchar(2048)
+    #
+    # short description for the report
+
+    produced_report_additional_description: varchar(2048)
+    #
+    # description for the meaning of the report,
+
+    produced_report_already_reviewed: { type: boolean, required: true, default: false, index: true }
+    # if true the report can be sent to users, because its content is confirmed
+
+    produced_report_is_draft: { type: boolean, required: true, default: false, index: true }
+    # if true, the report can not be considered 100% correct, and there can be errors
+
+    produced_report_must_be_regenerated: { type: boolean, required: true, default: false }
+    # if true, the report must be regenerated, because related CDRs were rerated.
+    # This flag can be applied only to not reviewed reports.
+
+    produced_report_mime_type: { type: varchar, size: 128, required: true, default: 'application/pdf' }
+
+    produced_report_file_type_suffix: { type: varchar, size: 25, required: true, default: 'pdf' }
+
+    produced_report_document: blob
+    #
+    # the report content, in gzip format, and base64 encoded
+
+    produced_report_document_checksum: varchar(1024)
+
+    report_mail_subject: varchar(1024)
+
+    report_mail_body: varchar(5024)
+
+    report_attachment_file_name: varchar(255)
+    # NULL or empty for using a default name
+
+    report_attachment_file_name_add_report_date: { type: boolean, required: true, default: false }
+    # true for adding the date of the report to the attachment file name
+
+    internal_name: { type: varchar, size: 512, required: false, index: true, unique: false }
+    #
+    # an internal name, used from management jobs
+
+    cached_parent_id_hierarchy: { type: varchar, size: 2024, index: true, required: false }
+    #
+    # a string like "123/45/456/" identifying the root parent, and other parents in the hierarchy.
+    # In this way are possible efficient queries in the call report, about all the accountcode owned
+    # from a certain organization.
+
+    legal_nr_prefix: { type: varchar, size: 255, index: false, required: true }
+    # a prefix to use before the number of the invoice
+
+    legal_consecutive_nr: integer
+    #
+    # in case of fiscal/legal documents, a consecutive number
+
+    legal_date: { type: date, index: true }
+    #
+    # in case of fiscal/legal document, the corresponding fiscal date
+
+    legal_sender_name: varchar(255)
+    legal_sender_vat: varchar(255)
+    legal_sender_address: varchar(1024)
+
+    legal_receiver_name: varchar(255)
+    legal_receiver_vat: varchar(255)
+    legal_receiver_address: varchar(1024)
+
+    total_without_tax: { type: bigint, required: false, default: null }
+
+    tax: { type: bigint, required: false, default: null }
+
+    applied_vat: { type: bigint, required: false, default: null }
+
+    total_with_tax: { type: bigint, required: false, default: null }
+
+  ar_report_also_for:
+  # the users with the specified role for the organization report, can view the report
+
+    ar_report_id: { type: integer, primaryKey: true, foreignTable: ar_report, foreignReference: id, onDelete: cascade, required: true }
+
+    ar_role_id: { type: integer, primaryKey: true, foreignTable: ar_role, foreignReference: id, onDelete: cascade, required: true }
+
+  ar_report_scheduler:
+  #
+  # schedule reports generation
+
+    id:
+
+    is_active: boolean
+
+    last_execution_date: timestamp
+    # when the report was executed the last time
+
+    last_from_date: timestamp
+    # If NULL the report is considered not already configured, because this date says when the report time-frame
+    # must start. In case of MONTH reports it identifies the starting day of month, in case of weekly reports it
+    # identifies the starting day of week.
+    # It is the first date of calls in the report, in the last execution passage.
+
+    last_to_date: timestamp
+    # the ending date (exclusive) of the calls in the report in the last execution passage.
+
+    ar_report_id:
+    #
+    # the report used as template for generating the scheduled reports
+
+    ar_organization_unit_id:
+    #
+    # the report is associated to this organization/extension, or NULL if it is not applicable
+
+    short_description: varchar(2048)
+    #
+    # short description for the report schedule
+
+    additional_description: varchar(2048)
+    #
+    # description for the meaning of the report schedule
+
+    note: varchar(2048)
+
+    produced_report_must_be_reviewed: { type: boolean, required: true, default: true }
+
+    ar_report_generation_id:
+
+    schedule_every_x_days: integer
+    # NULL for using another scheduling criteria
+
+    schedule_every_x_months: integer
+    # NULL for using another scheduling criteria
+
+    start_generation_after_x_hours: { type: integer, required: true, default: 2 }
+    # 1 for generating the report, after 1 hour we reach the next scheduling date
+
+    internal_name: { type: varchar, size: 512, required: false, index: true, unique: false }
+    # an internal name, used from management jobs
+
+    ar_legal_date_generation_method_id: integer
+    #
+    # code customizable generation method of the invoice legal date
+
+    days_to_add_to_legal_date_generation_method: integer
+
+    is_yearly_legal_numeration: boolean
+    #
+    # true for resetting the numeration, every time the legal date change the year
+
+    generate_only_if_there_is_cost: { type: boolean, required: true, default: false }
+    # true for generating reports only if they have a cost
+
+  ar_legal_date_generation_method:
+
+    id: { type: integer, primaryKey: true }
+
+    name: varchar(1024)
+
+    description: varchar(2048)
+
+  ar_report_set:
+  #
+  # a batch of reports generate from a report scheduler in a certain pass
+
+    id:
+
+    ar_report_scheduler_id:
+
+    from_date: { type: timestamp, required: true, index: true }
+    # All the reports of the same scheduling run, have the same reference date.
+    # It is the starting date of calls on the reports.
+
+    to_date: { type: timestamp, required: true, index: true }
+    # All the reports of the same scheduling run, have the same reference date.
+    # It is the ending date (exclusive) of calls on the reports.
+
+    must_be_reviewed: { type: boolean, required: true, default: true, index: true }
+
+  ar_report_generation:
+  #
+  # identify how to generate scheduled reports:
+  # - for each children
+  # - for each billable children
+  # - for each children with a responsible user
+  # - and so on ...
+  #
+  # Its values are initializated on ConfigureDefaultParamsAndSettings.
+
+    id: { type: integer, primaryKey: true }
+
+    name: { type: varchar, size: 256 }
+
+    description: { type: varchar, size: 1024 }
+
+  ar_report_to_read:
+  #
+  # the reports read and to read from users.
+  # It is used also as a queue of documents to send to email.
+  # Data is push in this table, from ArReportPeer::publishReportToUsers function.
+
+    id:
+
+    ar_report_id: { type: integer, foreignTable: ar_report, foreignReference: id, onDelete: cascade, required: true }
+
+    ar_user_id: { type: integer, foreignTable: ar_user, foreignReference: id, onDelete: cascade, required: false }
+    # NULL in case the report is a legal report and it can be seen only from the party, because there is no attached user
+
+    seen_or_received_from_user: { type: boolean, required: true, default: false }
+    #
+    # true if the user received by email, or seen it on the call report on-line.
+
+    must_be_sent_to_email: { type: boolean, required: true, default: false }
+    #
+    # true if it must not be sent by email, or it was already sent
+
+    sent_to_email_at_date: timestamp
+    #
+    # NULL if it was not already sent to email
+
+    _indexes:
+
+      ar_report_to_read_queue_for_online_index: [ seen_or_received_from_user, ar_user_id ]
+      #
+      # allows to search in a fast way the reports that a user must read or receive by email
+
+      ar_report_to_read_queue_for_email_index: [ must_be_sent_to_email, ar_user_id ]
+      #
+      # allows to search in a fast way the reports that a user must read or receive by email
+
+  ar_report_to_read_user_view:
+  #
+  # Used for displaying user documents.
+  # It is replaced from a view, during application installation.
+  # In this way I can use an admin module, for acessing it in read mode.
+
+        id:
+
+        ar_report_to_read_id:
+
+        ar_report_id:
+
+        ar_user_id:
+
+        seen_or_received_from_user: { type: boolean, required: true, default: false }
+        #
+        # true if the user received by email, or seen it on the call report on-line.
+
+        ar_organization_unit_id:
+        #
+        # the report is associated to this organization/extension, or NULL if it is not applicable
+
+        from_date:    { type: timestamp, required: false, index: true }
+        #
+        # inclusive timestamp
+
+        to_date:    { type: timestamp, required: false, index: true }
+        #
+        # exclusive timestamp
+
+        produced_report_generation_date: { type: timestamp, required: false, index: true }
+
+        produced_report_short_description: varchar(2048)
+        #
+        # short description for the report
+
+        produced_report_additional_description: varchar(2048)
+        #
+        # description for the meaning of the report,
+
+        produced_report_already_reviewed: { type: boolean, required: true, default: false, index: true }
+
+        produced_report_is_draft: { type: boolean, required: true, default: false, index: true }
+        #
+        # if true, the report can not be considered 100% correct, and there can be errors
+
+  ar_user_can_view_report:
+  #
+  # Reports that can be read from users.
+  # The table content is maintaned from triggers.
+
+    ar_user_id: { type: integer, primaryKey: true, foreignTable: ar_user, foreignReference: id, onDelete: cascade, required: true }
+
+    ar_report_id: { type: integer, primaryKey: true, foreignTable: ar_report, foreignReference: id, onDelete: cascade, required: true }
+
+  ar_problem_type:
+  # the severity level of the problem (info, warning, error, critical)
+
+    id: { type: integer, primaryKey: true }
+
+    name: varchar(512)
+
+  ar_problem_domain:
+  # the part of the system affected from the error
+
+    id: { type: integer, primaryKey: true }
+
+    name: varchar(512)
+
+  ar_problem_responsible:
+  # the user responsible of the error (admin, application assistance)
+
+    id: { type: integer, primaryKey: true }
+
+    name: varchar(512)
+
+  ar_problem_default_responsible:
+  # the default responsible user associated to the problem domain
+
+    id:
+
+    ar_problem_domain_id:
+
+    ar_problem_responsible_id:
+
+  ar_current_problem:
+  #
+  # problems found during periodic check of the database, and displayed to the user.
+  # They can be info/warning/errors.
+  # The problems in this table are displayed to users.
+  #
+  # NOTE: the schema of this table must be the same of `ar_new_problem` table
+
+    duplication_key: { type: varchar, size: 255, primaryKey: true, autoIncrement: false }
+    #
+    # a unique MD5 key used in order to grouping similar problems,
+    # avoid many problems of the same type in the table
+
+    ar_problem_type_id:
+
+    ar_problem_domain_id:
+
+    ar_problem_responsible_id:
+
+    created_at:
+    #
+    # when the problem was found
+
+    garbage_collection_key: { type: varchar, size: 1024 }
+    #
+    # used for identifying logically a set of generated errors, and for testing if they are still generated
+    # from processing jobs.
+    # NULL for problems that can not be garbage collected (mainly for not already converted code)
+    # NOTE: I'm not using a filter, because this field is accessed by jobs, there are few jobs, and a scan
+    # access is faster.
+
+    garbage_collection_from: timestamp
+    #
+    # used for identifying logically a set of generated errors, and for testing if they are still generated
+    # from processing jobs.
+
+    garbage_collection_to: timestamp
+    #
+    # used for identifying logically a set of generated errors, and for testing if they are still generated
+    # from processing jobs.
+
+    description: longvarchar
+
+    effect: longvarchar
+
+    proposed_solution: longvarchar
+
+    signaled_to_admin: { type: boolean, required: true, default: false }
+    #
+    # true if the problem was signaled to the administrator
+    # via mail or other method
+
+    count_of_cdrs: { type: integer, required: true, default: 0 }
+    # how many CDRs are associated to this error.
+
+  ar_new_problem:
+  #
+  # new problems found during periodic check of the database.
+  # Until they are in this table, they are not displayed to the user.
+  #
+  # NOTE: the schema of this table must be the same of `ar_current_problem` table
+
+    duplication_key: { type: varchar, size: 255, primaryKey: true, autoIncrement: false }
+    #
+    # a unique MD5 key used in order to grouping similar problems,
+    # avoid many problems of the same type in the table
+
+    ar_problem_type_id:
+
+    ar_problem_domain_id:
+
+    ar_problem_responsible_id:
+
+    created_at:
+    #
+    # when the problem was found
+
+    garbage_collection_key: { type: varchar, size: 1024 }
+    #
+    # used for identifying logically a set of generated errors, and for testing if they are still generated
+    # from processing jobs.
+    # NULL for problems that can not be garbage collected (mainly for not already converted code)
+    # NOTE: I'm not using a filter, because this field is accessed by jobs, there are few jobs, and a scan
+    # access is faster.
+
+    garbage_collection_from: timestamp
+    #
+    # used for identifying logically a set of generated errors, and for testing if they are still generated
+    # from processing jobs.
+
+    garbage_collection_to: timestamp
+    #
+    # used for identifying logically a set of generated errors, and for testing if they are still generated
+    # from processing jobs.
+
+    description: longvarchar
+
+    effect: longvarchar
+
+    proposed_solution: longvarchar
+
+    signaled_to_admin: { type: boolean, required: true, default: false }
+    #
+    # true if the problem was signaled to the administrator
+    # via mail or other method
+
+    count_of_cdrs: { type: integer, required: true, default: 0 }
+    # how many CDRs are associated to this error.
+
+  ar_job_queue:
+  #
+  # job to execute/executing/executed
+
+    id:
+
+    is_part_of: { type: integer, required: true, index: true, unique: false }
+    #
+    # is-part-of relationship.
+    # It is equal to "id" when this job is not part of another
+    # job. It is equal to the parent job when the parent were
+    # decomposed in different jobs.
+    # The job queue processor enforces the execution first of all ar_job_queue_id with lover values.
+    # So job execution order is predictable.
+
+    state: { type: integer, size: 1, required: true, index: true, unique: false, default: 0 }
+    #
+    # 0 for TODO
+    # 1 for RUNNING
+    # 2 for DONE
+    # 3 for ERROR
+
+    created_at: timestamp
+    #
+    # when the job was added to the queue
+
+    start_at: timestamp
+
+    end_at: timestamp
+
+    description: { type: varchar, size: 12000, required: true }
+    #
+    # a user readable detailed description of the job
+
+    php_data_job_serialization: clob
+    #
+    # serialization of a PHP DataJob class containing the description
+    # of the job to do in a PHP comprehensible format.
+
+    internal_name: { type: varchar, size: 512, required: false, index: true, unique: false }
+    #
+    # an internal name, used from management jobs
+
+  ar_lock:
+  #
+  # locks about process and jobs, in order to avoid concurrent execution of cron process,
+  # and in order to schedule certains jobs at certain intervals.
+
+    id:
+
+    name: { type: varchar, size: 255, required: true, unique: true, index: unique }
+
+    time: timestamp
+
+    info: varchar(255)
+
+  ar_application_upgrade:
+
+    id:
+
+    upg_key: varchar(24000)
+
+    upg_output: longvarchar
+
+    installation_date: timestamp
+
+  ar_itc_input_extensions_debug_copy:
+  #
+  # used for debugging the changes of data, without changing the external table with real data
+
+    id:
+
+    last_update: timestamp
+
+    extension_code: varchar(1024)
+
+    dial_string: varchar(1024)
+
+    name: varchar(1024)
+
+    accountcode: varchar(1024)
+
+    accountcode_description: varchar(1024)
+
+
+  ar_itc_organizations:
+  #
+  # ITC specific table, containing the last defined organizations to process.
+  #
+  # This info is put on this table, before processing, because the query on true tables can be slow,
+  # and can be not accessible into development environment.
+
+      id:
+
+      account_code: { type: varchar, size: 255, required: true, unique: true, index: unique }
+      # as specified in the remote database
+      # note: I'm using the maximum allowed for index unique field
+      # note: I'm using a unique index for taking advantage of REPLACE semantic
+
+      definition_time: timestamp
+      # when this data was retrieved, or when it must be considered valid
+
+      org: varchar(1024)
+
+      name: varchar(1024)
+
+      description: varchar(1024)
+
+      email: varchar(1024)
+
+      parent: varchar(1024)
+
+      calculated_account_code: varchar(9046)
+      # internally calculated account code, respecting the "parent.child.sub-child" format
+
+      is_new: boolean
+
+      is_maybe_modified: boolean
+
+      is_to_remove: boolean
+
+      can_be_removed: boolean
+
+  ar_itc_organizations_debug_copy:
+  #
+  # used for debugging the changes of data, without changing the external table with real data
+
+    id:
+
+    last_update: timestamp
+
+    org: varchar(2048)
+
+    name: varchar(2048)
+
+    description: varchar(2048)
+
+    accountcode: varchar(2048)
+
+    parent: varchar(2048)
+
+    email: varchar(1024)
+
+  ar_logical_source:
+  #
+  # data has a unique logical-source.
+  # Use this table for converting the logical-source name to a more compact id
+
+    id:
+
+    name: { type: varchar, size: 255, required: true, unique: true, index: unique }
+    # NOTE: I'm using the maximum size allowed for a varchar acting like a primary key
+
+    description: varchar(2048)
+
+  ar_cdr_provider:
+  # a source provider of CDRS.
+
+    id:
+
+    internal_name: { type: varchar, size: 255, required: false, unique: true, index: unique }
+    # the name/id used for identifying the source, and that can be used also on file names
+
+    description: varchar(2048)
+
+  ar_physical_format:
+  #
+  # a logical-source can have different formats.
+
+    id:
+
+    ar_logical_source_id:
+
+    name:  varchar(200)
+    # note: I'm not using an index because usually format variant are very few,
+    # given an index on the ar_logical_source_id
+
+    description: varchar(2048)
+
+    _uniques:
+
+      avoid_conflicting_physical_formats: [ar_logical_source_id, name]
+
+  ar_source_csv_file:
+  #
+  # a file containing CSV data about CDRs to process,
+  # and stored in a directory.
+
+      id:
+      # NOTE: I use this, because I need a compact way for referencing these files, during CDR importing
+
+      ar_cdr_provider_id:
+
+      ar_physical_format_id:
+      # identifies also the logical source format, using join
+
+      retrieved_from_server: varchar(1024)
+      # identifies the server from which the file was retrieved
+
+      is_status: { type: boolean, required: true, defaulte: false }
+      # false if this is an incremental file, adding info to the database.
+      # true if this is a status file, removing previous information from the database, and replacing with a new version of it
+
+      is_calldate_processed: { type: boolean, required: true, default: false, index: true }
+      # false if the file is not yet analyzed, and calldate info and other related info can
+      # not be considered reliable
+
+      is_imported: { type: boolean, required: true, default: false, index: true }
+      # false if the CDR of the file must be inserted in the CDR table
+
+      is_active_info: { type: boolean, required: true, default: true, index: true }
+      # true if the file is still active,
+      # false if the file contains old information, and it can be deleted, during a garbage collection,
+      # and in any case its content must not be inserted in CDR table during a rerating.
+
+      min_calldate: { type: timestamp, required: false, unique: false, index: true }
+      # in case of is_status file, this is the initial date of the status information,
+      # and not of the info inside the file.
+      # In case of status file, this value is enable also before importing.
+
+      max_calldate: { type: timestamp, required: false, unique: false, index: true }
+      # in case of is_status file, this is the ending date of the status information,
+      # and not of the info inside the file. So in case of is_status files, this date is excluded,
+      # and not included.
+      # In case of incremental files, this is the max included date, because there is a CDR with this date
+      # in the source file.
+      # In case of status file, this value is enable also before importing.
+
+      name: { type: varchar, size: 255, required: true, unique: true, index: unique }
+      # file name.
+      # NOTE: I'm using the maximum size allowed for a varchar acting like a primary key
+      # NOTE: do not remove this unique index, because it is needed for `REPLACE` semantic
+
+      archive_directory: { type: varchar, size: 2048, required: true }
+      # the directory where the file is stored,
+      # relative to the instance directory
+
+      checksum: varchar(2048)
+
+      receiving_date: timestamp
+      # when the file was received
+
+      serious_processing_errors: { type: boolean, required: true, default: false, index: true }
+      # false for CSV files having serious processing errors,
+      # and that can not be processed unless the code is improved.
+
+      tot_lines: integer
+
+      lines_with_errors: integer
+
+  ar_source_cdr:
+  #
+  # a CDR in original source format, as received from VoIP servers.
+
+      id:
+
+      ar_cdr_provider_id:
+
+      ar_physical_format_id:
+      # identifies also the logical source format, using join
+
+      calldate: { type: timestamp, required: true, index: true }
+
+      is_imported_service_cdr: { type: boolean, required: true, default: false }
+      # 1 (true) if it is a service-cdr imported from an external provider.
+      # 0 (false) if it is a normal-cdr or a service-cdr calculated from this instance.
+
+      content: varchar(51200)
+
+  ar_type_of_source_cdr:
+  #
+  # a quick reference, updated using triggers, of used formats and providers.
+
+      ar_cdr_provider_id: { type: integer, primaryKey: true }
+
+      ar_physical_format_id: { type: integer, primaryKey: true }
+
+  ar_voip_extension_to_move:
+  # a list of extensions to move/export to another database.
+  # Used from maintanance jobs.
+    extension: { type: varchar, size: 255, primaryKey: true }
+
+  ar_source_cdr_to_move:
+    # a source_cdr to move/export to another database.
+    # Used from maintanance jobs.
+    ar_source_cdr_id: { type: integer, primaryKey: true }
+
+  ar_itc_source_csv_file:
+  #
+  # ITC specific source data files, with CDRs from various IPBX servers.
+
+      id:
+      # NOTE: I use this, because I need a compact way for referencing these files, during CDR importing
+
+      name: { type: varchar, size: 255, required: true, unique: true, index: unique }
+      # NOTE: I'm using the maximum size allowed for a varchar acting like a primary key
+      # NOTE: do not remove this unique index, because it is needed for `REPLACE` semantic
+
+      checksum: varchar(2048)
+
+      processing_date: timestamp
+
+      min_calldate: { type: timestamp, required: false, unique: false, index: true }
+
+      max_calldate: { type: timestamp, required: false, unique: false, index: true }
+
+      tot_lines: integer
+
+      lines_with_errors: integer
+
+      content_type: varchar(255)
+      # identifies the content of logical fields, to pass as parameter to the merge tool, also
+
+      retrieved_from_server: varchar(1024)
+      # identifies the server from wich the file was retrieved
+
+      tot_lines: integer
+
+      lines_with_errors: integer
+
+      imported: { type: boolean, required: true, default: false, index: true }
+      # false for forcing a import of the file,
+      # true for CDRs sucessfully imported.
+      # When import is false, then the related meta info is assumed to be invalid,
+      # and the file must be imported again.
+
+  ar_remote_file:
+  #
+  # a remote file to download only if it is not already in this table.
+
+      id:
+
+      ar_cdr_provider_id:
+
+      name: { type: varchar, size: 255, required: true, unique: true, index: unique }
+      # file name.
+      # NOTE: I'm using the maximum size allowed for a varchar acting like a primary key
+      # NOTE: do not remove this unique index, because it is needed for `REPLACE` semantic
+
+      checksum: varchar(2048)
+      # some code like timestamp or other, for identifying if the file content was changed.
+      # optional value, processed maybe from the importer.
+
+      receiving_date: timestamp
+      # when the file was received/downloaded
+
+  ar_temp_source_cdr:
+  #
+  # the true version of this table is dropped and created from stored procedures
+
+    id:
+
+  ar_temp_source_cdr_to_dest_cdr:
+  #
+  # the true version of this table is dropped and created from stored procedures
+
+    id:
+
+  ar_temp_problem:
+  #
+  # the true version of this table is dropped and created from stored procedures
+
+    id:
+
+  ar_instance_status:
+  #
+  # used from the aggregate server for storing the status of other servers
+
+    id:
+
+    internal_name: { type: varchar, size: 255, required: false, unique: true, index: unique }
+    #
+    # an internal name, used from management jobs for recognizing the ar_rate_category
+
+    instance_code: varchar(1024)
+
+    ar_organization_unit_id:
+
+    application_version: varchar(1024)
+
+    nr_of_critical_errors: integer
+
+    nr_of_important_errors: integer
+
+    nr_of_warning_errors: integer
+
+    nr_of_extensions: integer
+
+    nr_of_unspecified_extensions: integer
+
+    property_nr_errors_outgoing_previous_month: integer
+
+    property_nr_errors_incoming_previous_month: integer
+
+    property_nr_errors_internal_previous_month: integer
+
+    property_nr_errors_outgoing_last_30_days: integer
+
+    property_nr_errors_incoming_last_30_days: integer
+
+    property_nr_errors_internal_last_30_days: integer
+
+    property_nr_outgoing_previous_month: integer
+
+    property_nr_incoming_previous_month: integer
+
+    property_nr_internal_previous_month: integer
+
+    property_nr_outgoing_last_30_days: integer
+
+    property_nr_incoming_last_30_days: integer
+
+    property_nr_internal_last_30_days: integer
+
+    last_processed_cdr_timestamp: timestamp
+
+    info_timestamp: timestamp
+
+  ar_daily_status_job:
+
+    id:
+
+    name: { type: varchar, size: 200, required: true, unique: true, index: unique }
+
+  ar_daily_status_change:
+  # notify ar_daily_status_job, that there is a change in the day.
+  # Day is a good unit of measure for Asterisell, because it is not too much, and not too few.
+  # Asterisell load triggers, inserting a value in this table for every registered job.
+
+    day: { type: date, primaryKey: true }
+
+    is_service_cdr: { type: boolean, primaryKey: true }
+
+    ar_daily_status_job_id: { type: integer, foreignTable: ar_daily_status_job, foreignReference: id, onDelete: cascade, required: true, primaryKey: true  }
+
+  ar_holiday:
+  #
+  # Specify holidays, because ome rates can be different on holidays.
+
+    id:
+
+    day_of_month: integer
+    # null for not considering it, and considering only day_of_week
+
+    month: integer
+    # null for considering only day_of_week
+
+    year: integer
+    # null for considering only day_of_week, month and day_of_month,
+    # and then the condition is true for every year.
+    # A specific value if the condition must be true only for a specific year
+
+    day_of_week: integer
+    # null for no filter on day of week
+    # 1 Monday
+    # 2 Tuesday
+    # ...
+    # 7 Sunday
+
+    _uniques:
+      avoid_conflicting_on_the_same_holiday: [day_of_month, month, year, day_of_week]
+
+  ar_cached_organization_info:
+  # info about organization info, cached as precalculated value, and invalidated from triggers
+
+    id:
+
+    internal_name: { type: varchar, size: 255, required: false, unique: true, index: unique }
+
+    content: blob
+
+  ar_extension_to_pincode:
+  # used for associating a security pincode to an extension.
+    id:
+
+    extension: { type: varchar, size: 255, required: true, unique: false, index: true }
+
+    pincode: { type: varchar, size: 255, required: true, unique: false, index: true }
+
+    from_date: { type: timestamp, required: true }
+    # the association is valid from this date.
+
+  ar_bundle_state:
+  # used for storing bundle rate state
+    id:
+
+    to_time: { type: timestamp, required: true, index: true }
+    # the last calldate to which this bundle-state refers.
+    # All CDRS until this calldate (exclusive) are insterted in the bundle-state.
+
+    data_file: blob
+    # the data in a format recognizable from the Haskell Rating Engine.
+
+  ar_service:
+  # a service that can be sell to customers.
+
+    id:
+
+    internal_name: { type: varchar, size: 255, required: false, unique: true, index: unique }
+
+    customer_name: varchar(255)
+
+    customer_description: varchar(2048)
+
+    vendor_name: varchar(255)
+
+    vendor_description: varchar(2048)
+
+    external_crm_code: varchar(255)
+
+    customer_price_depend_from_activation_date: { type: boolean, required: true, default: false }
+    # true if the price is proportional to activation date
+    # In any case the service uses the new price, at the beginning of the time frame
+
+    customer_price_change_with_price_list: { type: boolean, required: true, default: false }
+    # true if after activation, the price of the service change if the price list change over time.
+
+    is_enabled: { type: boolean, required: true, default: true }
+    # false for services that are not anymore active
+
+    is_applied_only_one_time: { type: boolean, required: true, default: false }
+    # true if the service is applied only one time to the customer
+
+    schedule_timeframe: varchar(255)
+    # supported values: monthly, weekly
+    # after each scheduling period (time-frame), the service is applied again
+
+    was_compiled: { type: boolean, required: true, default: false, index: true }
+    # true if the service was sent to the rating engine
+
+    schedule_from: varchar(255)
+    # supported values:
+    # * 1..28
+    # * Monday|Tuesday|...
+    # specify the day of the month, or the day of the week,
+    # when starting the service count.
+
+  ar_service_price:
+  # the price associated to a service at a certain date
+
+    id:
+
+    internal_name: { type: varchar, size: 255, required: false, unique: true, index: unique }
+
+    ar_service_id: { type: integer, foreignTable: ar_service, foreignReference: id, required: true }
+
+    from_date:    { type: timestamp, required: true, index: true }
+
+    price: { type: bigint, required: true }
+
+  ar_assigned_service:
+
+    id:
+
+    internal_name: { type: varchar, size: 255, required: false, unique: true, index: unique }
+
+    external_crm_code: varchar(255)
+
+    from_date:    { type: timestamp, required: true, index: true }
+
+    ar_service_id: { type: integer, foreignTable: ar_service, foreignReference: id, required: true }
+
+    ar_organization_unit_id: { type: integer, foreignTable: ar_organization_unit, foreignReference: id, required: true }
+
+    nr_of_items: bigint
+
+    discount: { type: bigint, required: true }
+
+    note: varchar(1024)
+

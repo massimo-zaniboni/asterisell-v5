@@ -1,0 +1,29 @@
+################################################################
+#!!!                                                        !!!#
+#!!! WARNING: This file is automatic generated.             !!!#
+#!!!                                                        !!!#
+#!!! In order to modify this file change the content of     !!!#
+#!!!                                                        !!!#
+#!!!    /module_template/call_report_template               !!!#
+#!!!                                                        !!!#
+#!!! and execute                                            !!!#
+#!!!                                                        !!!#
+#!!!    sh generate_modules.sh                              !!!#     
+#!!!                                                        !!!#
+################################################################
+
+showPDFReportSuccess:
+  has_layout: off
+  http_metas:
+    cache-control: private
+    pragma: private
+    content-type: application/pdf
+    content-disposition: inline; filename="invoice_report.pdf"
+
+showPDFCallReportSuccess:
+  has_layout: off
+  http_metas:
+    cache-control: private
+    pragma: private
+    content-type: application/pdf
+    content-disposition: inline; filename="call_report.pdf"
