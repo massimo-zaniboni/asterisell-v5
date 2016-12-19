@@ -1,4 +1,4 @@
-(Asterisell)[https://www.asterisell.com] is a web application for rating and showing VoIP calls.
+[Asterisell](https://www.asterisell.com) is a web application for rating and showing VoIP calls.
 
 Asterisell is an open source application, with paid (commercial) support.
 
