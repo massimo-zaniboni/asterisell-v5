@@ -355,11 +355,9 @@ rarely the main rating plan logic.
 
 You can study:
 
--  the tutorial about the specification of CSV rates: [[Tutorial on CSV
-   Rates]]
--  the tutorial about some examples of rating plans: [[Tutorial on Main
-   Rate Plans]]
--  the complete [[Rate Plan Specification Language]]
+-  the :ref:`tutorial_csv_rates`
+-  the :ref:`tutorial_main_rate_plans`
+-  the complete :ref:`rate_plan_specification_language`
 
 Then you can create your plans starting from the examples in tutorials,
 and adapting them.
@@ -386,6 +384,8 @@ Automatic Rerating of Calls
 
 If rating params are changed, Asterisell schedule automatically a
 rerating event, starting from the official call date.
+
+.. _tutorial_csv_rates:
 
 Tutorial on CSV Rates
 ---------------------
@@ -467,6 +467,8 @@ An automatic rerating is scheduled, and we can inspect the differences
 |image13|
 
 |image14|
+
+.. _tutorial_main_rate_plans:
 
 Tutorial on Main Rate Plans
 ---------------------------
@@ -577,6 +579,7 @@ Rate according Customer Price Category
 TODO continue
 .............
 
+.. _rate_plan_specification_language:
 
 Rate Plan Specification Language
 --------------------------------
@@ -1321,23 +1324,21 @@ that is good for all different usage scenario.
 Where Customize
 ...............
 
-According [[Application Upgrade]], you must not upgrade directly the
-files on instances, but the files on the [[Management Tool]], and then
-upgrade the instances.
-
 During initial testing of messages and application you can set in the
-[[Management Tool]], the option
+Asterisell Management Tool, the option
 ``send_emails_to_these_users_instead_of_original_receiver``, for
 redirecting all the emails originally directed to customers to an
 internal test email.
 
+.. _adding_new_type_of_reports:
+
 Adding New Type of Reports
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-You can define new type of reports under
+You can define new type of reports adding source code under
 ``apps/asterisell/lib/jobs/reports``, then add them into the Fabric
 variable ``custom_reports``, so they can be selected for scheduling and
-generated.
+then generated.
 
 Warning Emails for High Call Costs
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1365,6 +1366,8 @@ other reports:
 
 You can customize email messages both in the scheduler Web form, or you
 can customize the message also for a single specific report/invoice.
+
+.. _notifications:
 
 Notifications to Administrators and Accountants
 -----------------------------------------------
@@ -1482,8 +1485,7 @@ So at least one billing report should be defined in the system.
 Customization of Invoices
 .........................
 
-[[Customization of Messages to Customers]] describes how to customize
-reports.
+See :ref:`adding_new_type_of_reports`.
 
 Sending of Reports
 ..................
@@ -1492,84 +1494,7 @@ Reports are sent to proper billable users. If an user has no associated
 email, the application will warn the administrator. When the email is
 specified, the reports will be sent automatically.
 
-This [[Notifications to Administrators and Accountants]] describes how
-sending reports to special users.
-
-Configurations of Reports
--------------------------
-
-Report configurations is not an easy process, because there are many
-configuration settings.
-
-Asterisell will install with some predefined reports. The admin can
-customize them later.
-
-Scheduled Reports
-.................
-
-The report workflow is usually this:
-
--  define report templates
--  generate them
--  when they are ok, use them as template, for a report scheduler:
-
-   -  create a new report scheduler
-   -  link the scheduler to the report template
-   -  specify the date of the first scheduling generation to run
-   -  run the first batch of reports, pressing the ``Generate Reports``
-      button
-   -  all next run of the report scheduler will be executed
-      automatically
-
--  reports will be generated according the scheduling:
-
-   -  each report scheduling generation, will produce a report-set
-   -  each report-set contains all the generated reports of the same
-      type, on the same time-frame, for example all the invoices of all
-      customers
-   -  the admin can review a report set
-   -  until the admin do not confirm a report-set, the reports are not
-      sent to the customers/users
-   -  the admin is advised, if after generation, and before sending, the
-      calls associated to the report are modified, and it is obliged to
-      regenerate it
-
-So after initial configurations, the generation of reports is
-automatized.
-
-Examples of Scheduled Reports
-.............................
-
-The initial demo instance, is configured with some common scheduled
-reports.
-
-Billing Reports
-...............
-
-Billing reports (legal reports) are important, because they are also
-used for determining the official call date: the calls before this call
-date are never automatically rerated if there are changes in rating
-params.
-
-So at least one billing report should be defined in the system.
-
-Customization of Invoices
-.........................
-
-[[Customization of Messages to Customers]] describes how to customize
-reports.
-
-Sending of Reports
-..................
-
-Reports are sent to proper billable users. If an user has no associated
-email, the application will warn the administrator. When the email is
-specified, the reports will be sent automatically.
-
-This [[Notifications to Administrators and Accountants]] describes how
-sending reports to special users.
-
-
+:ref:`notifications` describes how sending reports to special users.
 
 
 .. |image0| image:: tut_a_01.png

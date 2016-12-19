@@ -358,11 +358,9 @@ modify with time mainly the rating plan details (the CSV files), and
 rarely the main rating plan logic.</p>
 <p>You can study:</p>
 <ul class="simple">
-<li>the tutorial about the specification of CSV rates: [[Tutorial on CSV
-Rates]]</li>
-<li>the tutorial about some examples of rating plans: [[Tutorial on Main
-Rate Plans]]</li>
-<li>the complete [[Rate Plan Specification Language]]</li>
+<li>the <a class="reference internal" href="#tutorial-csv-rates"><span>Tutorial on CSV Rates</span></a></li>
+<li>the <a class="reference internal" href="#tutorial-main-rate-plans"><span>Tutorial on Main Rate Plans</span></a></li>
+<li>the complete <a class="reference internal" href="#rate-plan-specification-language"><span>Rate Plan Specification Language</span></a></li>
 </ul>
 <p>Then you can create your plans starting from the examples in tutorials,
 and adapting them.</p>
@@ -386,7 +384,7 @@ the rate.</p>
 rerating event, starting from the official call date.</p>
 </div>
 <div class="section" id="tutorial-on-csv-rates">
-<h2>Tutorial on CSV Rates<a class="headerlink" href="#tutorial-on-csv-rates" title="Permalink to this headline">¶</a></h2>
+<span id="tutorial-csv-rates"></span><h2>Tutorial on CSV Rates<a class="headerlink" href="#tutorial-on-csv-rates" title="Permalink to this headline">¶</a></h2>
 <p>This is a CSV rate, with prices specified by minute, and applied by
 second. The prices are in Italian format: with &#8221;,&#8221; as decimal separator.</p>
 <p><img alt="image0" src="tut_a_01.png" /></p>
@@ -436,7 +434,7 @@ the rates.</p>
 <p><img alt="image14" src="tut_a_17.png" /></p>
 </div>
 <div class="section" id="tutorial-on-main-rate-plans">
-<h2>Tutorial on Main Rate Plans<a class="headerlink" href="#tutorial-on-main-rate-plans" title="Permalink to this headline">¶</a></h2>
+<span id="tutorial-main-rate-plans"></span><h2>Tutorial on Main Rate Plans<a class="headerlink" href="#tutorial-on-main-rate-plans" title="Permalink to this headline">¶</a></h2>
 <div class="section" id="cost-rates">
 <h3>Cost Rates<a class="headerlink" href="#cost-rates" title="Permalink to this headline">¶</a></h3>
 <div class="section" id="free-incoming-and-internal-calls">
@@ -536,7 +534,7 @@ rate {
 </div>
 </div>
 <div class="section" id="rate-plan-specification-language">
-<h2>Rate Plan Specification Language<a class="headerlink" href="#rate-plan-specification-language" title="Permalink to this headline">¶</a></h2>
+<span id="id2"></span><h2>Rate Plan Specification Language<a class="headerlink" href="#rate-plan-specification-language" title="Permalink to this headline">¶</a></h2>
 <div class="section" id="normal-rates">
 <h3>Normal Rates<a class="headerlink" href="#normal-rates" title="Permalink to this headline">¶</a></h3>
 <p>The rate plan contains nested rules. There can be one or more rates at
@@ -891,8 +889,8 @@ call, not the vendor cost.</p>
 </pre></div>
 </div>
 </div>
-<div class="section" id="id2">
-<h4>Specification<a class="headerlink" href="#id2" title="Permalink to this headline">¶</a></h4>
+<div class="section" id="id3">
+<h4>Specification<a class="headerlink" href="#id3" title="Permalink to this headline">¶</a></h4>
 <div class="highlight-python"><div class="highlight"><pre><span></span>bundle-rate {
   id: [reference]
 
@@ -1244,20 +1242,17 @@ that is good for all different usage scenario.</p>
 </div>
 <div class="section" id="where-customize">
 <h3>Where Customize<a class="headerlink" href="#where-customize" title="Permalink to this headline">¶</a></h3>
-<p>According [[Application Upgrade]], you must not upgrade directly the
-files on instances, but the files on the [[Management Tool]], and then
-upgrade the instances.</p>
 <p>During initial testing of messages and application you can set in the
-[[Management Tool]], the option
+Asterisell Management Tool, the option
 <code class="docutils literal"><span class="pre">send_emails_to_these_users_instead_of_original_receiver</span></code>, for
 redirecting all the emails originally directed to customers to an
 internal test email.</p>
 <div class="section" id="adding-new-type-of-reports">
-<h4>Adding New Type of Reports<a class="headerlink" href="#adding-new-type-of-reports" title="Permalink to this headline">¶</a></h4>
-<p>You can define new type of reports under
+<span id="id4"></span><h4>Adding New Type of Reports<a class="headerlink" href="#adding-new-type-of-reports" title="Permalink to this headline">¶</a></h4>
+<p>You can define new type of reports adding source code under
 <code class="docutils literal"><span class="pre">apps/asterisell/lib/jobs/reports</span></code>, then add them into the Fabric
 variable <code class="docutils literal"><span class="pre">custom_reports</span></code>, so they can be selected for scheduling and
-generated.</p>
+then generated.</p>
 </div>
 <div class="section" id="warning-emails-for-high-call-costs">
 <h4>Warning Emails for High Call Costs<a class="headerlink" href="#warning-emails-for-high-call-costs" title="Permalink to this headline">¶</a></h4>
@@ -1286,7 +1281,7 @@ can customize the message also for a single specific report/invoice.</p>
 </div>
 </div>
 <div class="section" id="notifications-to-administrators-and-accountants">
-<h2>Notifications to Administrators and Accountants<a class="headerlink" href="#notifications-to-administrators-and-accountants" title="Permalink to this headline">¶</a></h2>
+<span id="notifications"></span><h2>Notifications to Administrators and Accountants<a class="headerlink" href="#notifications-to-administrators-and-accountants" title="Permalink to this headline">¶</a></h2>
 <div class="section" id="type-of-errors">
 <h3>Type of Errors<a class="headerlink" href="#type-of-errors" title="Permalink to this headline">¶</a></h3>
 <p>Asterisell generate errors in the error table
@@ -1390,82 +1385,14 @@ params.</p>
 </div>
 <div class="section" id="customization-of-invoices">
 <h3>Customization of Invoices<a class="headerlink" href="#customization-of-invoices" title="Permalink to this headline">¶</a></h3>
-<p>[[Customization of Messages to Customers]] describes how to customize
-reports.</p>
+<p>See <a class="reference internal" href="#adding-new-type-of-reports"><span>Adding New Type of Reports</span></a>.</p>
 </div>
 <div class="section" id="sending-of-reports">
 <h3>Sending of Reports<a class="headerlink" href="#sending-of-reports" title="Permalink to this headline">¶</a></h3>
 <p>Reports are sent to proper billable users. If an user has no associated
 email, the application will warn the administrator. When the email is
 specified, the reports will be sent automatically.</p>
-<p>This [[Notifications to Administrators and Accountants]] describes how
-sending reports to special users.</p>
-</div>
-</div>
-<div class="section" id="id3">
-<h2>Configurations of Reports<a class="headerlink" href="#id3" title="Permalink to this headline">¶</a></h2>
-<p>Report configurations is not an easy process, because there are many
-configuration settings.</p>
-<p>Asterisell will install with some predefined reports. The admin can
-customize them later.</p>
-<div class="section" id="id4">
-<h3>Scheduled Reports<a class="headerlink" href="#id4" title="Permalink to this headline">¶</a></h3>
-<p>The report workflow is usually this:</p>
-<ul class="simple">
-<li>define report templates</li>
-<li>generate them</li>
-<li>when they are ok, use them as template, for a report scheduler:<ul>
-<li>create a new report scheduler</li>
-<li>link the scheduler to the report template</li>
-<li>specify the date of the first scheduling generation to run</li>
-<li>run the first batch of reports, pressing the <code class="docutils literal"><span class="pre">Generate</span> <span class="pre">Reports</span></code>
-button</li>
-<li>all next run of the report scheduler will be executed
-automatically</li>
-</ul>
-</li>
-<li>reports will be generated according the scheduling:<ul>
-<li>each report scheduling generation, will produce a report-set</li>
-<li>each report-set contains all the generated reports of the same
-type, on the same time-frame, for example all the invoices of all
-customers</li>
-<li>the admin can review a report set</li>
-<li>until the admin do not confirm a report-set, the reports are not
-sent to the customers/users</li>
-<li>the admin is advised, if after generation, and before sending, the
-calls associated to the report are modified, and it is obliged to
-regenerate it</li>
-</ul>
-</li>
-</ul>
-<p>So after initial configurations, the generation of reports is
-automatized.</p>
-</div>
-<div class="section" id="id5">
-<h3>Examples of Scheduled Reports<a class="headerlink" href="#id5" title="Permalink to this headline">¶</a></h3>
-<p>The initial demo instance, is configured with some common scheduled
-reports.</p>
-</div>
-<div class="section" id="id6">
-<h3>Billing Reports<a class="headerlink" href="#id6" title="Permalink to this headline">¶</a></h3>
-<p>Billing reports (legal reports) are important, because they are also
-used for determining the official call date: the calls before this call
-date are never automatically rerated if there are changes in rating
-params.</p>
-<p>So at least one billing report should be defined in the system.</p>
-</div>
-<div class="section" id="id7">
-<h3>Customization of Invoices<a class="headerlink" href="#id7" title="Permalink to this headline">¶</a></h3>
-<p>[[Customization of Messages to Customers]] describes how to customize
-reports.</p>
-</div>
-<div class="section" id="id8">
-<h3>Sending of Reports<a class="headerlink" href="#id8" title="Permalink to this headline">¶</a></h3>
-<p>Reports are sent to proper billable users. If an user has no associated
-email, the application will warn the administrator. When the email is
-specified, the reports will be sent automatically.</p>
-<p>This [[Notifications to Administrators and Accountants]] describes how
-sending reports to special users.</p>
+<p><a class="reference internal" href="#notifications"><span>Notifications to Administrators and Accountants</span></a> describes how sending reports to special users.</p>
 </div>
 </div>
 </div>
@@ -1527,7 +1454,7 @@ sending reports to special users.</p>
 <li><a class="reference internal" href="#rates-with-explicit-priority">Rates with Explicit Priority</a></li>
 <li><a class="reference internal" href="#bundle-rates">Bundle Rates</a><ul>
 <li><a class="reference internal" href="#example-of-bundle-rate-specification">Example of Bundle-Rate Specification</a></li>
-<li><a class="reference internal" href="#id2">Specification</a></li>
+<li><a class="reference internal" href="#id3">Specification</a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#nested-bundle-rates">Nested Bundle Rates</a></li>
@@ -1563,14 +1490,6 @@ sending reports to special users.</p>
 <li><a class="reference internal" href="#billing-reports">Billing Reports</a></li>
 <li><a class="reference internal" href="#customization-of-invoices">Customization of Invoices</a></li>
 <li><a class="reference internal" href="#sending-of-reports">Sending of Reports</a></li>
-</ul>
-</li>
-<li><a class="reference internal" href="#id3">Configurations of Reports</a><ul>
-<li><a class="reference internal" href="#id4">Scheduled Reports</a></li>
-<li><a class="reference internal" href="#id5">Examples of Scheduled Reports</a></li>
-<li><a class="reference internal" href="#id6">Billing Reports</a></li>
-<li><a class="reference internal" href="#id7">Customization of Invoices</a></li>
-<li><a class="reference internal" href="#id8">Sending of Reports</a></li>
 </ul>
 </li>
 </ul>
