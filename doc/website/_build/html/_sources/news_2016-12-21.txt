@@ -1,0 +1,17 @@
+Asterisell-5.6-beta
+-------------------
+.. feed-entry::
+   :date: 2016-12-21
+
+Switched from commercial license, to GPL License, and to a new `GitHub repo <https://github.com/massimo-zaniboni/asterisell-v5>`_, for public accessible downloads.
+
+Asterisell Management Utility was simplified, but now it supports only instannces on local Docker containers, and not any more remote virtual machines.
+
+The application manual is not any more based on Redmine Wiki, but it is based on `Sphinx <http://www.sphinx-doc.org/>`_.
+
+Minor improvements to the source code.
+
+.. important::
+   This version is in beta status because there are is not yet a lot of experience in production
+   about Asterisell Docker instances, and there can be management defects to solve.
+

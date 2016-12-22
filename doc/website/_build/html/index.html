@@ -1,0 +1,249 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Asterisell Overview &#8212; Asterisell 5 documentation</title>
+    
+    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '5',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="shortcut icon" href="_static/asterisell_favicon.ico"/>
+    <link rel="top" title="Asterisell 5 documentation" href="meta_toc.html" />
+    <link rel="next" title="Asterisell Installation" href="installation.html" />
+    <link rel="prev" title="&lt;no title&gt;" href="meta_toc.html" />
+
+  <link rel="alternate"
+        type="application/rss+xml"
+        title="Asterisell"
+        href="/index.rss" />
+
+  
+   
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+
+  </head>
+  <body role="document">  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="asterisell-overview">
+<h1>Asterisell Overview<a class="headerlink" href="#asterisell-overview" title="Permalink to this headline">¶</a></h1>
+<p>Open Source Web Application for Rating and Showing VoIP Calls</p>
+<p><a class="reference internal" href="header_screen_shoot_white_small.png"><img alt="image_monitor" src="header_screen_shoot_white_small.png" style="width: 50%;" /></a></p>
+<div class="section" id="rate-calls">
+<h2>Rate Calls<a class="headerlink" href="#rate-calls" title="Permalink to this headline">¶</a></h2>
+<p>Specify rating plans using a powerful domain specific language.</p>
+<p>Group customers or extensions into distinct price list categories.</p>
+<p>Change rates, and price lists assignments over time.</p>
+<p>Support for bundle rates.</p>
+<p>Support for number portability.</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="c1"># Example of a rate plan</span>
+<span class="n">rate</span> <span class="p">{</span>
+  <span class="nb">id</span><span class="p">:</span> <span class="n">outgoing</span>
+  <span class="n">match</span><span class="o">-</span><span class="n">call</span><span class="o">-</span><span class="n">direction</span><span class="p">:</span> <span class="n">outgoing</span>
+
+  <span class="n">rate</span> <span class="p">{</span>
+    <span class="nb">id</span><span class="p">:</span> <span class="n">wholesale</span>
+    <span class="n">match</span><span class="o">-</span><span class="n">price</span><span class="o">-</span><span class="n">category</span><span class="p">:</span> <span class="n">wholesale</span>
+    <span class="c1"># this part of rate plan is applicable</span>
+    <span class="c1"># only to customers in &quot;wholesale&quot; category.</span>
+
+    <span class="n">external</span><span class="o">-</span><span class="n">rate</span> <span class="p">{</span>
+      <span class="c1"># this is an external CSV file,</span>
+      <span class="c1"># where each line has a telephone prefix</span>
+      <span class="c1"># and a related cost.</span>
+      <span class="nb">id</span><span class="p">:</span> <span class="n">wholesale</span>
+      <span class="n">use</span><span class="p">:</span> <span class="n">sell</span><span class="o">-</span><span class="n">wholesale</span>
+      <span class="nb">set</span><span class="o">-</span><span class="n">cost</span><span class="o">-</span><span class="k">for</span><span class="o">-</span><span class="n">minute</span><span class="p">:</span> <span class="n">this</span>
+    <span class="p">}</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="billing">
+<h2>Billing<a class="headerlink" href="#billing" title="Permalink to this headline">¶</a></h2>
+<p>Schedule the generation of invoices and reports.</p>
+<p>Send invoices by email.</p>
+<p><a class="reference internal" href="screen_005.png"><img alt="screen_005" src="screen_005.png" style="width: 50%;" /></a></p>
+</div>
+<div class="section" id="online-call-reporting">
+<h2>Online Call Reporting<a class="headerlink" href="#online-call-reporting" title="Permalink to this headline">¶</a></h2>
+<p>Customers can view their calls online, using a simplified user interface.</p>
+<p>Customers can export theirs calls to CSV files.</p>
+<p><a class="reference internal" href="screen_004.png"><img alt="screen_004" src="screen_004.png" style="width: 50%;" /></a></p>
+</div>
+<div class="section" id="telephone-services">
+<h2>Telephone Services<a class="headerlink" href="#telephone-services" title="Permalink to this headline">¶</a></h2>
+<p>Sell telephone services to customers.</p>
+<p>Change price list and service assignments over time.</p>
+<p><a class="reference internal" href="screen_001.png"><img alt="screen_001" src="screen_001.png" style="width: 50%;" /></a></p>
+</div>
+<div class="section" id="inspect-rating-problems">
+<h2>Inspect Rating Problems<a class="headerlink" href="#inspect-rating-problems" title="Permalink to this headline">¶</a></h2>
+<p>Detailed errors reporting, with severity, problem description, effect and proposed solution.</p>
+<p>Stats about unrated calls.</p>
+<p><a class="reference internal" href="screen_006.png"><img alt="screen_006" src="screen_006.png" style="width: 50%;" /></a></p>
+</div>
+<div class="section" id="enable-resellers">
+<h2>Enable Resellers<a class="headerlink" href="#enable-resellers" title="Permalink to this headline">¶</a></h2>
+<p>Resellers sell VoIP calls to their customers, but using your VoIP infrastructure behind the scene.</p>
+<p><a class="reference internal" href="provider_reseller.png"><img alt="provider_reseller" src="provider_reseller.png" style="width: 50%;" /></a></p>
+</div>
+<div class="section" id="install-on-private-servers">
+<h2>Install on Private Servers<a class="headerlink" href="#install-on-private-servers" title="Permalink to this headline">¶</a></h2>
+<p>Install Asterisell on your private servers.</p>
+<p>You can customize nearly any aspect of the application, because you will receive application source code, except the internal of the rating engine.</p>
+<p>CDRs processing is based on customizable jobs.</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">always_scheduled_jobs</span><span class="p">:</span>
+  <span class="o">-</span> <span class="n">ImportDataFiles</span>
+  <span class="o">-</span> <span class="n">SignalRatesToExportToResellers</span>
+  <span class="o">-</span> <span class="n">ManageRateEvent</span>
+  <span class="o">-</span> <span class="n">GarbageCollectBundleState</span>
+  <span class="o">-</span> <span class="n">CheckCallCostLimit</span>
+  <span class="o">-</span> <span class="n">CompareProviderCostWithCalculatedCost</span>
+  <span class="o">-</span> <span class="n">GenerateScheduledReports</span>
+  <span class="o">-</span> <span class="n">ReportsNotificationWorkflow</span>
+  <span class="o">-</span> <span class="n">AdviseAdminOfNewProblems</span>
+  <span class="o">-</span> <span class="n">BackupConfigurations</span>
+  <span class="o">-</span> <span class="n">BackupSourceCDRS</span>
+  <span class="o">-</span> <span class="n">BackupCDRS</span>
+  <span class="o">-</span> <span class="n">BackupReports</span>
+
+<span class="n">configure_jobs</span><span class="p">:</span>
+  <span class="o">-</span> <span class="n">ConfigureDefaultParamsAndSettings</span>
+  <span class="o">-</span> <span class="n">ConfigureHolidays</span>
+  <span class="o">-</span> <span class="n">ConfigureDefaultResponsibleForEachErrorDomainType</span>
+  <span class="o">-</span> <span class="n">InitWithDefaultMySQLStoredProcedures</span>
+  <span class="o">-</span> <span class="n">InitTelephonePrefixes</span>
+  <span class="o">-</span> <span class="n">LoadWorldTelephonePrefixesFromCSVFile</span>
+  <span class="o">-</span> <span class="n">ConfigureCommunicationChannels</span>
+  <span class="o">-</span> <span class="n">InitDefaultReportsForVoIPReseller</span>
+  <span class="o">-</span> <span class="n">ForceReratingAtCurrentCronJobProcessor</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="organizations-hierarchies">
+<h2>Organizations Hierarchies<a class="headerlink" href="#organizations-hierarchies" title="Permalink to this headline">¶</a></h2>
+<p>Configure customers with complex organization hierarchies: offices, departements, and so on.</p>
+<p>Support customers having multiple billable center costs.</p>
+<p>Organization structure can change over time.</p>
+<p>You can use Asterisell for call reporting inside a big organization.</p>
+<p>Configure users with distinct permissions inside the same organization, and send them scheduled reports.</p>
+<p><a class="reference internal" href="screen_002.png"><img alt="screen_002" src="screen_002.png" style="width: 50%;" /></a></p>
+</div>
+<div class="section" id="import-cdrs">
+<h2>Import CDRs<a class="headerlink" href="#import-cdrs" title="Permalink to this headline">¶</a></h2>
+<p>Import Call Detail Records (CDRs) from local or remote database tables and files.</p>
+<p>Many formats are supported, and many more can be added.</p>
+<p>Manage recognition of ported telephone numbers.</p>
+<p>Merge CDRs from two or more collaborating VoIP servers, creating a single logical call.0</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="c1"># Call Flow Merge Rule</span>
+<span class="n">name</span><span class="p">:</span> <span class="n">outgoing_SBC</span>
+<span class="n">direction</span><span class="p">:</span> <span class="n">outgoing</span>
+<span class="n">description</span><span class="p">:</span> <span class="n">Outgoing</span> <span class="n">call</span><span class="o">.</span>
+<span class="n">merge</span><span class="p">:</span> <span class="n">mgw1</span><span class="p">:</span><span class="n">MGW</span> <span class="o">-&gt;</span> <span class="n">ipbx1</span><span class="p">:</span><span class="n">IPBX</span> <span class="o">-&gt;</span> <span class="n">sbc1</span><span class="p">:</span><span class="n">SBC</span>
+<span class="n">conditions</span><span class="p">:</span>
+  <span class="o">-</span> <span class="n">mgw1</span><span class="o">.</span><span class="n">last_half_of_unique_id</span> <span class="o">=</span> <span class="n">sbc1</span><span class="o">.</span><span class="n">callid</span>
+  <span class="o">-</span> <span class="n">mgw1</span><span class="o">.</span><span class="n">first_half_of_unique_id</span> <span class="o">=</span> <span class="n">ipbx1</span><span class="o">.</span><span class="n">last_half_of_unique_id</span>
+  <span class="o">-</span> <span class="n">sbc1</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">calldestregid_isExternalVoIPVendor</span>
+<span class="n">vendor</span><span class="p">:</span> <span class="n">sbc1</span><span class="o">.</span><span class="n">calldestregid</span>
+<span class="n">channel</span><span class="p">:</span> <span class="n">implicit</span>
+<span class="n">billsec_from</span><span class="p">:</span> <span class="n">sbc1</span>
+<span class="n">internal</span><span class="p">:</span> <span class="n">ipbx1</span><span class="o">.</span><span class="n">src</span>
+<span class="n">external</span><span class="p">:</span> <span class="n">sbc1</span><span class="o">.</span><span class="n">dst</span>
+</pre></div>
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><h3>Navigation</h3>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Home</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#rate-calls">Rate Calls</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#billing">Billing</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#online-call-reporting">Online Call Reporting</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#telephone-services">Telephone Services</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#inspect-rating-problems">Inspect Rating Problems</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#enable-resellers">Enable Resellers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#install-on-private-servers">Install on Private Servers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#organizations-hierarchies">Organizations Hierarchies</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#import-cdrs">Import CDRs</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="management.html">Management</a></li>
+<li class="toctree-l1"><a class="reference internal" href="configuration.html">Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="usage.html">Usage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="FAQ.html">FAQ</a></li>
+<li class="toctree-l1"><a class="reference internal" href="news.html">News</a></li>
+<li class="toctree-l1"><a class="reference internal" href="support.html">Support</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="meta_toc.html">Documentation overview</a><ul>
+      <li>Previous: <a href="meta_toc.html" title="previous chapter">&lt;no title&gt;</a></li>
+      <li>Next: <a href="installation.html" title="next chapter">Asterisell Installation</a></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      
+      
+      
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.4.6</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.7</a>
+      
+      |
+      <a href="_sources/index.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

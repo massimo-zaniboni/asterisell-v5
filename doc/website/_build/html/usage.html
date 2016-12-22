@@ -1,0 +1,193 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Asterisell Usage &#8212; Asterisell 5 documentation</title>
+    
+    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '5',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="shortcut icon" href="_static/asterisell_favicon.ico"/>
+    <link rel="top" title="Asterisell 5 documentation" href="meta_toc.html" />
+    <link rel="next" title="Asterisell FAQ" href="FAQ.html" />
+    <link rel="prev" title="Asterisell Configuration" href="configuration.html" />
+
+  <link rel="alternate"
+        type="application/rss+xml"
+        title="Asterisell"
+        href="/index.rss" />
+
+  
+   
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+
+  </head>
+  <body role="document">  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="asterisell-usage">
+<h1>Asterisell Usage<a class="headerlink" href="#asterisell-usage" title="Permalink to this headline">¶</a></h1>
+<div class="admonition important">
+<p class="first admonition-title">Important</p>
+<p class="last">Each page of the application has an extensive online help. This manual will not repeat this information.</p>
+</div>
+<div class="section" id="recurring-concepts">
+<h2>Recurring Concepts<a class="headerlink" href="#recurring-concepts" title="Permalink to this headline">¶</a></h2>
+<p>Hierarchical structure definitions (tree-like) are preferred respect flat definitions (list-like):</p>
+<ul class="simple">
+<li>Customers are defined using hierarchical structures, for example &#8220;Acme Organization/Accounting Office/John Smith&#8221;.</li>
+<li>Rating rules are defined using hierarchical structures, for example &#8220;acme-vendor-telecom/outgoing/emergency-number&#8221;.</li>
+</ul>
+<p>The advantage of hierarchical structures are:</p>
+<ul class="simple">
+<li>common parameters can be set in the parent node, and they are inherited in the children nodes, that can eventually override them;</li>
+<li>complex structures can be named referring only to the proper parent node;</li>
+</ul>
+<p>New information does not replace old information, overwriting it, but it is added to the database, specifying when it became active.
+So a complete history of the past is preserved. The advantages are:</p>
+<ul class="simple">
+<li>changes of rates and services can be planned in the future;</li>
+<li>CDRs of the past can be re-rated, applying the (correct) old rate specifications;</li>
+<li>customers can change price-categories, or subscription of services, without loosing the history of the past;</li>
+<li>services can change prices, but old prices can (optionally and if configured) still applied to old customers;</li>
+</ul>
+<p>Asterisell uses a conservative approach about CDR rating. In case of doubt it does not rate a CDR, but it signals the problem.</p>
+</div>
+<div class="section" id="recurring-work-flow">
+<h2>Recurring Work-Flow<a class="headerlink" href="#recurring-work-flow" title="Permalink to this headline">¶</a></h2>
+<p>Asterisell run-time workflow is:</p>
+<ul class="simple">
+<li>CDRs importing</li>
+<li>CDRs rating</li>
+<li>error reporting</li>
+<li>generation of scheduled reports and invoices</li>
+<li>sending of report and invoices to customers, after the admin reviewed and confirmed them</li>
+</ul>
+<p>Asterisell supports fully customizable jobs that can be added in every phase of the workflow.</p>
+<div class="section" id="official-calldate">
+<h3>Official Calldate<a class="headerlink" href="#official-calldate" title="Permalink to this headline">¶</a></h3>
+<p>The official calldate is the date of the last billed CDRs. All CDRs before this date are not re-rated automatically, because they are considerd as already billed to customers. CDRs after this date are re-rated automatically every time configuration params change.</p>
+</div>
+<div class="section" id="error-notifications">
+<h3>Error Notifications<a class="headerlink" href="#error-notifications" title="Permalink to this headline">¶</a></h3>
+<p>Asterisell generate errors in <code class="docutils literal"><span class="pre">Status</span> <span class="pre">-&gt;</span> <span class="pre">Current</span> <span class="pre">Problems</span></code>.</p>
+<p>Errors are also signaled by email, generating an error report, that is
+sent to all administrators with one or more of these roles:</p>
+<ul class="simple">
+<li><code class="docutils literal"><span class="pre">Notified</span> <span class="pre">for</span> <span class="pre">warning</span> <span class="pre">errors</span></code></li>
+<li><code class="docutils literal"><span class="pre">Notified</span> <span class="pre">for</span> <span class="pre">errors</span></code></li>
+<li><code class="docutils literal"><span class="pre">Notified</span> <span class="pre">for</span> <span class="pre">critical</span> <span class="pre">errors</span></code></li>
+</ul>
+<p>Every time you rerate CDRs, the solved errors disappear from the table. In some rare
+circumstance, it is better deleting the table and rerating all the CDRs, for seeing
+if the problem disappeared or not.</p>
+<div class="section" id="emergency-email">
+<h4>Emergency Email<a class="headerlink" href="#emergency-email" title="Permalink to this headline">¶</a></h4>
+<p>You can define another administrator account, with a distinct email, and with only
+this role <code class="docutils literal"><span class="pre">Notified</span> <span class="pre">for</span> <span class="pre">critical</span> <span class="pre">errors</span></code>.
+In this way you can be sure that the email is &#8220;fired&#8221; only in case of
+very important problems, and it acts like an emergency email. It can be linked to a pager.</p>
+<p>Critical errors are fired in case of:</p>
+<ul class="simple">
+<li>high call costs surpassing the limit of an account of more than two
+time the configured limit (otherwise it is considered a warning)</li>
+<li>there are too much calls not rated</li>
+<li>there is a critical erorr, avoiding the processing of CDRs</li>
+<li>and so on</li>
+</ul>
+<p>Asterisell tries to reduce the number of emails notifications, signaling you only when a certain type of error doubled is appareance respect the past signaled email. In any case there can be false allarms, and some noisy.</p>
+</div>
+</div>
+<div class="section" id="accountant">
+<h3>Accountant<a class="headerlink" href="#accountant" title="Permalink to this headline">¶</a></h3>
+<p>You can generate summary reports in Asterisell to send only to system
+administrator with role <code class="docutils literal"><span class="pre">Accountant</span></code>.</p>
+<p>TODO continue</p>
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><h3>Navigation</h3>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="index.html">Home</a></li>
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="management.html">Management</a></li>
+<li class="toctree-l1"><a class="reference internal" href="configuration.html">Configuration</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Usage</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#recurring-concepts">Recurring Concepts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#recurring-work-flow">Recurring Work-Flow</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="FAQ.html">FAQ</a></li>
+<li class="toctree-l1"><a class="reference internal" href="news.html">News</a></li>
+<li class="toctree-l1"><a class="reference internal" href="support.html">Support</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="meta_toc.html">Documentation overview</a><ul>
+      <li>Previous: <a href="configuration.html" title="previous chapter">Asterisell Configuration</a></li>
+      <li>Next: <a href="FAQ.html" title="next chapter">Asterisell FAQ</a></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      
+      
+      
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.4.6</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.7</a>
+      
+      |
+      <a href="_sources/usage.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

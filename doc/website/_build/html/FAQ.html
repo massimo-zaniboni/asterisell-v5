@@ -1,0 +1,382 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Asterisell FAQ &#8212; Asterisell 5 documentation</title>
+    
+    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '5',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="shortcut icon" href="_static/asterisell_favicon.ico"/>
+    <link rel="top" title="Asterisell 5 documentation" href="meta_toc.html" />
+    <link rel="next" title="Asterisell News" href="news.html" />
+    <link rel="prev" title="Asterisell Usage" href="usage.html" />
+
+  <link rel="alternate"
+        type="application/rss+xml"
+        title="Asterisell"
+        href="/index.rss" />
+
+  
+   
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+
+  </head>
+  <body role="document">  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="asterisell-faq">
+<h1>Asterisell FAQ<a class="headerlink" href="#asterisell-faq" title="Permalink to this headline">¶</a></h1>
+<div class="contents local topic" id="table-of-contents">
+<p class="topic-title first">Table of Contents</p>
+<ul class="simple">
+<li><a class="reference internal" href="#docker" id="id3">Docker</a><ul>
+<li><a class="reference internal" href="#how-updating-the-ssl-certificates-of-an-instance" id="id4">How Updating the SSL Certificates of an Instance</a></li>
+<li><a class="reference internal" href="#how-removing-an-instance-completely" id="id5">How Removing an Instance Completely</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#reports" id="id6">Reports</a><ul>
+<li><a class="reference internal" href="#totals-on-reports" id="id7">Totals on Reports</a></li>
+<li><a class="reference internal" href="#regeneration-of-many-reports-in-the-past" id="id8">Regeneration of Many Reports in the Past</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#file-processing" id="id9">File Processing</a><ul>
+<li><a class="reference internal" href="#conversion-of-files-to-utf-8-format" id="id10">Conversion of files to UTF-8 format</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#rating" id="id11">Rating</a><ul>
+<li><a class="reference internal" href="#generic-rateengine-error-messages" id="id12">Generic RateEngine Error Messages</a></li>
+<li><a class="reference internal" href="#debug-rating-errors" id="id13">Debug Rating Errors</a></li>
+<li><a class="reference internal" href="#fixing-errors-in-source-cdrs" id="id14">Fixing Errors in Source CDRs</a></li>
+<li><a class="reference internal" href="#moving-cdrs-from-an-instance-to-another" id="id15">Moving CDRs from an instance to another</a></li>
+<li><a class="reference internal" href="#lock-wait-timeout-exceeded-error-message" id="id16">&#8220;Lock wait timeout exceeded&#8221; Error Message</a></li>
+</ul>
+</li>
+</ul>
+</div>
+<div class="section" id="docker">
+<h2><a class="toc-backref" href="#table-of-contents">Docker</a><a class="headerlink" href="#docker" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="how-updating-the-ssl-certificates-of-an-instance">
+<h3><a class="toc-backref" href="#table-of-contents">How Updating the SSL Certificates of an Instance</a><a class="headerlink" href="#how-updating-the-ssl-certificates-of-an-instance" title="Permalink to this headline">¶</a></h3>
+<p>Change the configurations in <code class="docutils literal"><span class="pre">fabric_data/asterisell_instances.py</span></code>, and then <code class="docutils literal"><span class="pre">fab</span> <span class="pre">restart:INSTANCE</span></code>.</p>
+</div>
+<div class="section" id="how-removing-an-instance-completely">
+<h3><a class="toc-backref" href="#table-of-contents">How Removing an Instance Completely</a><a class="headerlink" href="#how-removing-an-instance-completely" title="Permalink to this headline">¶</a></h3>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="c1"># First remove the Docker container</span>
+<span class="n">docker</span> <span class="n">stop</span> <span class="n">INSTANCE</span>
+<span class="n">docker</span> <span class="n">remove</span> <span class="n">INSTANCE</span>
+
+<span class="c1"># But now the Docker VOLUME with DB data, log files,</span>
+<span class="c1"># bakup files and so on is still present.</span>
+<span class="c1">#</span>
+<span class="c1"># Only in case you are sure that all Docker orphan VOLUMES</span>
+<span class="c1"># (volumes without any container using them)</span>
+<span class="c1"># are for sure unusued volumes, execute</span>
+<span class="n">fab</span> <span class="n">remove_orphan_volumes</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="section" id="reports">
+<h2><a class="toc-backref" href="#table-of-contents">Reports</a><a class="headerlink" href="#reports" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="totals-on-reports">
+<h3><a class="toc-backref" href="#table-of-contents">Totals on Reports</a><a class="headerlink" href="#totals-on-reports" title="Permalink to this headline">¶</a></h3>
+<div class="line-block">
+<div class="line">The total cost of vendor reports does not match the grand total on the report</div>
+</div>
+<p>Check in the online call report if you have some internal vendors with
+costs. Internal vendors are not showed on reports</p>
+</div>
+<div class="section" id="regeneration-of-many-reports-in-the-past">
+<h3><a class="toc-backref" href="#table-of-contents">Regeneration of Many Reports in the Past</a><a class="headerlink" href="#regeneration-of-many-reports-in-the-past" title="Permalink to this headline">¶</a></h3>
+<p><a href="#id1"><span class="problematic" id="id2">|</span></a>I&#8217;m generating many reports in the past, setting the scheduler to 4 months in the past, but only the first set is generated</p>
+<p>Asterisell checks for new reports to generate not at every passage of
+the cron processor, but it wait some time.</p>
+<p>In the JobLog you can see how much it is post-poned.</p>
+<p>So if you wait some time, another batch of reports will be executed.</p>
+</div>
+</div>
+<div class="section" id="file-processing">
+<h2><a class="toc-backref" href="#table-of-contents">File Processing</a><a class="headerlink" href="#file-processing" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="conversion-of-files-to-utf-8-format">
+<h3><a class="toc-backref" href="#table-of-contents">Conversion of files to UTF-8 format</a><a class="headerlink" href="#conversion-of-files-to-utf-8-format" title="Permalink to this headline">¶</a></h3>
+<p>Asterisell read, and import files in UTF-8 format.</p>
+<p>This command show the character-set of a file:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">file</span> <span class="o">-</span><span class="n">bi</span>
+</pre></div>
+</div>
+<p>A command for converting a file to another locale</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">iconv</span> <span class="o">-</span><span class="n">f</span> <span class="n">ISO</span><span class="o">-</span><span class="mi">8859</span><span class="o">-</span><span class="mi">1</span> <span class="o">-</span><span class="n">t</span> <span class="n">UTF</span><span class="o">-</span><span class="mi">8</span>  <span class="o">&gt;</span> <span class="n">t</span>
+<span class="n">rm</span>
+<span class="n">mv</span> <span class="n">t</span>
+</pre></div>
+</div>
+<p>or a probably better command with in-place conversion:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">yum</span> <span class="n">install</span> <span class="n">recode</span>
+<span class="n">recode</span> <span class="n">ISO</span><span class="o">-</span><span class="mi">8859</span><span class="o">-</span><span class="mf">1.</span><span class="o">.</span><span class="n">UTF8</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="section" id="rating">
+<h2><a class="toc-backref" href="#table-of-contents">Rating</a><a class="headerlink" href="#rating" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="generic-rateengine-error-messages">
+<h3><a class="toc-backref" href="#table-of-contents">Generic RateEngine Error Messages</a><a class="headerlink" href="#generic-rateengine-error-messages" title="Permalink to this headline">¶</a></h3>
+<p>Sometimes the application generate long error messages like</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="o">/</span><span class="n">var</span><span class="o">/</span><span class="n">www</span><span class="o">/</span><span class="n">tsnet</span><span class="o">/</span><span class="n">admin</span><span class="o">/</span><span class="n">scripts</span><span class="o">/</span><span class="n">RateEngine</span> <span class="o">--</span><span class="n">rate</span>  <span class="o">--</span><span class="n">debug</span><span class="o">-</span><span class="n">mode</span> <span class="mi">0</span> <span class="o">--</span><span class="ow">is</span><span class="o">-</span><span class="n">voip</span><span class="o">-</span><span class="n">reseller</span> <span class="mi">1</span>
+<span class="o">--</span><span class="n">load</span><span class="o">-</span><span class="n">rate</span><span class="o">-</span><span class="n">categories</span> <span class="o">/</span><span class="n">var</span><span class="o">/</span><span class="n">www</span><span class="o">/</span><span class="n">tsnet</span><span class="o">/</span><span class="n">admin</span><span class="o">/</span><span class="n">data_files</span><span class="o">/</span><span class="n">messages</span><span class="o">/</span><span class="n">params</span><span class="o">/</span><span class="n">rate_category</span><span class="o">.</span><span class="n">csv</span>
+<span class="o">--</span><span class="n">load</span><span class="o">-</span><span class="n">vendors</span> <span class="o">/</span><span class="n">var</span><span class="o">/</span><span class="n">www</span><span class="o">/</span><span class="n">tsnet</span><span class="o">/</span><span class="n">admin</span><span class="o">/</span><span class="n">data_files</span><span class="o">/</span><span class="n">messages</span><span class="o">/</span><span class="n">params</span><span class="o">/</span><span class="n">vendors</span><span class="o">.</span><span class="n">csv</span>
+<span class="o">--</span><span class="n">load</span><span class="o">-</span><span class="n">channels</span><span class="o">-</span><span class="n">types</span> <span class="o">/</span><span class="n">var</span><span class="o">/</span><span class="n">www</span><span class="o">/</span><span class="n">tsnet</span><span class="o">/</span><span class="n">admin</span><span class="o">/</span><span class="n">data_files</span><span class="o">/</span><span class="n">messages</span><span class="o">/</span><span class="n">params</span><span class="o">/</span><span class="n">channel_types</span><span class="o">.</span><span class="n">csv</span>
+<span class="o">--</span><span class="n">load</span><span class="o">-</span><span class="n">channel</span><span class="o">-</span><span class="n">domains</span> <span class="o">/</span><span class="n">var</span><span class="o">/</span><span class="n">www</span><span class="o">/</span><span class="n">tsnet</span><span class="o">/</span><span class="n">admin</span><span class="o">/</span><span class="n">data_files</span><span class="o">/</span><span class="n">messages</span><span class="o">/</span><span class="n">params</span><span class="o">/</span><span class="n">channel_domains</span><span class="o">.</span><span class="n">csv</span>
+<span class="o">--</span><span class="n">load</span><span class="o">-</span><span class="n">telephone</span><span class="o">-</span><span class="n">prefixes</span> <span class="o">/</span><span class="n">var</span><span class="o">/</span><span class="n">www</span><span class="o">/</span><span class="n">tsnet</span><span class="o">/</span><span class="n">admin</span><span class="o">/</span><span class="n">data_files</span><span class="o">/</span><span class="n">messages</span><span class="o">/</span><span class="n">params</span><span class="o">/</span><span class="n">telephone_prefixes</span><span class="o">.</span><span class="n">csv</span>
+<span class="o">--</span><span class="n">digits</span><span class="o">-</span><span class="n">to</span><span class="o">-</span><span class="n">mask</span> <span class="mi">3</span> <span class="o">--</span><span class="n">default</span><span class="o">-</span><span class="n">telephone</span><span class="o">-</span><span class="n">prefix</span> <span class="mi">39</span>
+<span class="o">--</span><span class="n">currency</span><span class="o">-</span><span class="n">precision</span> <span class="mi">4</span>
+<span class="o">--</span><span class="n">load</span><span class="o">-</span><span class="n">extensions</span> <span class="o">/</span><span class="n">var</span><span class="o">/</span><span class="n">www</span><span class="o">/</span><span class="n">tsnet</span><span class="o">/</span><span class="n">admin</span><span class="o">/</span><span class="n">data_files</span><span class="o">/</span><span class="n">messages</span><span class="o">/</span><span class="n">params</span><span class="o">/</span><span class="n">extensions</span><span class="o">.</span><span class="n">csv</span>
+<span class="o">--</span><span class="n">load</span><span class="o">-</span><span class="n">rate</span><span class="o">-</span><span class="n">plan</span><span class="o">-</span><span class="n">changes</span> <span class="o">/</span><span class="n">var</span><span class="o">/</span><span class="n">www</span><span class="o">/</span><span class="n">tsnet</span><span class="o">/</span><span class="n">admin</span><span class="o">/</span><span class="n">data_files</span><span class="o">/</span><span class="n">messages</span><span class="o">/</span><span class="n">params</span><span class="o">/</span><span class="n">rate_plan</span><span class="o">.</span><span class="n">csv</span>
+<span class="o">--</span><span class="n">load</span><span class="o">-</span><span class="n">rate</span><span class="o">-</span><span class="n">plan</span> <span class="o">/</span><span class="n">var</span><span class="o">/</span><span class="n">www</span><span class="o">/</span><span class="n">tsnet</span><span class="o">/</span><span class="n">admin</span><span class="o">/</span><span class="n">data_files</span><span class="o">/</span><span class="n">messages</span><span class="o">/</span><span class="n">params</span><span class="o">/</span><span class="n">rate_plan_id_</span>
+<span class="o">--</span><span class="n">load</span><span class="o">-</span><span class="n">services</span> <span class="o">/</span><span class="n">var</span><span class="o">/</span><span class="n">www</span><span class="o">/</span><span class="n">tsnet</span><span class="o">/</span><span class="n">admin</span><span class="o">/</span><span class="n">data_files</span><span class="o">/</span><span class="n">messages</span><span class="o">/</span><span class="n">params</span><span class="o">/</span><span class="n">services</span><span class="o">.</span><span class="n">csv</span>
+<span class="o">--</span><span class="n">load</span><span class="o">-</span><span class="n">service</span><span class="o">-</span><span class="n">price</span><span class="o">-</span><span class="nb">list</span> <span class="o">/</span><span class="n">var</span><span class="o">/</span><span class="n">www</span><span class="o">/</span><span class="n">tsnet</span><span class="o">/</span><span class="n">admin</span><span class="o">/</span><span class="n">data_files</span><span class="o">/</span><span class="n">messages</span><span class="o">/</span><span class="n">params</span><span class="o">/</span><span class="n">services_price_list</span><span class="o">.</span><span class="n">csv</span>
+<span class="o">--</span><span class="n">load</span><span class="o">-</span><span class="n">assigned</span><span class="o">-</span><span class="n">services</span> <span class="o">/</span><span class="n">var</span><span class="o">/</span><span class="n">www</span><span class="o">/</span><span class="n">tsnet</span><span class="o">/</span><span class="n">admin</span><span class="o">/</span><span class="n">data_files</span><span class="o">/</span><span class="n">messages</span><span class="o">/</span><span class="n">params</span><span class="o">/</span><span class="n">assigned_services</span><span class="o">.</span><span class="n">csv</span>
+<span class="o">--</span><span class="n">debug</span><span class="o">-</span><span class="n">file</span> <span class="o">/</span><span class="n">var</span><span class="o">/</span><span class="n">tmp</span><span class="o">/</span><span class="n">var</span><span class="o">/</span><span class="n">www</span><span class="o">/</span><span class="n">tsnet</span><span class="o">/</span><span class="n">admin</span><span class="o">/</span><span class="n">rate_debug</span><span class="o">.</span><span class="n">info</span>
+<span class="o">--</span><span class="n">from</span><span class="o">-</span><span class="n">date</span> <span class="s2">&quot;2016-11-01 00:00:00&quot;</span>
+<span class="o">--</span><span class="n">to</span><span class="o">-</span><span class="n">date</span> <span class="s2">&quot;2016-12-01 10:45:03&quot;</span>
+<span class="o">--</span><span class="n">from</span><span class="o">-</span><span class="n">date</span> <span class="s2">&quot;null&quot;</span>  <span class="o">--</span><span class="n">to</span><span class="o">-</span><span class="n">date</span> <span class="s2">&quot;null&quot;</span>  <span class="o">--</span><span class="n">rate</span><span class="o">-</span><span class="n">unbilled</span><span class="o">-</span><span class="n">calls</span> <span class="n">true</span>
+<span class="o">--</span><span class="n">db</span><span class="o">-</span><span class="n">name</span> <span class="n">tsnet</span>
+
+<span class="o">/</span><span class="n">var</span><span class="o">/</span><span class="n">www</span><span class="o">/</span><span class="n">tsnet</span><span class="o">/</span><span class="n">admin</span><span class="o">/</span><span class="n">data_files</span><span class="o">/</span><span class="n">messages</span><span class="o">/</span><span class="n">params</span><span class="o">/</span><span class="n">rate_plan_id_44</span><span class="o">.</span><span class="n">rate</span><span class="p">:</span> <span class="n">hClose</span><span class="p">:</span> <span class="n">invalid</span> <span class="n">argument</span> <span class="p">(</span><span class="n">Bad</span> <span class="n">file</span> <span class="n">descriptor</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>In the majority of these errors the important part is at the bottom. In this case</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="o">/</span><span class="n">var</span><span class="o">/</span><span class="n">www</span><span class="o">/</span><span class="n">tsnet</span><span class="o">/</span><span class="n">admin</span><span class="o">/</span><span class="n">data_files</span><span class="o">/</span><span class="n">messages</span><span class="o">/</span><span class="n">params</span><span class="o">/</span><span class="n">rate_plan_id_44</span><span class="o">.</span><span class="n">rate</span><span class="p">:</span> <span class="n">hClose</span><span class="p">:</span> <span class="n">invalid</span> <span class="n">argument</span> <span class="p">(</span><span class="n">Bad</span> <span class="n">file</span> <span class="n">descriptor</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>So it suffices in this case opening the rate with id 44, on the web-interface, and see if there are formatting errors.</p>
+<p>The problem of this error messages it is that the rate plan language is very powerful and it is not
+easy to generate meaningful error messages.</p>
+</div>
+<div class="section" id="debug-rating-errors">
+<h3><a class="toc-backref" href="#table-of-contents">Debug Rating Errors</a><a class="headerlink" href="#debug-rating-errors" title="Permalink to this headline">¶</a></h3>
+<p>Open always fully the error message, because it is formatted in a clear way, with correct indentation.</p>
+<p>It is possible inspecting the applied rate to a CDR, in the online call
+report, clicking on the cost or income.</p>
+<p>It is possible generating more debug info, about applied and unapplied
+rates, rating in debug mode. In the Asterisell instance admin directory:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">fab</span> <span class="n">help</span>
+
+<span class="n">fab</span> <span class="n">cron_disable</span><span class="p">:</span><span class="n">INSTANCE</span>
+<span class="c1"># because every time CDRs are rerated</span>
+<span class="c1"># the debug info will be lost.</span>
+
+<span class="n">fab</span> <span class="n">connect</span><span class="p">:</span><span class="n">INSTANCE</span>
+
+<span class="n">php</span> <span class="n">asterisell</span><span class="o">.</span><span class="n">php</span> <span class="n">debug</span> <span class="n">rerate</span> <span class="n">YYYY</span><span class="o">-</span><span class="n">MM</span><span class="o">-</span><span class="n">DD</span>
+<span class="n">php</span> <span class="n">asterisell</span><span class="o">.</span><span class="n">php</span> <span class="n">debug</span> <span class="n">jobs</span>
+
+<span class="c1"># debug and change rates, and then</span>
+<span class="n">php</span> <span class="n">asterisell</span><span class="o">.</span><span class="n">php</span> <span class="n">debug</span> <span class="n">rerate</span> <span class="n">YYYY</span><span class="o">-</span><span class="n">MM</span><span class="o">-</span><span class="n">DD</span>
+<span class="n">php</span> <span class="n">asterisell</span><span class="o">.</span><span class="n">php</span> <span class="n">debug</span> <span class="n">jobs</span>
+
+<span class="n">exit</span>
+<span class="n">fab</span> <span class="n">cron_enable</span><span class="p">:</span><span class="n">INSTANCE</span>
+</pre></div>
+</div>
+<p>It is possible inspecting the reason of an unrated CDR, in the
+<code class="docutils literal"><span class="pre">Calls</span> <span class="pre">-&gt;</span> <span class="pre">Calls</span> <span class="pre">with</span> <span class="pre">Errors</span></code> menu entry.</p>
+</div>
+<div class="section" id="fixing-errors-in-source-cdrs">
+<h3><a class="toc-backref" href="#table-of-contents">Fixing Errors in Source CDRs</a><a class="headerlink" href="#fixing-errors-in-source-cdrs" title="Permalink to this headline">¶</a></h3>
+<p>The utility <code class="docutils literal"><span class="pre">php</span> <span class="pre">asterisell.php</span> <span class="pre">data</span> <span class="pre">export-cdrs</span></code> accessible after executing <code class="docutils literal"><span class="pre">fab</span> <span class="pre">connect:INSTANCE</span></code>
+can export source CDRs of a time-frame. They can be changed. There are
+some utilities on directory <code class="docutils literal"><span class="pre">admin/script/source\_cdrs\_fix</span></code>, and other can be created.</p>
+<p>The transformed files, can be put into instance directory <code class="docutils literal"><span class="pre">admin/data_files/messages/input</span></code>
+and they will be imported again in Asterisell. They are status files, so
+the previos version of source CDRs on the same time-frame will be
+deleted, and replaced with the new version.</p>
+<p>A copy of the original exported source-cdrs can be maintained for a
+while, in order to restore them in case of errors.</p>
+</div>
+<div class="section" id="moving-cdrs-from-an-instance-to-another">
+<h3><a class="toc-backref" href="#table-of-contents">Moving CDRs from an instance to another</a><a class="headerlink" href="#moving-cdrs-from-an-instance-to-another" title="Permalink to this headline">¶</a></h3>
+<p>Put in <code class="docutils literal"><span class="pre">ar_voip_extension_to_move</span></code> table of the instance,
+the extension code to export,
+specified in the Asterisell format, so you can use also &#8220;*&#8221; and &#8220;X&#8221; and
+other pattern matching values.</p>
+<p>Rerate the calls in the time frame you want export:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">fab</span> <span class="n">connect</span><span class="p">:</span><span class="n">INSTANCE</span>
+<span class="n">php</span> <span class="n">asterisell</span><span class="o">.</span><span class="n">php</span> <span class="n">debug</span> <span class="n">rerate</span> <span class="n">YYYY</span><span class="o">-</span><span class="n">MM</span><span class="o">-</span><span class="n">DD</span>
+<span class="n">php</span> <span class="n">asterisell</span><span class="o">.</span><span class="n">php</span> <span class="n">run</span> <span class="n">jobs</span>
+</pre></div>
+</div>
+<p>The table <code class="docutils literal"><span class="pre">ar_source_cdr_to_move</span></code> will now contain the IDs of the CDRs
+to export.</p>
+<p>For exporting the CDRS, use the commands</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">fab</span> <span class="n">connect</span><span class="p">:</span><span class="n">INSTANCE</span>
+<span class="n">php</span> <span class="n">asterisell</span><span class="o">.</span><span class="n">php</span> <span class="n">data</span> <span class="n">export</span><span class="o">-</span><span class="n">cdrs</span><span class="o">-</span><span class="n">to</span><span class="o">-</span><span class="n">move</span> <span class="n">YYYY</span><span class="o">-</span><span class="n">MM</span><span class="o">-</span><span class="n">DD</span>
+</pre></div>
+</div>
+<p>Move the file with the CDRs to export, into the destination instance
+input directory.</p>
+<p>IMPORTANT: source CDRs will be moved on external files, and removed from
+instance <code class="docutils literal"><span class="pre">ar_source_cdr</span></code> table.</p>
+<p>Probably when you are sure to having exported all the CDRs, you can
+clean the content of table <code class="docutils literal"><span class="pre">ar_voip_extension_to_move</span></code></p>
+<div class="section" id="low-level-details">
+<h4>Low Level Details<a class="headerlink" href="#low-level-details" title="Permalink to this headline">¶</a></h4>
+<p>During rating, a <code class="docutils literal"><span class="pre">source_cdr</span></code> is assigned to the extension.</p>
+<p>So <code class="docutils literal"><span class="pre">ar_source_cdr</span></code> to export are recognized during rating phase.</p>
+<p>They are put in a table.</p>
+<p>The content of the table is safe because usually <code class="docutils literal"><span class="pre">ar_source_cdr</span></code> are not
+removed. The exception is about status files, and few other cases.</p>
+<p>So the export command remove the <code class="docutils literal"><span class="pre">ar_source_cdr</span></code> from the table, and
+export them in files.</p>
+<p>Then a rerating command must be generated (it is generated automatically
+from the utility) because CDRs in the CDR table, must be deleted and
+rerated, and in this case there are no any more the corresponding
+<code class="docutils literal"><span class="pre">ar_source_cdr</span></code>.</p>
+<p>IMPORTANT: after a moving operation, the <code class="docutils literal"><span class="pre">ar_source_cdr_to_move</span></code>
+content is deleted, so a rerating must be done again, if another date
+must be exported.</p>
+<p>The CDRs will be removed from source instance after rerating on the
+source instance, because the rerating passage will remove the rated
+CDRs, and there are any more the source CDRs.</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">fab</span> <span class="n">run_jobs</span><span class="p">:</span><span class="n">INSTANCE</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="section" id="lock-wait-timeout-exceeded-error-message">
+<h3><a class="toc-backref" href="#table-of-contents">&#8220;Lock wait timeout exceeded&#8221; Error Message</a><a class="headerlink" href="#lock-wait-timeout-exceeded-error-message" title="Permalink to this headline">¶</a></h3>
+<p>If it signaled a problem like</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="ne">ConnectionError</span> <span class="p">{</span>
+  <span class="n">errFunction</span> <span class="o">=</span> \<span class="s2">&quot;query</span><span class="se">\&quot;</span><span class="s2">,</span>
+  <span class="n">errNumber</span> <span class="o">=</span> <span class="mi">1205</span><span class="p">,</span>
+  <span class="n">errMessage</span> <span class="o">=</span> \<span class="s2">&quot;Lock wait timeout exceeded; try restarting transaction</span><span class="se">\&quot;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>there can be pending transactions on MySQL.</p>
+<p>Enter into the asterisell database using the root MySQL user.</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">fab</span> <span class="n">help</span>
+<span class="n">fab</span> <span class="n">connect</span><span class="p">:</span><span class="n">INSTANCE</span>
+
+<span class="n">cat</span> <span class="n">config</span><span class="o">/</span><span class="n">databases</span><span class="o">.</span><span class="n">yml</span>
+<span class="c1"># for seeing the database name, and admin user</span>
+
+<span class="n">mysql</span> <span class="o">-</span><span class="n">u</span> <span class="n">root</span> <span class="o">-</span><span class="n">pTHE_SAME_PASSWORD_DISPLAYED_FROM_CAT</span> <span class="n">THE_DB_OF_CAT</span>
+
+<span class="n">show</span> <span class="nb">open</span> <span class="n">tables</span> <span class="n">where</span> <span class="n">in_use</span><span class="o">&gt;</span><span class="mi">0</span><span class="p">;</span>
+    <span class="o">+------------+------------------------+--------+-------------+</span>
+  <span class="o">|</span> <span class="n">Database</span>   <span class="o">|</span> <span class="n">Table</span>                  <span class="o">|</span> <span class="n">In_use</span> <span class="o">|</span> <span class="n">Name_locked</span> <span class="o">|</span>
+  <span class="o">+------------+------------------------+--------+-------------+</span>
+  <span class="o">|</span> <span class="n">asterisell</span> <span class="o">|</span> <span class="n">ar_cdr</span>                 <span class="o">|</span>      <span class="mi">1</span> <span class="o">|</span>           <span class="mi">0</span> <span class="o">|</span>
+  <span class="o">|</span> <span class="n">asterisell</span> <span class="o">|</span> <span class="n">ar_daily_status_job</span>    <span class="o">|</span>      <span class="mi">1</span> <span class="o">|</span>           <span class="mi">0</span> <span class="o">|</span>
+  <span class="o">|</span> <span class="n">asterisell</span> <span class="o">|</span> <span class="n">ar_daily_status_change</span> <span class="o">|</span>      <span class="mi">1</span> <span class="o">|</span>           <span class="mi">0</span> <span class="o">|</span>
+  <span class="o">+------------+------------------------+--------+-------------+</span>
+  <span class="mi">3</span> <span class="n">rows</span> <span class="ow">in</span> <span class="nb">set</span> <span class="p">(</span><span class="mf">0.00</span> <span class="n">sec</span><span class="p">)</span>
+
+<span class="n">show</span> <span class="n">processlist</span><span class="p">;</span>
+  <span class="o">+----+-------+-----------+------------+---------+------+----------------------+------------------------------------------------------------------------------------------------------+----------+</span>
+  <span class="o">|</span> <span class="n">Id</span> <span class="o">|</span> <span class="n">User</span>  <span class="o">|</span> <span class="n">Host</span>      <span class="o">|</span> <span class="n">db</span>         <span class="o">|</span> <span class="n">Command</span> <span class="o">|</span> <span class="n">Time</span> <span class="o">|</span> <span class="n">State</span>                <span class="o">|</span> <span class="n">Info</span>                                                                                                 <span class="o">|</span> <span class="n">Progress</span> <span class="o">|</span>
+  <span class="o">+----+-------+-----------+------------+---------+------+----------------------+------------------------------------------------------------------------------------------------------+----------+</span>
+  <span class="o">|</span> <span class="mi">19</span> <span class="o">|</span> <span class="n">tsnet</span> <span class="o">|</span> <span class="n">localhost</span> <span class="o">|</span> <span class="n">asterisell</span> <span class="o">|</span> <span class="n">Sleep</span>   <span class="o">|</span>  <span class="mi">969</span> <span class="o">|</span>                      <span class="o">|</span> <span class="n">NULL</span>                                                                                                 <span class="o">|</span>    <span class="mf">0.000</span> <span class="o">|</span>
+  <span class="o">|</span> <span class="mi">20</span> <span class="o">|</span> <span class="n">tsnet</span> <span class="o">|</span> <span class="n">localhost</span> <span class="o">|</span> <span class="n">asterisell</span> <span class="o">|</span> <span class="n">Sleep</span>   <span class="o">|</span>  <span class="mi">970</span> <span class="o">|</span>                      <span class="o">|</span> <span class="n">NULL</span>                                                                                                 <span class="o">|</span>    <span class="mf">0.000</span> <span class="o">|</span>
+  <span class="o">|</span> <span class="mi">21</span> <span class="o">|</span> <span class="n">tsnet</span> <span class="o">|</span> <span class="n">localhost</span> <span class="o">|</span> <span class="n">asterisell</span> <span class="o">|</span> <span class="n">Query</span>   <span class="o">|</span>  <span class="mi">918</span> <span class="o">|</span> <span class="n">After</span> <span class="n">opening</span> <span class="n">tables</span> <span class="o">|</span> <span class="n">LOAD</span> <span class="n">DATA</span> <span class="n">INFILE</span> <span class="s1">&#39;/var/tmp/var/www/asterisell/admin/pipe2&#39;</span> <span class="n">INTO</span> <span class="n">TABLE</span> <span class="n">ar_cdr</span>  <span class="n">CHARACTER</span> <span class="n">SET</span> <span class="s1">&#39;utf8&#39;</span>   <span class="o">|</span>    <span class="mf">0.000</span> <span class="o">|</span>
+  <span class="o">|</span> <span class="mi">33</span> <span class="o">|</span> <span class="n">root</span>  <span class="o">|</span> <span class="n">localhost</span> <span class="o">|</span> <span class="n">asterisell</span> <span class="o">|</span> <span class="n">Query</span>   <span class="o">|</span>    <span class="mi">0</span> <span class="o">|</span> <span class="n">init</span>                 <span class="o">|</span> <span class="n">show</span> <span class="n">processlist</span>                                                                                     <span class="o">|</span>    <span class="mf">0.000</span> <span class="o">|</span>
+  <span class="o">+----+-------+-----------+------------+---------+------+----------------------+------------------------------------------------------------------------------------------------------+----------+</span>
+  <span class="mi">4</span> <span class="n">rows</span> <span class="ow">in</span> <span class="nb">set</span> <span class="p">(</span><span class="mf">0.00</span> <span class="n">sec</span><span class="p">)</span>
+
+
+<span class="c1"># kill the process with the problems</span>
+<span class="n">kill</span> <span class="mi">21</span><span class="p">;</span>
+</pre></div>
+</div>
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><h3>Navigation</h3>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="index.html">Home</a></li>
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="management.html">Management</a></li>
+<li class="toctree-l1"><a class="reference internal" href="configuration.html">Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="usage.html">Usage</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">FAQ</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#docker">Docker</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#reports">Reports</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#file-processing">File Processing</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#rating">Rating</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="news.html">News</a></li>
+<li class="toctree-l1"><a class="reference internal" href="support.html">Support</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="meta_toc.html">Documentation overview</a><ul>
+      <li>Previous: <a href="usage.html" title="previous chapter">Asterisell Usage</a></li>
+      <li>Next: <a href="news.html" title="next chapter">Asterisell News</a></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      
+      
+      
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.4.6</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.7</a>
+      
+      |
+      <a href="_sources/FAQ.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

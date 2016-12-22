@@ -1,0 +1,1600 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Asterisell Configuration &#8212; Asterisell 5 documentation</title>
+    
+    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '5',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="shortcut icon" href="_static/asterisell_favicon.ico"/>
+    <link rel="top" title="Asterisell 5 documentation" href="meta_toc.html" />
+    <link rel="next" title="Asterisell Usage" href="usage.html" />
+    <link rel="prev" title="Asterisell Management" href="management.html" />
+
+  <link rel="alternate"
+        type="application/rss+xml"
+        title="Asterisell"
+        href="/index.rss" />
+
+  
+   
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+
+  </head>
+  <body role="document">  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="asterisell-configuration">
+<h1>Asterisell Configuration<a class="headerlink" href="#asterisell-configuration" title="Permalink to this headline">¶</a></h1>
+<p>Configuration is an iterative process:</p>
+<ul class="simple">
+<li>initial configuration attempt</li>
+<li>wait Asterisell rate CDRs</li>
+<li>study error messages</li>
+<li>improve configuration accordingly</li>
+<li>CDRs are automatically rerated</li>
+<li>repeat until there are no more error messages</li>
+</ul>
+<div class="admonition warning">
+<p class="first admonition-title">Warning</p>
+<p>Initial configuration of Asterisell is the most difficult part of Asterisell usage.
+After configuration, the application works in a rather automatic way,
+and maintainance is a lot more easier.</p>
+<p class="last">In case you need help, you can contact the <a class="reference internal" href="support.html"><span class="doc">Asterisell Support</span></a>.</p>
+</div>
+<div class="section" id="basic-configurations">
+<h2>Basic Configurations<a class="headerlink" href="#basic-configurations" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="cdrs-providers">
+<h3>CDRs Providers<a class="headerlink" href="#cdrs-providers" title="Permalink to this headline">¶</a></h3>
+<p>First CDRs must be imported inside Asterisell.</p>
+<p>CDRs can be retrieved from different sources/providers. A CDR provider
+must be defined in <code class="docutils literal"><span class="pre">Params-&gt;CDRs</span> <span class="pre">Providers</span></code>.</p>
+<p>A CDR provider is some computer related medium (a directory, a database
+table, some message queue, an FTP account, etc..) containing CDRs to
+import into Asterisell.</p>
+</div>
+<div class="section" id="vendor">
+<h3>Vendor<a class="headerlink" href="#vendor" title="Permalink to this headline">¶</a></h3>
+<p>A Vendor is a fiscal entity
+that routes CDRs, and that can requires payments for this service.</p>
+<p>Note that a CDR provider is not a Vendor, also if in many configurations there
+is a one to one match between a Vendor and a
+CDR provider. There can be configurations where the same CDR provider is used from
+many Vendors (you retrieve CDRs from ony of your VoIP server, configured for collaborating with many VoIP providers),
+or a Vendor can use more than one CDR provider (the Vendor uses multiple FTP accounts).</p>
+<p>Vendors are created in <code class="docutils literal"><span class="pre">Rates</span> <span class="pre">-&gt;</span> <span class="pre">Vendors</span></code> menu.</p>
+</div>
+<div class="section" id="communication-channels-types">
+<h3>Communication Channels Types<a class="headerlink" href="#communication-channels-types" title="Permalink to this headline">¶</a></h3>
+<p>A cummunication channel type identifies the type of the call. It is something like:</p>
+<ul class="simple">
+<li>SIP Calls</li>
+<li>Fixed Line Calls</li>
+<li>Mobile Calls</li>
+<li>ENUM Calls</li>
+<li>etc..</li>
+</ul>
+<p>Communication Channels types are created in <code class="docutils literal"><span class="pre">Params</span> <span class="pre">-&gt;</span> <span class="pre">Communication</span> <span class="pre">Channels</span></code>.</p>
+</div>
+<div class="section" id="communication-channel">
+<h3>Communication Channel<a class="headerlink" href="#communication-channel" title="Permalink to this headline">¶</a></h3>
+<p>A Communication Channel is a (low-level system) value inside a CDR identifying the channel
+used for routing the call, and so also the <code class="docutils literal"><span class="pre">communication</span> <span class="pre">channel</span> <span class="pre">type</span></code>
+(the high-level description of the type of the call/CDR).</p>
+<p>Association between a Communication Channel, and a Vendor and the
+corresponding Communication Channel Type are done in the menu
+<code class="docutils literal"><span class="pre">Rates</span> <span class="pre">-&gt;</span> <span class="pre">Channels</span></code>. By default an imported CDR, is associated to a
+Vendor and a Communcation Channel Type according the content of this
+table. But there can be specific importing methods, assigning predefined
+Vendors or Communication Channel Types to a CDR, in case the logic is more
+complex, and needs specific customizations.</p>
+<p>Up to date rates can not match on CDR provider, but only on channel. See
+#1909.</p>
+</div>
+</div>
+<div class="section" id="cdrs-importing">
+<h2>CDRs Importing<a class="headerlink" href="#cdrs-importing" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="manual-importing">
+<h3>Manual Importing<a class="headerlink" href="#manual-importing" title="Permalink to this headline">¶</a></h3>
+<p>The source CDRs files must be put inside the directory
+<code class="docutils literal"><span class="pre">data_files/messages/input</span></code>. They must have a name compatible with Asterisell format (described later).
+, otherwise Asterisell signals the problem, and it will not import them.</p>
+<p>Manual importing of CDRs files is not the suggested way. It is preferred
+configuring some import jobs. If you import them manually, make sure to:</p>
+<ul class="simple">
+<li>copy the files in a tmp directory inside the same filesystem</li>
+<li>move the files in the Asterisell directory
+<code class="docutils literal"><span class="pre">data_files/messages/input</span></code></li>
+<li>file moving in Linux is an atomic operation, if and only if the
+source and destination directories are on the same file system</li>
+<li>doing so, you are sure that Asterisell will process the entire
+content of the file, and there are no conflicts</li>
+<li>Asterisell jobs take care of this automatically</li>
+</ul>
+</div>
+<div class="section" id="cdrs-file-name">
+<h3>CDRs File Name<a class="headerlink" href="#cdrs-file-name" title="Permalink to this headline">¶</a></h3>
+<p>A CDRs source file has a name like
+<code class="docutils literal"><span class="pre">file1.some-cdr-provider__logical-type__version</span></code>, where:</p>
+<ul class="simple">
+<li><code class="docutils literal"><span class="pre">file1</span></code> is some file name to use. It should be distinct, for
+avoiding clash during importing</li>
+<li><code class="docutils literal"><span class="pre">some-cdr-provider</span></code> is a name of a configure cdr-provider. In case
+there is no configured cdr-provider, Asterisell signals the problem,
+and does not import the file. The file will be imported later,
+automatically, when the problem is resolved</li>
+<li><code class="docutils literal"><span class="pre">logical-type</span></code> is the name of some type of file to import. If the
+type is not recognized, Asterisell signals the problem, and the file
+will be imported later, when the problem is resolved</li>
+<li><code class="docutils literal"><span class="pre">version</span></code> is the name of the version of the type used. So the same
+type, can have different versions, with slightly different formats</li>
+</ul>
+</div>
+<div class="section" id="cdrs-status-files">
+<h3>CDRs Status Files<a class="headerlink" href="#cdrs-status-files" title="Permalink to this headline">¶</a></h3>
+<p>A CDRs CDRs status file name is like
+<code class="docutils literal"><span class="pre">file1.2015-01-01.some-cdr-provider__logical-type__version</span></code>, where:</p>
+<ul class="simple">
+<li><code class="docutils literal"><span class="pre">2015-01-01</span></code> is a status file, with all the calls of the day</li>
+<li><code class="docutils literal"><span class="pre">2015-01-00</span></code> is a status file, with all the calls of the month</li>
+<li><code class="docutils literal"><span class="pre">2015-00-00</span></code> is a status file, with all the calls of the year</li>
+<li>the other parts of the file name follow the same convention of CDRs
+file name</li>
+</ul>
+<p>The importing of a status file:</p>
+<ul class="simple">
+<li>delete all the calls in the status file time-frame, of the same
+provider</li>
+<li>insert the calls in the status file</li>
+<li>the net effect is replacing the calls in the status time frame, with
+the content of the status file</li>
+</ul>
+</div>
+<div class="section" id="pseudo-csv-file">
+<h3>Pseudo CSV File<a class="headerlink" href="#pseudo-csv-file" title="Permalink to this headline">¶</a></h3>
+<p>Asterisell supports a pseudo CSV-file format:</p>
+<ul class="simple">
+<li>multi lines are not supported</li>
+<li>it extracts first a distinct line from a file</li>
+<li>it process it like a CSV file line</li>
+</ul>
+<p>This format is useful in case there can be errors in the CSV files,
+because it minimize the number of unrecognized entries, in case of a
+missing ending quote.</p>
+</div>
+<div class="section" id="how-cdrs-source-file-are-saved-internally">
+<h3>How CDRs Source File are Saved Internally<a class="headerlink" href="#how-cdrs-source-file-are-saved-internally" title="Permalink to this headline">¶</a></h3>
+<p>CDRs source file are processed from Asterisell, and imported in
+Asterisell internal table <code class="docutils literal"><span class="pre">ar_source_cdr</span></code>. This table store the source
+CDRs:</p>
+<ul class="simple">
+<li>in a compressed format saving a lot of space</li>
+<li>bakc in their original format, when decompressed, allowing a complete
+reprocessing if the rules about their processing changes</li>
+</ul>
+</div>
+<div class="section" id="automatic-importing">
+<h3>Automatic Importing<a class="headerlink" href="#automatic-importing" title="Permalink to this headline">¶</a></h3>
+<p>You can add jobs into Asterisell, for importing files from different
+communication channel sources like FTP, WebDAV, external database
+tables, and so on.</p>
+<p>TODO continue</p>
+</div>
+<div class="section" id="how-importing-from-collector-table">
+<h3>How Importing From Collector Table<a class="headerlink" href="#how-importing-from-collector-table" title="Permalink to this headline">¶</a></h3>
+<p><code class="docutils literal"><span class="pre">apps/asterisell/lib/jobs/data_file_processing/ImportCDRSFromDatabase.php</span></code>
+is the abstract Job to use for retrieving CDRs from a collector table.</p>
+<p>It:</p>
+<ul class="simple">
+<li>reads CDRs on a table of a database, that is acting like a queue of
+CDRs to process,</li>
+<li>convert to CSV files the CDRs to process,</li>
+<li>put the generated CSV files on the input queue of Asterisell,</li>
+<li>remove (optionally) older CDRs already exported to Asterisell,
+managing the table as a queue,</li>
+</ul>
+<p>It is an abstract class, so:</p>
+<ul class="simple">
+<li>a concrete class/job must be inherited from it,</li>
+<li>the inherited job, must define the missing methods, respecting the
+requirements on method headers descriptions,</li>
+<li>the inherited job must be added to the list of jobs to process before
+rating, adding it to the <code class="docutils literal"><span class="pre">import_cdrs_jobs</span></code> option of the instance
+configuration file</li>
+</ul>
+<p>One or more jobs of this type can be added, without conflict.</p>
+<div class="section" id="is-exported-to-asterisell-flag-field">
+<h4>&#8220;is_exported_to_asterisell&#8221; flag field<a class="headerlink" href="#is-exported-to-asterisell-flag-field" title="Permalink to this headline">¶</a></h4>
+<p>You should be able to add to the CDR source table on the collector, a field like this:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">ALTER</span> <span class="n">TABLE</span> <span class="n">your_table_name</span>
+<span class="n">ADD</span> <span class="n">COLUMN</span> <span class="n">is_exported_to_asterisell</span> <span class="n">TINYINT</span> <span class="n">default</span> <span class="mi">0</span> <span class="n">NOT</span> <span class="n">NULL</span><span class="p">,</span>
+<span class="n">ADD</span> <span class="n">INDEX</span> <span class="n">is_exported_to_asterisell_index</span><span class="p">(</span><span class="n">is_exported_to_asterisell</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>This field will be used from Asterisell for importing only new source
+CDRs. The source table will work like a queue.</p>
+<p>Transactions are used, so in case of connection problems, the CDRs will be imported and rated again.</p>
+</div>
+<div class="section" id="tables-on-external-databases">
+<h4>Tables on External Databases<a class="headerlink" href="#tables-on-external-databases" title="Permalink to this headline">¶</a></h4>
+<p>An external database is a database that is not on the same Linux
+instance where Asterisell is installed.</p>
+<p>TODO continue</p>
+</div>
+<div class="section" id="tables-on-the-same-host-and-database-server">
+<h4>Tables on the same Host and Database Server<a class="headerlink" href="#tables-on-the-same-host-and-database-server" title="Permalink to this headline">¶</a></h4>
+<p>If the table with source CDRs is on the same Host and Database Server,
+you can optimize further the processing of source CDRs.</p>
+<p>First show the format of the table, executing something like</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">show</span> <span class="n">create</span> <span class="n">table</span> <span class="n">your_table_name</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>It is important the last line of the table creation:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">ENGINE</span><span class="o">=</span><span class="n">InnoDB</span> <span class="n">AUTO_INCREMENT</span><span class="o">=</span><span class="mi">51438</span> <span class="n">DEFAULT</span> <span class="n">CHARSET</span><span class="o">=</span><span class="n">latin1</span>
+</pre></div>
+</div>
+<p>Asterisell uses the TokuDB engine:</p>
+<ul class="simple">
+<li>it can compress data</li>
+<li>it is fast and reliable</li>
+<li>it is studied for big data</li>
+<li>it is 100% compatbile with all the SQL and MySQL API commands issued
+to a InnoDB engine</li>
+</ul>
+<p>So you can switch the engine used for the table, to TokuDB. The
+application writing to it will not notice the difference.</p>
+<p>If you have not many source CDRs, and you can interrupct the CDR stream
+flow, you can execute a command like</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">ALTER</span> <span class="n">TABLE</span> <span class="n">your_source_cdrs_table_name</span> <span class="n">ENGINE</span><span class="o">=</span><span class="n">tokudb</span> <span class="n">COMPRESSION</span><span class="o">=</span><span class="n">tokudb_quicklz</span><span class="p">,</span><span class="n">DEFAULT</span> <span class="n">CHARACTER</span> <span class="n">SET</span> <span class="o">=</span> <span class="n">latin1</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>specifying the same character set of your original table. Asterisell
+uses UTF8 character set for its tables, but during exporting and
+importing, it can convert between different character-sets.</p>
+<p>If you cannot interrupt the stream of CDRs, consult the assistance. It
+is possibile copying on the fly old and new CDRs, and them executing a
+fast switch.</p>
+</div>
+<div class="section" id="fix-errors-in-imported-cdrs">
+<h4>Fix Errors in Imported CDRs<a class="headerlink" href="#fix-errors-in-imported-cdrs" title="Permalink to this headline">¶</a></h4>
+<p>If CDRs contains errors, and the error is in Asterisell code processing
+them:</p>
+<ul class="simple">
+<li>ask for <a class="reference internal" href="support.html"><span class="doc">Asterisell Support</span></a>, specifying how the CDRs must be processed;</li>
+<li>install the new version of Asterisell;</li>
+<li>rerate CDRs;</li>
+</ul>
+<p>If the source VoIP server are configured in a bad way, and there are
+errors in the content of the collector table:</p>
+<ul class="simple">
+<li>TODO description to improve</li>
+<li>use CSV utility functions shipped with Asterisell, for fixing errors
+directly in CSV files;</li>
+<li>rerate CDRs;</li>
+</ul>
+<p>This workflow is needed because:</p>
+<ul class="simple">
+<li>CDRs are rerated starting from CSV files;</li>
+<li>the collector table is used only as an intermediate queue for CDRs;</li>
+<li>new CSV files add only new info, and do not delete old info;</li>
+<li>in place replacing of CSV file content, and a rerating command, is a
+method for updating CDRs, because all CDRs in the timeframe are
+deleted, and then new version of CDRs are inserted;</li>
+</ul>
+</div>
+</div>
+</div>
+<div class="section" id="rating-plans">
+<h2>Rating Plans<a class="headerlink" href="#rating-plans" title="Permalink to this headline">¶</a></h2>
+<p>In Asterisell there are two main rating plans: <code class="docutils literal"><span class="pre">main-cost-rate</span></code>, and
+<code class="docutils literal"><span class="pre">main-income-rate</span></code>. They specify the rating plan logic. They can have
+references to rating plan details, for example to CSV files.</p>
+<p>Usually the initial specification of rating plans can be difficult,
+but then updating rates is rather easy.</p>
+<div class="section" id="call-reporting-mode">
+<h3>Call Reporting Mode<a class="headerlink" href="#call-reporting-mode" title="Permalink to this headline">¶</a></h3>
+<p>In Call Reporting Mode, Asterisell is not used for billing the calls, but calls have only a cost.</p>
+<p>The user must specify only the <code class="docutils literal"><span class="pre">main-income-rate</span></code>. It is called
+<code class="docutils literal"><span class="pre">income</span></code> but it is rating the costs of calls. The resulting CDRs will have
+income and cost equals.</p>
+</div>
+<div class="section" id="cost-rates">
+<h3>Cost Rates<a class="headerlink" href="#cost-rates" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="free-incoming-and-internal-calls">
+<h4>Free Incoming and Internal Calls<a class="headerlink" href="#free-incoming-and-internal-calls" title="Permalink to this headline">¶</a></h4>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">rate</span> <span class="p">{</span>
+  <span class="nb">id</span><span class="p">:</span> <span class="n">free</span><span class="o">-</span><span class="n">incoming</span>
+  <span class="n">match</span><span class="o">-</span><span class="n">call</span><span class="o">-</span><span class="n">direction</span><span class="p">:</span> <span class="n">incoming</span>
+<span class="p">}</span>
+
+<span class="n">rate</span> <span class="p">{</span>
+  <span class="nb">id</span><span class="p">:</span> <span class="n">free</span><span class="o">-</span><span class="n">internal</span>
+  <span class="n">match</span><span class="o">-</span><span class="n">call</span><span class="o">-</span><span class="n">direction</span><span class="p">:</span> <span class="n">internal</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="multiple-vendors">
+<h4>Multiple Vendors<a class="headerlink" href="#multiple-vendors" title="Permalink to this headline">¶</a></h4>
+<p>You can have multiple vendors (also called suppliers), that you use for
+routing the VoIP calls.</p>
+<p>You list your vendors, using the <code class="docutils literal"><span class="pre">Rates</span> <span class="pre">-&gt;</span> <span class="pre">Vendors</span></code> menu.</p>
+<p>Every CDR has a communication channel. During CDR processing you can
+specify in <code class="docutils literal"><span class="pre">Rates</span> <span class="pre">-&gt;</span> <span class="pre">Channels</span></code> how to associate a communication
+channel name to the Vendor. When a CDR has the specified communication
+channel, then it is considered as routed from the specified Vendor.</p>
+<p>Note that are possible also more sophisticated associations between CDRs
+and Vendors, but you must contact the assistance for this.</p>
+<p>Then in the rate plan you specify how to rate the CDRs according
+different vendors:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">rate</span> <span class="p">{</span>
+  <span class="nb">id</span><span class="p">:</span> <span class="n">outgoing</span><span class="o">-</span><span class="n">rate</span>
+  <span class="n">match</span><span class="o">-</span><span class="n">call</span><span class="o">-</span><span class="n">direction</span><span class="p">:</span> <span class="n">outgoing</span>
+
+  <span class="n">rate</span> <span class="p">{</span>
+    <span class="nb">id</span><span class="p">:</span> <span class="n">vendor1</span><span class="o">-</span><span class="n">rate</span>
+    <span class="n">match</span><span class="o">-</span><span class="n">vendor</span><span class="p">:</span> <span class="n">vendor1</span>
+    <span class="n">external</span><span class="o">-</span><span class="n">rate</span> <span class="p">{</span>
+      <span class="nb">id</span><span class="p">:</span> <span class="n">csv</span>
+      <span class="n">use</span><span class="p">:</span> <span class="n">vendor1</span><span class="o">-</span><span class="n">csv</span><span class="o">-</span><span class="n">details</span>
+      <span class="nb">set</span><span class="o">-</span><span class="n">cost</span><span class="o">-</span><span class="k">for</span><span class="o">-</span><span class="n">minute</span><span class="p">:</span> <span class="n">this</span>
+    <span class="p">}</span>
+  <span class="p">}</span>
+
+  <span class="n">rate</span> <span class="p">{</span>
+    <span class="nb">id</span><span class="p">:</span> <span class="n">vendor2</span><span class="o">-</span><span class="n">rate</span>
+    <span class="n">match</span><span class="o">-</span><span class="n">vendor</span><span class="p">:</span> <span class="n">vendor2</span>
+    <span class="n">external</span><span class="o">-</span><span class="n">rate</span> <span class="p">{</span>
+      <span class="nb">id</span><span class="p">:</span> <span class="n">csv</span>
+      <span class="n">use</span><span class="p">:</span> <span class="n">vendor2</span><span class="o">-</span><span class="n">csv</span><span class="o">-</span><span class="n">details</span>
+      <span class="nb">set</span><span class="o">-</span><span class="n">cost</span><span class="o">-</span><span class="k">for</span><span class="o">-</span><span class="n">minute</span><span class="p">:</span> <span class="n">this</span>
+    <span class="p">}</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="section" id="income-rates">
+<h3>Income Rates<a class="headerlink" href="#income-rates" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="id1">
+<h4>Free Incoming and Internal Calls<a class="headerlink" href="#id1" title="Permalink to this headline">¶</a></h4>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">rate</span> <span class="p">{</span>
+  <span class="nb">id</span><span class="p">:</span> <span class="n">free</span><span class="o">-</span><span class="n">incoming</span>
+  <span class="n">match</span><span class="o">-</span><span class="n">call</span><span class="o">-</span><span class="n">direction</span><span class="p">:</span> <span class="n">incoming</span>
+<span class="p">}</span>
+
+<span class="n">rate</span> <span class="p">{</span>
+  <span class="nb">id</span><span class="p">:</span> <span class="n">free</span><span class="o">-</span><span class="n">internal</span>
+  <span class="n">match</span><span class="o">-</span><span class="n">call</span><span class="o">-</span><span class="n">direction</span><span class="p">:</span> <span class="n">internal</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="rate-according-customer-price-category">
+<h4>Rate according Customer Price Category<a class="headerlink" href="#rate-according-customer-price-category" title="Permalink to this headline">¶</a></h4>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">rate</span> <span class="p">{</span>
+  <span class="nb">id</span><span class="p">:</span> <span class="n">outgoing</span>
+  <span class="n">match</span><span class="o">-</span><span class="n">call</span><span class="o">-</span><span class="n">direction</span><span class="p">:</span> <span class="n">outgoing</span>
+
+  <span class="n">rate</span> <span class="p">{</span>
+    <span class="nb">id</span><span class="p">:</span> <span class="n">wholesale</span>
+    <span class="n">match</span><span class="o">-</span><span class="n">price</span><span class="o">-</span><span class="n">category</span><span class="p">:</span> <span class="n">wholesale</span>
+
+    <span class="n">external</span><span class="o">-</span><span class="n">rate</span> <span class="p">{</span>
+      <span class="nb">id</span><span class="p">:</span> <span class="n">wholesale</span>
+      <span class="n">use</span><span class="p">:</span> <span class="n">sell</span><span class="o">-</span><span class="n">wholesale</span>
+      <span class="nb">set</span><span class="o">-</span><span class="n">cost</span><span class="o">-</span><span class="k">for</span><span class="o">-</span><span class="n">minute</span><span class="p">:</span> <span class="n">this</span>
+    <span class="p">}</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="section" id="todo-continue">
+<h3>TODO continue<a class="headerlink" href="#todo-continue" title="Permalink to this headline">¶</a></h3>
+</div>
+</div>
+<div class="section" id="tutorial-on-csv-rates">
+<span id="tutorial-csv-rates"></span><h2>Tutorial on CSV Rates<a class="headerlink" href="#tutorial-on-csv-rates" title="Permalink to this headline">¶</a></h2>
+<p>This is a CSV rate, with prices specified by minute, and applied by
+second. The prices are in Italian format: with &#8221;,&#8221; as decimal separator.</p>
+<p><img alt="image0" src="tut_a_01.png" /></p>
+<p>We check if the rate format is one of the supported formats</p>
+<p><img alt="image1" src="tut_a_02.png" /></p>
+<p>Yes it is supported:</p>
+<p><img alt="image2" src="tut_a_03.png" /></p>
+<p>In case it is not supported, you can:</p>
+<ul class="simple">
+<li>contact the assistance, for adding the format to the application</li>
+<li>convert the CSV file to one of the supported formats</li>
+</ul>
+<p>Now we open the <code class="docutils literal"><span class="pre">Rates</span> <span class="pre">-&gt;</span> <span class="pre">Rates</span></code> menu, and we create a new rate. We
+upload the CSV file, specifying also its format.</p>
+<p><img alt="image3" src="tut_a_06.png" /></p>
+<p>The CSV file alone is not sufficient for rating the calls. We had to
+specify a rate plan, classifying the calls by type, and applying the
+correct rating method. The default name for these rates is
+<code class="docutils literal"><span class="pre">main-income-rate</span></code>, and the default type is
+<code class="docutils literal"><span class="pre">rate-plan-specification</span></code>. Don&#8217;t worry: if you don&#8217;t specify this
+rate, the application will advise you.</p>
+<p>So in <code class="docutils literal"><span class="pre">Rates</span> <span class="pre">-&gt;</span> <span class="pre">Rates</span></code> we insert</p>
+<p><img alt="image4" src="tut_a_06.png" /></p>
+<p>and we specify this rate plan</p>
+<p><img alt="image5" src="tut_a_04.png" /></p>
+<p>After specifying it, Asterisell schedules an automatic rerating of
+unbilled calls.</p>
+<p><img alt="image6" src="tut_a_08.png" /></p>
+<p>Every rating error is reported.</p>
+<p>We can inspect a rated call</p>
+<p><img alt="image7" src="tut_a_10.png" /></p>
+<p><img alt="image8" src="tut_a_11.png" /></p>
+<p>Usually price-lists changes over time. We can modify the CSV file:</p>
+<p><img alt="image9" src="tut_a_12.png" /></p>
+<p>Now we upload the new version of CSV file, selecting the current version</p>
+<p><img alt="image10" src="tut_a_13.png" /></p>
+<p>We upload the new version, specifying the date on which it takes effect:</p>
+<p><img alt="image11" src="tut_a_14.png" /></p>
+<p>We can see that there are the two version of the same CSV file,
+applicable at different call-dates:</p>
+<p><img alt="image12" src="tut_a_15.png" /></p>
+<p>We have not touched the <code class="docutils literal"><span class="pre">main-income-rate</span></code>, because usually the main
+rate plan does not change, but only the CSV files with the details of
+the rates.</p>
+<p>An automatic rerating is scheduled, and we can inspect the differences</p>
+<p><img alt="image13" src="tut_a_16.png" /></p>
+<p><img alt="image14" src="tut_a_17.png" /></p>
+</div>
+<div class="section" id="rate-plan-specification">
+<span id="rate-plan-specification-language"></span><span id="tutorial-main-rate-plans"></span><h2>Rate Plan Specification<a class="headerlink" href="#rate-plan-specification" title="Permalink to this headline">¶</a></h2>
+<p>This is a complete specification of the rating plan language.</p>
+<div class="section" id="normal-rates">
+<h3>Normal Rates<a class="headerlink" href="#normal-rates" title="Permalink to this headline">¶</a></h3>
+<p>The rate plan contains nested rules. There can be one or more rates at
+the root level, and each rate can have arbirtrary nested children rates.</p>
+<p>This rate plan is the entry point for calculating the cost or income of
+a CDR, but it can contains references to other rate plans, like CSV
+files.</p>
+<p>This is an example of rate specification:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">rate</span> <span class="p">{</span>
+  <span class="nb">id</span><span class="p">:</span> <span class="n">outgoing</span>
+
+  <span class="n">match</span><span class="o">-</span><span class="n">call</span><span class="o">-</span><span class="n">direction</span><span class="p">:</span> <span class="n">outgoing</span>
+
+  <span class="n">rate</span> <span class="p">{</span>
+    <span class="nb">id</span><span class="p">:</span> <span class="n">free</span><span class="o">-</span><span class="n">emergency</span><span class="o">-</span><span class="n">telephone</span><span class="o">-</span><span class="n">numbers</span>
+
+    <span class="n">match</span><span class="o">-</span><span class="n">telephone</span><span class="o">-</span><span class="n">number</span><span class="p">:</span> <span class="mi">118</span><span class="p">,</span><span class="mi">113</span><span class="p">,</span><span class="mi">11</span><span class="n">X</span>
+  <span class="p">}</span>
+
+  <span class="n">rate</span> <span class="p">{</span>
+    <span class="nb">id</span><span class="p">:</span> <span class="n">default</span>
+
+    <span class="n">match</span><span class="o">-</span><span class="n">price</span><span class="o">-</span><span class="n">category</span><span class="p">:</span> <span class="n">normal</span>
+    <span class="nb">set</span><span class="o">-</span><span class="n">cost</span><span class="o">-</span><span class="n">on</span><span class="o">-</span><span class="n">call</span><span class="p">:</span> <span class="mf">0.05</span>
+
+    <span class="n">external</span><span class="o">-</span><span class="n">rate</span> <span class="p">{</span>
+      <span class="nb">id</span><span class="p">:</span> <span class="n">csv</span><span class="o">-</span><span class="mi">1</span>
+      <span class="n">use</span><span class="p">:</span> <span class="n">csv</span><span class="o">-</span><span class="mi">1</span>
+    <span class="p">}</span>
+  <span class="p">}</span>
+
+  <span class="n">rate</span> <span class="p">{</span>
+    <span class="nb">id</span><span class="p">:</span> <span class="n">discounted</span>
+
+    <span class="n">match</span><span class="o">-</span><span class="n">price</span><span class="o">-</span><span class="n">category</span><span class="p">:</span> <span class="n">discounted</span>
+    <span class="nb">set</span><span class="o">-</span><span class="n">cost</span><span class="o">-</span><span class="n">on</span><span class="o">-</span><span class="n">call</span><span class="p">:</span> <span class="mf">0.05</span>
+
+    <span class="n">external</span><span class="o">-</span><span class="n">rate</span> <span class="p">{</span>
+      <span class="nb">id</span><span class="p">:</span> <span class="n">csv</span><span class="o">-</span><span class="n">discounted</span><span class="o">-</span><span class="mi">2</span>
+      <span class="n">use</span><span class="p">:</span> <span class="n">csv</span><span class="o">-</span><span class="n">discounted</span><span class="o">-</span><span class="mi">2</span>
+    <span class="p">}</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+
+<span class="n">rate</span> <span class="p">{</span>
+  <span class="nb">id</span><span class="p">:</span> <span class="n">free</span><span class="o">-</span><span class="n">incoming</span>
+
+  <span class="n">match</span><span class="o">-</span><span class="n">call</span><span class="o">-</span><span class="n">direction</span><span class="p">:</span> <span class="n">incoming</span>
+<span class="p">}</span>
+
+<span class="n">rate</span> <span class="p">{</span>
+  <span class="nb">id</span><span class="p">:</span> <span class="n">free</span><span class="o">-</span><span class="n">internal</span>
+  <span class="n">match</span><span class="o">-</span><span class="n">call</span><span class="o">-</span><span class="n">direction</span><span class="p">:</span> <span class="n">internal</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>In these specification notes:</p>
+<ul class="simple">
+<li>&#8220;[...]&#8221; is used only as documentation placeholder, for documenting
+the possible values to insert.</li>
+<li>A reference name is something like &#8220;some-name&#8221;,
+&#8220;another_example_of_name&#8221;,
+&#8220;some_name/with_an_implicit/hierarchy_notation&#8221;.</li>
+</ul>
+<p>The specification is</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">rate</span> <span class="p">{</span>
+  <span class="c1"># &quot;rate&quot; is a rate that can be applied to a CDR, and that can calc its cost/income.</span>
+
+
+  <span class="nb">id</span><span class="p">:</span> <span class="p">[</span><span class="n">reference</span><span class="p">]</span>
+  <span class="c1"># a short internal reference name, used also in debug sessions for</span>
+  <span class="c1"># discovering which rate is applied to a CDR.</span>
+
+  <span class="c1">#</span>
+  <span class="c1"># Specify on which CDRs the rate is applicable</span>
+  <span class="c1">#</span>
+
+  <span class="c1"># All these matches are optionals.</span>
+
+  <span class="n">match</span><span class="o">-</span><span class="n">communication</span><span class="o">-</span><span class="n">channel</span><span class="p">:</span> <span class="p">[</span><span class="nb">list</span> <span class="n">of</span> <span class="n">communication</span> <span class="n">channel</span> <span class="n">types</span><span class="p">]</span>
+  <span class="c1"># if the CDR match one of the channels in the list, this rate can be applied</span>
+
+  <span class="n">match</span><span class="o">-</span><span class="n">vendor</span><span class="p">:</span> <span class="p">[</span><span class="nb">list</span> <span class="n">of</span> <span class="n">vendors</span><span class="p">]</span>
+  <span class="c1"># if the CDR match one of the vendors in the list, this rate can be applied</span>
+
+  <span class="n">match</span><span class="o">-</span><span class="n">price</span><span class="o">-</span><span class="n">category</span><span class="p">:</span> <span class="p">[</span><span class="nb">list</span> <span class="n">of</span> <span class="n">price</span> <span class="n">categories</span><span class="p">]</span>
+  <span class="c1"># see notes on &quot;Rates-&gt;Price Categories&quot; section, on how to model hierarchical price categories.</span>
+
+  <span class="n">match</span><span class="o">-</span><span class="n">call</span><span class="o">-</span><span class="n">direction</span><span class="p">:</span> <span class="p">[</span><span class="n">outgoing</span><span class="o">|</span><span class="n">incoming</span><span class="o">|</span><span class="n">internal</span><span class="o">|</span><span class="n">system</span><span class="p">]</span>
+
+  <span class="n">match</span><span class="o">-</span><span class="n">telephone</span><span class="o">-</span><span class="n">number</span><span class="p">:</span> <span class="p">[</span><span class="nb">list</span> <span class="n">of</span> <span class="n">telephone</span> <span class="n">numbers</span><span class="p">]</span>
+  <span class="c1"># The external telephone number:</span>
+  <span class="c1">#   * the called telephone number for outgoing and internal calls,</span>
+  <span class="c1">#   * the calling telephone number for incoming calls.</span>
+  <span class="c1">#</span>
+  <span class="c1"># Telephone numbers are expressed in the same format used for specifying internal extensions,</span>
+  <span class="c1"># so something like &quot;123,123X,123X*,123*,123\X\*&quot;,</span>
+  <span class="c1"># where &quot;X&quot; stays for any character,</span>
+  <span class="c1">#       &quot;*&quot; stays for zero or more characters.</span>
+  <span class="c1"># &quot;\\\\&quot; is the quotation for the &quot;\\&quot; character.</span>
+  <span class="c1"># &quot;\,&quot; is the quotation for the &quot;,&quot; character</span>
+  <span class="c1"># &quot; 123, 456&quot; is parsed into extensions &quot;123&quot;, and &quot;456&quot;</span>
+  <span class="c1"># &quot; 123, 4 5 6&quot; is parsed into extensions &quot;123&quot;, and &quot;4 5 6&quot;</span>
+  <span class="c1"># &quot;\ 123, \ 456&quot; is parsed into extensions &quot; 123&quot;, and &quot; 456&quot;</span>
+  <span class="c1">#</span>
+  <span class="c1"># NOTE: in case of a list of many telephone numbers, it is best using CSV files, and external-rate references.</span>
+
+  <span class="c1">#</span>
+  <span class="c1"># Specify how to calculate the cost of the call</span>
+  <span class="c1">#</span>
+
+  <span class="c1"># NOTE: Sets must be always specified after the match part.</span>
+
+  <span class="c1"># These are the tranformations that can be applied on the</span>
+  <span class="c1"># billable duration of a call.</span>
+  <span class="c1"># The tranformations are applied in the specified order,</span>
+  <span class="c1"># so also the order of specification is mandatory.</span>
+  <span class="c1"># If a parameter is not specified, the default value is assumed.</span>
+
+  <span class="nb">set</span><span class="o">-</span><span class="n">free</span><span class="o">-</span><span class="n">seconds</span><span class="p">:</span> <span class="p">[</span><span class="n">number</span> <span class="n">of</span> <span class="n">seconds</span><span class="p">]</span>
+  <span class="c1"># do not apply the cost-for-minute to these first seconds.</span>
+  <span class="c1"># 0 is the default value.</span>
+
+  <span class="nb">set</span><span class="o">-</span><span class="n">duration</span><span class="o">-</span><span class="n">discrete</span><span class="o">-</span><span class="n">increments</span><span class="p">:</span> <span class="p">[</span><span class="n">number</span> <span class="n">of</span> <span class="n">seconds</span><span class="p">]</span>
+  <span class="c1"># rate every specified seconds.</span>
+  <span class="c1"># 0 is the default value.</span>
+  <span class="c1">#</span>
+  <span class="c1"># If the specified value is for example 3,</span>
+  <span class="c1"># then a call with duration 0,1,2 is considered as 3 second,</span>
+  <span class="c1"># a call with duration 3,4,5 is considered as 6 seconds, and so on.</span>
+
+  <span class="nb">set</span><span class="o">-</span><span class="n">at</span><span class="o">-</span><span class="n">least</span><span class="o">-</span><span class="n">seconds</span><span class="p">:</span> <span class="p">[</span><span class="n">number</span> <span class="n">of</span> <span class="n">seconds</span><span class="p">]</span>
+  <span class="c1"># consider the call at least as the specified seconds</span>
+
+  <span class="c1"># These are the tranformations that are applied to the cost of a call.</span>
+  <span class="c1"># The tranformations are applied in the specified order,</span>
+  <span class="c1"># so also the order of specification is mandatory.</span>
+  <span class="c1"># If a parameter is not specified, the default value is assumed.</span>
+
+  <span class="nb">set</span><span class="o">-</span><span class="n">cost</span><span class="o">-</span><span class="n">on</span><span class="o">-</span><span class="n">call</span><span class="p">:</span> <span class="p">[</span><span class="mf">1.0</span><span class="o">|</span><span class="n">imported</span><span class="o">|</span><span class="n">expected</span><span class="p">]</span>
+  <span class="c1"># the initial cost of the call (default value is 0)</span>
+  <span class="c1"># &quot;imported&quot; is used for CDRS imported from external sources, having already the cost/income calculated</span>
+  <span class="c1"># &quot;expected&quot; is used for CDRS imported from external sources/providers, and force the usage of the expected cost field</span>
+
+  <span class="nb">set</span><span class="o">-</span><span class="n">cost</span><span class="o">-</span><span class="k">for</span><span class="o">-</span><span class="n">minute</span><span class="p">:</span> <span class="p">[</span><span class="mf">1.0</span><span class="p">]</span>
+  <span class="c1"># the cost of the call,</span>
+  <span class="c1"># specified for every minute, otherwise the value is too low to specify,</span>
+  <span class="c1"># but applied by default for every second of call.</span>
+  <span class="c1"># (default value is 0)</span>
+
+  <span class="nb">set</span><span class="o">-</span><span class="nb">max</span><span class="o">-</span><span class="n">cost</span><span class="o">-</span><span class="n">of</span><span class="o">-</span><span class="n">call</span><span class="p">:</span> <span class="p">[</span><span class="mf">1.0</span><span class="p">]</span>
+  <span class="c1"># apply this cost, if the calculated cost of the call is major than this</span>
+
+  <span class="nb">set</span><span class="o">-</span><span class="nb">min</span><span class="o">-</span><span class="n">cost</span><span class="o">-</span><span class="n">of</span><span class="o">-</span><span class="n">call</span><span class="p">:</span> <span class="p">[</span><span class="mf">1.0</span><span class="p">]</span>
+  <span class="c1"># apply this cost, if the calculated cost of the call is less that this</span>
+
+  <span class="nb">set</span><span class="o">-</span><span class="nb">round</span><span class="o">-</span><span class="n">to</span><span class="o">-</span><span class="n">decimal</span><span class="o">-</span><span class="n">digits</span><span class="p">:</span> <span class="p">[</span><span class="n">integer</span><span class="p">]</span>
+  <span class="c1"># round the cost of the call to the specified digits.</span>
+  <span class="c1"># For example 2.41, 2.44 became 2.4, and 2.45, 2.48 became 2.5, when rounding to the 1st decimal digit.</span>
+  <span class="c1"># If left unspecified, use the maximum possible precision, without any rounding.</span>
+
+  <span class="nb">set</span><span class="o">-</span><span class="n">ceil</span><span class="o">-</span><span class="n">to</span><span class="o">-</span><span class="n">decimal</span><span class="o">-</span><span class="n">digits</span><span class="p">:</span> <span class="p">[</span><span class="n">integer</span><span class="p">]</span>
+  <span class="c1"># ceil the cost of the call to the specified decimal digits.</span>
+  <span class="c1"># For example both 2.41, 2.44, 2.48, became 2.5 when ceiling to the 1st decimal digit.</span>
+  <span class="c1"># If left unspecified, use the maximum possible precision, without any rounding.</span>
+  <span class="c1"># This operation is done after the round operation.</span>
+  <span class="c1"># So it is possible round to 4 digit, and ceiling later to 3 digits.</span>
+
+  <span class="nb">set</span><span class="o">-</span><span class="n">floor</span><span class="o">-</span><span class="n">to</span><span class="o">-</span><span class="n">decimal</span><span class="o">-</span><span class="n">digits</span><span class="p">:</span> <span class="p">[</span><span class="n">integer</span><span class="p">]</span>
+  <span class="c1"># floor the cost of the call to the specified decimal digits.</span>
+  <span class="c1"># For example both 2.41, 2.44, 2.48, became 2.4, when flooring to the 1st decimal digit.</span>
+  <span class="c1"># If left unspecified, use the maximum possible precision, without any rounding.</span>
+  <span class="c1"># This operation is done after the ceil operation.</span>
+
+  <span class="n">rate</span> <span class="p">{</span>
+    <span class="c1"># A child rate, inherits all the sets and matches of its parent rate, and it can override them.</span>
+    <span class="c1"># Rates can be arbitrary nested, in order to grouping rates by common characteristics.</span>
+    <span class="c1"># For avoiding ratinng errors, if a rate has one ore more children, then one and only one of its children</span>
+    <span class="c1"># must match the CDR with stronger priority, and it will be used for rating the CDR.</span>
+    <span class="c1"># If there are two or more matching rates, then an error is signaled.</span>
+    <span class="c1"># If no children match the CDR, then an error is signaled.</span>
+
+    <span class="nb">id</span><span class="p">:</span> <span class="p">[</span><span class="n">reference</span><span class="p">]</span>
+    <span class="c1"># this can be a short id, because the complete rate reference name will</span>
+    <span class="c1"># contain automatically also the parent id.</span>
+    <span class="c1"># For example &quot;root/outgoing/emergency-telephone-numbers&quot; is a complete path of ids,</span>
+    <span class="c1"># where the single id parts are &quot;root&quot; for the id of the initial root rate,</span>
+    <span class="c1"># &quot;outgoing&quot; is the id of the first nested rate, and &quot;emergency-telephone-numbers&quot; is</span>
+    <span class="c1"># the id of the final nested rate. If the final nested rate is applied to a CDR,</span>
+    <span class="c1"># then the signaled applied rate is &quot;root/outgoing/emergency-telephone-numbers&quot;.</span>
+    <span class="c1"># So there can be repeated &quot;id&quot; names in nested rates, because only the full</span>
+    <span class="c1"># path id must be unique.</span>
+
+    <span class="p">[</span><span class="k">continue</span> <span class="k">with</span> <span class="n">another</span> <span class="n">rate</span> <span class="n">specification</span><span class="p">]</span>
+
+  <span class="p">}</span>
+
+  <span class="n">rate</span> <span class="p">{</span>
+    <span class="p">[</span><span class="n">another</span> <span class="n">rate</span> <span class="n">specification</span><span class="p">]</span>
+  <span class="p">}</span>
+
+  <span class="c1"># A child rate is selected only if:</span>
+  <span class="c1"># * the parent rate is applicable (so it inherits the matches of the parent)</span>
+  <span class="c1"># * it is applicable</span>
+  <span class="c1"># * there is no other children rate that is applicable using stronger matches on the match-telephone-number part</span>
+  <span class="c1"># So it is always selected the children rate with the longest matching telephone number.</span>
+
+  <span class="c1"># In case of two children rates matching a telephone number with the same strength, a rating error is signaled</span>
+
+  <span class="n">external</span><span class="o">-</span><span class="n">rate</span> <span class="p">{</span>
+    <span class="c1"># this is another child rate, but of type &quot;external-rate&quot;, instead of generic &quot;rate&quot;</span>
+    <span class="c1">#</span>
+    <span class="c1"># An &quot;external-rate&quot; calls another rating method, specified in an external rate specification file,</span>
+    <span class="c1"># typically a CSV file in some rating format associated to it.</span>
+    <span class="c1">#</span>
+    <span class="c1"># An external-rate can have no nested children rates.</span>
+
+    <span class="nb">id</span><span class="p">:</span> <span class="p">[</span><span class="n">reference</span><span class="p">]</span>
+
+    <span class="n">use</span><span class="p">:</span> <span class="p">[</span><span class="n">rate</span><span class="o">-</span><span class="n">reference</span><span class="o">-</span><span class="n">name</span><span class="p">]</span>
+    <span class="c1"># the name used in &quot;Rates-&gt;Rates&quot; form, for naming the external rate to call.</span>
+    <span class="c1"># The format of the rate is specified in &quot;Rates-&gt;Rates&quot;.</span>
+    <span class="c1"># The external rate contains additional matches, and return calc params on the CDR.</span>
+
+    <span class="nb">set</span><span class="o">-</span><span class="n">cost</span><span class="o">-</span><span class="n">on</span><span class="o">-</span><span class="n">call</span><span class="p">:</span> <span class="p">[</span><span class="n">parent</span><span class="o">|</span><span class="n">this</span><span class="o">|</span><span class="n">specific</span><span class="o">-</span><span class="n">value</span><span class="p">]</span>
+    <span class="c1"># Use &quot;parent&quot; for inheriting the value of the parent rate.</span>
+    <span class="c1"># Use &quot;this&quot; for using the value returned from the called external rate.</span>
+    <span class="c1"># Use the specific value instead</span>
+    <span class="c1"># This is needed because calc params must use a fixed order of specification,</span>
+    <span class="c1"># and in case you want change two parameters with some parameter inside,</span>
+    <span class="c1"># you must specify also if they are using the &quot;this&quot; or &quot;parent&quot; value.</span>
+    <span class="c1"># This is applicable to all &quot;set-&quot; calc params, and not only to &quot;set-cost-on-call&quot;.</span>
+
+  <span class="p">}</span>
+
+<span class="p">}</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="rates-with-explicit-priority">
+<h3>Rates with Explicit Priority<a class="headerlink" href="#rates-with-explicit-priority" title="Permalink to this headline">¶</a></h3>
+<p>By default rates are selected according the longest matched telephone
+prefix. But rates can have also an explicit priority, thanks to <code class="docutils literal"><span class="pre">else</span></code>
+construct. Given an example like this:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">rate</span> <span class="p">{</span>
+  <span class="nb">id</span><span class="p">:</span> <span class="n">r1</span>
+
+  <span class="n">rate</span> <span class="p">{</span>
+    <span class="nb">id</span><span class="p">:</span> <span class="n">r2</span>
+  <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+    <span class="n">rate</span> <span class="p">{</span>
+      <span class="nb">id</span><span class="p">:</span> <span class="n">r3</span>
+    <span class="p">}</span>
+  <span class="p">}</span>
+<span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+  <span class="n">rate</span> <span class="p">{</span>
+    <span class="nb">id</span><span class="p">:</span> <span class="n">r4</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p><code class="docutils literal"><span class="pre">r1/r3</span></code> is applied only if:</p>
+<ul class="simple">
+<li><code class="docutils literal"><span class="pre">r1</span></code> is applicable</li>
+<li><code class="docutils literal"><span class="pre">r1/r2</span></code> is not applicable</li>
+<li><code class="docutils literal"><span class="pre">r1/r3</span></code> is applicable</li>
+</ul>
+<p><code class="docutils literal"><span class="pre">r4</span></code> is applied only if:</p>
+<ul class="simple">
+<li><code class="docutils literal"><span class="pre">r1</span></code> and its children rates are not applicable</li>
+<li><code class="docutils literal"><span class="pre">r4</span></code> is applicable</li>
+</ul>
+<p>So rate <code class="docutils literal"><span class="pre">r1</span></code> has implicitely more priority (is always preferred)
+respect rate <code class="docutils literal"><span class="pre">r4</span></code>, and the same is true for <code class="docutils literal"><span class="pre">r1/r2</span></code>, against
+<code class="docutils literal"><span class="pre">r1/r3</span></code>.</p>
+</div>
+<div class="section" id="bundle-rates">
+<h3>Bundle Rates<a class="headerlink" href="#bundle-rates" title="Permalink to this headline">¶</a></h3>
+<p>A bundle-rate is a way to rate a group of calls, while certain limits
+are respected. After the limits are reached, the bundle-rate can not be
+anymore applied, and normal rates are applied to next calls.</p>
+<p>Bundle-rates specification can be complex. So you can ask for help to
+Asterisell assistance. This documentation will be improved according.</p>
+<p>A bundle-rate has effect in a time-frame. For example there can be
+monthly bundles, weekly bundles, and so on.</p>
+<p>At the end of each bundle time-frame, the bundle-rate status is
+resetted:</p>
+<ul class="simple">
+<li>limits are set to their initial values.</li>
+<li>service-cdrs are generated.</li>
+</ul>
+<p>A service-cdr is a pseudo call, associated to every
+organization/extension/customer affected by the bundle-rate, used for
+reporting the bundle-rate cost.</p>
+<p>A bundle-rate rate calls in two ways:</p>
+<ul class="simple">
+<li>rating the calls that are part of the bundle, with the rate
+associated to the bundle-rate</li>
+<li>generating the service-cdrs at the beginning of the bundle-rate
+timeframe</li>
+</ul>
+<p>Bundle-rates can be used for specifying things like:</p>
+<ul class="simple">
+<li>apply a fixed cost of 10 EUR, for the first 60 minutes of mobile
+calls of a month, and rate normally other calls;</li>
+<li>rate the first 60 minutes of mobile calls of a month, using a
+discounted cost;</li>
+</ul>
+<p>Up to date, bundle-rates can be used only for specifying the income of a
+call, not the vendor cost.</p>
+<div class="section" id="example-of-bundle-rate-specification">
+<h4>Example of Bundle-Rate Specification<a class="headerlink" href="#example-of-bundle-rate-specification" title="Permalink to this headline">¶</a></h4>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">bundle</span><span class="o">-</span><span class="n">rate</span> <span class="p">{</span>
+  <span class="nb">id</span><span class="p">:</span> <span class="n">monthly</span><span class="o">-</span><span class="n">flat</span>
+  <span class="n">service</span><span class="o">-</span><span class="n">cdr</span><span class="o">-</span><span class="nb">type</span><span class="p">:</span> <span class="n">Bundle</span> <span class="n">Rate</span>
+  <span class="n">service</span><span class="o">-</span><span class="n">cdr</span><span class="o">-</span><span class="n">description</span><span class="p">:</span> <span class="n">Monthly</span> <span class="n">Flat</span><span class="p">:</span> <span class="n">free</span> <span class="mi">1</span> <span class="n">hour</span> <span class="n">of</span> <span class="n">mobile</span> <span class="n">calls</span><span class="p">,</span> <span class="ow">and</span> <span class="mi">2</span> <span class="n">hours</span> <span class="n">of</span> <span class="n">fixed</span><span class="o">-</span><span class="n">line</span> <span class="n">calls</span><span class="o">.</span>
+
+  <span class="n">schedule</span><span class="o">-</span><span class="n">every</span><span class="p">:</span> <span class="n">month</span>
+  <span class="n">schedule</span><span class="o">-</span><span class="n">from</span><span class="p">:</span> <span class="mi">1</span>
+  <span class="n">apply</span><span class="o">-</span><span class="k">for</span><span class="o">-</span><span class="n">each</span><span class="p">:</span> <span class="n">mothly</span><span class="o">-</span><span class="n">flat</span>
+  <span class="n">limits</span><span class="o">-</span><span class="n">are</span><span class="o">-</span><span class="n">proportionals</span><span class="o">-</span><span class="n">to</span><span class="o">-</span><span class="n">activation</span><span class="o">-</span><span class="n">date</span><span class="p">:</span> <span class="n">true</span>
+  <span class="n">limit</span><span class="o">-</span><span class="n">on</span><span class="p">:</span> <span class="n">nothing</span>
+  <span class="n">calls</span><span class="o">-</span><span class="n">can</span><span class="o">-</span><span class="n">be</span><span class="o">-</span><span class="n">split</span><span class="p">:</span> <span class="n">true</span>
+  <span class="n">only</span><span class="o">-</span><span class="k">for</span><span class="o">-</span><span class="n">calls</span><span class="o">-</span><span class="k">with</span><span class="o">-</span><span class="n">a</span><span class="o">-</span><span class="n">cost</span><span class="p">:</span> <span class="n">true</span>
+  <span class="nb">set</span><span class="o">-</span><span class="n">bundle</span><span class="o">-</span><span class="n">initial</span><span class="o">-</span><span class="n">cost</span><span class="p">:</span> <span class="mi">25</span>
+
+  <span class="n">rate</span> <span class="p">{</span>
+    <span class="nb">id</span><span class="p">:</span> <span class="n">free</span><span class="o">-</span><span class="n">outgoing</span>
+
+    <span class="n">match</span><span class="o">-</span><span class="n">call</span><span class="o">-</span><span class="n">direction</span><span class="p">:</span> <span class="n">outgoing</span>
+
+    <span class="n">rate</span> <span class="p">{</span>
+      <span class="nb">id</span><span class="p">:</span> <span class="n">fixed</span><span class="o">-</span><span class="n">line</span>
+
+      <span class="n">match</span><span class="o">-</span><span class="n">communication</span><span class="o">-</span><span class="n">channel</span><span class="p">:</span> <span class="n">fixed</span><span class="o">-</span><span class="n">line</span>
+      <span class="n">limit</span><span class="o">-</span><span class="n">on</span><span class="o">-</span><span class="n">first</span><span class="o">-</span><span class="n">seconds</span><span class="p">:</span> <span class="mi">7200</span>
+      <span class="c1"># 2 hours</span>
+    <span class="p">}</span>
+
+    <span class="n">rate</span> <span class="p">{</span>
+      <span class="nb">id</span><span class="p">:</span> <span class="n">mobile</span>
+
+      <span class="n">match</span><span class="o">-</span><span class="n">communication</span><span class="o">-</span><span class="n">channel</span><span class="p">:</span> <span class="n">mobile</span>
+      <span class="n">limit</span><span class="o">-</span><span class="n">on</span><span class="o">-</span><span class="n">first</span><span class="o">-</span><span class="n">seconds</span><span class="p">:</span> <span class="mi">3600</span>
+      <span class="c1"># 1 hour</span>
+    <span class="p">}</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="specification">
+<h4>Specification<a class="headerlink" href="#specification" title="Permalink to this headline">¶</a></h4>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">bundle</span><span class="o">-</span><span class="n">rate</span> <span class="p">{</span>
+  <span class="nb">id</span><span class="p">:</span> <span class="p">[</span><span class="n">reference</span><span class="p">]</span>
+
+  <span class="n">service</span><span class="o">-</span><span class="n">cdr</span><span class="o">-</span><span class="nb">type</span><span class="p">:</span> <span class="p">[</span><span class="n">textual</span> <span class="n">description</span><span class="p">]</span>
+  <span class="c1"># a short textual description/name for the type of service-cdr.</span>
+  <span class="c1"># Usually something like &quot;Bundle Rate&quot;, &quot;Bundle Service&quot;, &quot;Service&quot;, and so on.</span>
+  <span class="c1"># This name can be shared between different bundle-rates.</span>
+  <span class="c1"># It does not contain details about the service, but only an high level classification.</span>
+
+  <span class="n">service</span><span class="o">-</span><span class="n">cdr</span><span class="o">-</span><span class="n">description</span><span class="p">:</span> <span class="p">[</span><span class="n">textual</span> <span class="n">description</span><span class="p">]</span>
+  <span class="c1"># a textual description, associated to the service-cdr,</span>
+  <span class="c1"># describing the details of the service offered/billed from the bundle-rate,</span>
+  <span class="c1"># in the call report, and invoices.</span>
+  <span class="c1"># It will be generated only if the bundle-rate service-cdr cost is greather than 0.</span>
+  <span class="c1"># It will be generated for each organization associated to the bundle-rate.</span>
+  <span class="c1"># There will be a unique service-cdr, with the sum of all the cost of nested bundle-rates.</span>
+
+  <span class="c1">#</span>
+  <span class="c1"># Mandatory Bundle Rate Schedule Options</span>
+  <span class="c1">#</span>
+
+  <span class="n">schedule</span><span class="p">:</span> <span class="p">[</span><span class="n">monthly</span><span class="o">|</span><span class="n">weekly</span><span class="p">]</span>
+  <span class="c1"># after each scheduling period (time-frame), the bundle rate status is resetted,</span>
+  <span class="c1"># and the bundle-rate service-cdrs are produced.</span>
+
+  <span class="n">schedule</span><span class="o">-</span><span class="n">from</span><span class="p">:</span> <span class="p">[</span><span class="mf">1.</span><span class="o">.</span><span class="mi">28</span><span class="p">]</span> <span class="o">|</span> <span class="p">[</span><span class="n">Monday</span><span class="o">|</span><span class="n">Tuesday</span><span class="o">|...</span><span class="p">]</span>
+  <span class="c1"># specify the day of the month, or the day of the week, or the time-frame in days,</span>
+  <span class="c1"># when starting the new bundle-rate time-frame.</span>
+
+  <span class="c1">#</span>
+  <span class="c1"># Mandatory Bundle Rate Grouping Options</span>
+  <span class="c1">#</span>
+
+  <span class="n">apply</span><span class="o">-</span><span class="k">for</span><span class="o">-</span><span class="n">each</span><span class="p">:</span> <span class="p">[</span><span class="nb">list</span> <span class="n">of</span> <span class="n">price</span><span class="o">-</span><span class="n">category</span><span class="p">]</span>
+  <span class="c1"># This bundle-rate is applied to organizations/extensions</span>
+  <span class="c1"># with a direct assignment to this specified price-categories.</span>
+  <span class="c1">#</span>
+  <span class="c1"># If an organization/extension inherits the price-category from its parent</span>
+  <span class="c1"># organization, but it has no direct assignment,</span>
+  <span class="c1"># then it has no a distinct bundle-rate status:</span>
+  <span class="c1"># * there is no separate limits allocated for the extension,</span>
+  <span class="c1">#   but the limits of the parent organization are used instead;</span>
+  <span class="c1"># * a service-cdr is generated only for its parents with direct assignment;</span>
+  <span class="c1">#</span>
+  <span class="c1"># The date of price-category assignment is used for determining when the bundle-rate</span>
+  <span class="c1"># can be applied.</span>
+  <span class="c1">#</span>
+  <span class="c1"># Service-cdr is generated also if there are no calls for him, inside the time-frame.</span>
+
+  <span class="c1">#</span>
+  <span class="c1"># Mandatory Bundle Rate Limit Options.</span>
+  <span class="c1">#</span>
+
+  <span class="n">limit</span><span class="o">-</span><span class="n">on</span><span class="o">-</span><span class="n">first</span><span class="o">-</span><span class="n">calls</span><span class="p">:</span> <span class="p">[</span><span class="n">number</span><span class="o">|</span><span class="n">none</span><span class="p">]</span>
+  <span class="c1"># apply the bundle-rate only to the first specified calls, then use normal rates.</span>
+  <span class="c1"># &quot;none&quot; for no limit on the number of calls.</span>
+
+  <span class="n">limit</span><span class="o">-</span><span class="n">on</span><span class="o">-</span><span class="n">first</span><span class="o">-</span><span class="n">seconds</span><span class="p">:</span> <span class="p">[</span><span class="n">number</span><span class="o">|</span><span class="n">none</span><span class="p">]</span>
+  <span class="c1"># apply only for calls until the specified seconds.</span>
+  <span class="c1"># &quot;none&quot; for no limit on duration of calls.</span>
+
+  <span class="n">limits</span><span class="o">-</span><span class="n">are</span><span class="o">-</span><span class="n">proportionals</span><span class="o">-</span><span class="n">to</span><span class="o">-</span><span class="n">activation</span><span class="o">-</span><span class="n">date</span><span class="p">:</span> <span class="p">[</span><span class="n">true</span><span class="o">|</span><span class="n">false</span><span class="p">]</span>
+  <span class="c1"># true if the bundle-rate limits on an organization/extension created not at the beginning of a time-frame,</span>
+  <span class="c1"># but after X% days, must be scaled of X%.</span>
+  <span class="c1">#</span>
+  <span class="c1"># If true, then also the bundle-rate costs are proportional to the activation date.</span>
+  <span class="c1">#</span>
+  <span class="c1"># Only the activation (starting) date is considered, but not the date on which an organization/extension change</span>
+  <span class="c1"># price-category, and exit from the bundle-rate. The consequences are that if an organization enters</span>
+  <span class="c1"># at day 15 into a monthly bundle-rate A, and it exits from it at day 20 entering in monthly bundle-rate B,</span>
+  <span class="c1"># then the organization pays both the bundle A at 50%, and the bundle B at 66% for the month with the change.</span>
+  <span class="c1">#</span>
+  <span class="c1"># In case there are repeated assignments to the same price-category, inside the same time-frame of the bundle-rate,</span>
+  <span class="c1"># only the first assignment is taken in account.</span>
+
+  <span class="n">calls</span><span class="o">-</span><span class="n">can</span><span class="o">-</span><span class="n">be</span><span class="o">-</span><span class="n">split</span><span class="p">:</span> <span class="p">[</span><span class="n">true</span><span class="o">|</span><span class="n">false</span><span class="p">]</span>
+  <span class="c1"># true if the duration of a call can be split between a part respecting the bundle-rate limits,</span>
+  <span class="c1"># and another part outside these limits. The part respecting the limits, is rated using</span>
+  <span class="c1"># the bundle-rate, while the part not respecting the limits (the residual-duration)</span>
+  <span class="c1"># is rated using rates not associated to the bundle-rate.</span>
+  <span class="c1"># If false, then if a call is not completely inside the bundle-rate limits, is rated using the normal rates.</span>
+
+  <span class="n">only</span><span class="o">-</span><span class="k">for</span><span class="o">-</span><span class="n">calls</span><span class="o">-</span><span class="k">with</span><span class="o">-</span><span class="n">a</span><span class="o">-</span><span class="n">cost</span><span class="p">:</span> <span class="p">[</span><span class="n">true</span><span class="o">|</span><span class="n">false</span><span class="p">]</span>
+  <span class="c1"># true for applying the bundle only to calls having a positive cost.</span>
+  <span class="c1"># So free calls are not counted as inside the bundle.</span>
+  <span class="c1"># This is an advantage for end customers, because they can use the bundle</span>
+  <span class="c1"># only for calls with a cost.</span>
+
+  <span class="c1">#</span>
+  <span class="c1"># Bundle Calc Params</span>
+  <span class="c1">#</span>
+  <span class="c1"># These params are applied to special service-cdrs produced at the end of</span>
+  <span class="c1"># the bundle-rate time-frame (scheduling period).</span>
+  <span class="c1">#</span>
+
+  <span class="nb">set</span><span class="o">-</span><span class="n">bundle</span><span class="o">-</span><span class="n">initial</span><span class="o">-</span><span class="n">cost</span><span class="p">:</span> <span class="p">[</span><span class="n">monetary</span><span class="o">-</span><span class="n">value</span><span class="p">]</span>
+  <span class="c1"># the initial cost of the service-cdr.</span>
+  <span class="c1"># At this value, will be added the cost of the calls rated inside the bundle.</span>
+  <span class="c1"># Default value: 0</span>
+
+  <span class="nb">set</span><span class="o">-</span><span class="n">bundle</span><span class="o">-</span><span class="nb">min</span><span class="o">-</span><span class="n">cost</span><span class="p">:</span> <span class="p">[</span><span class="n">monetary</span><span class="o">-</span><span class="n">value</span><span class="p">]</span>
+  <span class="c1"># if the total cost of the calls in the bundle</span>
+  <span class="c1"># (excluded the &quot;initial-bundle-cost&quot;)</span>
+  <span class="c1"># is less than this specified value,</span>
+  <span class="c1"># thet it is set to this value.</span>
+  <span class="c1"># If it is greater, it is leaved unchanged.</span>
+  <span class="c1"># The rated calls will mantain their values,</span>
+  <span class="c1"># and a minimum-cost service-cdr will be generated</span>
+  <span class="c1"># at the end of the rating time-frame, matching the difference between</span>
+  <span class="c1"># this minimum value, and the total cost of the calls in the bundle.</span>
+  <span class="c1"># Default value: 0</span>
+
+  <span class="c1">#</span>
+  <span class="c1"># Rating Params</span>
+  <span class="c1">#</span>
+
+  <span class="p">[</span><span class="n">rate</span><span class="o">-</span><span class="n">calc</span><span class="o">-</span><span class="n">params</span><span class="p">]</span>
+  <span class="c1"># these are the params used for normal rates.</span>
+  <span class="c1"># The calls inside the bundle will be rated using these params.</span>
+
+  <span class="n">rate</span> <span class="p">{</span>
+    <span class="c1"># this is a child-rate of the bundle-rate, and it is used for rating the calls</span>
+    <span class="c1"># inside the bundle, and for specifying nested bundle limits.</span>
+    <span class="c1">#</span>
+    <span class="c1"># Children rates, can be of any admitted type for normal rates.</span>
+    <span class="c1">#</span>
+    <span class="c1"># The cost of the calls are associated to the root parent bundle-rate,</span>
+    <span class="c1"># and they are taken in account for computing &quot;set-bundle-min-cost&quot;.</span>
+
+    <span class="nb">id</span><span class="p">:</span> <span class="p">[</span><span class="n">reference</span><span class="p">]</span>
+
+    <span class="p">[</span><span class="n">match</span><span class="o">-</span><span class="n">filters</span><span class="p">]</span>
+    <span class="c1"># The rate can be applied only if filters are respected.</span>
+    <span class="c1"># These are the filters used for normal rates.</span>
+    <span class="c1">#</span>
+    <span class="c1"># The filter &quot;match-price-category&quot; is not allowed,</span>
+    <span class="c1"># because its semantic is in conflict with &quot;apply-for-each&quot; of the parent rate.</span>
+    <span class="c1"># So the price-category is implicitely the same of the parent rate.</span>
+
+    <span class="c1">#</span>
+    <span class="c1"># Optional Bundle Rate Limit Options</span>
+    <span class="c1">#</span>
+
+    <span class="n">limit</span><span class="o">-</span><span class="n">on</span><span class="o">-</span><span class="n">first</span><span class="o">-</span><span class="n">calls</span><span class="p">:</span> <span class="p">[</span><span class="n">number</span><span class="o">|</span><span class="n">none</span><span class="p">]</span>
+    <span class="c1"># For example if the parent bundle-rate, is limited to 100 calls,</span>
+    <span class="c1"># and the chidren bundle-rate on mobile-calls is limited to 50 calls,</span>
+    <span class="c1"># then the first 50 mobile calls decrease the limit of the parent rate</span>
+    <span class="c1"># to 50, and of the children bundle-rate on mobile-calls to 0.</span>
+    <span class="c1">#</span>
+    <span class="c1"># A limit in this rate is in logical &quot;and&quot; with the limit of the parent bundle-rate.</span>
+    <span class="c1"># So a user can place only 50 mobile calls, and if he place 25 mobile calls, he can make only</span>
+    <span class="c1"># 75 calls because the parent limit was decreased to 75.</span>
+
+    <span class="n">limit</span><span class="o">-</span><span class="n">on</span><span class="o">-</span><span class="n">first</span><span class="o">-</span><span class="n">seconds</span><span class="p">:</span> <span class="p">[</span><span class="n">number</span><span class="o">|</span><span class="n">none</span><span class="p">]</span>
+    <span class="c1"># apply only for calls until the specified seconds.</span>
+    <span class="c1"># The behaviour is similar to the case of &quot;limit-on-first-calls&quot;.</span>
+
+    <span class="c1">#</span>
+    <span class="c1"># Optional Bundle Calc Params.</span>
+    <span class="c1">#</span>
+
+    <span class="nb">set</span><span class="o">-</span><span class="n">bundle</span><span class="o">-</span><span class="n">initial</span><span class="o">-</span><span class="n">cost</span><span class="p">:</span> <span class="p">[</span><span class="n">monetary</span><span class="o">-</span><span class="n">value</span><span class="p">]</span>
+    <span class="c1"># default value: 0</span>
+
+    <span class="nb">set</span><span class="o">-</span><span class="n">bundle</span><span class="o">-</span><span class="nb">min</span><span class="o">-</span><span class="n">cost</span><span class="p">:</span> <span class="p">[</span><span class="n">monetary</span><span class="o">-</span><span class="n">value</span><span class="p">]</span>
+    <span class="c1"># default value: 0</span>
+
+    <span class="c1"># NOTE: all other params of the bundle-rate can not be changed, and they are the same of the parent bundle-rate.</span>
+
+    <span class="c1">#</span>
+    <span class="c1"># Rating Params</span>
+    <span class="c1">#</span>
+
+    <span class="p">[</span><span class="n">rate</span><span class="o">-</span><span class="n">calc</span><span class="o">-</span><span class="n">params</span><span class="p">]</span>
+    <span class="c1"># Rate calls inside the bundle (respecting the time-frame, the match conditions, and the limits)</span>
+    <span class="c1"># according this rate params.</span>
+    <span class="c1">#</span>
+    <span class="c1"># The starting params are the params of the parent rate,</span>
+    <span class="c1"># and these params can overwrite them.</span>
+
+    <span class="p">[</span><span class="n">other</span><span class="o">-</span><span class="n">nested</span><span class="o">-</span><span class="n">children</span><span class="o">-</span><span class="n">rates</span><span class="p">]</span>
+  <span class="p">}</span>
+
+  <span class="p">[</span><span class="n">other</span><span class="o">-</span><span class="n">children</span><span class="o">-</span><span class="n">rates</span><span class="p">]</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="section" id="nested-bundle-rates">
+<h3>Nested Bundle Rates<a class="headerlink" href="#nested-bundle-rates" title="Permalink to this headline">¶</a></h3>
+<p>Bundle-rates have higher priority respect normal-rates. Normal-rates are
+selected only if there is no bundle-rate matching the call, or the call
+is outside the bundle-rate limits.</p>
+<p>First the system select the bundle-rate with the best matching, respect
+other bundle-rates. It is selected the deepest bundle-rate. Then test if
+the call respect the bundle-rate limits. If they are respected the
+bundle-rate is applied, otherwise no other bundle-rate is applied, and
+the best matching normal-rate is applied.</p>
+<p>The match condition on a bundle-rate are:</p>
+<ul class="simple">
+<li>the call is associated (directly or indirectly) to an organization
+with a direct assignment to the price-category of the bundle-rate;</li>
+<li>other normal rate conditions;</li>
+</ul>
+</div>
+<div class="section" id="residual-call-duration">
+<h3>Residual Call Duration<a class="headerlink" href="#residual-call-duration" title="Permalink to this headline">¶</a></h3>
+<p>If &#8220;calls-can-be-split&#8221; is set to false, then a call C is rated using
+some bundle-rate, only if its duration is completely inside the limits
+of the bundle-rate. Otherwise a normal rate is selected.</p>
+<p>If &#8220;calls-can-be-split&#8221; is set to true, then the residual duration of
+the call is calculated, in case the call duration is not entirely within
+the limits of the bundle-rates. For example if call C duration is
+insidie B1 limits, but partially inside B2 limits, then:</p>
+<ul class="simple">
+<li>bundle-C is the call derived from C, with the duration inside the
+limits of B2;</li>
+<li>residual-C is the call derived from C, with the duration part outside
+the limits of B2;</li>
+<li>bundle-C is rated using B1/B2, because it respects the limits;</li>
+<li>residual-C is rated using normal rates;</li>
+</ul>
+</div>
+<div class="section" id="nested-organizations">
+<h3>Nested Organizations<a class="headerlink" href="#nested-organizations" title="Permalink to this headline">¶</a></h3>
+<p>Suppose that there is this organization hierachy:</p>
+<ul class="simple">
+<li><code class="docutils literal"><span class="pre">A*</span></code></li>
+<li><code class="docutils literal"><span class="pre">A/B*</span></code></li>
+<li><code class="docutils literal"><span class="pre">A*/C</span></code>
+where <code class="docutils literal"><span class="pre">A/B*</span></code> and <code class="docutils literal"><span class="pre">A*/C</span></code> are children of the parent organization
+<code class="docutils literal"><span class="pre">A*</span></code>.</li>
+</ul>
+<p>Suppose that:</p>
+<ul class="simple">
+<li><code class="docutils literal"><span class="pre">A*</span></code> is directly assigned to price-category pA</li>
+<li><code class="docutils literal"><span class="pre">A*/B*</span></code> is directly assigned to price-category pB</li>
+<li><code class="docutils literal"><span class="pre">A*/C</span></code> is not assigned directly to any price-category, so its
+inherit the price-category of <code class="docutils literal"><span class="pre">A*</span></code></li>
+</ul>
+<p>So we have a situation where we have nested organizations (main
+organization, departments, offices, extensions), and where each part of
+the organization can be assigned to a different price-category, and a
+different bundle-rate.</p>
+<p>The rating method, favours always bundle-rates, respect normal rates.
+When bundle-rates can not be applied, it tries with normal rates.</p>
+<p>So for a call associated to <code class="docutils literal"><span class="pre">A*/C</span></code>, it tries to apply the bundle-rate
+associated to <code class="docutils literal"><span class="pre">A*</span></code>, because <code class="docutils literal"><span class="pre">C</span></code> has no bundle-rate, but <code class="docutils literal"><span class="pre">A*</span></code> is
+subscribed to pA bundle-rate, and so it must take advantage of this for
+all its extensions. If the bundle-rate can be applied to <code class="docutils literal"><span class="pre">A*/C</span></code>, then
+the limits of <code class="docutils literal"><span class="pre">A*</span></code> are updated.</p>
+<p>For a call associated to <code class="docutils literal"><span class="pre">A*/B*</span></code> organization, it tries to apply the
+bundle-rate associated to <code class="docutils literal"><span class="pre">pB</span></code> price-category, because organization
+<code class="docutils literal"><span class="pre">p/B*</span></code> is associated directly to <code class="docutils literal"><span class="pre">pB</span></code>. If the <code class="docutils literal"><span class="pre">pB</span></code> bundle-rate can
+be applied to <code class="docutils literal"><span class="pre">A*/B*</span></code>, then only the limits of <code class="docutils literal"><span class="pre">A*/B*</span></code> are updated,
+while <code class="docutils literal"><span class="pre">A*</span></code> is not updated.</p>
+<p>If there is no bundle-rate on <code class="docutils literal"><span class="pre">pB</span></code>, or <code class="docutils literal"><span class="pre">A*/B*</span></code> has consumed all its
+bundle-limits, then the system tries rating the call using the
+bundle-rate associated to price-category <code class="docutils literal"><span class="pre">pA</span></code>, because <code class="docutils literal"><span class="pre">A/B*</span></code> is a
+children organization of <code class="docutils literal"><span class="pre">A</span></code>, and <code class="docutils literal"><span class="pre">A</span></code> is &#8220;subscribed&#8221; to a
+bundle-rate.</p>
+<p>If there is no bundle-rate on <code class="docutils literal"><span class="pre">pA</span></code>, or <code class="docutils literal"><span class="pre">A*</span></code> has used all its limits,
+then normal-rates are used.</p>
+<p>Summing up:</p>
+<ul class="simple">
+<li>a bundle rate can be applied to all children extensions;</li>
+<li>a bundle rate generate a service-cdr (a cost) for each extension with
+a direct price-category assignation, corresponding to a bundle-rate;</li>
+<li>an extension with a direct association to a bundle-rate
+price-category, has its own limits, also because it pays for them;</li>
+<li>if an extension has used all its bundle-rate limits, then the parent
+organization bundle-rate limits can be used, and they can be
+associated to a different type of bundle-rate, because the
+bundle-rate hireararchy is distinct from the organization hierarchy,
+and extensions can have different price-categories respect the parent
+organization;</li>
+</ul>
+</div>
+<div class="section" id="limitations">
+<h3>Limitations<a class="headerlink" href="#limitations" title="Permalink to this headline">¶</a></h3>
+<p>Up to date bundle-rates:</p>
+<ul class="simple">
+<li>can be used only for specifying incomes for customers, and not cost
+for vendors;</li>
+<li>do not accept children bundle-rates with scheduling periods
+(time-frames) different from parent bundle-rate;</li>
+<li>do not accept children bundle-rates with &#8220;calls-can-be-split&#8221; value
+different from parent bundle-rate;</li>
+</ul>
+</div>
+<div class="section" id="changes-of-rates">
+<h3>Changes of Rates<a class="headerlink" href="#changes-of-rates" title="Permalink to this headline">¶</a></h3>
+<p>In Asterisell rates are modified adding a new rate plan, with an initial
+validity date. All the calls before this date are rated using the old
+version of the rating plan, while calls from the specified date, are
+rated using the new version.</p>
+<p>In this way it is possible re-rating old calls, using the old version of
+the rating plans.</p>
+</div>
+<div class="section" id="changes-of-bundle-rates">
+<h3>Changes of Bundle Rates<a class="headerlink" href="#changes-of-bundle-rates" title="Permalink to this headline">¶</a></h3>
+<p>A Bundle Rate can change.</p>
+<p>The id name of the rate is used for merging calls rated with
+bundle-rates of the previous rating plan. A new bundle-rate with the
+same name of a previous defined bundle-rate redefine the bundle-rate. If
+there are missing names, the system signal the error.</p>
+<p>We suppose that:</p>
+<ul class="simple">
+<li>&#8220;2014-01-15&#8221; is the date of when a new bundle-rate plan became
+active,</li>
+<li>&#8220;A&#8221; is the previous version of the bundle-rate plan</li>
+<li>&#8220;B&#8221; is the new version of the bundle-rate plan</li>
+</ul>
+<p>Calls are rated in this way:</p>
+<ul class="simple">
+<li>all organizations assigned to the bundle-rate after &#8220;2014-01-15&#8221;
+(inclusive), use the new rating plan &#8220;B&#8221; limits, and service-cdrs
+cost</li>
+<li>all organizations assigned to the bundle-rate before &#8220;2014-01-15&#8221;,
+use the old rating plan &#8220;A&#8221; limits and service-cdrs cost, until the
+bundle time frame of &#8220;A&#8221; end</li>
+<li>at the end of the time frame of &#8220;A&#8221;, all organizations use the
+bundle-rate plan &#8220;B&#8221;</li>
+<li>all calls after &#8220;2014-01-15&#8221; are rated according the new bundle
+rating plan &#8220;B&#8221;, so only the limits, and service-cdrs are generated
+according the old plan &#8220;A&#8221;</li>
+</ul>
+<p>The reasons of these rules are that an organization accepting a bundle
+rate plan, must follow the same plan until the end of the bundle rate
+time frame, but that rated calls must use always the most recent plan.</p>
+</div>
+</div>
+<div class="section" id="mails-to-customers">
+<h2>Mails to Customers<a class="headerlink" href="#mails-to-customers" title="Permalink to this headline">¶</a></h2>
+<p>Customers can receive emails with attachments from Asterisell:</p>
+<ul class="simple">
+<li>invoices</li>
+<li>call report details</li>
+<li>warning in case the costs are higher than expected/planned costs</li>
+<li>and so on...</li>
+</ul>
+<p>Mails and reports can be fully customized.</p>
+<div class="section" id="testing-mode">
+<h3>Testing Mode<a class="headerlink" href="#testing-mode" title="Permalink to this headline">¶</a></h3>
+<p>During initial testing of messages and application you can set in the
+Asterisell Management Tool, the option
+<code class="docutils literal"><span class="pre">send_emails_to_these_users_instead_of_original_receiver</span></code>, for
+redirecting all the emails originally directed to customers to an
+internal test email.</p>
+</div>
+<div class="section" id="adding-payment-terms-and-notes-to-invoices">
+<h3>Adding Payment Terms and Notes to Invoices<a class="headerlink" href="#adding-payment-terms-and-notes-to-invoices" title="Permalink to this headline">¶</a></h3>
+<p>You can customize the notes, payments terms, and so on, added inside
+invoices, in the <code class="docutils literal"><span class="pre">Params</span> <span class="pre">-&gt;</span> <span class="pre">Params</span></code> Web form of the application.</p>
+</div>
+<div class="section" id="email-message-and-attachment-name">
+<h3>Email Message and Attachment Name<a class="headerlink" href="#email-message-and-attachment-name" title="Permalink to this headline">¶</a></h3>
+<p>You can customize the message of the emails containing invoices and
+other reports:</p>
+<ul class="simple">
+<li>select the report template used for generating them, in the
+<code class="docutils literal"><span class="pre">Reports</span> <span class="pre">-&gt;</span> <span class="pre">All</span> <span class="pre">Reports</span></code></li>
+<li>in the email section of a report, you can customize/specify the
+messages to use in the email containing the report</li>
+</ul>
+<p>You can customize email messages both in the scheduler Web form, or you
+can customize the message also for a single specific report/invoice.</p>
+</div>
+<div class="section" id="warning-emails-for-high-call-costs">
+<span id="notifications"></span><h3>Warning Emails for High Call Costs<a class="headerlink" href="#warning-emails-for-high-call-costs" title="Permalink to this headline">¶</a></h3>
+<p>You can customize
+<code class="docutils literal"><span class="pre">apps/asterisell/lib/jobs/checks/GenerateMailWarningCustomerForHighCallCost.php</span></code>
+in case you are sending emails to customers for high call costs.</p>
+<p>TODO user interface localization</p>
+</div>
+</div>
+<div class="section" id="reports">
+<h2>Reports<a class="headerlink" href="#reports" title="Permalink to this headline">¶</a></h2>
+<p>Report configurations is not an easy process, because there are many
+configuration settings.</p>
+<p>Asterisell will install with some predefined reports. The admin can
+customize them later.</p>
+<div class="section" id="scheduled-reports">
+<h3>Scheduled Reports<a class="headerlink" href="#scheduled-reports" title="Permalink to this headline">¶</a></h3>
+<p>The report workflow is usually this:</p>
+<ul class="simple">
+<li>define report templates</li>
+<li>generate them</li>
+<li>when they are ok, use them as template, for a report scheduler:<ul>
+<li>create a new report scheduler</li>
+<li>link the scheduler to the report template</li>
+<li>specify the date of the first scheduling generation to run</li>
+<li>run the first batch of reports, pressing the <code class="docutils literal"><span class="pre">Generate</span> <span class="pre">Reports</span></code>
+button</li>
+<li>all next run of the report scheduler will be executed
+automatically</li>
+</ul>
+</li>
+<li>reports will be generated according the scheduling:<ul>
+<li>each report scheduling generation, will produce a report-set</li>
+<li>each report-set contains all the generated reports of the same
+type, on the same time-frame, for example all the invoices of all
+customers</li>
+<li>the admin can review a report set</li>
+<li>until the admin do not confirm a report-set, the reports are not
+sent to the customers/users</li>
+<li>the admin is advised, if after generation, and before sending, the
+calls associated to the report are modified, and it is obliged to
+regenerate it</li>
+</ul>
+</li>
+</ul>
+<p>So after initial configurations, the generation of reports is
+automatized.</p>
+</div>
+<div class="section" id="examples-of-scheduled-reports">
+<h3>Examples of Scheduled Reports<a class="headerlink" href="#examples-of-scheduled-reports" title="Permalink to this headline">¶</a></h3>
+<p>The initial demo instance, is configured with some common scheduled
+reports.</p>
+</div>
+<div class="section" id="billing-reports">
+<h3>Billing Reports<a class="headerlink" href="#billing-reports" title="Permalink to this headline">¶</a></h3>
+<p>Billing reports (legal reports) are important, because they are also
+used for determining the official call date: the calls before this call
+date are never automatically rerated if there are changes in rating
+params.</p>
+<p>So at least one billing report should be defined in the system.</p>
+</div>
+<div class="section" id="invoices">
+<h3>Invoices<a class="headerlink" href="#invoices" title="Permalink to this headline">¶</a></h3>
+<p>See <a class="reference internal" href="#adding-new-type-of-reports"><span class="std std-ref">Adding New Reports</span></a>.</p>
+</div>
+<div class="section" id="sending-of-reports">
+<h3>Sending of Reports<a class="headerlink" href="#sending-of-reports" title="Permalink to this headline">¶</a></h3>
+<p>Reports are sent to proper billable users. If an user has no associated
+email, the application will warn the administrator. When the email is
+specified, the reports will be sent automatically.</p>
+<p><a class="reference internal" href="#notifications"><span class="std std-ref">Warning Emails for High Call Costs</span></a> describes how sending reports to special users.</p>
+</div>
+<div class="section" id="adding-new-reports">
+<span id="adding-new-type-of-reports"></span><h3>Adding New Reports<a class="headerlink" href="#adding-new-reports" title="Permalink to this headline">¶</a></h3>
+<p>You can define new type of reports adding source code under
+<code class="docutils literal"><span class="pre">apps/asterisell/lib/jobs/reports</span></code>, then add them into the Fabric
+variable <code class="docutils literal"><span class="pre">custom_reports</span></code>, so they can be selected for scheduling and
+then generated.</p>
+</div>
+</div>
+<div class="section" id="configuration-of-resellers">
+<h2>Configuration of Resellers<a class="headerlink" href="#configuration-of-resellers" title="Permalink to this headline">¶</a></h2>
+<p>An Asterisell server instance can send CSV files with CDRs to other
+Asterisell servers. The sender server is playing the role of a provider, while the receiver
+server plays the role of a VoIP reseller. The income of the provider, is the cost of calls
+for the reseller.</p>
+<div class="admonition warning">
+<p class="first admonition-title">Warning</p>
+<p>Up to date there are only Asterisell reseller instances running directly on
+virtual machines, and not on Docker. So the instructions on this section
+are not tested for the Docker case, and for sure must be adapted.</p>
+<p class="last">They are only a guideline.</p>
+</div>
+<p>Add a PHP class like
+<code class="docutils literal"><span class="pre">apps/asterisell/lib/provider_specific/&lt;your_customer_code&gt;/ExportTo&lt;your_reseller&gt;.php</span></code>,
+that is subclass of <code class="docutils literal"><span class="pre">ExportCDRSToReseller</span></code> and define abstract/missing
+methods</p>
+<p>The code is often something of very simple like</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">ExportToMiniTel</span> <span class="n">extends</span> <span class="n">ExportCDRSToReseller</span>
+<span class="p">{</span>
+
+    <span class="o">/**</span>
+     <span class="o">*</span> <span class="nd">@return</span> <span class="n">string</span>
+     <span class="o">*/</span>
+    <span class="n">function</span> <span class="n">getResellerCode</span><span class="p">()</span> <span class="p">{</span>
+        <span class="k">return</span> <span class="s1">&#39;mini-tel&#39;</span><span class="p">;</span>
+    <span class="p">}</span>
+
+    <span class="n">public</span> <span class="n">function</span> <span class="n">getActivationDate</span><span class="p">()</span> <span class="p">{</span>
+        <span class="o">//</span> <span class="n">NOTE</span><span class="p">:</span> <span class="n">before</span> <span class="n">this</span> <span class="n">date</span> <span class="n">the</span> <span class="n">info</span> <span class="ow">is</span> <span class="n">manually</span> <span class="n">sent</span><span class="p">,</span> <span class="n">retrieving</span> <span class="kn">from</span> <span class="nn">the</span> <span class="n">historic</span> <span class="n">data</span><span class="o">.</span>
+        <span class="o">//</span> <span class="n">From</span> <span class="n">this</span> <span class="n">data</span> <span class="n">the</span> <span class="n">info</span> <span class="ow">is</span> <span class="n">sent</span> <span class="n">live</span><span class="p">,</span> <span class="n">the</span> <span class="n">rates</span> <span class="n">are</span> <span class="n">aligned</span><span class="o">.</span>
+        <span class="k">return</span> <span class="n">strtotime</span><span class="p">(</span><span class="s1">&#39;2014-01-01&#39;</span><span class="p">);</span>
+    <span class="p">}</span>
+
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>Add the job to the list of jobs, for exporting the CDRs. Usually it is a
+line like this in file <code class="docutils literal"><span class="pre">fabric_data/.../instances.py</span></code></p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">custom_export_cdrs_jobs</span> <span class="o">=</span> <span class="p">[</span> <span class="s1">&#39;ExportToMiniTel&#39;</span> <span class="p">]</span>
+</pre></div>
+</div>
+<p>The suggested directory to use for exchanging files is
+<code class="docutils literal"><span class="pre">/var/opt/asterisell/&lt;provider-code&gt;/&lt;export-code&gt;</span></code></p>
+<p>In the <code class="docutils literal"><span class="pre">Entities</span> <span class="pre">-&gt;</span> <span class="pre">Resellers</span></code> menu define a reseller with the same
+code.</p>
+<p>In the <code class="docutils literal"><span class="pre">Entities</span> <span class="pre">-&gt;</span> <span class="pre">Customers</span></code> menu, create a customer associated to
+the Reseller. The reseller association is made in the <code class="docutils literal"><span class="pre">party</span></code> section
+of the customer.</p>
+<div class="section" id="provider-side">
+<h3>Provider Side<a class="headerlink" href="#provider-side" title="Permalink to this headline">¶</a></h3>
+<p>Create VoIP accounts associated to the reseller, and that are child
+organizations/extensions of the main reseller organization.</p>
+<p>Specify for each extension the <code class="docutils literal"><span class="pre">export</span> <span class="pre">code</span></code>. The calls of the
+exported extension will be sent to the provider, using the
+<code class="docutils literal"><span class="pre">export</span> <span class="pre">code</span></code> as VoIP account identifier. It is possible to execute
+this action in batch mode, with the command</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">php</span> <span class="n">asterisell</span><span class="o">.</span><span class="n">php</span> <span class="n">data</span> <span class="n">complete</span><span class="o">-</span><span class="n">reseller</span><span class="o">-</span><span class="n">export</span><span class="o">-</span><span class="n">code</span>
+  <span class="n">given</span> <span class="n">the</span> <span class="nb">id</span> <span class="n">of</span> <span class="n">an</span> <span class="n">organization</span> <span class="p">(</span><span class="n">the</span> <span class="n">unique</span> <span class="n">identifier</span> <span class="ow">in</span> <span class="n">a</span> <span class="n">URL</span> <span class="n">like</span> <span class="s2">&quot;view/id/123&quot;</span><span class="p">),</span> <span class="n">complete</span> <span class="n">the</span> <span class="n">export</span><span class="o">-</span><span class="n">code</span> <span class="n">field</span> <span class="n">of</span> <span class="n">the</span> <span class="n">children</span> <span class="n">extensions</span><span class="p">,</span> <span class="k">with</span> <span class="n">the</span> <span class="n">first</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">extensions</span> <span class="n">codes</span><span class="o">.</span> <span class="n">Only</span> <span class="n">extensions</span> <span class="k">with</span> <span class="n">an</span> <span class="n">empty</span> <span class="n">value</span> <span class="n">are</span> <span class="n">affected</span><span class="o">.</span> <span class="n">This</span> <span class="ow">is</span> <span class="n">a</span> <span class="n">sane</span> <span class="n">default</span> <span class="n">value</span><span class="p">,</span> <span class="n">that</span> <span class="n">can</span> <span class="n">be</span> <span class="n">used</span> <span class="k">for</span> <span class="n">extensions</span> <span class="n">to</span> <span class="n">export</span> <span class="n">to</span> <span class="n">resellers</span><span class="p">,</span> <span class="ow">in</span> <span class="n">case</span> <span class="n">a</span> <span class="n">batch</span> <span class="n">initialization</span> <span class="ow">is</span> <span class="n">needed</span><span class="o">.</span> <span class="n">These</span> <span class="n">values</span> <span class="n">can</span> <span class="n">be</span> <span class="n">specified</span> <span class="n">individually</span> <span class="n">also</span> <span class="ow">in</span> <span class="n">the</span> <span class="n">user</span> <span class="n">interface</span><span class="o">.</span>
+</pre></div>
+</div>
+<p>In case there are services associated to organizations shared with a
+reseller, then also every customer organization must have an export-code
+on the provider side, that is the same code used for identifying the
+organization on the reseller side:</p>
+<ul class="simple">
+<li>specify the organization code in the <code class="docutils literal"><span class="pre">export-code</span></code> section on the
+provider side</li>
+<li>on the reseller side create a pseudo extension, associated to the
+shared organization, and specify the <code class="docutils literal"><span class="pre">export-code</span></code></li>
+</ul>
+</div>
+<div class="section" id="reseller-side">
+<h3>Reseller Side<a class="headerlink" href="#reseller-side" title="Permalink to this headline">¶</a></h3>
+<p>Resellers see only the provider exported code.</p>
+<div class="section" id="rates">
+<h4>Rates<a class="headerlink" href="#rates" title="Permalink to this headline">¶</a></h4>
+</div>
+</div>
+<div class="section" id="id2">
+<h3>Provider Side<a class="headerlink" href="#id2" title="Permalink to this headline">¶</a></h3>
+<p>Identify the income rates associated to the price-category of the
+reseller. These rates must/can be configured as automatically exported
+to the reseller. In case choose a name and notes making sense also on
+the reseller side.</p>
+</div>
+<div class="section" id="id3">
+<h3>Reseller Side<a class="headerlink" href="#id3" title="Permalink to this headline">¶</a></h3>
+<p>Service on the provider, can be exported to the reseller as cost. They
+will be imported as &#8220;system&#8221; call, and they will be not visible to end
+customers. An example of cost rate for managing them is this:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">rate</span> <span class="p">{</span>
+  <span class="nb">id</span><span class="p">:</span> <span class="n">vendor</span><span class="o">-</span><span class="n">services</span>
+  <span class="n">match</span><span class="o">-</span><span class="n">call</span><span class="o">-</span><span class="n">direction</span><span class="p">:</span> <span class="n">system</span>
+  <span class="n">match</span><span class="o">-</span><span class="n">vendor</span><span class="p">:</span> <span class="n">some</span><span class="o">-</span><span class="n">vendor</span><span class="o">-</span><span class="n">name</span>
+  <span class="n">match</span><span class="o">-</span><span class="n">communication</span><span class="o">-</span><span class="n">channel</span><span class="p">:</span> <span class="n">system</span><span class="o">-</span><span class="n">service</span><span class="o">-</span><span class="n">cdr</span>
+
+  <span class="nb">set</span><span class="o">-</span><span class="n">cost</span><span class="o">-</span><span class="n">on</span><span class="o">-</span><span class="n">call</span><span class="p">:</span> <span class="n">expected</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>In this case the cost associated to the service, is the same cost
+calculated from the vendor. So there should be some trust that the
+vendor is fair. Up to date services are not rated using rate plan, but
+using special service definitions, so they can not be double checked on
+the reseller side, as in case of normal calls.</p>
+<p>This is an example of income rate, for imported services:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">rate</span> <span class="p">{</span>
+  <span class="nb">id</span><span class="p">:</span> <span class="n">vendor</span><span class="o">-</span><span class="n">services</span>
+  <span class="n">match</span><span class="o">-</span><span class="n">call</span><span class="o">-</span><span class="n">direction</span><span class="p">:</span> <span class="n">system</span>
+  <span class="n">match</span><span class="o">-</span><span class="n">vendor</span><span class="p">:</span> <span class="n">some</span><span class="o">-</span><span class="n">vendor</span><span class="o">-</span><span class="n">name</span>
+  <span class="n">match</span><span class="o">-</span><span class="n">communication</span><span class="o">-</span><span class="n">channel</span><span class="p">:</span> <span class="n">system</span><span class="o">-</span><span class="n">service</span><span class="o">-</span><span class="n">cdr</span>
+
+  <span class="nb">set</span><span class="o">-</span><span class="n">cost</span><span class="o">-</span><span class="n">on</span><span class="o">-</span><span class="n">call</span><span class="p">:</span> <span class="mi">0</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>Imported services has no (usually) cost and income, as in case of normal
+calls, because they are not (usually) calculated from rate plans, but
+from service definitions. So the income of a service is 0. In case the
+service is reselled from the provider, it should be defined in a
+distinct way, using the service menu.</p>
+<p>Maybe in the future also services will be generated using rate plans,
+and so there will be a 1:1 relation ship between services on the
+provider side (cost) and on the reseller side (income), like in case of
+normal calls.</p>
+<div class="section" id="communication-channels">
+<h4>Communication Channels<a class="headerlink" href="#communication-channels" title="Permalink to this headline">¶</a></h4>
+<p>Communication channels are eported following the settings in this method</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span>/**
+ * Allows exporting info about used communication channels,
+ * in case they must be known from the Reseller, for applying different rates on them.
+ *
+ * The used name, is `ar_communication_channel_type.internal_name`.
+ *
+ * @return array a map between channel name on provider, and name to use when exporting to the reseller.
+ * Channels that are not matching will be exported to the reseller using the default channel name.
+ * Channel Names are exported in this way:
+ * - empty string when there is no channel info exported
+ * - the channel name otherwise
+ * Channel Names are imported on the reseller side in this way:
+ * - &quot;provider-name&quot; when there is no channel info exported
+ * - &quot;provider-name-&quot; otherwise
+ * By default (without specifying nothing) the services are exported like &#39;system-service-cdr&#39;
+ */
+public function exportedCommunicationChannels() {
+    return array();
+}
+</pre></div>
+</div>
+</div>
+<div class="section" id="import-cdrs-on-reseller-side">
+<h4>Import CDRs on Reseller Side<a class="headerlink" href="#import-cdrs-on-reseller-side" title="Permalink to this headline">¶</a></h4>
+<p>Create a subclass of type <code class="docutils literal"><span class="pre">ImportCDRSFromLocalAsterisellProvider</span></code>.
+Something like</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">MiniTelImportCDRSFromInternationalVoipVendor</span> <span class="n">extends</span> <span class="n">ImportCDRSFromLocalAsterisellProvider</span>
+<span class="p">{</span>
+
+    <span class="n">function</span> <span class="n">getCDRProviderName</span><span class="p">()</span> <span class="p">{</span>
+        <span class="k">return</span> <span class="s1">&#39;international_voip_vendor&#39;</span><span class="p">;</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>Add the job to the list of jobs, for importing CDRs. Something like</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">import_cdrs_jobs</span> <span class="o">=</span> <span class="p">[</span> <span class="s1">&#39;MiniTelImportCDRSFromInternationalVoipVendor&#39;</span> <span class="p">]</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="remote-resellers">
+<h4>Remote Resellers<a class="headerlink" href="#remote-resellers" title="Permalink to this headline">¶</a></h4>
+<p>Up to date it is possible sending files to a remote Reseller, sending
+them to a local directory, accessible from the Remote Server using
+WebDav protocol:</p>
+<ul class="simple">
+<li>the provider send the files to a local directory</li>
+<li>the provider share the directory content using WebDAV protocol:<ul>
+<li>https encription</li>
+<li>secret password shared with the reseller</li>
+</ul>
+</li>
+<li>the reseller access the webdav resources, using standard curl
+interface</li>
+</ul>
+<p>The advantage of this approach are:</p>
+<ul class="simple">
+<li>WebDAV is a standard protocol based on HTTP connections</li>
+<li>HTTPS encryption encrypt the traffic</li>
+<li>the traffic can pass through firewalls</li>
+</ul>
+</div>
+</div>
+<div class="section" id="webdav-configuration-on-the-server">
+<h3>WebDAV Configuration on the Server<a class="headerlink" href="#webdav-configuration-on-the-server" title="Permalink to this headline">¶</a></h3>
+<p>You must define in <code class="docutils literal"><span class="pre">instance.py</span></code>, something like</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">server_site</span> <span class="o">=</span> <span class="n">asterisell_http_conf</span><span class="o">.</span><span class="n">AsterisellInstanceSite</span><span class="p">()</span>
+<span class="n">server_site</span><span class="o">.</span><span class="n">webdav_users</span> <span class="o">=</span> <span class="p">[(</span><span class="s1">&#39;client-code&#39;</span><span class="p">,</span><span class="s1">&#39;some-password&#39;</span><span class="p">)]</span>
+</pre></div>
+</div>
+<p>The installation tool, will create the webdav configurations for you.</p>
+<p>If the webdav server is accessible also on a private network address,
+because the server and the client reside on the same private network,
+you can add for the server the private IP, something like:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">server_domain</span><span class="o">.</span><span class="n">domain2</span> <span class="o">=</span> <span class="s1">&#39;127.0.0.1&#39;</span>
+</pre></div>
+</div>
+<p>Inspect the generated configuration files in
+<code class="docutils literal"><span class="pre">/etc/nginx/asterisell-instances.d</span></code> for the comments about:</p>
+<ul class="simple">
+<li>the directory to create</li>
+<li>the password file to generate</li>
+<li>assign the apache user ownership to the directories</li>
+</ul>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">chown</span> <span class="o">-</span><span class="n">R</span> <span class="n">apache</span><span class="p">:</span><span class="n">apache</span> <span class="o">/</span><span class="n">var</span><span class="o">/</span><span class="n">opt</span><span class="o">/</span><span class="n">asterisell</span><span class="o">/*</span>
+</pre></div>
+</div>
+<p>Generate manually the password</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span># Up to date password file is not automatically generated.
+# Use the reseller code as user name, and a shared password.
+htpasswd -c /etc/nginx/${instance_code}-${webdav_instance}.passwd ${webdav_instance}
+</pre></div>
+</div>
+</div>
+<div class="section" id="webdav-configuration-on-the-client">
+<h3>WebDav configuration on the client<a class="headerlink" href="#webdav-configuration-on-the-client" title="Permalink to this headline">¶</a></h3>
+<p>Create a Job like this</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">FooImportCDRSFromBar</span> <span class="n">extends</span> <span class="n">ImportCDRSFromRemoteAsterisellProvider</span>
+<span class="p">{</span>
+
+    <span class="n">function</span> <span class="n">getCDRProviderName</span><span class="p">()</span> <span class="p">{</span>
+        <span class="k">return</span> <span class="s1">&#39;bar&#39;</span><span class="p">;</span>
+    <span class="p">}</span>
+
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>Configure something like this</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">import_cdrs_jobs</span> <span class="o">=</span> <span class="p">[</span> <span class="s1">&#39;FooImportCDRSFromBar&#39;</span> <span class="p">]</span>
+
+<span class="k">def</span> <span class="nf">conf_connectionParams</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">r</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="n">c</span> <span class="o">=</span> <span class="n">asterisell_instance</span><span class="o">.</span><span class="n">ConnectionParams</span><span class="p">()</span>
+    <span class="n">c</span><span class="o">.</span><span class="n">connection_name</span> <span class="o">=</span> <span class="s1">&#39;bar&#39;</span>
+    <span class="n">c</span><span class="o">.</span><span class="n">user</span> <span class="o">=</span> <span class="s1">&#39;foo&#39;</span>
+    <span class="n">c</span><span class="o">.</span><span class="n">password</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+    <span class="n">c</span><span class="o">.</span><span class="n">host</span> <span class="o">=</span> <span class="s1">&#39;https:///get-foo&#39;</span>
+    <span class="n">c</span><span class="o">.</span><span class="n">port</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+    <span class="n">r</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">c</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">r</span>
+</pre></div>
+</div>
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><h3>Navigation</h3>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="index.html">Home</a></li>
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="management.html">Management</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Configuration</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#basic-configurations">Basic Configurations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#cdrs-importing">CDRs Importing</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#rating-plans">Rating Plans</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#tutorial-on-csv-rates">Tutorial on CSV Rates</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#rate-plan-specification">Rate Plan Specification</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#mails-to-customers">Mails to Customers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#reports">Reports</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#configuration-of-resellers">Configuration of Resellers</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="usage.html">Usage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="FAQ.html">FAQ</a></li>
+<li class="toctree-l1"><a class="reference internal" href="news.html">News</a></li>
+<li class="toctree-l1"><a class="reference internal" href="support.html">Support</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="meta_toc.html">Documentation overview</a><ul>
+      <li>Previous: <a href="management.html" title="previous chapter">Asterisell Management</a></li>
+      <li>Next: <a href="usage.html" title="next chapter">Asterisell Usage</a></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      
+      
+      
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.4.6</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.7</a>
+      
+      |
+      <a href="_sources/configuration.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

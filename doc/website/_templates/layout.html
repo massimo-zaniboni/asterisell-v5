@@ -1,0 +1,13 @@
+{# layout.html #}
+{% extends "!layout.html" %}
+
+{% block extrahead %}
+
+  <link rel="alternate"
+        type="application/rss+xml"
+        title="Asterisell"
+        href="/index.rss" />
+
+  {{ super() }}
+{% endblock %}
+

@@ -1,0 +1,197 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Asterisell News &#8212; Asterisell 5 documentation</title>
+    
+    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '5',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="shortcut icon" href="_static/asterisell_favicon.ico"/>
+    <link rel="top" title="Asterisell 5 documentation" href="meta_toc.html" />
+    <link rel="next" title="Asterisell-5.6-beta" href="news_2016-12-21.html" />
+    <link rel="prev" title="Asterisell FAQ" href="FAQ.html" />
+
+  <link rel="alternate"
+        type="application/rss+xml"
+        title="Asterisell"
+        href="/index.rss" />
+
+  
+   
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+
+  </head>
+  <body role="document">  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="asterisell-news">
+<h1>Asterisell News<a class="headerlink" href="#asterisell-news" title="Permalink to this headline">¶</a></h1>
+<div class="toctree-wrapper compound">
+</div>
+<div class="section" id="asterisell-5-6-beta">
+<h2><a class="feed-ref reference internal" href="news_2016-12-21.html#asterisell-5-6-beta">Asterisell-5.6-beta</a><a class="headerlink" href="#asterisell-5-6-beta" title="Permalink to this headline">¶</a></h2>
+<p class="feed-meta">Published on <em class="feed-date">2016-12-21</em></p>
+<p>Switched from commercial license, to GPL License, and to a new <a class="reference external" href="https://github.com/massimo-zaniboni/asterisell-v5">GitHub repo</a>, for public accessible downloads.</p>
+<p>Asterisell Management Utility was simplified, but now it supports only instannces on local Docker containers, and not any more remote virtual machines.</p>
+<p>The application manual is not any more based on Redmine Wiki, but it is based on <a class="reference external" href="http://www.sphinx-doc.org/">Sphinx</a>.</p>
+<p>Minor improvements to the source code.</p>
+<div class="admonition important">
+<p class="first admonition-title">Important</p>
+<p class="last">This version is in beta status because there are is not yet a lot of experience in production
+about Asterisell Docker instances, and there can be management defects to solve.</p>
+</div>
+</div>
+<div class="section" id="asterisell-5-5">
+<h2><a class="feed-ref reference internal" href="news_2016-11-02.html#asterisell-5-5">Asterisell-5.5</a><a class="headerlink" href="#asterisell-5-5" title="Permalink to this headline">¶</a></h2>
+<p class="feed-meta">Published on <em class="feed-date">2016-11-02</em></p>
+<p>Bug fixes and improvements:</p>
+<ul class="simple">
+<li>improved error messages in case of bad CSV files</li>
+<li>rating code is more robust in the usage of resources like file handles and database connections</li>
+<li>support of Digitel vendor</li>
+</ul>
+</div>
+<div class="section" id="asterisell-5-4">
+<h2><a class="feed-ref reference internal" href="news_2016-01-11.html#asterisell-5-4">Asterisell-5.4</a><a class="headerlink" href="#asterisell-5-4" title="Permalink to this headline">¶</a></h2>
+<p class="feed-meta">Published on <em class="feed-date">2016-01-11</em></p>
+<p>Bug fixes and improvements:</p>
+<ul class="simple">
+<li>recognize and signal in a better way, if there are malformed settings in the customers/organizations</li>
+<li>added a command for deleting bad configured customers</li>
+<li>recognize and signal in a better way, if there are missing export-code, for extensions exported to resellers</li>
+<li>added a command for completing missing export-code</li>
+<li>a report scheduler can be configured for not sending and generating reports without a cost</li>
+<li>improved error messages</li>
+<li>for every error message, show the affected CDRs, so errors can be solved by priority</li>
+<li>various minor bug fixes and improvements to the user interface</li>
+<li>minor improvements to the workflow of reports</li>
+</ul>
+<p>This version fix a serious bug related to rating of Services. In case you are using services, you must:
+* open exactly one service on Services-&gt;Services menu,
+* change its name adding one character like &#8220;a&#8221; in the name, for forcing a modification, and save it,
+* editing again, removing the &#8220;a&#8221; and saving again for restoring the correct status.</p>
+<p>Doing this, Services will be inspected again, and the correct meta-info will be added to them.</p>
+</div>
+<div class="section" id="asterisell-5-3-beta">
+<h2><a class="feed-ref reference internal" href="news_2015-11-05.html#asterisell-5-3-beta">Asterisell-5.3-beta</a><a class="headerlink" href="#asterisell-5-3-beta" title="Permalink to this headline">¶</a></h2>
+<p class="feed-meta">Published on <em class="feed-date">2015-11-05</em></p>
+<p>Minor improvements in the user interface.</p>
+<p>Solved some known problems, discovered during using in production:</p>
+<ul class="simple">
+<li>#1857</li>
+<li>#1859</li>
+<li>#1857</li>
+</ul>
+</div>
+<div class="section" id="asterisell-5-2-beta">
+<h2><a class="feed-ref reference internal" href="news_2015-08-04.html#asterisell-5-2-beta">Asterisell-5.2-beta</a><a class="headerlink" href="#asterisell-5-2-beta" title="Permalink to this headline">¶</a></h2>
+<p class="feed-meta">Published on <em class="feed-date">2015-08-04</em></p>
+<p>Runtime environment uses a more performant:</p>
+<ul class="simple">
+<li>Nginx server instead of Apache</li>
+<li>PHP 5.6 instead of PHP 5.3</li>
+<li>various bug-fixes</li>
+</ul>
+</div>
+<div class="section" id="asterisell-5-1-beta-8504ad0">
+<h2><a class="feed-ref reference internal" href="news_2015-06-26.html#asterisell-5-1-beta-8504ad0">Asterisell-5.1-beta-8504ad0</a><a class="headerlink" href="#asterisell-5-1-beta-8504ad0" title="Permalink to this headline">¶</a></h2>
+<p class="feed-meta">Published on <em class="feed-date">2015-06-26</em></p>
+<p>Improvements:</p>
+<ul class="simple">
+<li>It is possible adding a prefix to generated invoices numbers.</li>
+<li>Improved the online-help about the generation of invoices starting from a specific number.</li>
+</ul>
+<p>Various bug-fixes.</p>
+<p>Improved the application manual, but only the online version at <a class="reference external" href="https://support.asterisell.com/projects/public-asterisell/wiki">https://support.asterisell.com/projects/public-asterisell/wiki</a></p>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><h3>Navigation</h3>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="index.html">Home</a></li>
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="management.html">Management</a></li>
+<li class="toctree-l1"><a class="reference internal" href="configuration.html">Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="usage.html">Usage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="FAQ.html">FAQ</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">News</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="news_2016-12-21.html">Asterisell-5.6-beta</a></li>
+<li class="toctree-l2"><a class="reference internal" href="news_2016-11-02.html">Asterisell-5.5</a></li>
+<li class="toctree-l2"><a class="reference internal" href="news_2016-01-11.html">Asterisell-5.4</a></li>
+<li class="toctree-l2"><a class="reference internal" href="news_2015-11-05.html">Asterisell-5.3-beta</a></li>
+<li class="toctree-l2"><a class="reference internal" href="news_2015-08-04.html">Asterisell-5.2-beta</a></li>
+<li class="toctree-l2"><a class="reference internal" href="news_2015-06-26.html">Asterisell-5.1-beta-8504ad0</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="support.html">Support</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="meta_toc.html">Documentation overview</a><ul>
+      <li>Previous: <a href="FAQ.html" title="previous chapter">Asterisell FAQ</a></li>
+      <li>Next: <a href="news_2016-12-21.html" title="next chapter">Asterisell-5.6-beta</a></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      
+      
+      
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.4.6</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.7</a>
+      
+      |
+      <a href="_sources/news.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

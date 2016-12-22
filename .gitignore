@@ -25,4 +25,4 @@ fabric_data/work_dir/
 fabric_data/dev_asterisell_instances.py
 fabric_data/ssl_certificates/*.crt
 fabric_data/ssl_certificates/*.key
-
+doc/website/make.sh
