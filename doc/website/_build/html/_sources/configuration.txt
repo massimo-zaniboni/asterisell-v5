@@ -1225,6 +1225,28 @@ The reasons of these rules are that an organization accepting a bundle
 rate plan, must follow the same plan until the end of the bundle rate
 time frame, but that rated calls must use always the most recent plan.
 
+User Interface Localization
+---------------------------
+
+Set ``culture`` with the correct locale in ``fabric_data/asterisell_instances.py`` and update the instances.
+
+The culture influence the language of the user interface, formatting of dates, money values, and so no.
+
+The web user interface seen by customers can be translated to different languages. Note that the admin user interface will remain always in English because there are too much terms to translate, and there is no payoff in translating it. But in case of customer web interface, there are few words to translate.
+
+For supporting another language:
+
+* copy the file ``scripts/installation/i18n/messages.it.xml`` to something like ``scripts/installation/i18n/messages.<your-language-code>.xml``
+* translate the strings to your language:
+
+  * the strings starting with "__" are used inside reports, emails and other parts of the user interface generated from code
+  * the strings starting without "__" are usend inside the customer online call report
+  * you can ignore this detail, and convert all the strings preserving the "__" if it is present
+
+* update the code inside ``apps/asterisell/lib/helper/CustomLocaleConversionsHelper.php``
+* execute ``fab upgrade:INSTANCE`` for activating the new translations
+* consider to send pull requests/patches to :doc:`support` with the new translations, so they can be included in the official Asterisell release
+
 Mails to Customers
 ------------------
 
@@ -1276,6 +1298,7 @@ You can customize
 in case you are sending emails to customers for high call costs.
 
 TODO user interface localization
+
 
 Reports
 -------

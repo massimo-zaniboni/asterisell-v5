@@ -1159,6 +1159,25 @@ rate plan, must follow the same plan until the end of the bundle rate
 time frame, but that rated calls must use always the most recent plan.</p>
 </div>
 </div>
+<div class="section" id="user-interface-localization">
+<h2>User Interface Localization<a class="headerlink" href="#user-interface-localization" title="Permalink to this headline">¶</a></h2>
+<p>Set <code class="docutils literal"><span class="pre">culture</span></code> with the correct locale in <code class="docutils literal"><span class="pre">fabric_data/asterisell_instances.py</span></code> and update the instances.</p>
+<p>The culture influence the language of the user interface, formatting of dates, money values, and so no.</p>
+<p>The web user interface seen by customers can be translated to different languages. Note that the admin user interface will remain always in English because there are too much terms to translate, and there is no payoff in translating it. But in case of customer web interface, there are few words to translate.</p>
+<p>For supporting another language:</p>
+<ul class="simple">
+<li>copy the file <code class="docutils literal"><span class="pre">scripts/installation/i18n/messages.it.xml</span></code> to something like <code class="docutils literal"><span class="pre">scripts/installation/i18n/messages.&lt;your-language-code&gt;.xml</span></code></li>
+<li>translate the strings to your language:<ul>
+<li>the strings starting with &#8220;__&#8221; are used inside reports, emails and other parts of the user interface generated from code</li>
+<li>the strings starting without &#8220;__&#8221; are usend inside the customer online call report</li>
+<li>you can ignore this detail, and convert all the strings preserving the &#8220;__&#8221; if it is present</li>
+</ul>
+</li>
+<li>update the code inside <code class="docutils literal"><span class="pre">apps/asterisell/lib/helper/CustomLocaleConversionsHelper.php</span></code></li>
+<li>execute <code class="docutils literal"><span class="pre">fab</span> <span class="pre">upgrade:INSTANCE</span></code> for activating the new translations</li>
+<li>consider to send pull requests/patches to <a class="reference internal" href="support.html"><span class="doc">Asterisell Support</span></a> with the new translations, so they can be included in the official Asterisell release</li>
+</ul>
+</div>
 <div class="section" id="mails-to-customers">
 <h2>Mails to Customers<a class="headerlink" href="#mails-to-customers" title="Permalink to this headline">¶</a></h2>
 <p>Customers can receive emails with attachments from Asterisell:</p>
@@ -1547,6 +1566,7 @@ htpasswd -c /etc/nginx/${instance_code}-${webdav_instance}.passwd ${webdav_insta
 <li class="toctree-l2"><a class="reference internal" href="#rating-plans">Rating Plans</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#tutorial-on-csv-rates">Tutorial on CSV Rates</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#rate-plan-specification">Rate Plan Specification</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#user-interface-localization">User Interface Localization</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#mails-to-customers">Mails to Customers</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#reports">Reports</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#configuration-of-resellers">Configuration of Resellers</a></li>
