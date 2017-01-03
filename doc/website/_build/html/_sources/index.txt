@@ -126,7 +126,7 @@ CDRs processing is based on customizable jobs.
 Organizations Hierarchies
 -------------------------
 
-Configure customers with complex organization hierarchies: offices, departements, and so on.
+Configure customers with complex organization hierarchies: offices, departments, and so on.
 
 Support customers having multiple billable center costs.
 
