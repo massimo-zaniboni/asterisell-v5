@@ -310,15 +310,18 @@ You can login using these user / password accounts:<ul>
 
             // Create main admin of the application
 
-            $party = new ArParty();
-            $party->setName('admin');
-            $party->save();
+            $user = ArUserPeer::retrieveByLogin('admin');
+            if ($user == null) {
+                $party = new ArParty();
+                $party->setName('admin');
+                $party->save();
 
-            $user = new ArUser();
-            $user->setArPartyId($party->getId());
-            $user->setArOrganizationUnitId(null);
+                $user = new ArUser();
+                $user->setArPartyId($party->getId());
+                $user->setArOrganizationUnitId(null);
+                $user->setLogin('admin');
+            }
             $user->setIsEnabled(true);
-            $user->setLogin('admin');
             $user->setClearPassword('admin');
             $user->setIsRootAdmin(true);
             $user->save();
