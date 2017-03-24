@@ -38,8 +38,7 @@ from fabric_data.asterisell_instances import all_instances
 
 def update_version_file():
     """Update the VERSION file."""
-    local('git log --pretty=format:\'%h\' -n 1 > VERSION-NR')
-    local('{ <VERSION-TYPE head -c -1 && cat VERSION-NR; } >VERSION')
+    pass
 
 '''
   Fabric Tasks

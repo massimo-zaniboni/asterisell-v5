@@ -154,3 +154,15 @@ Inside a template if the error must be viewed on the web toolbar
    echo log_message(...);
 
 
+Project Administration
+----------------------
+
+How Publishing a New Release
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+* Update ``VERSION`` file.
+* Update manual.
+* Git commit.
+* ``git tag -a vX.YY -m "Version X.YY"
+* Git push.
+* Rsync the website.

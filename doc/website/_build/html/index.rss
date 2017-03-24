@@ -4,8 +4,46 @@
     <title>Asterisell</title>
     <link>https://www.asterisell.com/</link>
     <description></description>
-    <lastBuildDate>Mon, 23 Jan 2017 21:34:19 GMT</lastBuildDate>
+    <lastBuildDate>Fri, 24 Mar 2017 13:35:38 GMT</lastBuildDate>
     <generator>sphinxcontrib-newsfeed</generator>
+    <item>
+      <title>Asterisell-5.7-beta</title>
+      <link>https://www.asterisell.com/news_2017-03-24.html</link>
+      <description>&lt;div class="compound"&gt;
+&lt;p class="compound-first"&gt;Improvements in Invoices and Report Sets:&lt;/p&gt;
+&lt;ul class="compound-middle simple"&gt;
+&lt;li&gt;invoices can use a PDF document as main template&lt;/li&gt;
+&lt;li&gt;more flexibility in the specification of invoice payment terms, and notes&lt;/li&gt;
+&lt;li&gt;invoices can contain the list of DIDS/Extensions&lt;/li&gt;
+&lt;li&gt;invoices are generated summing details lines already rounded to decimal places, so they are correct from a fiscal point of view. On the contrary in previous versions the totals were calculated rounding the totals of all calls, and so there could be minor differences in last decimal digits&lt;/li&gt;
+&lt;li&gt;support for customer IBAN, BIC, SEPA fields&lt;/li&gt;
+&lt;li&gt;invoices below a minimal income, can not be generated and postponed to next billing cycle&lt;/li&gt;
+&lt;li&gt;accountant and administrators can receive a CSV report with all the details about generated invoices, for managing the invoicing process using external tools&lt;/li&gt;
+&lt;li&gt;added a CSV call detail reports that can be sent to customers, instead of the PDF report&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p class="compound-middle"&gt;Rating Engine:&lt;/p&gt;
+&lt;ul class="compound-middle simple"&gt;
+&lt;li&gt;DIDS/Extensions can be derived and expanded by base generic DIDS/Extensions&lt;/li&gt;
+&lt;li&gt;more robust and error-prone code, for importing the CSV files&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p class="compound-middle"&gt;Customers can be classified using multiple tags:&lt;/p&gt;
+&lt;ul class="compound-middle simple"&gt;
+&lt;li&gt;payment terms on invoices can be generated according customer tags&lt;/li&gt;
+&lt;li&gt;reports can be generated and sent only to customers with specific tags&lt;/li&gt;
+&lt;li&gt;the application can advise if some customer are not classified correctly&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p class="compound-middle"&gt;Various bug fixes and improvements.&lt;/p&gt;
+&lt;div class="important compound-last admonition"&gt;
+&lt;p class="first admonition-title"&gt;Important&lt;/p&gt;
+&lt;p&gt;This version is used in production, but it is marked as beta because there are various
+changed things, that can cause minor problems.&lt;/p&gt;
+&lt;p class="last"&gt;It will became stable within few weeks, when it will be installed on more instances.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+</description>
+      <guid>https://www.asterisell.com/news_2017-03-24.html</guid>
+      <pubDate>Fri, 24 Mar 2017 00:00:00 GMT</pubDate>
+    </item>
     <item>
       <title>Asterisell-5.6-beta</title>
       <link>https://www.asterisell.com/news_2016-12-21.html</link>

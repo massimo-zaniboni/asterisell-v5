@@ -3,7 +3,7 @@
 Asterisell Code Development
 ===========================
 
-These are notes interesting only if you want to extend the Asterisell application source code.
+These notes are interesting only if you want to extend the Asterisell application source code.
 
 .. contents:: Table of Contents
    :depth: 2
@@ -15,6 +15,23 @@ How Installing the Symfony DEV Container
 
 Read notes inside `scripts/dockerfiles/symfony_dev`.
 
+How Changing the Database Schema
+--------------------------------
+
+Change the file ``config/schema.yml``.
+
+Inside the Symfony DEV Container execute
+
+::
+  cd scripts
+  ./makedb.sh
+
+The new SQL model is generated inside ``data/sql/lib.model.schema.sql``.
+
+Test the application.
+
+Add upgrade jobs extending the database also in already production instances. TODO complete this
+
 How Generating UI Web Modules
 -----------------------------
 
@@ -22,10 +39,9 @@ Inside the Symfony DEV Container:
 
 ::
 
-  php symfony propel:generate-admin asterisell BlogArticle --module=article
   php symfony propel:generate-admin asterisell ArReportScheduler --module=report_scheduling
 
-NOTE: if you add a new class, update also init database scripts, and
+: if you add a new class, update also init database scripts, and
 deletion related.
 
 *  generate module normally
@@ -136,3 +152,17 @@ Inside a template if the error must be viewed on the web toolbar
 ::
 
    echo log_message(...);
+
+
+Project Administration
+----------------------
+
+How Publishing a New Release
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+* Update ``VERSION`` file.
+* Update manual.
+* Git commit.
+* ``git tag -a vX.YY -m "Version X.YY"
+* Git push.
+* Rsync the website.

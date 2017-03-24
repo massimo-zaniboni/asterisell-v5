@@ -50,14 +50,19 @@
             
   <div class="section" id="asterisell-code-development">
 <h1>Asterisell Code Development<a class="headerlink" href="#asterisell-code-development" title="Permalink to this headline">¶</a></h1>
-<p>These are notes interesting only if you want to extend the Asterisell application source code.</p>
+<p>These notes are interesting only if you want to extend the Asterisell application source code.</p>
 <div class="contents local topic" id="table-of-contents">
 <p class="topic-title first">Table of Contents</p>
 <ul class="simple">
-<li><a class="reference internal" href="#how-installing-the-symfony-dev-container" id="id3">How Installing the Symfony DEV Container</a></li>
-<li><a class="reference internal" href="#how-generating-ui-web-modules" id="id4">How Generating UI Web Modules</a></li>
-<li><a class="reference internal" href="#code-gist" id="id5">Code Gist</a><ul>
-<li><a class="reference internal" href="#adding-log-message" id="id6">Adding LOG message</a></li>
+<li><a class="reference internal" href="#how-installing-the-symfony-dev-container" id="id5">How Installing the Symfony DEV Container</a></li>
+<li><a class="reference internal" href="#how-changing-the-database-schema" id="id6">How Changing the Database Schema</a></li>
+<li><a class="reference internal" href="#how-generating-ui-web-modules" id="id7">How Generating UI Web Modules</a></li>
+<li><a class="reference internal" href="#code-gist" id="id8">Code Gist</a><ul>
+<li><a class="reference internal" href="#adding-log-message" id="id9">Adding LOG message</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#project-administration" id="id10">Project Administration</a><ul>
+<li><a class="reference internal" href="#how-publishing-a-new-release" id="id11">How Publishing a New Release</a></li>
 </ul>
 </li>
 </ul>
@@ -66,14 +71,26 @@
 <h2><a class="toc-backref" href="#table-of-contents">How Installing the Symfony DEV Container</a><a class="headerlink" href="#how-installing-the-symfony-dev-container" title="Permalink to this headline">¶</a></h2>
 <p>Read notes inside <cite>scripts/dockerfiles/symfony_dev</cite>.</p>
 </div>
+<div class="section" id="how-changing-the-database-schema">
+<h2><a class="toc-backref" href="#table-of-contents">How Changing the Database Schema</a><a class="headerlink" href="#how-changing-the-database-schema" title="Permalink to this headline">¶</a></h2>
+<p>Change the file <code class="docutils literal"><span class="pre">config/schema.yml</span></code>.</p>
+<p>Inside the Symfony DEV Container execute</p>
+<dl class="docutils">
+<dt>::</dt>
+<dd>cd scripts
+./makedb.sh</dd>
+</dl>
+<p>The new SQL model is generated inside <code class="docutils literal"><span class="pre">data/sql/lib.model.schema.sql</span></code>.</p>
+<p>Test the application.</p>
+<p>Add upgrade jobs extending the database also in already production instances. TODO complete this</p>
+</div>
 <div class="section" id="how-generating-ui-web-modules">
 <h2><a class="toc-backref" href="#table-of-contents">How Generating UI Web Modules</a><a class="headerlink" href="#how-generating-ui-web-modules" title="Permalink to this headline">¶</a></h2>
 <p>Inside the Symfony DEV Container:</p>
-<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">php</span> <span class="n">symfony</span> <span class="n">propel</span><span class="p">:</span><span class="n">generate</span><span class="o">-</span><span class="n">admin</span> <span class="n">asterisell</span> <span class="n">BlogArticle</span> <span class="o">--</span><span class="n">module</span><span class="o">=</span><span class="n">article</span>
-<span class="n">php</span> <span class="n">symfony</span> <span class="n">propel</span><span class="p">:</span><span class="n">generate</span><span class="o">-</span><span class="n">admin</span> <span class="n">asterisell</span> <span class="n">ArReportScheduler</span> <span class="o">--</span><span class="n">module</span><span class="o">=</span><span class="n">report_scheduling</span>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">php</span> <span class="n">symfony</span> <span class="n">propel</span><span class="p">:</span><span class="n">generate</span><span class="o">-</span><span class="n">admin</span> <span class="n">asterisell</span> <span class="n">ArReportScheduler</span> <span class="o">--</span><span class="n">module</span><span class="o">=</span><span class="n">report_scheduling</span>
 </pre></div>
 </div>
-<p>NOTE: if you add a new class, update also init database scripts, and
+<p>: if you add a new class, update also init database scripts, and
 deletion related.</p>
 <ul class="simple">
 <li>generate module normally</li>
@@ -175,6 +192,20 @@ sfContext::getInstance()-&gt;getLogger()-&gt;err($message);
 </div>
 </div>
 </div>
+<div class="section" id="project-administration">
+<h2><a class="toc-backref" href="#table-of-contents">Project Administration</a><a class="headerlink" href="#project-administration" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="how-publishing-a-new-release">
+<h3><a class="toc-backref" href="#table-of-contents">How Publishing a New Release</a><a class="headerlink" href="#how-publishing-a-new-release" title="Permalink to this headline">¶</a></h3>
+<ul class="simple">
+<li>Update <code class="docutils literal"><span class="pre">VERSION</span></code> file.</li>
+<li>Update manual.</li>
+<li>Git commit.</li>
+<li><a href="#id3"><span class="problematic" id="id4">``</span></a>git tag -a vX.YY -m &#8220;Version X.YY&#8221;</li>
+<li>Git push.</li>
+<li>Rsync the website.</li>
+</ul>
+</div>
+</div>
 </div>
 
 
@@ -192,8 +223,10 @@ sfContext::getInstance()-&gt;getLogger()-&gt;err($message);
 <li class="toctree-l1"><a class="reference internal" href="FAQ.html">FAQ</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Development</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#how-installing-the-symfony-dev-container">How Installing the Symfony DEV Container</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#how-changing-the-database-schema">How Changing the Database Schema</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#how-generating-ui-web-modules">How Generating UI Web Modules</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#code-gist">Code Gist</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#project-administration">Project Administration</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="news.html">News</a></li>
