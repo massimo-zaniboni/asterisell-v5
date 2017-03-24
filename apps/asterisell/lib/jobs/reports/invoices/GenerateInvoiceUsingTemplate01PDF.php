@@ -84,7 +84,11 @@ abstract class GenerateInvoiceUsingTemplate01PDF extends ReportGenerator
         return "windows-1252";
     }
 
-    public function calcStore()
+    /**
+     * @param int|null $schedulerId
+     * @return InvoiceCalcStore|ReportCalcStore
+     */
+    public function calcStore($schedulerId)
     {
         /**
          * @var PropelPDO $conn
@@ -98,7 +102,7 @@ abstract class GenerateInvoiceUsingTemplate01PDF extends ReportGenerator
 
         $store = new InvoiceCalcStore();
         $store->setCharacterSet($this->getCharacterSet());
-        $store->process($fromDate, $toDate, $report, $conn);
+        $store->process($fromDate, $toDate, $report, $schedulerId, $conn);
         return $store;
     }
 
@@ -123,7 +127,8 @@ abstract class GenerateInvoiceUsingTemplate01PDF extends ReportGenerator
          */
         $calcStore = $this->getStore();
 
-        $fromDate = fromMySQLTimestampToUnixTimestamp($report->getFromDate());
+        $fromDate = $calcStore->getOrganizationFromDate($startOrganizationId);
+        $report->setFromDate($fromDate);
         $toDate = fromMySQLTimestampToUnixTimestamp($report->getToDate());
 
         if (!OrganizationUnitInfo::getInstance()->getExists($startOrganizationId, $fromDate)) {

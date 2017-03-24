@@ -25,7 +25,7 @@ abstract class BaseArPartyPeer {
 	const TM_CLASS = 'ArPartyTableMap';
 	
 	/** The total number of columns. */
-	const NUM_COLUMNS = 21;
+	const NUM_COLUMNS = 25;
 
 	/** The number of lazy-loaded columns. */
 	const NUM_LAZY_LOAD_COLUMNS = 0;
@@ -93,6 +93,18 @@ abstract class BaseArPartyPeer {
 	/** the column name for the MIGRATION_FIELD_FOR_ADSL field */
 	const MIGRATION_FIELD_FOR_ADSL = 'ar_party.MIGRATION_FIELD_FOR_ADSL';
 
+	/** the column name for the PAYMENT_IBAN field */
+	const PAYMENT_IBAN = 'ar_party.PAYMENT_IBAN';
+
+	/** the column name for the PAYMENT_BIC field */
+	const PAYMENT_BIC = 'ar_party.PAYMENT_BIC';
+
+	/** the column name for the PAYMENT_SEPA field */
+	const PAYMENT_SEPA = 'ar_party.PAYMENT_SEPA';
+
+	/** the column name for the PAYMENT_INFO field */
+	const PAYMENT_INFO = 'ar_party.PAYMENT_INFO';
+
 	/**
 	 * An identiy map to hold any loaded instances of ArParty objects.
 	 * This must be public so that other peer classes can access this when hydrating from JOIN
@@ -116,11 +128,11 @@ abstract class BaseArPartyPeer {
 	 * e.g. self::$fieldNames[self::TYPE_PHPNAME][0] = 'Id'
 	 */
 	private static $fieldNames = array (
-		BasePeer::TYPE_PHPNAME => array ('Id', 'Name', 'CompactName', 'ExternalCrmCode', 'Vat', 'IsBillable', 'LegalAddress', 'LegalCity', 'LegalZipcode', 'LegalStateProvince', 'LegalCountry', 'Email', 'Phone', 'Phone2', 'Fax', 'MaxLimit30', 'LastEmailAdviseForMaxLimit30', 'IsActive', 'ArResellerId', 'MigrationFieldForTelephone', 'MigrationFieldForAdsl', ),
-		BasePeer::TYPE_STUDLYPHPNAME => array ('id', 'name', 'compactName', 'externalCrmCode', 'vat', 'isBillable', 'legalAddress', 'legalCity', 'legalZipcode', 'legalStateProvince', 'legalCountry', 'email', 'phone', 'phone2', 'fax', 'maxLimit30', 'lastEmailAdviseForMaxLimit30', 'isActive', 'arResellerId', 'migrationFieldForTelephone', 'migrationFieldForAdsl', ),
-		BasePeer::TYPE_COLNAME => array (self::ID, self::NAME, self::COMPACT_NAME, self::EXTERNAL_CRM_CODE, self::VAT, self::IS_BILLABLE, self::LEGAL_ADDRESS, self::LEGAL_CITY, self::LEGAL_ZIPCODE, self::LEGAL_STATE_PROVINCE, self::LEGAL_COUNTRY, self::EMAIL, self::PHONE, self::PHONE2, self::FAX, self::MAX_LIMIT_30, self::LAST_EMAIL_ADVISE_FOR_MAX_LIMIT_30, self::IS_ACTIVE, self::AR_RESELLER_ID, self::MIGRATION_FIELD_FOR_TELEPHONE, self::MIGRATION_FIELD_FOR_ADSL, ),
-		BasePeer::TYPE_FIELDNAME => array ('id', 'name', 'compact_name', 'external_crm_code', 'vat', 'is_billable', 'legal_address', 'legal_city', 'legal_zipcode', 'legal_state_province', 'legal_country', 'email', 'phone', 'phone2', 'fax', 'max_limit_30', 'last_email_advise_for_max_limit_30', 'is_active', 'ar_reseller_id', 'migration_field_for_telephone', 'migration_field_for_adsl', ),
-		BasePeer::TYPE_NUM => array (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, )
+		BasePeer::TYPE_PHPNAME => array ('Id', 'Name', 'CompactName', 'ExternalCrmCode', 'Vat', 'IsBillable', 'LegalAddress', 'LegalCity', 'LegalZipcode', 'LegalStateProvince', 'LegalCountry', 'Email', 'Phone', 'Phone2', 'Fax', 'MaxLimit30', 'LastEmailAdviseForMaxLimit30', 'IsActive', 'ArResellerId', 'MigrationFieldForTelephone', 'MigrationFieldForAdsl', 'PaymentIban', 'PaymentBic', 'PaymentSepa', 'PaymentInfo', ),
+		BasePeer::TYPE_STUDLYPHPNAME => array ('id', 'name', 'compactName', 'externalCrmCode', 'vat', 'isBillable', 'legalAddress', 'legalCity', 'legalZipcode', 'legalStateProvince', 'legalCountry', 'email', 'phone', 'phone2', 'fax', 'maxLimit30', 'lastEmailAdviseForMaxLimit30', 'isActive', 'arResellerId', 'migrationFieldForTelephone', 'migrationFieldForAdsl', 'paymentIban', 'paymentBic', 'paymentSepa', 'paymentInfo', ),
+		BasePeer::TYPE_COLNAME => array (self::ID, self::NAME, self::COMPACT_NAME, self::EXTERNAL_CRM_CODE, self::VAT, self::IS_BILLABLE, self::LEGAL_ADDRESS, self::LEGAL_CITY, self::LEGAL_ZIPCODE, self::LEGAL_STATE_PROVINCE, self::LEGAL_COUNTRY, self::EMAIL, self::PHONE, self::PHONE2, self::FAX, self::MAX_LIMIT_30, self::LAST_EMAIL_ADVISE_FOR_MAX_LIMIT_30, self::IS_ACTIVE, self::AR_RESELLER_ID, self::MIGRATION_FIELD_FOR_TELEPHONE, self::MIGRATION_FIELD_FOR_ADSL, self::PAYMENT_IBAN, self::PAYMENT_BIC, self::PAYMENT_SEPA, self::PAYMENT_INFO, ),
+		BasePeer::TYPE_FIELDNAME => array ('id', 'name', 'compact_name', 'external_crm_code', 'vat', 'is_billable', 'legal_address', 'legal_city', 'legal_zipcode', 'legal_state_province', 'legal_country', 'email', 'phone', 'phone2', 'fax', 'max_limit_30', 'last_email_advise_for_max_limit_30', 'is_active', 'ar_reseller_id', 'migration_field_for_telephone', 'migration_field_for_adsl', 'payment_iban', 'payment_bic', 'payment_sepa', 'payment_info', ),
+		BasePeer::TYPE_NUM => array (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, )
 	);
 
 	/**
@@ -130,11 +142,11 @@ abstract class BaseArPartyPeer {
 	 * e.g. self::$fieldNames[BasePeer::TYPE_PHPNAME]['Id'] = 0
 	 */
 	private static $fieldKeys = array (
-		BasePeer::TYPE_PHPNAME => array ('Id' => 0, 'Name' => 1, 'CompactName' => 2, 'ExternalCrmCode' => 3, 'Vat' => 4, 'IsBillable' => 5, 'LegalAddress' => 6, 'LegalCity' => 7, 'LegalZipcode' => 8, 'LegalStateProvince' => 9, 'LegalCountry' => 10, 'Email' => 11, 'Phone' => 12, 'Phone2' => 13, 'Fax' => 14, 'MaxLimit30' => 15, 'LastEmailAdviseForMaxLimit30' => 16, 'IsActive' => 17, 'ArResellerId' => 18, 'MigrationFieldForTelephone' => 19, 'MigrationFieldForAdsl' => 20, ),
-		BasePeer::TYPE_STUDLYPHPNAME => array ('id' => 0, 'name' => 1, 'compactName' => 2, 'externalCrmCode' => 3, 'vat' => 4, 'isBillable' => 5, 'legalAddress' => 6, 'legalCity' => 7, 'legalZipcode' => 8, 'legalStateProvince' => 9, 'legalCountry' => 10, 'email' => 11, 'phone' => 12, 'phone2' => 13, 'fax' => 14, 'maxLimit30' => 15, 'lastEmailAdviseForMaxLimit30' => 16, 'isActive' => 17, 'arResellerId' => 18, 'migrationFieldForTelephone' => 19, 'migrationFieldForAdsl' => 20, ),
-		BasePeer::TYPE_COLNAME => array (self::ID => 0, self::NAME => 1, self::COMPACT_NAME => 2, self::EXTERNAL_CRM_CODE => 3, self::VAT => 4, self::IS_BILLABLE => 5, self::LEGAL_ADDRESS => 6, self::LEGAL_CITY => 7, self::LEGAL_ZIPCODE => 8, self::LEGAL_STATE_PROVINCE => 9, self::LEGAL_COUNTRY => 10, self::EMAIL => 11, self::PHONE => 12, self::PHONE2 => 13, self::FAX => 14, self::MAX_LIMIT_30 => 15, self::LAST_EMAIL_ADVISE_FOR_MAX_LIMIT_30 => 16, self::IS_ACTIVE => 17, self::AR_RESELLER_ID => 18, self::MIGRATION_FIELD_FOR_TELEPHONE => 19, self::MIGRATION_FIELD_FOR_ADSL => 20, ),
-		BasePeer::TYPE_FIELDNAME => array ('id' => 0, 'name' => 1, 'compact_name' => 2, 'external_crm_code' => 3, 'vat' => 4, 'is_billable' => 5, 'legal_address' => 6, 'legal_city' => 7, 'legal_zipcode' => 8, 'legal_state_province' => 9, 'legal_country' => 10, 'email' => 11, 'phone' => 12, 'phone2' => 13, 'fax' => 14, 'max_limit_30' => 15, 'last_email_advise_for_max_limit_30' => 16, 'is_active' => 17, 'ar_reseller_id' => 18, 'migration_field_for_telephone' => 19, 'migration_field_for_adsl' => 20, ),
-		BasePeer::TYPE_NUM => array (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, )
+		BasePeer::TYPE_PHPNAME => array ('Id' => 0, 'Name' => 1, 'CompactName' => 2, 'ExternalCrmCode' => 3, 'Vat' => 4, 'IsBillable' => 5, 'LegalAddress' => 6, 'LegalCity' => 7, 'LegalZipcode' => 8, 'LegalStateProvince' => 9, 'LegalCountry' => 10, 'Email' => 11, 'Phone' => 12, 'Phone2' => 13, 'Fax' => 14, 'MaxLimit30' => 15, 'LastEmailAdviseForMaxLimit30' => 16, 'IsActive' => 17, 'ArResellerId' => 18, 'MigrationFieldForTelephone' => 19, 'MigrationFieldForAdsl' => 20, 'PaymentIban' => 21, 'PaymentBic' => 22, 'PaymentSepa' => 23, 'PaymentInfo' => 24, ),
+		BasePeer::TYPE_STUDLYPHPNAME => array ('id' => 0, 'name' => 1, 'compactName' => 2, 'externalCrmCode' => 3, 'vat' => 4, 'isBillable' => 5, 'legalAddress' => 6, 'legalCity' => 7, 'legalZipcode' => 8, 'legalStateProvince' => 9, 'legalCountry' => 10, 'email' => 11, 'phone' => 12, 'phone2' => 13, 'fax' => 14, 'maxLimit30' => 15, 'lastEmailAdviseForMaxLimit30' => 16, 'isActive' => 17, 'arResellerId' => 18, 'migrationFieldForTelephone' => 19, 'migrationFieldForAdsl' => 20, 'paymentIban' => 21, 'paymentBic' => 22, 'paymentSepa' => 23, 'paymentInfo' => 24, ),
+		BasePeer::TYPE_COLNAME => array (self::ID => 0, self::NAME => 1, self::COMPACT_NAME => 2, self::EXTERNAL_CRM_CODE => 3, self::VAT => 4, self::IS_BILLABLE => 5, self::LEGAL_ADDRESS => 6, self::LEGAL_CITY => 7, self::LEGAL_ZIPCODE => 8, self::LEGAL_STATE_PROVINCE => 9, self::LEGAL_COUNTRY => 10, self::EMAIL => 11, self::PHONE => 12, self::PHONE2 => 13, self::FAX => 14, self::MAX_LIMIT_30 => 15, self::LAST_EMAIL_ADVISE_FOR_MAX_LIMIT_30 => 16, self::IS_ACTIVE => 17, self::AR_RESELLER_ID => 18, self::MIGRATION_FIELD_FOR_TELEPHONE => 19, self::MIGRATION_FIELD_FOR_ADSL => 20, self::PAYMENT_IBAN => 21, self::PAYMENT_BIC => 22, self::PAYMENT_SEPA => 23, self::PAYMENT_INFO => 24, ),
+		BasePeer::TYPE_FIELDNAME => array ('id' => 0, 'name' => 1, 'compact_name' => 2, 'external_crm_code' => 3, 'vat' => 4, 'is_billable' => 5, 'legal_address' => 6, 'legal_city' => 7, 'legal_zipcode' => 8, 'legal_state_province' => 9, 'legal_country' => 10, 'email' => 11, 'phone' => 12, 'phone2' => 13, 'fax' => 14, 'max_limit_30' => 15, 'last_email_advise_for_max_limit_30' => 16, 'is_active' => 17, 'ar_reseller_id' => 18, 'migration_field_for_telephone' => 19, 'migration_field_for_adsl' => 20, 'payment_iban' => 21, 'payment_bic' => 22, 'payment_sepa' => 23, 'payment_info' => 24, ),
+		BasePeer::TYPE_NUM => array (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, )
 	);
 
 	/**
@@ -225,6 +237,10 @@ abstract class BaseArPartyPeer {
 		$criteria->addSelectColumn(ArPartyPeer::AR_RESELLER_ID);
 		$criteria->addSelectColumn(ArPartyPeer::MIGRATION_FIELD_FOR_TELEPHONE);
 		$criteria->addSelectColumn(ArPartyPeer::MIGRATION_FIELD_FOR_ADSL);
+		$criteria->addSelectColumn(ArPartyPeer::PAYMENT_IBAN);
+		$criteria->addSelectColumn(ArPartyPeer::PAYMENT_BIC);
+		$criteria->addSelectColumn(ArPartyPeer::PAYMENT_SEPA);
+		$criteria->addSelectColumn(ArPartyPeer::PAYMENT_INFO);
 	}
 
 	/**
@@ -417,6 +433,9 @@ abstract class BaseArPartyPeer {
 	 */
 	public static function clearRelatedInstancePool()
 	{
+		// invalidate objects in ArPartyHasTagPeer instance pool, since one or more of them may be deleted by ON DELETE CASCADE rule.
+		ArPartyHasTagPeer::clearInstancePool();
+
 	}
 
 	/**

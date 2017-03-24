@@ -1,7 +1,7 @@
 {-# LANGUAGE ScopedTypeVariables, BangPatterns, OverloadedStrings #-}
 
-{- $LICENSE 2013, 2014, 2015, 2016
- * Copyright (C) 2013-2016 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
+{- $LICENSE 2013, 2014, 2015, 2016, 2017
+ * Copyright (C) 2013-2017 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
  *
  * This file is part of Asterisell.
  *
@@ -33,6 +33,8 @@ module Asterisell.CustomerSpecificImporters (
   , CSVFormat_plain1
   , CSVFormat_digitel
   , CSVFormat_digitelNNG__v1
+  , CSVFormat_colt
+  , CSVFormat_colt43
   , const_digitelHeader
   , const_digitelNNGTimeBandPrefix
   , digitel_normalizeCalledNumber
@@ -55,20 +57,19 @@ import Asterisell.RateCategories
 import Asterisell.OrganizationHierarchy
 import Asterisell.CdrsToRate
 
-import qualified Pipes.Csv as PC
 import Data.List as List
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 import Control.Monad
 import Control.Applicative
-import Pipes.Csv
 import Data.Vector as V hiding((++))
 import Data.Hashable
 import Data.Maybe
 import Control.Monad.Except
 import Data.Time.LocalTime
 import Data.Time.Calendar.WeekDate
-
+import Data.Csv as CSV
+import qualified Data.Csv.Streaming as CSV
 import qualified Test.HUnit as HUnit
 
 -- | TWT operator CPS format.
@@ -116,7 +117,7 @@ instance Show CSVFormat_twt_cps__v1 where
 
      showLine (h, v) = h ++ ": " ++ (Text.unpack $ v cdr) ++ "\n"
 
-instance PC.FromRecord CSVFormat_twt_cps__v1 where
+instance CSV.FromRecord CSVFormat_twt_cps__v1 where
      parseRecord v =
          let expectedCols = 13
          in case V.length v == expectedCols of
@@ -273,7 +274,7 @@ instance Show CSVFormat_twt_nng__v1 where
 
      showLine (h, v) = h ++ ": " ++ (Text.unpack $ v cdr) ++ "\n"
 
-instance PC.FromRecord CSVFormat_twt_nng__v1 where
+instance CSV.FromRecord CSVFormat_twt_nng__v1 where
      parseRecord v =
          let expectedCols = 15
          in case V.length v == expectedCols of
@@ -397,7 +398,7 @@ data CSVFormat_freeRadius__v1
       ,freeRadius__v1_Acct_Session_Id :: !(ExportMaybeNull Text.Text)
   } deriving(Show)
 
-instance PC.FromRecord CSVFormat_freeRadius__v1 where
+instance CSV.FromRecord CSVFormat_freeRadius__v1 where
      parseRecord v =
          let expectedCols = 15
          in case V.length v == expectedCols of
@@ -515,7 +516,7 @@ data CSVFormat_gamma__v1
       ,gamma__v1_routingCode :: !Text.Text
   } deriving(Show)
 
-instance PC.FromRecord CSVFormat_gamma__v1 where
+instance CSV.FromRecord CSVFormat_gamma__v1 where
      parseRecord v =
          let expectedCols = 42
          in case V.length v == expectedCols of
@@ -680,8 +681,6 @@ convert_CSVFormat_gamma__v1__toCDR precision provider record = do
 -- Support Gamma Item Rental
 --
 
--- TODO adapt this code according the notes on the new format
-
 data CSVFormat_gamma_ItemRental__v1
   = CSVFormat_gamma_ItemRental__v1 {
      gammaIR__v1_serviceActivatioDate :: !Text.Text
@@ -694,7 +693,7 @@ data CSVFormat_gamma_ItemRental__v1
    , gammaIR__v1_quantity :: !Text.Text
   } deriving(Show)
 
-instance PC.FromRecord CSVFormat_gamma_ItemRental__v1 where
+instance CSV.FromRecord CSVFormat_gamma_ItemRental__v1 where
      parseRecord v =
          let expectedCols = 8
          in case V.length v == expectedCols of
@@ -861,7 +860,7 @@ data CSVFormat_asterisk__generic
       asterisk__generic_did :: !(ExportMaybeNull Text.Text)
     }
 
-instance PC.FromRecord CSVFormat_asterisk__generic where
+instance CSV.FromRecord CSVFormat_asterisk__generic where
      parseRecord v =
          let expectedCols = 17
          in case V.length v == expectedCols of
@@ -972,7 +971,7 @@ instance Show CSVFormat_asterisk__a_p_v1 where
    where
      field = cdrField cdr
 
-instance PC.FromRecord CSVFormat_asterisk__a_p_v1 where
+instance CSV.FromRecord CSVFormat_asterisk__a_p_v1 where
      parseRecord v =
          let expectedCols = 23
          in case V.length v == expectedCols of
@@ -1095,7 +1094,7 @@ data CSVFormat_plain1
       plain1__id :: !(ExportMaybeNull Text.Text)
    } deriving(Show)
 
-instance PC.FromRecord CSVFormat_plain1 where
+instance CSV.FromRecord CSVFormat_plain1 where
      parseRecord v =
          let expectedCols = 7
          in case V.length v == expectedCols of
@@ -1176,11 +1175,11 @@ data CSVFormat_digitel
       digitel__description :: !(ExportMaybeNull Text.Text)
    } deriving(Show)
 
-instance PC.FromRecord CSVFormat_digitel where
+instance CSV.FromRecord CSVFormat_digitel where
      parseRecord v =
-         let expectedCols = 7
-         in case V.length v of
-              7
+         case V.length v of
+              7    -- NOTE: important to use a number instead of an identifier
+                   -- otherwise it is assigned instead of selected as pattern matching.
                 -> CSVFormat_digitel <$>
                      v .! 0<*>
                      v .! 1<*>
@@ -1190,7 +1189,7 @@ instance PC.FromRecord CSVFormat_digitel where
                      v .! 5<*>
                      v .! 6 
               0 -> return $ CSVFormat_digitel ExportNull (Export "ignore") ExportNull ExportNull ExportNull ExportNull ExportNull
-              l -> fail $ "There are " ++ show l ++ " columns instead of the expected " ++ (show expectedCols)
+              l -> fail $ "There are " ++ show l ++ " columns instead of the expected " ++ (show 7)
 
 instance CDRFormat CSVFormat_digitel where
   getCallDate record = digitel_convertCallDate (digitel__calldate record)
@@ -1280,7 +1279,7 @@ digitel_normalizeCalledNumber  useTimeBand callDate number
 newtype CSVFormat_digitelNNG__v1 = CSVFormat_digitelNNG__v1 CSVFormat_digitel
  deriving (Show)
 
-instance PC.FromRecord CSVFormat_digitelNNG__v1 where
+instance CSV.FromRecord CSVFormat_digitelNNG__v1 where
      parseRecord v = CSVFormat_digitelNNG__v1 <$> parseRecord v
 
 instance CDRFormat CSVFormat_digitelNNG__v1 where
@@ -1294,6 +1293,125 @@ instance CDRFormat CSVFormat_digitelNNG__v1 where
   toCDR precision provider (CSVFormat_digitelNNG__v1 record) = do
     cdr <- digitel_toCDR True record precision provider
     return [cdr]
+
+-- | A format like
+--
+-- > 150194;2016420000000;DAD;DAD;4315132***;01.08.2016;11:26:54;St.Pölten;Colt LOCAL;0274290136***;22;0.01019;0;02.09.2016;EUR;;VO15;P
+data CSVFormat_colt
+  = CSVFormat_colt {
+        colt__providerId :: !(ExportMaybeNull Text.Text)
+      , colt__2 :: !(ExportMaybeNull Text.Text)
+      , colt__3 :: !(ExportMaybeNull Text.Text)
+      , colt__4 :: !(ExportMaybeNull Text.Text)
+      , colt__caller :: !(ExportMaybeNull Text.Text)
+      , colt__date :: !(ExportMaybeNull Text.Text)
+        -- ^ format:  01.08.2016
+      , colt__time :: !(ExportMaybeNull Text.Text)
+        -- ^ format: 11:26:54;
+      , colt__8 :: !(ExportMaybeNull Text.Text)
+      , colt__9 :: !(ExportMaybeNull Text.Text)
+      , colt__called :: !(ExportMaybeNull Text.Text)
+      , colt__billsec :: !(ExportMaybeNull Text.Text)
+      , colt__cost :: !(ExportMaybeNull Text.Text)
+        -- ^ format: 0.01019
+      , colt__13:: !(ExportMaybeNull Text.Text)
+      , colt__14:: !(ExportMaybeNull Text.Text)
+      , colt__15:: !(ExportMaybeNull Text.Text)
+      , colt__16:: !(ExportMaybeNull Text.Text)
+      , colt__17:: !(ExportMaybeNull Text.Text)
+      , colt__18:: !(ExportMaybeNull Text.Text)
+      , colt__19:: !(ExportMaybeNull Text.Text)
+      , colt__20:: !(ExportMaybeNull Text.Text)
+   } deriving(Show)
+
+instance CSV.FromRecord CSVFormat_colt where
+     parseRecord v =
+         let expectedCols = 20
+         in case V.length v == expectedCols of
+              True
+                -> CSVFormat_colt <$>
+                     v .! 0<*>
+                     v .! 1<*>
+                     v .! 2<*>
+                     v .! 3<*>
+                     v .! 4<*>
+                     v .! 5<*>
+                     v .! 6<*>
+                     v .! 7<*>
+                     v .! 8<*>
+                     v .! 9<*>
+                     v .! 10<*>
+                     v .! 11<*>
+                     v .! 12<*>
+                     v .! 13<*>
+                     v .! 14<*>
+                     v .! 15<*>
+                     v .! 16<*>
+                     v .! 17<*>
+                     v .! 18<*>
+                     v .! 19
+              False -> fail $ "There are " ++ show (V.length v) ++ " columns instead of the expected " ++ (show expectedCols)
+
+instance CDRFormat CSVFormat_colt where
+  getCallDate rc = Just <$> colt_convertCallDate (colt__date rc) (colt__time rc)
+
+  toCDR precision provider rc
+    = do cdr <- colt_toCDR Nothing rc precision provider
+         return [cdr]
+
+colt_convertCallDate :: ExportMaybeNull Text.Text -> ExportMaybeNull Text.Text -> Either AsterisellError LocalTime
+colt_convertCallDate d1 t1 = do
+  let parseDT d t = fromDateFormat2ToLocalTime '.' ' ' ':' (Text.concat [d, " ", t])
+  importAndConvertNotNullValue2 d1 t1 parseDT "callDate" "callTime" "call date"
+
+colt_toCDR :: Maybe Text.Text -> CSVFormat_colt -> CurrencyPrecisionDigits -> CDRProviderName -> Either AsterisellError CDR
+colt_toCDR maybeLocalPrefix rc precision provider = do 
+  callDate <- colt_convertCallDate (colt__date rc) (colt__time rc)
+  billsec <- importAndConvertNotNullValue (colt__billsec rc) fromTextToInt  "duration" "duration"
+  callerNumber <- Text.strip <$> importNotNullText (colt__caller rc) "callerNumber" "caller number"
+  calledNumber1 <- Text.strip <$> importNotNullText (colt__called rc) "calledNumber" "called number"
+  vendorCost <- importAndConvertNotNullValue (colt__cost rc) (fromTextToRational2 ',') "cost" "cost"
+
+  let calledNumber2
+          = case maybeLocalPrefix of
+              Nothing
+                  -> calledNumber1
+              Just localPrefix
+                   -> case Text.isPrefixOf "00" calledNumber1 of
+                        True -> Text.drop 2 calledNumber1
+                                -- this is an international calls, so normalize the number
+                        False -> case Text.isPrefixOf "0" calledNumber1 of
+                                   True -> Text.concat [localPrefix, Text.drop 1 calledNumber1]
+                                           -- this a local call, and normalize to a call using the default prefix
+                                   False -> calledNumber1
+
+  let cdr =  cdr_empty callDate precision
+  return $ cdr { cdr_duration = Just billsec
+               , cdr_billsec = Just billsec
+               , cdr_direction = CDR_outgoing
+               , cdr_channel = Just provider
+               , cdr_externalTelephoneNumber = calledNumber2
+               , cdr_internalTelephoneNumber = callerNumber
+               , cdr_expectedCost = Just vendorCost
+               }
+
+-- | CDRs calls where the international calls starts with 00,
+--   and local calls start with 0 and they are assigned to
+--   the international prefix 43 (Austria)
+newtype CSVFormat_colt43 = CSVFormat_colt43 CSVFormat_colt
+ deriving Show
+
+instance CSV.FromRecord CSVFormat_colt43 where
+     parseRecord v = do
+       rc :: CSVFormat_colt <- parseRecord v
+       return $ CSVFormat_colt43 rc 
+ 
+instance CDRFormat CSVFormat_colt43 where
+  getCallDate (CSVFormat_colt43 rc) = Just <$> colt_convertCallDate (colt__date rc) (colt__time rc)
+
+  toCDR precision provider (CSVFormat_colt43 rc)
+    = do cdr <- colt_toCDR (Just "43") rc precision provider
+         return [cdr]
 
 -- ---------------------------------------------
 -- TESTS
@@ -1312,7 +1430,7 @@ tt_customerSpecificImporters
   peak1  = fromJust $ fromMySQLDateTimeAsTextToLocalTime "2016-10-28 13:00:00"
   peak2  = fromJust $ fromMySQLDateTimeAsTextToLocalTime "2016-10-28 08:00:00"
   peak3  = fromJust $ fromMySQLDateTimeAsTextToLocalTime "2016-10-28 18:29:00"
-  off1  = fromJust $ fromMySQLDateTimeAsTextToLocalTime "2016-10-28 19:00:00"
+  off1   = fromJust $ fromMySQLDateTimeAsTextToLocalTime "2016-10-28 19:00:00"
   off2  = fromJust $ fromMySQLDateTimeAsTextToLocalTime "2016-10-28 05:00:00"
   off3  = fromJust $ fromMySQLDateTimeAsTextToLocalTime "2016-10-28 18:30:00"
   off4  = fromJust $ fromMySQLDateTimeAsTextToLocalTime "2016-10-28 00:00:00"

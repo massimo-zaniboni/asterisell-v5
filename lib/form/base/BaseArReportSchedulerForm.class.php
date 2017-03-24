@@ -34,6 +34,8 @@ abstract class BaseArReportSchedulerForm extends BaseFormPropel
       'days_to_add_to_legal_date_generation_method' => new sfWidgetFormInputText(),
       'is_yearly_legal_numeration'                  => new sfWidgetFormInputCheckbox(),
       'generate_only_if_there_is_cost'              => new sfWidgetFormInputCheckbox(),
+      'minimum_cost'                                => new sfWidgetFormInputText(),
+      'send_compact_report_list_to_accountant'      => new sfWidgetFormInputCheckbox(),
     ));
 
     $this->setValidators(array(
@@ -57,6 +59,8 @@ abstract class BaseArReportSchedulerForm extends BaseFormPropel
       'days_to_add_to_legal_date_generation_method' => new sfValidatorInteger(array('min' => -2147483648, 'max' => 2147483647, 'required' => false)),
       'is_yearly_legal_numeration'                  => new sfValidatorBoolean(array('required' => false)),
       'generate_only_if_there_is_cost'              => new sfValidatorBoolean(),
+      'minimum_cost'                                => new sfValidatorInteger(array('min' => -9.2233720368548E+18, 'max' => 9223372036854775807, 'required' => false)),
+      'send_compact_report_list_to_accountant'      => new sfValidatorBoolean(),
     ));
 
     $this->widgetSchema->setNameFormat('ar_report_scheduler[%s]');

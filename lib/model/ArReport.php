@@ -34,6 +34,24 @@ class ArReport extends BaseArReport
     }
 
     /**
+     * @return string the complete report legal/invoice code
+     */
+    public function getCompleteLegalCode() {
+        $r = '';
+        $t = $this->getLegalNrPrefix();
+        if (!isEmptyOrNull($t)) {
+            $r .= $t;
+        }
+
+        $t = $this->getLegalConsecutiveNr();
+        if (!isEmptyOrNull($t)) {
+            $r .= $t;
+        }
+
+        return $r;
+     }
+
+    /**
      * @param      string $d new value
      * @return     ArReport The current object (for fluent API support)
      */
@@ -135,19 +153,37 @@ class ArReport extends BaseArReport
     }
 
     /**
+     * @return ArReportSet
+     */
+    public function getArReportSet() {
+        $id = $this->getArReportSetId();
+        return ArReportSetPeer::retrieveByPK($id);
+    }
+
+    /**
+     * @return ArReportSet
+     */
+    public function getAboutArReportSet() {
+        $id = $this->getAboutArReportSetId();
+        return ArReportSetPeer::retrieveByPK($id);
+    }
+
+    /**
      * @param PropelPDO $conn
      * @param ReportCalcStore|null $store non null for reusing the store used in a similar report
+     * @param int|null $schedulerId
      * @return ReportCalcStore|null
      * @throws ArProblemException
      * precondition ! is_null($this->getId())
      */
-    public function generateDocument(PropelPDO $conn, $store = null)
+    public function generateDocument(PropelPDO $conn, $store = null, $schedulerId = null)
     {
         $generator = $this->getReportGenerator();
         if (!is_null($generator)) {
             if (!is_null($store)) {
                 $generator->setStore($store);
             }
+            $generator->setSchedulerId($schedulerId);
             $generator->generateReport($this, $conn);
             return $generator->getStore();
         } else {
@@ -176,5 +212,4 @@ class ArReport extends BaseArReport
 
         return parent::save($conn);
     }
-
 } // ArReport

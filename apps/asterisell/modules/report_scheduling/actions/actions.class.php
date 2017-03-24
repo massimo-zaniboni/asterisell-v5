@@ -157,6 +157,12 @@ class report_schedulingActions extends autoReport_schedulingActions
             $this->ArReportScheduler->setArOrganizationUnitId(null);
         }
 
-    }
+        $value = $this->getRequestParameter('insert_minimum_amount');
+        if (!isEmptyOrNull($value)) {
+            $value = convertToDbMoney($value);
+        }
+        $this->ArReportScheduler->setMinimumCost($value);
 
+    }
 }
+

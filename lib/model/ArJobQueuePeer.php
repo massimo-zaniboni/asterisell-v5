@@ -30,6 +30,7 @@ class ArJobQueuePeer extends BaseArJobQueuePeer
         $job->save(ArProblemException::getLogConnection());
 
         if (is_null($parentId)) {
+            // NOTE: now we have the ID of the job, and we make part of itself
             $newParentId = $job->getId();
             $job->setIsPartOf($newParentId);
             $job->save(ArProblemException::getLogConnection());
@@ -105,7 +106,7 @@ class ArJobQueuePeer extends BaseArJobQueuePeer
     }
 
     /**
-     * @return int|null null if there are no events
+     * @return int|null null if there are no events, the last event to do otherwise
      */
     public static function getLastEventId()
     {

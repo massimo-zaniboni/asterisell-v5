@@ -147,9 +147,43 @@ abstract class BaseArParty extends BaseObject  implements Persistent {
 	protected $migration_field_for_adsl;
 
 	/**
+	 * The value for the payment_iban field.
+	 * @var        string
+	 */
+	protected $payment_iban;
+
+	/**
+	 * The value for the payment_bic field.
+	 * @var        string
+	 */
+	protected $payment_bic;
+
+	/**
+	 * The value for the payment_sepa field.
+	 * @var        string
+	 */
+	protected $payment_sepa;
+
+	/**
+	 * The value for the payment_info field.
+	 * @var        string
+	 */
+	protected $payment_info;
+
+	/**
 	 * @var        ArReseller
 	 */
 	protected $aArReseller;
+
+	/**
+	 * @var        array ArPartyHasTag[] Collection to store aggregation of ArPartyHasTag objects.
+	 */
+	protected $collArPartyHasTags;
+
+	/**
+	 * @var        Criteria The criteria used to select the current contents of collArPartyHasTags.
+	 */
+	private $lastArPartyHasTagCriteria = null;
 
 	/**
 	 * @var        array ArOrganizationUnitHasStructure[] Collection to store aggregation of ArOrganizationUnitHasStructure objects.
@@ -457,6 +491,46 @@ abstract class BaseArParty extends BaseObject  implements Persistent {
 	public function getMigrationFieldForAdsl()
 	{
 		return $this->migration_field_for_adsl;
+	}
+
+	/**
+	 * Get the [payment_iban] column value.
+	 * 
+	 * @return     string
+	 */
+	public function getPaymentIban()
+	{
+		return $this->payment_iban;
+	}
+
+	/**
+	 * Get the [payment_bic] column value.
+	 * 
+	 * @return     string
+	 */
+	public function getPaymentBic()
+	{
+		return $this->payment_bic;
+	}
+
+	/**
+	 * Get the [payment_sepa] column value.
+	 * 
+	 * @return     string
+	 */
+	public function getPaymentSepa()
+	{
+		return $this->payment_sepa;
+	}
+
+	/**
+	 * Get the [payment_info] column value.
+	 * 
+	 * @return     string
+	 */
+	public function getPaymentInfo()
+	{
+		return $this->payment_info;
 	}
 
 	/**
@@ -913,6 +987,86 @@ abstract class BaseArParty extends BaseObject  implements Persistent {
 	} // setMigrationFieldForAdsl()
 
 	/**
+	 * Set the value of [payment_iban] column.
+	 * 
+	 * @param      string $v new value
+	 * @return     ArParty The current object (for fluent API support)
+	 */
+	public function setPaymentIban($v)
+	{
+		if ($v !== null) {
+			$v = (string) $v;
+		}
+
+		if ($this->payment_iban !== $v) {
+			$this->payment_iban = $v;
+			$this->modifiedColumns[] = ArPartyPeer::PAYMENT_IBAN;
+		}
+
+		return $this;
+	} // setPaymentIban()
+
+	/**
+	 * Set the value of [payment_bic] column.
+	 * 
+	 * @param      string $v new value
+	 * @return     ArParty The current object (for fluent API support)
+	 */
+	public function setPaymentBic($v)
+	{
+		if ($v !== null) {
+			$v = (string) $v;
+		}
+
+		if ($this->payment_bic !== $v) {
+			$this->payment_bic = $v;
+			$this->modifiedColumns[] = ArPartyPeer::PAYMENT_BIC;
+		}
+
+		return $this;
+	} // setPaymentBic()
+
+	/**
+	 * Set the value of [payment_sepa] column.
+	 * 
+	 * @param      string $v new value
+	 * @return     ArParty The current object (for fluent API support)
+	 */
+	public function setPaymentSepa($v)
+	{
+		if ($v !== null) {
+			$v = (string) $v;
+		}
+
+		if ($this->payment_sepa !== $v) {
+			$this->payment_sepa = $v;
+			$this->modifiedColumns[] = ArPartyPeer::PAYMENT_SEPA;
+		}
+
+		return $this;
+	} // setPaymentSepa()
+
+	/**
+	 * Set the value of [payment_info] column.
+	 * 
+	 * @param      string $v new value
+	 * @return     ArParty The current object (for fluent API support)
+	 */
+	public function setPaymentInfo($v)
+	{
+		if ($v !== null) {
+			$v = (string) $v;
+		}
+
+		if ($this->payment_info !== $v) {
+			$this->payment_info = $v;
+			$this->modifiedColumns[] = ArPartyPeer::PAYMENT_INFO;
+		}
+
+		return $this;
+	} // setPaymentInfo()
+
+	/**
 	 * Indicates whether the columns in this object are only set to default values.
 	 *
 	 * This method can be used in conjunction with isModified() to indicate whether an object is both
@@ -973,6 +1127,10 @@ abstract class BaseArParty extends BaseObject  implements Persistent {
 			$this->ar_reseller_id = ($row[$startcol + 18] !== null) ? (int) $row[$startcol + 18] : null;
 			$this->migration_field_for_telephone = ($row[$startcol + 19] !== null) ? (string) $row[$startcol + 19] : null;
 			$this->migration_field_for_adsl = ($row[$startcol + 20] !== null) ? (string) $row[$startcol + 20] : null;
+			$this->payment_iban = ($row[$startcol + 21] !== null) ? (string) $row[$startcol + 21] : null;
+			$this->payment_bic = ($row[$startcol + 22] !== null) ? (string) $row[$startcol + 22] : null;
+			$this->payment_sepa = ($row[$startcol + 23] !== null) ? (string) $row[$startcol + 23] : null;
+			$this->payment_info = ($row[$startcol + 24] !== null) ? (string) $row[$startcol + 24] : null;
 			$this->resetModified();
 
 			$this->setNew(false);
@@ -982,7 +1140,7 @@ abstract class BaseArParty extends BaseObject  implements Persistent {
 			}
 
 			// FIXME - using NUM_COLUMNS may be clearer.
-			return $startcol + 21; // 21 = ArPartyPeer::NUM_COLUMNS - ArPartyPeer::NUM_LAZY_LOAD_COLUMNS).
+			return $startcol + 25; // 25 = ArPartyPeer::NUM_COLUMNS - ArPartyPeer::NUM_LAZY_LOAD_COLUMNS).
 
 		} catch (Exception $e) {
 			throw new PropelException("Error populating ArParty object", $e);
@@ -1048,6 +1206,9 @@ abstract class BaseArParty extends BaseObject  implements Persistent {
 		if ($deep) {  // also de-associate any related objects?
 
 			$this->aArReseller = null;
+			$this->collArPartyHasTags = null;
+			$this->lastArPartyHasTagCriteria = null;
+
 			$this->collArOrganizationUnitHasStructures = null;
 			$this->lastArOrganizationUnitHasStructureCriteria = null;
 
@@ -1199,6 +1360,14 @@ abstract class BaseArParty extends BaseObject  implements Persistent {
 				$this->resetModified(); // [HL] After being saved an object is no longer 'modified'
 			}
 
+			if ($this->collArPartyHasTags !== null) {
+				foreach ($this->collArPartyHasTags as $referrerFK) {
+					if (!$referrerFK->isDeleted()) {
+						$affectedRows += $referrerFK->save($con);
+					}
+				}
+			}
+
 			if ($this->collArOrganizationUnitHasStructures !== null) {
 				foreach ($this->collArOrganizationUnitHasStructures as $referrerFK) {
 					if (!$referrerFK->isDeleted()) {
@@ -1305,6 +1474,14 @@ abstract class BaseArParty extends BaseObject  implements Persistent {
 				$failureMap = array_merge($failureMap, $retval);
 			}
 
+
+				if ($this->collArPartyHasTags !== null) {
+					foreach ($this->collArPartyHasTags as $referrerFK) {
+						if (!$referrerFK->validate($columns)) {
+							$failureMap = array_merge($failureMap, $referrerFK->getValidationFailures());
+						}
+					}
+				}
 
 				if ($this->collArOrganizationUnitHasStructures !== null) {
 					foreach ($this->collArOrganizationUnitHasStructures as $referrerFK) {
@@ -1426,6 +1603,18 @@ abstract class BaseArParty extends BaseObject  implements Persistent {
 			case 20:
 				return $this->getMigrationFieldForAdsl();
 				break;
+			case 21:
+				return $this->getPaymentIban();
+				break;
+			case 22:
+				return $this->getPaymentBic();
+				break;
+			case 23:
+				return $this->getPaymentSepa();
+				break;
+			case 24:
+				return $this->getPaymentInfo();
+				break;
 			default:
 				return null;
 				break;
@@ -1468,6 +1657,10 @@ abstract class BaseArParty extends BaseObject  implements Persistent {
 			$keys[18] => $this->getArResellerId(),
 			$keys[19] => $this->getMigrationFieldForTelephone(),
 			$keys[20] => $this->getMigrationFieldForAdsl(),
+			$keys[21] => $this->getPaymentIban(),
+			$keys[22] => $this->getPaymentBic(),
+			$keys[23] => $this->getPaymentSepa(),
+			$keys[24] => $this->getPaymentInfo(),
 		);
 		return $result;
 	}
@@ -1562,6 +1755,18 @@ abstract class BaseArParty extends BaseObject  implements Persistent {
 			case 20:
 				$this->setMigrationFieldForAdsl($value);
 				break;
+			case 21:
+				$this->setPaymentIban($value);
+				break;
+			case 22:
+				$this->setPaymentBic($value);
+				break;
+			case 23:
+				$this->setPaymentSepa($value);
+				break;
+			case 24:
+				$this->setPaymentInfo($value);
+				break;
 		} // switch()
 	}
 
@@ -1607,6 +1812,10 @@ abstract class BaseArParty extends BaseObject  implements Persistent {
 		if (array_key_exists($keys[18], $arr)) $this->setArResellerId($arr[$keys[18]]);
 		if (array_key_exists($keys[19], $arr)) $this->setMigrationFieldForTelephone($arr[$keys[19]]);
 		if (array_key_exists($keys[20], $arr)) $this->setMigrationFieldForAdsl($arr[$keys[20]]);
+		if (array_key_exists($keys[21], $arr)) $this->setPaymentIban($arr[$keys[21]]);
+		if (array_key_exists($keys[22], $arr)) $this->setPaymentBic($arr[$keys[22]]);
+		if (array_key_exists($keys[23], $arr)) $this->setPaymentSepa($arr[$keys[23]]);
+		if (array_key_exists($keys[24], $arr)) $this->setPaymentInfo($arr[$keys[24]]);
 	}
 
 	/**
@@ -1639,6 +1848,10 @@ abstract class BaseArParty extends BaseObject  implements Persistent {
 		if ($this->isColumnModified(ArPartyPeer::AR_RESELLER_ID)) $criteria->add(ArPartyPeer::AR_RESELLER_ID, $this->ar_reseller_id);
 		if ($this->isColumnModified(ArPartyPeer::MIGRATION_FIELD_FOR_TELEPHONE)) $criteria->add(ArPartyPeer::MIGRATION_FIELD_FOR_TELEPHONE, $this->migration_field_for_telephone);
 		if ($this->isColumnModified(ArPartyPeer::MIGRATION_FIELD_FOR_ADSL)) $criteria->add(ArPartyPeer::MIGRATION_FIELD_FOR_ADSL, $this->migration_field_for_adsl);
+		if ($this->isColumnModified(ArPartyPeer::PAYMENT_IBAN)) $criteria->add(ArPartyPeer::PAYMENT_IBAN, $this->payment_iban);
+		if ($this->isColumnModified(ArPartyPeer::PAYMENT_BIC)) $criteria->add(ArPartyPeer::PAYMENT_BIC, $this->payment_bic);
+		if ($this->isColumnModified(ArPartyPeer::PAYMENT_SEPA)) $criteria->add(ArPartyPeer::PAYMENT_SEPA, $this->payment_sepa);
+		if ($this->isColumnModified(ArPartyPeer::PAYMENT_INFO)) $criteria->add(ArPartyPeer::PAYMENT_INFO, $this->payment_info);
 
 		return $criteria;
 	}
@@ -1733,11 +1946,25 @@ abstract class BaseArParty extends BaseObject  implements Persistent {
 
 		$copyObj->setMigrationFieldForAdsl($this->migration_field_for_adsl);
 
+		$copyObj->setPaymentIban($this->payment_iban);
+
+		$copyObj->setPaymentBic($this->payment_bic);
+
+		$copyObj->setPaymentSepa($this->payment_sepa);
+
+		$copyObj->setPaymentInfo($this->payment_info);
+
 
 		if ($deepCopy) {
 			// important: temporarily setNew(false) because this affects the behavior of
 			// the getter/setter methods for fkey referrer objects.
 			$copyObj->setNew(false);
+
+			foreach ($this->getArPartyHasTags() as $relObj) {
+				if ($relObj !== $this) {  // ensure that we don't try to copy a reference to ourselves
+					$copyObj->addArPartyHasTag($relObj->copy($deepCopy));
+				}
+			}
 
 			foreach ($this->getArOrganizationUnitHasStructures() as $relObj) {
 				if ($relObj !== $this) {  // ensure that we don't try to copy a reference to ourselves
@@ -1851,6 +2078,207 @@ abstract class BaseArParty extends BaseObject  implements Persistent {
 			 */
 		}
 		return $this->aArReseller;
+	}
+
+	/**
+	 * Clears out the collArPartyHasTags collection (array).
+	 *
+	 * This does not modify the database; however, it will remove any associated objects, causing
+	 * them to be refetched by subsequent calls to accessor method.
+	 *
+	 * @return     void
+	 * @see        addArPartyHasTags()
+	 */
+	public function clearArPartyHasTags()
+	{
+		$this->collArPartyHasTags = null; // important to set this to NULL since that means it is uninitialized
+	}
+
+	/**
+	 * Initializes the collArPartyHasTags collection (array).
+	 *
+	 * By default this just sets the collArPartyHasTags collection to an empty array (like clearcollArPartyHasTags());
+	 * however, you may wish to override this method in your stub class to provide setting appropriate
+	 * to your application -- for example, setting the initial array to the values stored in database.
+	 *
+	 * @return     void
+	 */
+	public function initArPartyHasTags()
+	{
+		$this->collArPartyHasTags = array();
+	}
+
+	/**
+	 * Gets an array of ArPartyHasTag objects which contain a foreign key that references this object.
+	 *
+	 * If this collection has already been initialized with an identical Criteria, it returns the collection.
+	 * Otherwise if this ArParty has previously been saved, it will retrieve
+	 * related ArPartyHasTags from storage. If this ArParty is new, it will return
+	 * an empty collection or the current collection, the criteria is ignored on a new object.
+	 *
+	 * @param      PropelPDO $con
+	 * @param      Criteria $criteria
+	 * @return     array ArPartyHasTag[]
+	 * @throws     PropelException
+	 */
+	public function getArPartyHasTags($criteria = null, PropelPDO $con = null)
+	{
+		if ($criteria === null) {
+			$criteria = new Criteria(ArPartyPeer::DATABASE_NAME);
+		}
+		elseif ($criteria instanceof Criteria)
+		{
+			$criteria = clone $criteria;
+		}
+
+		if ($this->collArPartyHasTags === null) {
+			if ($this->isNew()) {
+			   $this->collArPartyHasTags = array();
+			} else {
+
+				$criteria->add(ArPartyHasTagPeer::AR_PARTY_ID, $this->id);
+
+				ArPartyHasTagPeer::addSelectColumns($criteria);
+				$this->collArPartyHasTags = ArPartyHasTagPeer::doSelect($criteria, $con);
+			}
+		} else {
+			// criteria has no effect for a new object
+			if (!$this->isNew()) {
+				// the following code is to determine if a new query is
+				// called for.  If the criteria is the same as the last
+				// one, just return the collection.
+
+
+				$criteria->add(ArPartyHasTagPeer::AR_PARTY_ID, $this->id);
+
+				ArPartyHasTagPeer::addSelectColumns($criteria);
+				if (!isset($this->lastArPartyHasTagCriteria) || !$this->lastArPartyHasTagCriteria->equals($criteria)) {
+					$this->collArPartyHasTags = ArPartyHasTagPeer::doSelect($criteria, $con);
+				}
+			}
+		}
+		$this->lastArPartyHasTagCriteria = $criteria;
+		return $this->collArPartyHasTags;
+	}
+
+	/**
+	 * Returns the number of related ArPartyHasTag objects.
+	 *
+	 * @param      Criteria $criteria
+	 * @param      boolean $distinct
+	 * @param      PropelPDO $con
+	 * @return     int Count of related ArPartyHasTag objects.
+	 * @throws     PropelException
+	 */
+	public function countArPartyHasTags(Criteria $criteria = null, $distinct = false, PropelPDO $con = null)
+	{
+		if ($criteria === null) {
+			$criteria = new Criteria(ArPartyPeer::DATABASE_NAME);
+		} else {
+			$criteria = clone $criteria;
+		}
+
+		if ($distinct) {
+			$criteria->setDistinct();
+		}
+
+		$count = null;
+
+		if ($this->collArPartyHasTags === null) {
+			if ($this->isNew()) {
+				$count = 0;
+			} else {
+
+				$criteria->add(ArPartyHasTagPeer::AR_PARTY_ID, $this->id);
+
+				$count = ArPartyHasTagPeer::doCount($criteria, false, $con);
+			}
+		} else {
+			// criteria has no effect for a new object
+			if (!$this->isNew()) {
+				// the following code is to determine if a new query is
+				// called for.  If the criteria is the same as the last
+				// one, just return count of the collection.
+
+
+				$criteria->add(ArPartyHasTagPeer::AR_PARTY_ID, $this->id);
+
+				if (!isset($this->lastArPartyHasTagCriteria) || !$this->lastArPartyHasTagCriteria->equals($criteria)) {
+					$count = ArPartyHasTagPeer::doCount($criteria, false, $con);
+				} else {
+					$count = count($this->collArPartyHasTags);
+				}
+			} else {
+				$count = count($this->collArPartyHasTags);
+			}
+		}
+		return $count;
+	}
+
+	/**
+	 * Method called to associate a ArPartyHasTag object to this object
+	 * through the ArPartyHasTag foreign key attribute.
+	 *
+	 * @param      ArPartyHasTag $l ArPartyHasTag
+	 * @return     void
+	 * @throws     PropelException
+	 */
+	public function addArPartyHasTag(ArPartyHasTag $l)
+	{
+		if ($this->collArPartyHasTags === null) {
+			$this->initArPartyHasTags();
+		}
+		if (!in_array($l, $this->collArPartyHasTags, true)) { // only add it if the **same** object is not already associated
+			array_push($this->collArPartyHasTags, $l);
+			$l->setArParty($this);
+		}
+	}
+
+
+	/**
+	 * If this collection has already been initialized with
+	 * an identical criteria, it returns the collection.
+	 * Otherwise if this ArParty is new, it will return
+	 * an empty collection; or if this ArParty has previously
+	 * been saved, it will retrieve related ArPartyHasTags from storage.
+	 *
+	 * This method is protected by default in order to keep the public
+	 * api reasonable.  You can provide public methods for those you
+	 * actually need in ArParty.
+	 */
+	public function getArPartyHasTagsJoinArTag($criteria = null, $con = null, $join_behavior = Criteria::LEFT_JOIN)
+	{
+		if ($criteria === null) {
+			$criteria = new Criteria(ArPartyPeer::DATABASE_NAME);
+		}
+		elseif ($criteria instanceof Criteria)
+		{
+			$criteria = clone $criteria;
+		}
+
+		if ($this->collArPartyHasTags === null) {
+			if ($this->isNew()) {
+				$this->collArPartyHasTags = array();
+			} else {
+
+				$criteria->add(ArPartyHasTagPeer::AR_PARTY_ID, $this->id);
+
+				$this->collArPartyHasTags = ArPartyHasTagPeer::doSelectJoinArTag($criteria, $con, $join_behavior);
+			}
+		} else {
+			// the following code is to determine if a new query is
+			// called for.  If the criteria is the same as the last
+			// one, just return the collection.
+
+			$criteria->add(ArPartyHasTagPeer::AR_PARTY_ID, $this->id);
+
+			if (!isset($this->lastArPartyHasTagCriteria) || !$this->lastArPartyHasTagCriteria->equals($criteria)) {
+				$this->collArPartyHasTags = ArPartyHasTagPeer::doSelectJoinArTag($criteria, $con, $join_behavior);
+			}
+		}
+		$this->lastArPartyHasTagCriteria = $criteria;
+
+		return $this->collArPartyHasTags;
 	}
 
 	/**
@@ -2562,6 +2990,11 @@ abstract class BaseArParty extends BaseObject  implements Persistent {
 	public function clearAllReferences($deep = false)
 	{
 		if ($deep) {
+			if ($this->collArPartyHasTags) {
+				foreach ((array) $this->collArPartyHasTags as $o) {
+					$o->clearAllReferences($deep);
+				}
+			}
 			if ($this->collArOrganizationUnitHasStructures) {
 				foreach ((array) $this->collArOrganizationUnitHasStructures as $o) {
 					$o->clearAllReferences($deep);
@@ -2579,6 +3012,7 @@ abstract class BaseArParty extends BaseObject  implements Persistent {
 			}
 		} // if ($deep)
 
+		$this->collArPartyHasTags = null;
 		$this->collArOrganizationUnitHasStructures = null;
 		$this->collArVendors = null;
 		$this->collArUsers = null;

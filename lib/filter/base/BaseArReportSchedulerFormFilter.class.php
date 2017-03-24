@@ -31,6 +31,8 @@ abstract class BaseArReportSchedulerFormFilter extends BaseFormFilterPropel
       'days_to_add_to_legal_date_generation_method' => new sfWidgetFormFilterInput(),
       'is_yearly_legal_numeration'                  => new sfWidgetFormChoice(array('choices' => array('' => 'yes or no', 1 => 'yes', 0 => 'no'))),
       'generate_only_if_there_is_cost'              => new sfWidgetFormChoice(array('choices' => array('' => 'yes or no', 1 => 'yes', 0 => 'no'))),
+      'minimum_cost'                                => new sfWidgetFormFilterInput(),
+      'send_compact_report_list_to_accountant'      => new sfWidgetFormChoice(array('choices' => array('' => 'yes or no', 1 => 'yes', 0 => 'no'))),
     ));
 
     $this->setValidators(array(
@@ -53,6 +55,8 @@ abstract class BaseArReportSchedulerFormFilter extends BaseFormFilterPropel
       'days_to_add_to_legal_date_generation_method' => new sfValidatorSchemaFilter('text', new sfValidatorInteger(array('required' => false))),
       'is_yearly_legal_numeration'                  => new sfValidatorChoice(array('required' => false, 'choices' => array('', 1, 0))),
       'generate_only_if_there_is_cost'              => new sfValidatorChoice(array('required' => false, 'choices' => array('', 1, 0))),
+      'minimum_cost'                                => new sfValidatorSchemaFilter('text', new sfValidatorInteger(array('required' => false))),
+      'send_compact_report_list_to_accountant'      => new sfValidatorChoice(array('required' => false, 'choices' => array('', 1, 0))),
     ));
 
     $this->widgetSchema->setNameFormat('ar_report_scheduler_filters[%s]');
@@ -90,6 +94,8 @@ abstract class BaseArReportSchedulerFormFilter extends BaseFormFilterPropel
       'days_to_add_to_legal_date_generation_method' => 'Number',
       'is_yearly_legal_numeration'                  => 'Boolean',
       'generate_only_if_there_is_cost'              => 'Boolean',
+      'minimum_cost'                                => 'Number',
+      'send_compact_report_list_to_accountant'      => 'Boolean',
     );
   }
 }

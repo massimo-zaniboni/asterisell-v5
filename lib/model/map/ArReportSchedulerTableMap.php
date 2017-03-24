@@ -56,6 +56,8 @@ class ArReportSchedulerTableMap extends TableMap {
 		$this->addColumn('DAYS_TO_ADD_TO_LEGAL_DATE_GENERATION_METHOD', 'DaysToAddToLegalDateGenerationMethod', 'INTEGER', false, null, null);
 		$this->addColumn('IS_YEARLY_LEGAL_NUMERATION', 'IsYearlyLegalNumeration', 'BOOLEAN', false, null, null);
 		$this->addColumn('GENERATE_ONLY_IF_THERE_IS_COST', 'GenerateOnlyIfThereIsCost', 'BOOLEAN', true, null, false);
+		$this->addColumn('MINIMUM_COST', 'MinimumCost', 'BIGINT', false, null, null);
+		$this->addColumn('SEND_COMPACT_REPORT_LIST_TO_ACCOUNTANT', 'SendCompactReportListToAccountant', 'BOOLEAN', true, null, false);
 		// validators
 	} // initialize()
 

@@ -35,6 +35,11 @@ abstract class BaseArPartyForm extends BaseFormPropel
       'ar_reseller_id'                     => new sfWidgetFormPropelChoice(array('model' => 'ArReseller', 'add_empty' => true)),
       'migration_field_for_telephone'      => new sfWidgetFormInputText(),
       'migration_field_for_adsl'           => new sfWidgetFormInputText(),
+      'payment_iban'                       => new sfWidgetFormInputText(),
+      'payment_bic'                        => new sfWidgetFormInputText(),
+      'payment_sepa'                       => new sfWidgetFormInputText(),
+      'payment_info'                       => new sfWidgetFormInputText(),
+      'ar_party_has_tag_list'              => new sfWidgetFormPropelChoice(array('multiple' => true, 'model' => 'ArTag')),
     ));
 
     $this->setValidators(array(
@@ -59,6 +64,11 @@ abstract class BaseArPartyForm extends BaseFormPropel
       'ar_reseller_id'                     => new sfValidatorPropelChoice(array('model' => 'ArReseller', 'column' => 'id', 'required' => false)),
       'migration_field_for_telephone'      => new sfValidatorString(array('max_length' => 255, 'required' => false)),
       'migration_field_for_adsl'           => new sfValidatorString(array('max_length' => 255, 'required' => false)),
+      'payment_iban'                       => new sfValidatorString(array('max_length' => 255, 'required' => false)),
+      'payment_bic'                        => new sfValidatorString(array('max_length' => 255, 'required' => false)),
+      'payment_sepa'                       => new sfValidatorString(array('max_length' => 255, 'required' => false)),
+      'payment_info'                       => new sfValidatorString(array('max_length' => 255, 'required' => false)),
+      'ar_party_has_tag_list'              => new sfValidatorPropelChoice(array('multiple' => true, 'model' => 'ArTag', 'required' => false)),
     ));
 
     $this->widgetSchema->setNameFormat('ar_party[%s]');
@@ -73,5 +83,64 @@ abstract class BaseArPartyForm extends BaseFormPropel
     return 'ArParty';
   }
 
+
+  public function updateDefaultsFromObject()
+  {
+    parent::updateDefaultsFromObject();
+
+    if (isset($this->widgetSchema['ar_party_has_tag_list']))
+    {
+      $values = array();
+      foreach ($this->object->getArPartyHasTags() as $obj)
+      {
+        $values[] = $obj->getArTagId();
+      }
+
+      $this->setDefault('ar_party_has_tag_list', $values);
+    }
+
+  }
+
+  protected function doSave($con = null)
+  {
+    parent::doSave($con);
+
+    $this->saveArPartyHasTagList($con);
+  }
+
+  public function saveArPartyHasTagList($con = null)
+  {
+    if (!$this->isValid())
+    {
+      throw $this->getErrorSchema();
+    }
+
+    if (!isset($this->widgetSchema['ar_party_has_tag_list']))
+    {
+      // somebody has unset this widget
+      return;
+    }
+
+    if (null === $con)
+    {
+      $con = $this->getConnection();
+    }
+
+    $c = new Criteria();
+    $c->add(ArPartyHasTagPeer::AR_PARTY_ID, $this->object->getPrimaryKey());
+    ArPartyHasTagPeer::doDelete($c, $con);
+
+    $values = $this->getValue('ar_party_has_tag_list');
+    if (is_array($values))
+    {
+      foreach ($values as $value)
+      {
+        $obj = new ArPartyHasTag();
+        $obj->setArPartyId($this->object->getPrimaryKey());
+        $obj->setArTagId($value);
+        $obj->save();
+      }
+    }
+  }
 
 }

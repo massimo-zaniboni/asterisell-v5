@@ -41,6 +41,11 @@ class ArReportSetTableMap extends TableMap {
 		$this->addColumn('FROM_DATE', 'FromDate', 'TIMESTAMP', true, null, null);
 		$this->addColumn('TO_DATE', 'ToDate', 'TIMESTAMP', true, null, null);
 		$this->addColumn('MUST_BE_REVIEWED', 'MustBeReviewed', 'BOOLEAN', true, null, true);
+		$this->addColumn('POSTPONED_FIELDS_ARE_UPDATED', 'PostponedFieldsAreUpdated', 'BOOLEAN', true, null, true);
+		$this->addColumn('POSTPONED_REPORTS', 'PostponedReports', 'INTEGER', true, null, 0);
+		$this->addColumn('POSTPONED_AMOUNT', 'PostponedAmount', 'BIGINT', true, null, 0);
+		$this->addColumn('REPORTS', 'Reports', 'INTEGER', true, null, 0);
+		$this->addColumn('AMOUNT', 'Amount', 'BIGINT', true, null, 0);
 		// validators
 	} // initialize()
 
@@ -50,7 +55,9 @@ class ArReportSetTableMap extends TableMap {
 	public function buildRelations()
 	{
     $this->addRelation('ArReportScheduler', 'ArReportScheduler', RelationMap::MANY_TO_ONE, array('ar_report_scheduler_id' => 'id', ), null, null);
-    $this->addRelation('ArReport', 'ArReport', RelationMap::ONE_TO_MANY, array('id' => 'ar_report_set_id', ), 'CASCADE', null);
+    $this->addRelation('ArReportRelatedByArReportSetId', 'ArReport', RelationMap::ONE_TO_MANY, array('id' => 'ar_report_set_id', ), 'CASCADE', null);
+    $this->addRelation('ArReportRelatedByAboutArReportSetId', 'ArReport', RelationMap::ONE_TO_MANY, array('id' => 'about_ar_report_set_id', ), 'CASCADE', null);
+    $this->addRelation('ArPostponedReport', 'ArPostponedReport', RelationMap::ONE_TO_MANY, array('id' => 'ar_report_set_id', ), 'CASCADE', null);
 	} // buildRelations()
 
 	/**

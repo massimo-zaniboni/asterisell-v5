@@ -24,10 +24,12 @@
 module Asterisell.Trie (
   CharMatchStrenght,
   ExtensionCode,
+  IsExtensionalMatch,
   ExtensionCodeAsText,
   Trie,
   trie_toKeyValueList,
   trie_getMatch,
+  trie_getMatch_initial,
   trie_empty,
   trie_add,
   trie_addWith,
@@ -54,10 +56,6 @@ import Data.Ratio
 import Data.Default
 
 import qualified Data.Map.Strict as Map
-
-import Control.Monad
-import Control.Monad.IO.Class       (liftIO)
-import Data.Word
 
 import qualified Test.HUnit as HUnit
 
@@ -256,31 +254,33 @@ trie_addExtensionCodesAsText initialTrie codes
 
 type CharMatchStrenght = Int
 
+-- | True if it is matched a strinng without "*" and "X" wildchars.
+type IsExtensionalMatch = Bool
+
+trie_getMatch_initial :: (CharMatchStrenght, IsExtensionalMatch)
+trie_getMatch_initial = (0, True)
+
 -- | The matching value inside the trie.
 --   Used usually for matching a telephone number with the best matching entry,
 --   or for matching an extension with an organization.
 --
---   Note that:
---     * there must be a value associated to a valid trie entry, otherwise there is no match.
---     * the user input "X*" is mapped to "X" and "*" because it must match first exactly one char, then zero or more chars. 
---     * "3*" has the value associated to "*", and not "3".
---     * "3X" has the value associated to "X".
-trie_getMatch :: CharMatchStrenght -> Trie a -> [Char] -> Maybe (CharMatchStrenght, a)
+--   Note that "123" match stronger than "1*".
+trie_getMatch :: (CharMatchStrenght, IsExtensionalMatch) -> Trie a -> [Char] -> Maybe ((CharMatchStrenght, IsExtensionalMatch), a)
 
-trie_getMatch s (Trie (Just value) _) []
-  = Just (s, value)
+trie_getMatch (s, ie) (Trie (Just value) _) []
+  = Just ((s, ie), value)
 
-trie_getMatch s (Trie Nothing tries) []
+trie_getMatch (s, ie) (Trie Nothing tries) []
   = case Map.lookup (CharMatch_AllChars) tries of
-      Just (Trie (Just r) _) -> Just (s, r)
+      Just (Trie (Just r) _) -> Just ((s, False), r)
       Just (Trie Nothing _) -> Nothing
       Nothing -> Nothing
 
-trie_getMatch s (Trie _ tries) (c:r)
+trie_getMatch (s, ie) (Trie _ tries) (c:r)
   = let path1 
           = case Map.lookup (CharMatch_Char c) tries of
               Just nextTrie
-                -> trie_getMatch (s + 1) nextTrie r
+                -> trie_getMatch (s + 1, ie) nextTrie r
                    -- NOTE: this can be Nothing in the end if the path has no success.
               Nothing
                 -> Nothing
@@ -288,24 +288,23 @@ trie_getMatch s (Trie _ tries) (c:r)
         path2 
           = case Map.lookup (CharMatch_AnyChar) tries of
               Just nextTrie
-                -> trie_getMatch (s + 1) nextTrie r
+                -> trie_getMatch (s + 1, False) nextTrie r
               Nothing
                 -> case Map.lookup (CharMatch_AllChars) tries of
                      Just (Trie Nothing _)
                        -> Nothing
                      Just (Trie (Just value) _)
-                       -> Just (s, value)
+                       -> Just ((s, False), value)
                      Nothing
                        -> Nothing
 
         bestPath Nothing Nothing = Nothing
         bestPath Nothing (Just r) = Just r
         bestPath (Just r) Nothing = Just r
-        bestPath (Just (s1, value1)) (Just (s2, value2)) 
-          = case s1 >= s2 of
-              True -> Just (s1, value1)
-                      -- NOTE: in case of same lenght favour always the path with the exact digit
-              False -> Just (s2, value2)
+        bestPath (Just ((s1, ie1), value1)) (Just ((s2, ie2), value2)) 
+          = if s1 >= s2
+            then Just ((s1, ie1), value1)
+            else Just ((s2, ie2), value2)
 
      in bestPath path1 path2
 
@@ -341,210 +340,235 @@ tt_trie_test
 
   tests = [HUnit.TestCase (HUnit.assertEqual
                          "t1"
-                         (Just (3, 1))
-                         (trie_getMatch 0 trie1 "123")
+                         (Just ((3, True), 1))
+                         (trie_getMatch trie_getMatch_initial trie1 "123")
                       )
 
           ,HUnit.TestCase (HUnit.assertEqual
                          "t2-1"
-                         (Just (4, 2))
-                         (trie_getMatch 0 trie1 "12340")
+                         (Just ((4, False), 2))
+                         (trie_getMatch trie_getMatch_initial trie1 "12340")
                       )
 
           ,HUnit.TestCase (HUnit.assertEqual
                          "t2-2"
-                         (Just (4, 2))
-                         (trie_getMatch 0 trie1 "1234")
+                         (Just ((4, False), 2))
+                         (trie_getMatch trie_getMatch_initial trie1 "1234")
                       )
 
           ,HUnit.TestCase (HUnit.assertEqual
                          "t3"
-                         (Just (4, 2))
-                         (trie_getMatch 0 trie1 "1234567")
+                         (Just ((4, False), 2))
+                         (trie_getMatch trie_getMatch_initial trie1 "1234567")
                       )
 
           ,HUnit.TestCase (HUnit.assertEqual
                          "t4"
-                         (Just (4, 3))
-                         (trie_getMatch 0 trie1 "1256")
+                         (Just ((4, False), 3))
+                         (trie_getMatch trie_getMatch_initial trie1 "1256")
                       )
 
           ,HUnit.TestCase (HUnit.assertEqual
                          "t5-1"
-                         (Just (4, 3))
-                         (trie_getMatch 0 trie1 "1256")
+                         (Just ((4, False), 3))
+                         (trie_getMatch trie_getMatch_initial trie1 "1256")
                       )
 
           ,HUnit.TestCase (HUnit.assertEqual
                          "t5-2"
-                         (Just (5, 4))
-                         (trie_getMatch 0 trie1 "12566")
+                         (Just ((5, False), 4))
+                         (trie_getMatch trie_getMatch_initial trie1 "12566")
                       )
 
           ,HUnit.TestCase (HUnit.assertEqual
                          "t5-3"
-                         (Just (5, 4))
-                         (trie_getMatch 0 trie1 "125667")
+                         (Just ((5, False), 4))
+                         (trie_getMatch trie_getMatch_initial trie1 "125667")
                       )
 
           ,HUnit.TestCase (HUnit.assertEqual
                          "t6"
-                         (Just (5, 4))
-                         (trie_getMatch 0 trie1 "12566353")
+                         (Just ((5, False), 4))
+                         (trie_getMatch trie_getMatch_initial trie1 "12566353")
                       )
 
           ,HUnit.TestCase (HUnit.assertEqual
                          "t7"
                          (Nothing)
-                         (trie_getMatch 0 trie1 "1238")
+                         (trie_getMatch trie_getMatch_initial trie1 "1238")
                       )
 
           ,HUnit.TestCase (HUnit.assertEqual
                          "t8"
-                         (Just (6, 5))
-                         (trie_getMatch 0 trie1 "1X5*\\,")
+                         (Just ((6, True), 5))
+                         (trie_getMatch trie_getMatch_initial trie1 "1X5*\\,")
                       )
+
           ,HUnit.TestCase (HUnit.assertEqual
                          "t9"
-                         (Just (3, 6))
-                         (trie_getMatch 0 trie1 "4567")
+                         (Just ((3, False), 6))
+                         (trie_getMatch trie_getMatch_initial trie1 "4567")
                       )
+
           ,HUnit.TestCase (HUnit.assertEqual
                          name1
-                         (Just (3, 6))
-                         (trie_getMatch 0 trie1 "45678")
+                         (Just ((3, False), 6))
+                         (trie_getMatch trie_getMatch_initial trie1 "45678")
                       )
+
           ,HUnit.TestCase (HUnit.assertEqual
                          name1
-                         (Just (1, 8))
-                         (trie_getMatch 0 trie1 "51")
+                         (Just ((1, False), 8))
+                         (trie_getMatch trie_getMatch_initial trie1 "51")
                       )
+
           ,HUnit.TestCase (HUnit.assertEqual
                          name1
-                         (Just (3, 6))
-                         (trie_getMatch 0 trie1 "4567")
+                         (Just ((3, False), 6))
+                         (trie_getMatch trie_getMatch_initial trie1 "4567")
                       )
  
           ,HUnit.TestCase (HUnit.assertEqual
                          name1
-                         (Just (3, 10))
-                         (trie_getMatch 0 trie1 "6178")
+                         (Just ((3, False), 10))
+                         (trie_getMatch trie_getMatch_initial trie1 "6178")
                       )
+
           ,HUnit.TestCase (HUnit.assertEqual
                          name1
-                         (Just (3, 10))
-                         (trie_getMatch 0 trie1 "6178666")
+                         (Just ((3, False), 10))
+                         (trie_getMatch trie_getMatch_initial trie1 "6178666")
                       )
          
           ,HUnit.TestCase (HUnit.assertEqual
                          "backtrack"
-                         (Just (3, 10))
-                         (trie_getMatch 0 trie1 "617")
+                         (Just ((3, False), 10))
+                         (trie_getMatch trie_getMatch_initial trie1 "617")
                       )
+
           ,HUnit.TestCase (HUnit.assertEqual
                          "backtrack"
-                         (Just (3, 10))
-                         (trie_getMatch 0 trie1 "6171")
+                         (Just ((3, False), 10))
+                         (trie_getMatch trie_getMatch_initial trie1 "6171")
                       )
+
           ,HUnit.TestCase (HUnit.assertEqual
                          "backtrack"
-                         (Just (4, 11))
-                         (trie_getMatch 0 trie1 "6231")
+                         (Just ((4, False), 11))
+                         (trie_getMatch trie_getMatch_initial trie1 "6231")
                       )
+
           ,HUnit.TestCase (HUnit.assertEqual
                          "backtrack with fail"
-                         (Just (1, 9))
-                         (trie_getMatch 0 trie1 "623")
+                         (Just ((1, False), 9))
+                         (trie_getMatch trie_getMatch_initial trie1 "623")
                       )
+
           ,HUnit.TestCase (HUnit.assertEqual
                          "backtrack with fail"
-                         (Just (1, 9))
-                         (trie_getMatch 0 trie1 "625")
+                         (Just ((1, False), 9))
+                         (trie_getMatch trie_getMatch_initial trie1 "625")
                       )
+
           ,HUnit.TestCase (HUnit.assertEqual
                          "backtrack with fail"
-                         (Just (1, 9))
-                         (trie_getMatch 0 trie1 "618")
+                         (Just ((1, False), 9))
+                         (trie_getMatch trie_getMatch_initial trie1 "618")
                       )
+
           ,HUnit.TestCase (HUnit.assertEqual
                          "backtrack with fail"
-                         (Just (1, 9))
-                         (trie_getMatch 0 trie1 "619")
+                         (Just ((1, False), 9))
+                         (trie_getMatch trie_getMatch_initial trie1 "619")
                       )
+
           ,HUnit.TestCase (HUnit.assertEqual
                          "backtrack with fail"
-                         (Just (1, 9))
-                         (trie_getMatch 0 trie1 "6753")
+                         (Just ((1, False), 9))
+                         (trie_getMatch trie_getMatch_initial trie1 "6753")
                       )
+
          ,HUnit.TestCase (HUnit.assertEqual
                          "backtrack with fail"
-                         (Just (1, 9))
-                         (trie_getMatch 0 trie1 "62")
+                         (Just ((1, False), 9))
+                         (trie_getMatch trie_getMatch_initial trie1 "62")
                       )
 
          ,HUnit.TestCase (HUnit.assertEqual
                          "recognize quotes"
-                         (Just (2, 41))
-                         (trie_getMatch 0 trie1 "1\\")
+                         (Just ((2, True), 41))
+                         (trie_getMatch trie_getMatch_initial trie1 "1\\")
                       )
+
         ,HUnit.TestCase (HUnit.assertEqual
                          "recognize quotes"
-                         (Just (2, 42))
-                         (trie_getMatch 0 trie1 "1X")
+                         (Just ((2, True), 42))
+                         (trie_getMatch trie_getMatch_initial trie1 "1X")
                       )
-        ,HUnit.TestCase (HUnit.assertEqual
-                         "recognize quotes"
-                         Nothing
-                         (trie_getMatch 0 trie1 "1B")
-                      )
-        ,HUnit.TestCase (HUnit.assertEqual
-                         "recognize quotes"
-                         (Just (4, 43))
-                         (trie_getMatch 0 trie1 "1X*1")
-                      )
-        ,HUnit.TestCase (HUnit.assertEqual
-                         "recognize quotes"
-                         (Just (3, 44))
-                         (trie_getMatch 0 trie1 "1B*")
-                      )
+
         ,HUnit.TestCase (HUnit.assertEqual
                          "recognize quotes"
                          Nothing
-                         (trie_getMatch 0 trie1 "1B*A")
+                         (trie_getMatch trie_getMatch_initial trie1 "1B")
                       )
+
+        ,HUnit.TestCase (HUnit.assertEqual
+                         "recognize quotes"
+                         (Just ((4, True), 43))
+                         (trie_getMatch trie_getMatch_initial trie1 "1X*1")
+                      )
+
+        ,HUnit.TestCase (HUnit.assertEqual
+                         "recognize quotes"
+                         (Just ((3, False), 44))
+                         (trie_getMatch trie_getMatch_initial trie1 "1B*")
+                      )
+
         ,HUnit.TestCase (HUnit.assertEqual
                          "recognize quotes"
                          Nothing
-                         (trie_getMatch 0 trie1 "1XA")
+                         (trie_getMatch trie_getMatch_initial trie1 "1B*A")
                       )
-       ,HUnit.TestCase (HUnit.assertEqual
-                         "priority"
-                         (Just (3, 81))
-                         (trie_getMatch 0 trie1 "812")
-                      )
-       ,HUnit.TestCase (HUnit.assertEqual
-                         "priority"
-                         (Just (3, 82))
-                         (trie_getMatch 0 trie1 "813")
-                       )
-       ,HUnit.TestCase (HUnit.assertEqual
-                         "priority"
-                         (Just (4, 83))
-                         (trie_getMatch 0 trie1 "8122")
-                       )
-       ,HUnit.TestCase (HUnit.assertEqual
-                         "priority"
+
+        ,HUnit.TestCase (HUnit.assertEqual
+                         "recognize quotes"
                          Nothing
-                         (trie_getMatch 0 trie1 "81222")
-                       )
+                         (trie_getMatch trie_getMatch_initial trie1 "1XA")
+                      )
+
        ,HUnit.TestCase (HUnit.assertEqual
-                         "priority"
-                         (Just (5, 12))
-                         (trie_getMatch 0 trie1 "623XA")
-                       )
+                         "priority 1"
+                         (Just ((3, True), 81))
+                         (trie_getMatch trie_getMatch_initial trie1 "812")
+                      )
+
        ,HUnit.TestCase (HUnit.assertEqual
-                         "priority"
-                         (Just (5, 12))
-                         (trie_getMatch 0 trie1 "623XAA")
+                         "priority 2"
+                         (Just ((3, False), 82))
+                         (trie_getMatch trie_getMatch_initial trie1 "813")
+                       )
+
+       ,HUnit.TestCase (HUnit.assertEqual
+                         "priority 3"
+                         (Just ((4, False), 83))
+                         (trie_getMatch trie_getMatch_initial trie1 "8122")
+                       )
+
+       ,HUnit.TestCase (HUnit.assertEqual
+                         "priority 4"
+                         Nothing
+                         (trie_getMatch trie_getMatch_initial trie1 "81222")
+                       )
+
+       ,HUnit.TestCase (HUnit.assertEqual
+                         "priority 5"
+                         (Just ((5, False), 12))
+                         (trie_getMatch trie_getMatch_initial trie1 "623XA")
+                       )
+
+       ,HUnit.TestCase (HUnit.assertEqual
+                         "priority 6"
+                         (Just ((5, False), 12))
+                         (trie_getMatch trie_getMatch_initial trie1 "623XANA")
                        )
           ]

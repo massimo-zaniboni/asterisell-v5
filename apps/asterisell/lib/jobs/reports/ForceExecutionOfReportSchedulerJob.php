@@ -59,7 +59,7 @@ class ForceExecutionOfReportSchedulerJob extends JobProcessor
                 $generator = new ScheduledReportGenerator();
                 $generator->setArReportScheduler($scheduler);
 
-                $countReports = $generator->generateAssociatedReports($scheduler, $jobData->fromDate);
+                $countReports = $generator->generateAssociatedReports($scheduler, $jobData->fromDate, $parentId);
                 $prof->addToProcessedUnits($countReports);
 
                 ArProblemException::createWithGarbageCollection(
@@ -71,7 +71,7 @@ class ForceExecutionOfReportSchedulerJob extends JobProcessor
                     0,
                     time(),
                     $prof->stop(),
-                    'Info message for inspecting report generation spped.',
+                    'Info message for inspecting report generation speed.',
                     'If report generation is too much slow, contact the assistance.',
                     null);
 

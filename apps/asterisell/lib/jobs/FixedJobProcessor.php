@@ -757,11 +757,22 @@ abstract class FixedJobProcessor
      */
     protected function commitTransactionOrSignalProblem(PDO $conn)
     {
+        self::commitTransactionOrSignalProblem_static($conn, get_class($this));
+    }
+
+    /**
+     * @param PDO $conn
+     * @param string $className
+     * @return void
+     * @throws ArProblemException
+     */
+    public static function commitTransactionOrSignalProblem_static(PDO $conn, $className)
+    {
         $result = $conn->commit();
 
         if ($result === false) {
 
-            $problemDuplicationKey = "error on " . get_class($this) . ' - ' . time() . '-' . rand();
+            $problemDuplicationKey = "error on " . $className . ' - ' . time() . '-' . rand();
             $problemDescription = 'Error during commit. ';
             $problemEffect = "The data is not saved, and it mantains its original value.";
             $problemProposedSolution = "If the error persist, contact the assistance because this is an error in the application.";
@@ -769,7 +780,6 @@ abstract class FixedJobProcessor
             throw($p);
         }
     }
-
 
     /**
      * Rollback only if there is an active transaction.

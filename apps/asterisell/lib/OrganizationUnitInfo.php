@@ -435,8 +435,9 @@ SQL;
      * @param int|null $queryDate
      * @return array|null null if the $organizationId is not known,
      *         a value with self::DATA_STRUCTURE_EXISTS to false if the organization does not exists
-     *         at the specified date,
-     *         the array with the info data.
+     *         at the specified date, but it is created in the future.
+     *         The array is the array with the info data.
+     *
      */
     public function getDataInfo($organizationId, $queryDate)
     {
@@ -1542,6 +1543,74 @@ SQL;
 
         return $processed;
     }
+
+    /**
+     * @param int $organizationId
+     * @param int|null $fromDate
+     * @param int|null $toDate
+     * @return array with childId => true, but only for children active in the specified time frame
+     */
+    public function getAllChildrenAtDate($organizationId, $fromDate, $toDate) {
+        $result = $this->getAllChildren($organizationId);
+
+        $childrenToRemove = array();
+        foreach($result as $childId => $alwaysTrue) {
+            $data = $this->getDataInfo($childId, $fromDate);
+
+            $childDate = $data[self::DATA_STRUCTURE_FROM];
+            if (is_null($toDate) || $childDate > $toDate) {
+                array_push($childrenToRemove, $childId);
+            }
+        }
+
+        foreach($childrenToRemove as $childId) {
+            unset($result[$childId]);
+        }
+
+        return $result;
+    }
+
+    /**
+     * @param int $organizationId
+     * @param int|null $fromDate
+     * @param int|null $toDate
+     * @param string|null $filterOnInternalNamePrefix insert only extensions with the specified internal_name prefix
+     * @param string|null $filterOnNotInternalNamePrefix insert only extensions without the specified internal_name prefix
+     * @return array of DIDS as values
+     */
+    public function getAllDIDSAtDate($organizationId, $fromDate, $toDate, $filterOnInternalNamePrefix = null, $filterOnNotInternalNamePrefix = null) {
+        $children = $this->getAllChildrenAtDate($organizationId, $organizationId, $fromDate, $toDate);
+
+        $result = array();
+        foreach($children as $childId => $alwaysTrue) {
+            $data = $this->getDataInfo($childId, $fromDate);
+            if ($data[self::DATA_UNIT_TYPE_IS_LEAF]) {
+               $internalName = $data[self::DATA_UNIT_INTERNAL_NAME];
+               if (is_null($filterOnInternalNamePrefix)) {
+                   $passFilter1 = true;
+               } else {
+                   $passFilter1 = isPrefixOf($filterOnInternalNamePrefix, $internalName);
+               }
+
+               if (is_null($filterOnNotInternalNamePrefix)) {
+                  $passFilter2 = true;
+               } else {
+                   $passFilter2 = ! isPrefixOf($filterOnNotInternalNamePrefix, $internalName);
+               }
+
+               if ($passFilter1 && $passFilter2) {
+                $v = $data[self::DATA_EXTENSION_NAME];
+                if (isEmptyOrNull($v)) {
+                   $v = $data[self::DATA_EXTENSION_CODES];
+                }
+                array_push($result, $v);
+               }
+            }
+        }
+
+        return $result;
+    }
+
 
     /**
      * @param int $organizationId

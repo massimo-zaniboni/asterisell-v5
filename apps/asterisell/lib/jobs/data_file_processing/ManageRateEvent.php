@@ -141,7 +141,7 @@ class ManageRateEvent extends FixedJobProcessor
         $stm = $conn->prepare($query);
         $stm->execute(array($tf, $tt));
 
-        self::commitTransactionOrSignalProblem($conn, 'invalidate pending reports');
+        self::commitTransactionOrSignalProblem_static($conn, 'invalidate pending reports');
     }
 
     public function process()
@@ -323,6 +323,9 @@ class ManageRateEvent extends FixedJobProcessor
 
             self::assertCondition(!is_null($exportFromDate), "Rate without an associated time-frame from which load rating params.");
             $this->exportConfigurationFiles($exportFromDate);
+
+            // Start with an empty state about this
+            $conn->exec('TRUNCATE ar_expanded_extensions');
 
             // Call the external rating engine.
 

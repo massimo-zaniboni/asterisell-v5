@@ -24,12 +24,7 @@
 class PlaceHolderForInvoiceNumeration extends ReportGenerator
 {
 
-    /**
-     * Return a calculated store.
-     *
-     * @return ReportCalcStore
-     */
-    protected function calcStore() {
+    protected function calcStore($schedulerId) {
       return new EmptyReportCalcStore();
     }
 

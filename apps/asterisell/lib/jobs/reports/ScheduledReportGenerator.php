@@ -1,7 +1,7 @@
 <?php
-/* $LICENSE 2012, 2013:
+/* $LICENSE 2012, 2013, 2017:
  *
- * Copyright (C) 2012, 2013 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
+ * Copyright (C) 2012, 2013, 2017 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
  *
  * This file is part of Asterisell.
  *
@@ -97,9 +97,11 @@ class ScheduledReportGenerator
             $reportSet = $this->initGeneratorAndGetOrCreateReportSet($conn, $report, $fromDate);
 
             if (!is_null($reportSet->getId())) {
+                $reportSet->deleteAssociatedReports($conn);
+                // NOTE: due to conflicts in constraints, first must delete associated reports.
+
                 $stmt = $conn->prepare('DELETE FROM ar_report_set WHERE id = ?');
                 $isOk = $stmt->execute(array($reportSet->getId()));
-                // NOTE: associated reports are delete using the cascading constraint
 
                 if ($isOk === FALSE) {
                     throw(ArProblemException::createWithoutGarbageCollection(
@@ -117,7 +119,6 @@ class ScheduledReportGenerator
             throw($e);
         } catch (Exception $e) {
             $conn->rollBack();
-
             throw(ArProblemException::createFromGenericExceptionWithoutGarbageCollection($e, get_class($this), 'Scheduled report generation: ' . $this->getName(), "Scheduled reports are not generated", "If the error persist contact the assistance."));
         }
     }
@@ -188,24 +189,36 @@ class ScheduledReportGenerator
      *
      * @param ArReportScheduler $report
      * @param int $fromDate when the reports must be generated, null for current time
+     * @param int|null $parentJobId in case the method was called from a job
      * @return int the generated reports
      * @throws ArProblemException
      */
-    public function generateAssociatedReports(ArReportScheduler $report, $fromDate)
+    public function generateAssociatedReports(ArReportScheduler $report, $fromDate, $parentJobId = null)
     {
         /**
          * @var PropelPDO $conn
          */
+        $count = 0;
         $conn = Propel::getConnection();
         $conn->beginTransaction();
         try {
+
             $reportSet = $this->initGeneratorAndGetOrCreateReportSet($conn, $report, $fromDate);
+
             $count = $this->createAllOrganizationReportsAccordingReferenceDate($conn, $fromDate, $reportSet);
+            // NOTE: this command delete also associated reports (but not the report-set)
+
+            $stmt = $conn->prepare('CALL proc_update_postponed_reportset_amounts(?)');
+            $stmt->execute(array($reportSet->getId()));
+
+            if ($report->getSendCompactReportListToAccountant() === true) {
+              $d = new GenerateSummaryReportEvent();
+              $d->reportSetId = $reportSet->getId();
+              ArJobQueuePeer::addNew($d, $parentJobId, null);
+            }
+
             $conn->commit();
-
-            return $count;
-
-        } catch (ArProblemException $e) {
+       } catch (ArProblemException $e) {
             $conn->rollBack();
 
             throw($e);
@@ -214,6 +227,19 @@ class ScheduledReportGenerator
 
             throw(ArProblemException::createFromGenericExceptionWithoutGarbageCollection($e, get_class($this), 'Scheduled report generation: ' . $this->getName(), "Scheduled reports are not generated", "If the error persist contact the assistance."));
         }
+
+        if (!is_null($report->getMinimumCost()) && $report->getMinimumCost() > 0) {
+                //NOTE: if a report-set has no minimum cost, then it is correct because the code
+                // generating it is simple.
+                //
+                // Otherwise if it has minimun cost then 99% of the times it is used for generating
+                // customer invoices, and the code for postponing them can be error-prone,
+                // so it is tested that it is all ok.
+                // It is an heuristic respect an explicit flag on scheduled reports saying if
+                // a check must be performed, but it is good enough.
+                $this->checkPostponedReportSet($report, $reportSet->getId());
+        }
+        return $count;
     }
 
     /**
@@ -233,13 +259,15 @@ class ScheduledReportGenerator
      * @param int|null $legalDate
      * @param int|null $legalNr
      * @param bool $onlyIfThereIsCost true if the report must be generated only if there is cost
+     * @param int $minimumCost if the total is < of this value, the report is postponed
      *
      * @return bool|null true if the report is already reviewed and can be sent to users,
      *         false if the report must be reviewed, for example after generation it is in draft mode,
-     *         null if the report must be not generated
+     *         null if the report must be not generated (no totals, or postponed)
+     *
      * @throws ArProblemException
      */
-    protected function createReportAccordingReferenceDateOrganizationAndRange(PDO $conn, ArReport $template, $reportSetId, $arOrganizationId, $from, $to, $legalDate = null, $legalNr = null, $onlyIfThereIsCost = false)
+    protected function createReportAccordingReferenceDateOrganizationAndRange(PDO $conn, ArReport $template, $reportSetId, $arOrganizationId, $from, $to, $legalDate = null, $legalNr = null, $onlyIfThereIsCost = false, $minimumCost = 0)
     {
         /**
          * @var PropelPDO $conn
@@ -254,7 +282,7 @@ class ScheduledReportGenerator
         $report->setArOrganizationUnitId($arOrganizationId);
 
         // generate the report reusing the shared store
-        $this->sharedReportCalcStore = $report->generateDocument($conn, $this->sharedReportCalcStore);
+        $this->sharedReportCalcStore = $report->generateDocument($conn, $this->sharedReportCalcStore, $this->getArReportScheduler()->getId());
 
         if ($report->getProducedReportIsDraft()) {
             $report->setProducedReportAlreadyReviewed(false);
@@ -266,11 +294,24 @@ class ScheduledReportGenerator
             }
         }
 
-        if ($onlyIfThereIsCost && (is_null($report->getTotalWithTax()) || $report->getTotalWithTax() == 0)) {
+        if (($onlyIfThereIsCost || $minimumCost > 0) && (is_null($report->getTotalWithTax()) || $report->getTotalWithTax() == 0)) {
             if (!$report->isDeleted() && !$report->isNew()) {
                 $report->delete($conn);
             }
             return null;
+        } else if ($minimumCost > 0 && $report->getTotalWithoutTax() < $minimumCost) {
+            if (!$report->isDeleted() && !$report->isNew()) {
+                $report->delete($conn);
+            }
+
+            // NOTE: use a REPLACE stmt because it does not issue an error if the two primary keys already exists
+            $postStmt = $conn->prepare('
+             REPLACE INTO ar_postponed_report(ar_report_set_id, ar_organization_unit_id)
+             VALUES(?,?);');
+            $postStmt->execute(array($reportSetId, $arOrganizationId));
+
+            return null;
+
         } else {
             $report->save($conn);
             $stmt = $conn->prepare('CALL create_reports_from_other_report(?,?)');
@@ -308,6 +349,14 @@ class ScheduledReportGenerator
         $templateReport = $this->getArReportScheduler()->getArReport();
 
         $onlyIfThereIsCost = $this->getArReportScheduler()->getGenerateOnlyIfThereIsCost();
+        if (is_null($onlyIfThereIsCost)) {
+            $onlyIfThereIsCost = false;
+        }
+
+        $minimumCost = $this->getArReportScheduler()->getMinimumCost();
+        if (is_null($minimumCost)) {
+            $minimumCost = 0;
+        }
 
         $reportSet->deleteAssociatedReports($conn);
 
@@ -362,12 +411,12 @@ class ScheduledReportGenerator
             assert(!is_null($legalDate));
 
             // Search the first legal number to use
-
+            // NOTE: first order by date, because at change of year it must start with minor numbers
             $stm = $conn->prepare('
             SELECT legal_date, legal_consecutive_nr
             FROM ar_report
             WHERE legal_date IS NOT NULL
-            ORDER BY legal_date DESC
+            ORDER BY legal_date DESC, legal_consecutive_nr DESC
             LIMIT 1');
             $stm->execute(array());
 
@@ -397,9 +446,6 @@ class ScheduledReportGenerator
 
         }
 
-        // TODO add a test checking that the timeframe of each report does not change,
-        // because otherwise we can not share the store
-
         // Start with initial organizations, according report params
 
         $organizations = array();
@@ -428,6 +474,24 @@ class ScheduledReportGenerator
             $generateThisReport = false;
             $exploreChildren = false;
 
+            /**
+             * @var ArOrganizationUnit $organizationUnit
+             */
+            $info = OrganizationUnitInfo::getInstance()->getDataInfo($organizationId, $fromDate);
+
+            // Check if the party has the specified TAG
+            $partyId = OrganizationUnitInfo::getInstance()->getArPartyId($organizationId, $fromDate);
+            $tagId = $templateReport->getArTagId();
+            if (is_null($tagId)) {
+                $isTagFilterRespected = true;
+            } else {
+                if (is_null($partyId)) {
+                    $isTagFilterRespected = false;
+                } else {
+                    $isTagFilterRespected = ArPartyPeer::hasTag($partyId, $tagId);
+                }
+            }
+
             if (is_null($organizationId)) {
                 if ($generationMethod == ArReportGeneration::GENERATE_ONLY_FOR_SPECIFIED_ORGANIZATION) {
                     $exploreChildren = false;
@@ -437,10 +501,6 @@ class ScheduledReportGenerator
                 }
             } else {
 
-                /**
-                 * @var ArOrganizationUnit $organizationUnit
-                 */
-                $info = OrganizationUnitInfo::getInstance()->getDataInfo($organizationId, $fromDate);
 
                 if (!is_null($info)) {
 
@@ -490,8 +550,8 @@ class ScheduledReportGenerator
                 }
             }
 
-            if ($generateThisReport) {
-                $isReviewed = $this->createReportAccordingReferenceDateOrganizationAndRange($conn, $templateReport, $reportSet->getId(), $organizationId, $fromDate, $toDate, $legalDate, $legalNr, $onlyIfThereIsCost);
+            if ($generateThisReport && $isTagFilterRespected) {
+                $isReviewed = $this->createReportAccordingReferenceDateOrganizationAndRange($conn, $templateReport, $reportSet->getId(), $organizationId, $fromDate, $toDate, $legalDate, $legalNr, $onlyIfThereIsCost, $minimumCost);
                 if (is_null($isReviewed)) {
                     // the report has no cost, and it can be skipped
                 } else {
@@ -710,15 +770,164 @@ class ScheduledReportGenerator
         }
     }
 
-    //////////////////////
-    // UTILITY FUNCTION //
-    //////////////////////
+    /////////////////////
+    // CHECK FUNCTIONS //
+    /////////////////////
+
+    /**
+     * @param ArReportScheduler $scheduler
+     * @param int $reportSetId
+     * @return bool true if totals are corract, false otherwise. Signal also problems on the error table.
+     *
+     * @require report set has a limit (optionally) and reports have a cost and their sum
+     * is equal to the sum of cdrs in the time-frame, except the postponed costs.
+     *
+     */
+    public function checkPostponedReportSet(ArReportScheduler $scheduler, $reportSetId)
+    {
+        $conn = Propel::getConnection();
+
+        // Retrieve the default time-frame of report-set,
+        // without taking in consideration postponed/included reports.
+
+        // Get more recent report-sets
+        $queryReportSets = '
+          SELECT DISTINCT ss.id AS id
+           FROM ar_report_set AS s1
+           ,    ar_report_set AS ss
+           WHERE s1.id = ?
+           AND   ss.ar_report_scheduler_id = s1.ar_report_scheduler_id
+           AND   ss.from_date <= s1.from_date
+           ORDER BY ss.from_date DESC LIMIT 3
+        ';
+
+        // Get the time-frame to consider for checking recent report-sets
+        $queryMinMaxDate = '
+        SELECT MIN(rp.from_date)
+        ,      MAX(rp.to_date)
+        FROM (' . $queryReportSets . ') AS rs
+        , ar_report AS rp
+        WHERE rp.ar_report_set_id = rs.id
+        ';
+
+        $stmt = $conn->prepare($queryMinMaxDate);
+        $stmt->execute(array($reportSetId));
+
+        $minFromDate = null;
+        $maxToDate = null;
+
+        while (($rs = $stmt->fetch(PDO::FETCH_NUM)) !== false) {
+            $fromDate = fromMySQLTimestampToUnixTimestamp($rs[0]);
+            $toDate = fromMySQLTimestampToUnixTimestamp($rs[1]);
+
+            if (is_null($minFromDate) || $fromDate < $minFromDate) {
+                $minFromDate = $fromDate;
+            }
+
+            if (is_null($maxToDate) || $toDate > $maxToDate) {
+                $maxToDate = $toDate;
+            }
+        }
+        $stmt->closeCursor();
+
+        // Execute totals by reports
+
+        $sql1 = '
+        SELECT rp.ar_organization_unit_id
+        ,      SUM(rp.total_without_tax)
+        FROM (' . $queryReportSets . ') AS rs
+        , ar_report AS rp
+        WHERE rp.ar_report_set_id = rs.id
+        GROUP BY rp.ar_organization_unit_id
+        ';
+
+        $stmt = $conn->prepare($sql1);
+        $stmt->execute(array($reportSetId));
+
+        $group = array();
+
+        while (($rs = $stmt->fetch(PDO::FETCH_NUM)) !== false) {
+            $id = $rs[0];
+            $tot = $rs[1];
+            $group[$id] = $tot;
+        }
+        $stmt->closeCursor();
+
+        // Now execute totals by CDRs in the nominal time-frame and check if they are the
+        // same totals of effective reports, with also postponed/included values
+        // minus/plus the minimum postponed income.
+
+        $minimumCost = $scheduler->getMinimumCost();
+        if (is_null($minimumCost)) {
+            $minimumCost = 0;
+        }
+
+        $sql2 = '
+        SELECT billable_ar_organization_unit_id AS unit_id
+        ,      SUM(income)
+        FROM ar_cdr FORCE INDEX (ar_cdr_calldate_index)
+        WHERE calldate >= ?
+        AND   calldate < ?
+        GROUP BY billable_ar_organization_unit_id
+        ';
+
+        $stmt = $conn->prepare($sql2);
+        $stmt->execute(array(fromUnixTimestampToMySQLTimestamp($minFromDate), fromUnixTimestampToMySQLTimestamp($maxToDate)));
+
+        $isAllOk = true;
+        while (($rs = $stmt->fetch(PDO::FETCH_NUM)) !== false) {
+            $id = $rs[0];
+            $cdrTot = $rs[1];
+
+            if (array_key_exists($id, $group)) {
+                $groupTot = $group[$id];
+            } else {
+                // in case of postponed organizations
+                $groupTot = 0;
+            }
+
+            if (abs($groupTot - $cdrTot) > ($minimumCost * 1.1)) {
+                $isAllOk = false;
+
+                $errorInfo = "The report sets from " . fromUnixTimestampToMySQLTimestamp($minFromDate)
+                . " to " . fromUnixTimestampToMySQLTimestamp($maxToDate)
+                . ", generated by the report scheduler " . $scheduler->getId() . " "
+                . " have a total of " . from_db_decimal_to_monetary_txt_according_locale($groupTot)
+                . " for the organization with id " . $id . ", and name " . OrganizationUnitInfo::getInstance()->getFullNameAtDate($id, null, false, false)
+                . ", that is different from the totals of incomes of CDRs that is " . from_db_decimal_to_monetary_txt_according_locale($cdrTot)
+                . ". Difference is " . from_db_decimal_to_monetary_txt_according_locale(abs($cdrTot - $groupTot))
+                . ", and it is superior to the minimum invoice postpone of "
+                . from_db_decimal_to_monetary_txt_according_locale($minimumCost)
+                . ".";
+                $errorSolution = "If you have modified the parameters of the scheduler, or of organizations you need to regenerate the reports. Otherwise contact the assistance, because it is an error of the application.";
+                $errorEffect = "You are billing more or less money respect the totals of rated CDRs.";
+
+                ArProblemException::createWithoutGarbageCollection(
+                    ArProblemType::TYPE_ERROR,
+                    ArProblemDomain::APPLICATION,
+                    null,
+                    get_class($this),
+                    $errorInfo,
+                    $errorEffect,
+                    $errorSolution);
+            }
+        }
+        $stmt->closeCursor();
+
+        return $isAllOk;
+
+    }
+
+//////////////////////
+// UTILITY FUNCTION //
+//////////////////////
 
     /**
      * @param int $fromDate the starting date of calls in the report
      * @return int the ending date (exclusive) of the calls in the report
      */
-    public function getReportRangeToDate($fromDate)
+    public
+    function getReportRangeToDate($fromDate)
     {
 
         $scheduler = $this->getArReportScheduler();
@@ -743,7 +952,8 @@ class ScheduledReportGenerator
      * @param int $atDate
      * @return bool true if the report can be executed
      */
-    public function getCanBeExecuted($atDate)
+    public
+    function getCanBeExecuted($atDate)
     {
         // avoid the execution if there is no data because it is the first installation
         if (is_null(ArCdrPeer::doSelectOne(new Criteria()))) {

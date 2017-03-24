@@ -108,10 +108,10 @@ parse_csvStdFormat useHeader fieldSeparator decimalSeparator rowsToIgnoreStart r
  where
 
   deriveRateMatchFun trie env cdr
-    = case trie_getMatch 0 trie (Text.unpack $ fromJust1 "d1" $ cdr_externalTelephoneNumberWithAppliedPortability cdr) of
+    = case trie_getMatch trie_getMatch_initial trie (Text.unpack $ fromJust1 "d1" $ cdr_externalTelephoneNumberWithAppliedPortability cdr) of
         Nothing
           -> Nothing
-        Just (m, calcParams)
+        Just ((m, _), calcParams)
           -> Just (MatchStrenght { matchStrenght_telephoneNumber = m }, calcParams)
 
   buildTrie trie1 (prefix, calcParams)

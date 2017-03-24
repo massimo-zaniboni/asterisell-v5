@@ -353,6 +353,12 @@ abstract class BaseArOrganizationUnitPeer {
 	 */
 	public static function clearRelatedInstancePool()
 	{
+		// invalidate objects in ArPostponedReportPeer instance pool, since one or more of them may be deleted by ON DELETE CASCADE rule.
+		ArPostponedReportPeer::clearInstancePool();
+
+		// invalidate objects in ArPostponedReportTmpPeer instance pool, since one or more of them may be deleted by ON DELETE CASCADE rule.
+		ArPostponedReportTmpPeer::clearInstancePool();
+
 	}
 
 	/**

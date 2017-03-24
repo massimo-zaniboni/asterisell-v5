@@ -42,6 +42,18 @@ function isEmptyOrNull($str)
 
 /**
  * @param string|null $str
+ * @return int
+ */
+function countLines($str) {
+    if (isEmptyOrNull($str)) {
+        return 0;
+    } else {
+      return substr_count($str, '/\n/');
+    }
+}
+
+/**
+ * @param string|null $str
  * @return string|null null if $str is null or it is the empty string
  */
 function trimOrNull($str)
@@ -469,7 +481,9 @@ function format_zip_city_address($zipCode, $city, $stateProvince, $country)
 
     if ($culture === "it_IT") {
         return $zipCode . " " . $city . maybeAddIfExistsCentral(" (", $stateProvince, ")") . maybeAddIfExistsCentral(" - ", $country, "");
-    } else {
+    } else if ($culture === "de_AT") {
+        return $zipCode . " " . $city . maybeAddIfExistsCentral(" (", $stateProvince, ")") . maybeAddIfExistsCentral(" - ", $country, "");
+     } else {
         return $city . "\n" . maybeAddIfExistsCentral("", $stateProvince, "\n") . $zipCode . maybeAddIfExistsCentral("\n", $country, "");
     }
 }
@@ -722,7 +736,7 @@ function encode_csv_value($dataElement, $delimeter = ',', $enclosure = '"')
             $dataElement = '\\N';
             $useEnclosure = false;
         } else {
-            if (strpos($dataElement, $delimeter) !== FALSE) {
+            if (strpos($dataElement, $delimeter) !== FALSE || strpos($dataElement, "\n") !== FALSE) {
                 $useEnclosure = true;
             }
 
@@ -1786,7 +1800,14 @@ function getCustomerAddressAccordingCulture(
         return $legalAddress
         . "\n" . format_zip_city_address($legalZipcode, $legalCity, $legalStateProvince, $legalCountry)
         . "\n" . mytr("VAT:", true) . $vat;
-    } else {
+    } else if ($culture == 'de_AT') {
+        $r = $legalAddress
+        . "\n" . format_zip_city_address($legalZipcode, $legalCity, $legalStateProvince, $legalCountry);
+        if (!isEmptyOrNull($vat)) {
+          $r .= "\n" . "UID: " . $vat;
+        }
+        return $r;
+     } else {
         return $legalAddress
         . "\n" . format_zip_city_address($legalZipcode, $legalCity, $legalStateProvince, $legalCountry)
         . "\n" . mytr("VAT:", true) . $vat;
@@ -1924,7 +1945,7 @@ The new generated legal documents use consecutive numbers starting from the next
 
 If there are not legal documents in the system, the first used number is 1, and not the number on the document template.
 
-For specifying an initial legal number different from 1, or for starting the generation of documents with a new non consecutive legal number, you must create a document of type "Placeholder for Invoice Numeration", leaving blank all params (also the reference date), set that it is a "Billing Document", set the legal number previous to the number to use in new legal documents, set the legal date of the new document to generate, and then saving.
+For specifying an initial legal number different from 1, or for starting the generation of documents with a new non consecutive legal number, you must create a document of type "Placeholder for Invoice Numeration", leaving blank all params (also the reference date), set that it is a "Billing Document", set the legal number previous to the number to use in new legal documents, set the legal date equals to the date of new invoices to generate, and then saving.
 
 Note that for the content of all other fields, new legal documents will be generated according the values on the template document.
 

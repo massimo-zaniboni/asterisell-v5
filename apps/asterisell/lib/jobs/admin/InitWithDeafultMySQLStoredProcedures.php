@@ -1,8 +1,8 @@
 <?php
 
-/* $LICENSE 2012, 2013, 2015:
+/* $LICENSE 2012, 2013, 2015, 2016, 2017:
  *
- * Copyright (C) 2012, 2013, 2015 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
+ * Copyright (C) 2012, 2013, 2015, 2016, 2017 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
  *
  * This file is part of Asterisell.
  *
@@ -88,6 +88,40 @@ class InitWithDefaultMySQLStoredProcedures extends AdminJobProcessor
     {
 
         $sqlCode = '';
+
+        $sqlCode .=
+          $this->generateDeleteOnCascade('ar_party', array('ar_party_has_tag'))
+        . $this->generateDeleteOnCascade('ar_tag', array('ar_party_has_tag'))
+        . $this->generateDeleteOnCascade('ar_rate', array('ar_rate_shared_with_reseller'))
+        . $this->generateDeleteOnCascade('ar_reseller', array('ar_rate_shared_with_reseller'))
+        . $this->generateDeleteOnCascade('ar_user'
+              , array('ar_user_has_role'
+              , 'ar_user_has_permission'
+              , 'ar_report_to_read'
+              , 'ar_user_can_view_report'
+              ))
+        . $this->generateDeleteOnCascade('ar_role', array('ar_user_has_role', 'ar_report_also_for'))
+        . $this->generateDeleteOnCascade('ar_permission', array('ar_user_has_permission'))
+        . $this->generateDeleteOnCascade('ar_report_set'
+              , array(
+                   'ar_report'
+                 , 'ar_postponed_report')
+               , array('DELETE FROM ar_report
+                        WHERE ar_report.about_ar_report_set_id = OLD.id;')
+          )
+        . $this->generateDeleteOnCascade('ar_organization_unit'
+              , array('ar_postponed_report'
+              , 'ar_postponed_report_tmp'
+              , 'ar_report'
+              ))
+        . $this->generateDeleteOnCascade('ar_report'
+              , array('ar_report_to_read'
+              , 'ar_user_can_view_report'
+              , 'ar_report_also_for')
+              , array('UPDATE ar_report_set SET postponed_fields_are_updated = 0 WHERE id = OLD.ar_report_set_id;')
+          )
+        . $this->generateDeleteOnCascade('ar_daily_status_job', array('ar_daily_status_change'))
+        ;
 
         $sqlCode .= '
 
@@ -201,6 +235,58 @@ BEGIN
   VALUES(NEW.ar_cdr_provider_id, NEW.ar_physical_format_id);
 END $$
 
+/**
+ * Update ar_repost_set totals fields.
+ */
+DROP PROCEDURE IF EXISTS proc_update_postponed_reportset_amounts $$
+CREATE PROCEDURE proc_update_postponed_reportset_amounts(report_set_id INTEGER)
+MODIFIES SQL DATA
+BEGIN
+  UPDATE ar_report_set AS s
+  , (SELECT COUNT(p.id) AS c, SUM(p.total_without_tax) AS t
+     FROM ar_report AS p
+     WHERE p.ar_report_set_id = report_set_id
+  ) AS g
+  SET s.reports = g.c
+  ,   s.amount = g.t
+  WHERE s.id = report_set_id
+  ;
+
+  UPDATE ar_report_set AS s
+  , (SELECT COUNT(*) AS c
+     FROM ar_postponed_report AS p
+     WHERE p.ar_report_set_id = report_set_id
+  ) AS g
+  SET s.postponed_reports = g.c
+  WHERE s.id = report_set_id
+  ;
+
+  /* NOTE: this query is rather slow because it involves scanning a lot of CDRs.
+     It is probably repeated many times for each added report, so the hope is
+     that its result will be cached.*/
+  UPDATE ar_report_set AS s
+  , (SELECT SUM(ar_cdr.income) AS s
+     FROM ar_postponed_report AS p
+     JOIN ar_report_set AS ss
+     ON p.ar_report_set_id = ss.id
+     , ar_cdr FORCE INDEX (ar_cdr_calldate_index)
+     WHERE p.ar_report_set_id = report_set_id
+     AND ar_cdr.billable_ar_organization_unit_id = p.ar_organization_unit_id
+     AND ar_cdr.calldate >= ss.from_date
+     AND ar_cdr.calldate < ss.to_date
+     ) AS g
+  SET s.postponed_amount = g.s
+  WHERE s.id = report_set_id;
+
+  UPDATE ar_report_set
+  SET postponed_fields_are_updated = 1
+  WHERE id = report_set_id
+  AND NOT postponed_fields_are_updated;
+END
+$$
+
+/* NOTE: the insert, update and delete event of reports into report_set are already managed by other triggers. */
+
 SQL;
 
         $tablesWithRerating = array(
@@ -307,6 +393,8 @@ AFTER INSERT ON ar_report
 FOR EACH ROW
 BEGIN
   $add_new_report
+
+  UPDATE ar_report_set SET postponed_fields_are_updated = 0 WHERE id = NEW.ar_report_set_id;
 END
 $$
 
@@ -316,6 +404,12 @@ AFTER UPDATE ON ar_report
 FOR EACH ROW
 BEGIN
   DELETE FROM ar_user_can_view_report WHERE ar_report_id = NEW.id;
+
+  UPDATE ar_report_set
+  SET postponed_fields_are_updated = 0
+  WHERE id = NEW.ar_report_set_id
+  OR id = OLD.ar_report_set_id;
+
   $add_new_report
 END
 $$
@@ -526,5 +620,79 @@ AND ar_user_has_role.ar_role_id = ar_report_also_for.ar_role_id
 
 SQL;
 
+    }
+
+    /**
+     * TokuDB does not support foreign constraints `ON DELETE CASCADE`
+     * so simulate them using an explicit TRIGGER.
+     *
+     * NOTE: it needs to group by sourceTable because MySQL does not support
+     * multiple triggers on the same event.
+     *
+     * @param string $sourceTable
+     * @param array $tablesToDelete list of strings with tables to delete on cascade
+     * @param array|null $additionalActions additional actions to insert into the triggr
+     * when an element of the $sourceTable is deleted
+     * @return string
+     */
+    protected function generateDeleteOnCascade($sourceTable, $tablesToDelete, $additionalActions = null) {
+        $triggerName = "trigger_cascade_on_" . $sourceTable;
+        $sourceTableId = "id";
+        $destFieldId = $sourceTable . '_id';
+
+        $sql = "\nDROP TRIGGER IF EXISTS $triggerName " . '$$'
+             . "\nCREATE TRIGGER $triggerName"
+             . "\nBEFORE DELETE ON $sourceTable"
+             . "\nFOR EACH ROW BEGIN ";
+
+        if (!is_null($additionalActions)) {
+            foreach($additionalActions as $act) {
+                $sql .= "\n" . $act;
+            }
+            $sql .= "\n";
+        }
+
+        $sql2 = '';
+
+        foreach($tablesToDelete as $tableToDelete) {
+            $sql .= $this->generateDeleteOnCascade_service($sourceTable, $sourceTableId, $tableToDelete, $destFieldId);
+
+            $sql2 .= $this->generateLegacyDeleteOfCorruptedData($sourceTable, $sourceTableId, $tableToDelete, $destFieldId);
+        }
+
+        $sql .= "\nEND " . '$$';
+
+        return $sql . "\n" . $sql2;
+    }
+
+    /**
+     * Generate internal action for the trigger.
+     *
+     * @param string $sourceTable
+     * @param string $sourceFieldId
+     * @param string $tableToDelete
+     * @param string $destFieldId
+     * @return string
+     *
+     */
+    protected function generateDeleteOnCascade_service($sourceTable, $sourceFieldId, $tableToDelete, $destFieldId) {
+        return "\n     DELETE FROM $tableToDelete WHERE $tableToDelete . $destFieldId = OLD .$sourceFieldId ; ";
+    }
+
+    /**
+     * Delete old values simulating the activation of the trigger.
+     *
+     * @param $sourceTable
+     * @param $sourceFieldId
+     * @param $tableToDelete
+     * @param $destFieldId
+     * @return string
+     */
+    protected function generateLegacyDeleteOfCorruptedData($sourceTable, $sourceFieldId, $tableToDelete, $destFieldId) {
+        // Delete old values, simulating the activation of the trigger.
+        $sql = "\n DELETE $tableToDelete FROM $tableToDelete LEFT JOIN $sourceTable ON $sourceTable . $sourceFieldId = $tableToDelete . $destFieldId "
+             . " WHERE $tableToDelete . $destFieldId IS NOT NULL AND $sourceTable . $sourceFieldId IS NULL" . '$$';
+
+        return $sql;
     }
 }

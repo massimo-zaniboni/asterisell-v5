@@ -142,14 +142,11 @@ Asterisell uses Git http://en.wikipedia.org/wiki/Git\_(software) for installing/
 
 So the content of the local repo can be freely customized, and the merged with Asterisell upgrades.
 
-Instances Installation
-----------------------
+Install Demo Instance
+---------------------
 
 The file `fabric_data/asterisell_instances.py` contains the configured
 and installable Asterisell instances.
-
-Install Demo Instance
-~~~~~~~~~~~~~~~~~~~~~
 
 If there are no conflicts with assigned ports, you can crete a demo
 instance in this way
@@ -162,13 +159,6 @@ instance in this way
   fab restart:demo
   fab install:demo
   fab restart:demo
-  fab connect:demo
-  # use `admin` `admin` for connecting to the web instance
-
-
-  # After playing with it you can destroy it
-  docker stop demo
-  docker rm demo
 
 .. warning::
    The first ``fab prepare`` command will be very slow because it will load a CentOS6 image,
@@ -176,8 +166,51 @@ instance in this way
    The image will be shared between all other instances, so next installations will be
    a lot faster.
 
+Testing the Demo Instance
+-------------------------
+
+This command
+
+::
+
+  fab connect:demo
+  # use `admin` `admin` for connecting to the web instance
+
+will open
+
+* a shell inside the instance Docker container, for inspecting it
+* a browser window to the admin URL of the instance using the command `xdg-open`
+
+In case you are installing Asterisell on a remote host, accessed using SSH, it is likely that the https port of the testing an instance is closed and not accessible from external networks. For accessing the port you can connect to the host using an SSH tunnelling:
+
+::
+
+  ssh -L 8020:localhost:8020 user@server
+
+Then if you open the URL `http://localhost:8020/admin <http://>`_ it will be redirected to the port on the remote host, using a secure SSH tunnelling.
+
+After playing with the demo instance, you can destroy it executing
+
+::
+
+  docker stop demo
+  docker rm demo
+
+Instance URL
+------------
+
+An URL like `http://localhost:8020/admin <http://localhost:8020/admin>`_ open the admin instance of Asterisell:
+
+* only admins can access it, and not normal users
+* the PHP application here has full write/read access to the database
+
+An URL like `http://localhost:8020/ <http://localhost:8020/>`_ open a normal instance of Asterisell:
+
+* only normal users (your customers) can access it
+* the PHP application and database connection has limited read access
+
 Install Production Instance
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
+---------------------------
 
 Customize the content of the configuration file `fabric_data/asterisell_instances.py`.
 In case `billing` is the name of the instance, execute:
@@ -192,8 +225,6 @@ In case `billing` is the name of the instance, execute:
   fab restart:billing
   fab add_admin:billing,SOME-PASSWORD
   fab connect:demo
-  # use `admin` `SOME-PASSWORD` for connecting to the web instance
+  # use `admin` `SOME-PASSWORD` for connecting to the container, and opening a web instance
 
-The admin web-site is accessible using `/admin` ending URL path, while the customer/normal-user web site
-using the `/` ending URL path.
 

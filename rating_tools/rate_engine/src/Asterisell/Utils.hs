@@ -50,6 +50,7 @@ module Asterisell.Utils (
   fromGammaCallDateAndTimeStampToLocalTime,
   fromGammaItemRentalCallDateToLocalTime,
   fromTextToInt,
+  fromByteStringToInt,
   fromTextToRational,
   fromTextToRational2,
   fromStringToByteString,
@@ -57,6 +58,7 @@ module Asterisell.Utils (
   whenM_,
   mathRound,
   fromJust1,
+  fromJust2,
   tt_parseTests,
   IsApplicationError,
   ConfigurationErrors,
@@ -98,6 +100,13 @@ fromJust1 n mA
   = case mA of
       Just a -> a
       Nothing -> error $ "unexpected error in the application, in point labelled as \"" ++ n ++ "\""
+
+fromJust2 :: String -> Maybe (a, b) -> a
+fromJust2 n mA
+  = case mA of
+      Just (a, _) -> a
+      Nothing -> error $ "unexpected error in the application, in point labelled as \"" ++ n ++ "\""
+
 
 -- | True if the parsing error is application-related, False if it is customer configuration related.
 type IsApplicationError = Bool
@@ -233,6 +242,9 @@ fromTextToInt t
   = case (T.signed T.decimal t) of
       Right (r, "") -> Just r
       _ -> Nothing
+
+fromByteStringToInt :: BS.ByteString -> Maybe Int
+fromByteStringToInt bs = fromTextToInt $ decodeUtf8 bs 
 
 fromStringToByteString :: String -> BS.ByteString
 fromStringToByteString s = encodeUtf8 $ T.pack s
@@ -390,17 +402,17 @@ fromGammaItemRentalCallDateToLocalTime monthAndYear
          let monthM
                = case monthS of
                    "January" -> Just 1
- 	           "February" ->  Just 2
- 	           "March" ->Just 3
-  	           "April" ->Just 4
- 	           "May" ->Just 5
- 	           "June" ->Just 6
- 	           "July" ->Just 7
- 	           "August" ->Just 8
-  	           "September" ->Just 9
-	           "October" ->Just 10
-	           "November" ->Just 11
-	           "December" ->Just 12
+                   "February" ->  Just 2
+                   "March" ->Just 3
+                   "April" ->Just 4
+                   "May" ->Just 5
+                   "June" ->Just 6
+                   "July" ->Just 7
+                   "August" ->Just 8
+                   "September" ->Just 9
+                   "October" ->Just 10
+                   "November" ->Just 11
+                   "December" ->Just 12
                    _ -> Nothing
          case monthM of
            Nothing -> return Nothing

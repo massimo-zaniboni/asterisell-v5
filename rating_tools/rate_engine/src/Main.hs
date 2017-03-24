@@ -192,7 +192,18 @@ configuredCDRSImporters precision
                                         (Nothing::(Maybe CSVFormat_gamma_ItemRental__v1))
                                         precision
                                         sourceCDRParams_default
-     ]
+
+      , createStandardSourceCDRImporter
+          ("colt","v1")
+          (Nothing::(Maybe CSVFormat_colt))
+          precision
+          (SourceCDRParamsCSVFile Nothing ';' UseUTF8)
+       , createStandardSourceCDRImporter
+          ("colt43","v1")
+          (Nothing::(Maybe CSVFormat_colt43))
+          precision
+          (SourceCDRParamsCSVFile Nothing ';' UseUTF8)
+      ]
 
 ------------------
 -- MAIN UTITILY --

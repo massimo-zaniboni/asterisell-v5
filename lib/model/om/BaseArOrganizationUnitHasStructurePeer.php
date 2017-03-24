@@ -479,6 +479,7 @@ abstract class BaseArOrganizationUnitHasStructurePeer {
 		return $count;
 	}
 
+
 	/**
 	 * Returns the number of rows matching criteria, joining the related ArOrganizationUnitType table
 	 *

@@ -30,6 +30,19 @@ class ArReportSet extends BaseArReportSet
         parent::__construct();
     }
 
+    public function delete(PropelPDO $conn = null)
+	{
+        // overwrite standard method, because if there are associated reports
+        // a trigger error is reported.
+
+        if (is_null($conn)) {
+            $conn = Propel::getConnection();
+        }
+
+        $this->deleteAssociatedReports($conn);
+        parent::delete($conn);
+    }
+
     public function deleteAssociatedReports(PDO $conn)
     {
         if (! is_null($this->getId())) {
@@ -49,5 +62,6 @@ class ArReportSet extends BaseArReportSet
        }
        parent::setMustBeReviewed($v);
     }
+
 
 } // ArReportSet

@@ -24,5 +24,5 @@ if [ "$BASE" = "scripts" ]; then
   sed -i -e 's/Engine=InnoDB/Engine=tokudb COMPRESSION=tokudb_quicklz,DEFAULT CHARACTER SET = utf8, DEFAULT COLLATE = utf8_bin/g' data/sql/lib.model.schema.sql
 
 else
-  echo "Execute inside development_tools directory."
+  echo "Execute inside scripts directory."
 fi

@@ -35,4 +35,23 @@ class ArPartyPeer extends BaseArPartyPeer
         return $r;
     }
 
+    /**
+     * @param int $partyId
+     * @param int $tagId
+     * @return bool true if the party has the specified TAG
+     */
+    static public function hasTag($partyId, $tagId)
+    {
+
+         $conn = Propel::getConnection();
+         $query = 'SELECT ar_party_id FROM ar_party_has_tag WHERE ar_party_id = ? AND ar_tag_id = ?';
+         $stm = $conn->prepare($query);
+         $stm->execute(array($partyId, $tagId));
+         $r = false;
+         while ((($rs = $stm->fetch(PDO::FETCH_NUM)) !== false)) {
+            $r = true;
+         }
+         $stm->closeCursor();
+         return $r;
+    }
 }

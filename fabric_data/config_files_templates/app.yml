@@ -44,15 +44,18 @@ all:
       Report_CompareVendors: "Compare Vendors (User Defined)"
       Report_CompareVendorsAndCostSaving: "Compare Vendors and Cost Saving (User Defined)"
       Report_CompareChannels: "Compare Channels (User Defined)"
+      CSVCallDetails: "CSV File with Call Details"
       $custom_reports_list
 
     always_scheduled_jobs:
+      - RecalculateReportSets
       - ChangePassword 
       $import_cdrs_jobs 
       - ImportDataFiles
       - SignalRatesToExportToResellers
       $custom_initial_always_scheduled_jobs
       - ManageRateEvent
+      - $expand_extensions_job
       - GarbageCollectBundleState
       - CheckCallCostLimit
       # - CheckFrauds                         # see check_frauds options in this file for configuring it
@@ -69,7 +72,7 @@ all:
       - ReportsNotificationWorkflow
       - UpdateOfficialCallDateAccordingLastConfirmedReports
       - BackupOrganizationInfo
-      - ChangePassword                      # execute more times this, for having a more reactive upgrade 
+      - ChangePassword                      # execute more times this, for having a more reactive upgrade
       $custom_export_cdrs_jobs
       - BackupConfigurations
       - BackupSourceCDRS
@@ -81,6 +84,7 @@ all:
     jobs:
       $custom_jobs
       - ForceExecutionOfReportSchedulerJob
+      - GenerateCSVInvoiceSummaryReport
       - ChangeOrganizationInfo
       - GenerateMailWarningCustomerForHighCallCost  # the effect of this job can be disabled setting the parameter repeat_advise_of_high_cost_limit_after_days to 0 
       - BackupOrganizationInfo
@@ -114,6 +118,10 @@ all:
     #
     upgrade_jobs: 
       - EmptyUpgradeJob
+      - Upgrade_2017_01_24
+      - Upgrade_2017_03_06
+      - Upgrade_2017_03_10
+      - Upgrade_2017_03_16
       $custom_upgrade_jobs
 
   custom_cdr_services: $custom_cdr_services

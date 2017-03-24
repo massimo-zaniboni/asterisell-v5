@@ -32,6 +32,11 @@ abstract class BaseArPartyFormFilter extends BaseFormFilterPropel
       'ar_reseller_id'                     => new sfWidgetFormPropelChoice(array('model' => 'ArReseller', 'add_empty' => true)),
       'migration_field_for_telephone'      => new sfWidgetFormFilterInput(),
       'migration_field_for_adsl'           => new sfWidgetFormFilterInput(),
+      'payment_iban'                       => new sfWidgetFormFilterInput(),
+      'payment_bic'                        => new sfWidgetFormFilterInput(),
+      'payment_sepa'                       => new sfWidgetFormFilterInput(),
+      'payment_info'                       => new sfWidgetFormFilterInput(),
+      'ar_party_has_tag_list'              => new sfWidgetFormPropelChoice(array('model' => 'ArTag', 'add_empty' => true)),
     ));
 
     $this->setValidators(array(
@@ -55,6 +60,11 @@ abstract class BaseArPartyFormFilter extends BaseFormFilterPropel
       'ar_reseller_id'                     => new sfValidatorPropelChoice(array('required' => false, 'model' => 'ArReseller', 'column' => 'id')),
       'migration_field_for_telephone'      => new sfValidatorPass(array('required' => false)),
       'migration_field_for_adsl'           => new sfValidatorPass(array('required' => false)),
+      'payment_iban'                       => new sfValidatorPass(array('required' => false)),
+      'payment_bic'                        => new sfValidatorPass(array('required' => false)),
+      'payment_sepa'                       => new sfValidatorPass(array('required' => false)),
+      'payment_info'                       => new sfValidatorPass(array('required' => false)),
+      'ar_party_has_tag_list'              => new sfValidatorPropelChoice(array('model' => 'ArTag', 'required' => false)),
     ));
 
     $this->widgetSchema->setNameFormat('ar_party_filters[%s]');
@@ -62,6 +72,31 @@ abstract class BaseArPartyFormFilter extends BaseFormFilterPropel
     $this->errorSchema = new sfValidatorErrorSchema($this->validatorSchema);
 
     parent::setup();
+  }
+
+  public function addArPartyHasTagListColumnCriteria(Criteria $criteria, $field, $values)
+  {
+    if (!is_array($values))
+    {
+      $values = array($values);
+    }
+
+    if (!count($values))
+    {
+      return;
+    }
+
+    $criteria->addJoin(ArPartyHasTagPeer::AR_PARTY_ID, ArPartyPeer::ID);
+
+    $value = array_pop($values);
+    $criterion = $criteria->getNewCriterion(ArPartyHasTagPeer::AR_TAG_ID, $value);
+
+    foreach ($values as $value)
+    {
+      $criterion->addOr($criteria->getNewCriterion(ArPartyHasTagPeer::AR_TAG_ID, $value));
+    }
+
+    $criteria->add($criterion);
   }
 
   public function getModelName()
@@ -93,6 +128,11 @@ abstract class BaseArPartyFormFilter extends BaseFormFilterPropel
       'ar_reseller_id'                     => 'ForeignKey',
       'migration_field_for_telephone'      => 'Text',
       'migration_field_for_adsl'           => 'Text',
+      'payment_iban'                       => 'Text',
+      'payment_bic'                        => 'Text',
+      'payment_sepa'                       => 'Text',
+      'payment_info'                       => 'Text',
+      'ar_party_has_tag_list'              => 'ManyKey',
     );
   }
 }

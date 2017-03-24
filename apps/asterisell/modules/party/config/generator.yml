@@ -28,6 +28,10 @@ generator:
       associated_user:      { name: Corresponding Web Account }
       migration_field_for_telephone: { name: Telephonic Service, help: "The migration field, that the customer must supply for migrating the telephone services" }
       migration_field_for_adsl: { name: Internet Service, help: "The migration field, that the customer must supply for migrating the Internet related services" }
+      payment_iban:         { name: Bank IBAN, help: "Customer Bank IBAN" }
+      payment_bic:          { name: Bank BIC, help: "Customer Bank BIC" }
+      payment_sepa:         { name: Bank SEPA, help: "SEPA Issue Number" }
+      payment_info:         { name: Additional Payment Info, help: "Used for alternative Customer payment methods. Payment info can be inserted also in TAGS." }
 
     list:
       title: Customers and Vendors
@@ -43,11 +47,12 @@ generator:
         insert_money_value:   { name: Limit, help: "Max admitted calls cost of the last 30 days/current month (depending from the setting inside apps/asterisell/config/app.yml). If you set a limit of 0 (or NULL) then the cost limit check is disabled." }
         associated_organization: { name: Corresponding Organization }
         associated_vendor: { name: Corresponding Vendor }
+        tags: { name: "TAGS", help: "TAGS can be used from invoices and reports and other jobs for processing customers in specific ways.", type: admin_check_list, params: through_class=ArPartyHasTag }
 
       display:
-        State: [name, compact_name, is_active, is_billable, _associated_organization, _associated_user, _associated_vendor]
+        State: [name, compact_name, is_active, is_billable, _associated_organization, _associated_user, _associated_vendor, tags]
         Contacts: [email, phone, phone2, fax]
         Reseller: [ar_reseller_id]
-        Invoicing: [vat, external_crm_code, legal_address, legal_city, legal_zipcode, legal_state_province, legal_country]
+        Invoicing: [vat, external_crm_code, legal_address, legal_city, legal_zipcode, legal_state_province, legal_country, payment_iban, payment_bic, payment_sepa, payment_info]
         Service Migrations: [migration_field_for_telephone, migration_field_for_adsl]
         Calls Cost Limit for last 30 days: [_insert_money_value]

@@ -25,7 +25,7 @@ abstract class BaseArReportSetPeer {
 	const TM_CLASS = 'ArReportSetTableMap';
 	
 	/** The total number of columns. */
-	const NUM_COLUMNS = 5;
+	const NUM_COLUMNS = 10;
 
 	/** The number of lazy-loaded columns. */
 	const NUM_LAZY_LOAD_COLUMNS = 0;
@@ -44,6 +44,21 @@ abstract class BaseArReportSetPeer {
 
 	/** the column name for the MUST_BE_REVIEWED field */
 	const MUST_BE_REVIEWED = 'ar_report_set.MUST_BE_REVIEWED';
+
+	/** the column name for the POSTPONED_FIELDS_ARE_UPDATED field */
+	const POSTPONED_FIELDS_ARE_UPDATED = 'ar_report_set.POSTPONED_FIELDS_ARE_UPDATED';
+
+	/** the column name for the POSTPONED_REPORTS field */
+	const POSTPONED_REPORTS = 'ar_report_set.POSTPONED_REPORTS';
+
+	/** the column name for the POSTPONED_AMOUNT field */
+	const POSTPONED_AMOUNT = 'ar_report_set.POSTPONED_AMOUNT';
+
+	/** the column name for the REPORTS field */
+	const REPORTS = 'ar_report_set.REPORTS';
+
+	/** the column name for the AMOUNT field */
+	const AMOUNT = 'ar_report_set.AMOUNT';
 
 	/**
 	 * An identiy map to hold any loaded instances of ArReportSet objects.
@@ -68,11 +83,11 @@ abstract class BaseArReportSetPeer {
 	 * e.g. self::$fieldNames[self::TYPE_PHPNAME][0] = 'Id'
 	 */
 	private static $fieldNames = array (
-		BasePeer::TYPE_PHPNAME => array ('Id', 'ArReportSchedulerId', 'FromDate', 'ToDate', 'MustBeReviewed', ),
-		BasePeer::TYPE_STUDLYPHPNAME => array ('id', 'arReportSchedulerId', 'fromDate', 'toDate', 'mustBeReviewed', ),
-		BasePeer::TYPE_COLNAME => array (self::ID, self::AR_REPORT_SCHEDULER_ID, self::FROM_DATE, self::TO_DATE, self::MUST_BE_REVIEWED, ),
-		BasePeer::TYPE_FIELDNAME => array ('id', 'ar_report_scheduler_id', 'from_date', 'to_date', 'must_be_reviewed', ),
-		BasePeer::TYPE_NUM => array (0, 1, 2, 3, 4, )
+		BasePeer::TYPE_PHPNAME => array ('Id', 'ArReportSchedulerId', 'FromDate', 'ToDate', 'MustBeReviewed', 'PostponedFieldsAreUpdated', 'PostponedReports', 'PostponedAmount', 'Reports', 'Amount', ),
+		BasePeer::TYPE_STUDLYPHPNAME => array ('id', 'arReportSchedulerId', 'fromDate', 'toDate', 'mustBeReviewed', 'postponedFieldsAreUpdated', 'postponedReports', 'postponedAmount', 'reports', 'amount', ),
+		BasePeer::TYPE_COLNAME => array (self::ID, self::AR_REPORT_SCHEDULER_ID, self::FROM_DATE, self::TO_DATE, self::MUST_BE_REVIEWED, self::POSTPONED_FIELDS_ARE_UPDATED, self::POSTPONED_REPORTS, self::POSTPONED_AMOUNT, self::REPORTS, self::AMOUNT, ),
+		BasePeer::TYPE_FIELDNAME => array ('id', 'ar_report_scheduler_id', 'from_date', 'to_date', 'must_be_reviewed', 'postponed_fields_are_updated', 'postponed_reports', 'postponed_amount', 'reports', 'amount', ),
+		BasePeer::TYPE_NUM => array (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, )
 	);
 
 	/**
@@ -82,11 +97,11 @@ abstract class BaseArReportSetPeer {
 	 * e.g. self::$fieldNames[BasePeer::TYPE_PHPNAME]['Id'] = 0
 	 */
 	private static $fieldKeys = array (
-		BasePeer::TYPE_PHPNAME => array ('Id' => 0, 'ArReportSchedulerId' => 1, 'FromDate' => 2, 'ToDate' => 3, 'MustBeReviewed' => 4, ),
-		BasePeer::TYPE_STUDLYPHPNAME => array ('id' => 0, 'arReportSchedulerId' => 1, 'fromDate' => 2, 'toDate' => 3, 'mustBeReviewed' => 4, ),
-		BasePeer::TYPE_COLNAME => array (self::ID => 0, self::AR_REPORT_SCHEDULER_ID => 1, self::FROM_DATE => 2, self::TO_DATE => 3, self::MUST_BE_REVIEWED => 4, ),
-		BasePeer::TYPE_FIELDNAME => array ('id' => 0, 'ar_report_scheduler_id' => 1, 'from_date' => 2, 'to_date' => 3, 'must_be_reviewed' => 4, ),
-		BasePeer::TYPE_NUM => array (0, 1, 2, 3, 4, )
+		BasePeer::TYPE_PHPNAME => array ('Id' => 0, 'ArReportSchedulerId' => 1, 'FromDate' => 2, 'ToDate' => 3, 'MustBeReviewed' => 4, 'PostponedFieldsAreUpdated' => 5, 'PostponedReports' => 6, 'PostponedAmount' => 7, 'Reports' => 8, 'Amount' => 9, ),
+		BasePeer::TYPE_STUDLYPHPNAME => array ('id' => 0, 'arReportSchedulerId' => 1, 'fromDate' => 2, 'toDate' => 3, 'mustBeReviewed' => 4, 'postponedFieldsAreUpdated' => 5, 'postponedReports' => 6, 'postponedAmount' => 7, 'reports' => 8, 'amount' => 9, ),
+		BasePeer::TYPE_COLNAME => array (self::ID => 0, self::AR_REPORT_SCHEDULER_ID => 1, self::FROM_DATE => 2, self::TO_DATE => 3, self::MUST_BE_REVIEWED => 4, self::POSTPONED_FIELDS_ARE_UPDATED => 5, self::POSTPONED_REPORTS => 6, self::POSTPONED_AMOUNT => 7, self::REPORTS => 8, self::AMOUNT => 9, ),
+		BasePeer::TYPE_FIELDNAME => array ('id' => 0, 'ar_report_scheduler_id' => 1, 'from_date' => 2, 'to_date' => 3, 'must_be_reviewed' => 4, 'postponed_fields_are_updated' => 5, 'postponed_reports' => 6, 'postponed_amount' => 7, 'reports' => 8, 'amount' => 9, ),
+		BasePeer::TYPE_NUM => array (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, )
 	);
 
 	/**
@@ -161,6 +176,11 @@ abstract class BaseArReportSetPeer {
 		$criteria->addSelectColumn(ArReportSetPeer::FROM_DATE);
 		$criteria->addSelectColumn(ArReportSetPeer::TO_DATE);
 		$criteria->addSelectColumn(ArReportSetPeer::MUST_BE_REVIEWED);
+		$criteria->addSelectColumn(ArReportSetPeer::POSTPONED_FIELDS_ARE_UPDATED);
+		$criteria->addSelectColumn(ArReportSetPeer::POSTPONED_REPORTS);
+		$criteria->addSelectColumn(ArReportSetPeer::POSTPONED_AMOUNT);
+		$criteria->addSelectColumn(ArReportSetPeer::REPORTS);
+		$criteria->addSelectColumn(ArReportSetPeer::AMOUNT);
 	}
 
 	/**
@@ -355,6 +375,12 @@ abstract class BaseArReportSetPeer {
 	{
 		// invalidate objects in ArReportPeer instance pool, since one or more of them may be deleted by ON DELETE CASCADE rule.
 		ArReportPeer::clearInstancePool();
+
+		// invalidate objects in ArReportPeer instance pool, since one or more of them may be deleted by ON DELETE CASCADE rule.
+		ArReportPeer::clearInstancePool();
+
+		// invalidate objects in ArPostponedReportPeer instance pool, since one or more of them may be deleted by ON DELETE CASCADE rule.
+		ArPostponedReportPeer::clearInstancePool();
 
 	}
 

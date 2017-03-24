@@ -8,6 +8,6 @@
    Configuration <configuration>
    Usage <usage>
    FAQ <FAQ>
+   Development <development>
    News <news>
    Support <support>
-

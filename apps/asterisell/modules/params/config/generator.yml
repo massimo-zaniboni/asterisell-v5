@@ -49,9 +49,11 @@ generator:
 
       phone2:               { name: Telephon 2 }
 
-      invoice_notes:        { name: Invoice footer notes, help: "Invoice footer notes.", type: textarea_tag, params: size=60x5 }
+      invoice_notes:        { name: Invoice footer notes, help: "Invoice footer notes. These notes are put before the customer specific notes configured in Entities->Party TAGS. It can contains placeholder like ${pay_due_date}, ${pay_within_days}, ${invoice_number}.", type: textarea_tag, params: size=60x5 }
 
-      invoice_payment_terms: { name: Invoice payment terms, help: "Invoice payment terms, and other legal terms.", type: textarea_tag, params: size=60x5 }
+      invoice_payment_terms: { name: Invoice payment terms, help: "Invoice payment terms, and other legal terms. Optionally messages can be customized using also Entities->Party TAGS.", type: textarea_tag, params: size=60x5 }
+
+      invoice_payment_due_in_xx_days: { name: Invoice payment due days, help: "When the invoice template support this, specify the payment due days." }
 
       legal_fax:            { name: Fax, help: "If not empty, it will be displayed in address." }
 
@@ -80,5 +82,5 @@ generator:
       display:
         Params: [name, official_calldate]
         VoIP service information (used on website): [service_name, service_provider_website, service_provider_email, _my_logo_image, logo_html_color, slogan, footer, html_notes_on_the_login_form]
-        Company legal information (used on invoices): [legal_name, vat, vat_tax_perc_as_php_decimal, legal_address, legal_city, legal_zipcode, legal_state_province, legal_country, legal_email, legal_website, legal_phone, phone2, legal_fax, invoice_notes, invoice_payment_terms, _my_logo_image_in_invoices]
+        Company legal information (used on invoices): [legal_name, vat, vat_tax_perc_as_php_decimal, legal_address, legal_city, legal_zipcode, legal_state_province, legal_country, legal_email, legal_website, legal_phone, phone2, legal_fax, invoice_notes, invoice_payment_terms, invoice_payment_due_in_xx_days, _my_logo_image_in_invoices]
         Parameters for emails, used for sending to customer invoices and/or reports: [invoicing_email_address, sender_name_on_invoicing_emails ]

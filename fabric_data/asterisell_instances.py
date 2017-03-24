@@ -297,14 +297,14 @@ class InstanceTemplate(lib.BillingInstance):
     # "c" for something like "2004-02-12T15:19:21+00:00"
     # "F d, Y G:i:s" for something like "Dec 21, 2000 16:01:07"
     # "d/m/Y, G:i:s" for italian format
-    conf_date_format = '"Y/m/d, G:i:s"'
+    conf_date_format = '"d.m.y, G:i:s"'
 
     # The format to use for date display in Invoices
     #
     # IMPORTANT: Changes to this parameter make effect only on new generated invoices.
     #
     # invoice_date_format: "d/m/Y"  for italian format
-    conf_invoice_date_format = '"Y-m-d"'
+    conf_invoice_date_format = '"d.m.Y"'
 
     # An external telephone number can be masked in the CALL REPORT view,
     # for privacy reasons.
@@ -349,13 +349,13 @@ class InstanceTemplate(lib.BillingInstance):
     #
     # This affects only the displayed call time range,
     # not the range used for calculations that is always the same.
-    conf_use_inclusive_end_date_in_invoice = False
+    conf_use_inclusive_end_date_in_invoice = True
 
     # Set to False for not generating also invoices with zero income.
     conf_generate_invoices_when_total_is_zero = False
 
     # The decimal separator symbol to use in CSV files exported to customers.
-    conf_decimal_separator_symbol_in_csv = '"."'
+    conf_decimal_separator_symbol_in_csv = '","'
 
     # true for exporting numbers like "1.234" in CSV files exported to customers.
     # false for exporting numbers like 1.234 (without \").
@@ -372,14 +372,14 @@ class InstanceTemplate(lib.BillingInstance):
     #
     # If you are using "," also as decimal separator,
     # and numbers are not surrounded between \", then use something like ";".
-    conf_csv_field_separator = '","'
+    conf_csv_field_separator = '";"'
 
     # decimal places to use for currency when stored in the database ar_cdr table
     #
     # IMPORTANT: if you change this value then force a re-rate of all calls
     # because already rated calls will be in an inconsisten format.
     # So it is better starting with the correct value.
-    conf_currency_decimal_places = 4
+    conf_currency_decimal_places = 5
 
     # decimal places to use for each currency in an invoice
     #
@@ -469,6 +469,14 @@ class InstanceTemplate(lib.BillingInstance):
     # also to already rated calls.
     conf_not_displayed_telephone_prefix = '"-"'
 
+    expand_extensions_job = 'NullJob' # type: str
+    # use 'ExpandExtensions' job for expanding extensions like "123*" into "123456" when
+    # specific instances are found in CDRs.
+    # Useful for customers having many virtual extensions/DIDS,
+    # that you don't want specify, but only discover in CDRs,
+    # and at the same time the customers want reports with calls grouped
+    # by specific extensions.
+
     #
     # Email Related Settings
     #
@@ -496,6 +504,11 @@ class InstanceTemplate(lib.BillingInstance):
     # the email address to use for sending emails
     # NOTE: the name used for the sender_email_address is specified on the online parameter of the application
     conf_sender_email_address = ''
+
+    # Name of custom reports generators class to add,
+    # in a format like
+    # > ["Report_CompareChannels: \"Compare Channels (User Defined)\""]
+    custom_reports = []
 
     #
     # Frauds and Customer Limits Detection
@@ -588,8 +601,6 @@ class InstanceTemplate(lib.BillingInstance):
     #
     # These jobs are of class JobProcessor.
     custom_jobs = []
-
-    custom_reports = []
 
     custom_data_file_processors = []
 
@@ -708,7 +719,8 @@ class Billing(InstanceTemplate):
 # ...
 
 # Specify here all the installable instances.
-all_instances = [Billing(),
+all_instances = [
+                 Billing(),
                  DemoInstance(),
                  RegressionTestInstance()
                 ]

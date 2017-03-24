@@ -2,6 +2,7 @@ propel:
 
   # NOTE: do not use `index: false` because the index is generated.
   # NOTE: init procedures can create additional SQL tables, views and procedures
+  # NOTE: on delete cascade is not supported by TokuDB so add explicit triggers in InitWithDefaultMySQLStoredProcedures
 
   ar_cdr:
   #
@@ -275,6 +276,34 @@ propel:
     migration_field_for_adsl: varchar(255)
     # the migration field, that the customer must supply for migrating the adsl services
 
+    payment_iban: varchar(255)
+
+    payment_bic: varchar(255)
+
+    payment_sepa: varchar(255)
+    # SEPA issuer number
+
+    payment_info: varchar(255)
+
+  ar_tag:
+  # party tags, for payment methods and so on
+    id:
+
+    internal_name: { type: varchar, size: 255, required: true, unique: true, index: unique }
+
+    note_for_admin: { type: varchar, size: 1024, required: false }
+    # internal notes
+
+    name_for_customer: { type: varchar, size: 512, required: true, default: '' }
+
+    note_for_customer: { type: varchar, size: 1204, required: true, default: '' }
+
+  ar_party_has_tag:
+
+    ar_party_id: { type: integer, primaryKey: true, foreignTable: ar_party, foreignReference: id, onDelete: cascade, required: true }
+
+    ar_tag_id: { type: integer, primaryKey: true, foreignTable: ar_tag, foreignReference: id, onDelete: cascade, required: true }
+
   ar_params:
   #
   # Params/resellers associated to customer/account
@@ -362,6 +391,8 @@ propel:
  
     invoice_payment_terms: varchar(2048)
 
+    invoice_payment_due_in_xx_days: { type: integer, size: 4 }
+
     sender_name_on_invoicing_emails: varchar(255)
     #
     # the name used in invoices/reports
@@ -420,6 +451,8 @@ propel:
     # 0 for no cleaning.
     # 1 for scheduled cleaning
     # 2 for activated cleaning
+
+
 
   ar_reseller:
   # a VoIP vendor reselling the calls of this Asterisell instance, to his own customers.
@@ -706,6 +739,19 @@ propel:
     # It save all the history of changes.
     # It is not compatible with previous version of the application, in case of change of schema.
 
+  ar_expanded_extensions:
+  # the rate-engine can recognize specific DIDS like 12345, that are instance of virtual DIDS like 123*
+  # Then there can be optional jobs creating the specific DIDS if they are important for the user,
+  # e.g. for creating reports with good grouping.
+  # This table contains only the DIDS of the last rating process.
+    id:
+
+    ar_organization_unit_id:
+    # the parent extension that is expanded
+
+    extension_code: { type: varchar, size: 5024, required: true }
+    # the full expanded extension
+
   ar_vendor:
   #
   # a VoIP service provider
@@ -939,7 +985,11 @@ propel:
     ar_report_set_id: { type: integer, foreignTable: ar_report_set, foreignReference: id, onDelete: cascade, required: false }
     #
     # NULL if the report was created from a user.
-    # The set associated to the scheduler pass, otherwise.
+    # NOT NULL if the report is part of a report set
+
+    about_ar_report_set_id: { type: integer, foreignTable: ar_report_set, foreignReference: id, onDelete: cascade, required: false }
+    # NOT NULL if the report is a summary of all the reports of a report-set.
+    # For example it is a list of invoices.
 
     ar_organization_unit_id:
     #
@@ -952,6 +1002,11 @@ propel:
     ar_vendor_id:
     #
     # the report is associated to this vendor, or NULL if it is not applicable
+
+    ar_tag_id:
+    #
+    # the report is associated to organizations tagged with the specified tag,
+    # otherwise it is not generated.
 
     from_date:    { type: timestamp, required: false, index: true }
     #
@@ -1157,6 +1212,37 @@ propel:
     generate_only_if_there_is_cost: { type: boolean, required: true, default: false }
     # true for generating reports only if they have a cost
 
+    minimum_cost: { type: bigint }
+    # generate invoices only if the cost is equal or greather to the specified value.
+    # Otherwise postpone them.
+
+    send_compact_report_list_to_accountant: { type: boolean, required: true, default: false }
+    # true for sending compact report list to accountant and admin, when report set is confirmed.
+    # In practice it generate a report_set creation event, and then other jobs will generate
+    # summary reports about_ar_report_set_id
+
+  ar_postponed_report:
+  # Reports below a certain total sum can be not generated, and postponed into next scheduling
+  # time-frame. This feature is enabled only for report-sets, and not for reports generated
+  # manually.
+  # NOTE: Postponed totals are lost if the associated scheduler is deleted or disabled.
+
+    ar_report_set_id: { type: integer, primaryKey: true, foreignTable: ar_report_set, foreignReference: id, onDelete: cascade, required: true }
+
+    ar_organization_unit_id: { type: integer, primaryKey: true, foreignTable: ar_organization_unit, foreignReference: id, onDelete: cascade, required: true }
+
+  ar_postponed_report_tmp:
+  # a temporary table using for calculating the reports time-frame for postponed orginazations.
+  # It contains valid values, only after calculations on the application side, so it is a service table.
+
+    ar_organization_unit_id: { type: integer, primaryKey: true, foreignTable: ar_organization_unit, foreignReference: id, onDelete: cascade, required: true }
+
+    from_date: { type: timestamp, required: true }
+
+    is_billed: { type: boolean, required: true }
+
+    is_processed: { type: boolean, required: true }
+
   ar_legal_date_generation_method:
 
     id: { type: integer, primaryKey: true }
@@ -1182,6 +1268,26 @@ propel:
     # It is the ending date (exclusive) of calls on the reports.
 
     must_be_reviewed: { type: boolean, required: true, default: true, index: true }
+
+    postponed_fields_are_updated: { type: boolean, required: true, default: true }
+    # false if the postponed totals must be recalculated
+    # NOTE: a trigger then update all other related fields
+
+    postponed_reports: { type: integer, required: true, default: 0 }
+    # the invoices not produced because too low respect the minimum
+    # NOTE: mantained updated by a trigger
+
+    postponed_amount: { type: bigint, required: true, default: 0 }
+    # the total (without tax) that was not billed because the invoices were too low
+    # NOTE: mantained updated by a trigger
+
+    reports: { type: integer, required: true, default: 0 }
+    # the number of invoices without tax
+    # NOTE: mantained updated by a trigger
+
+    amount: { type: bigint, required: true, default: 0 }
+    # the total (without tax) of invoices
+    # NOTE: mantained updated by a trigger
 
   ar_report_generation:
   #

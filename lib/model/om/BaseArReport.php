@@ -38,6 +38,12 @@ abstract class BaseArReport extends BaseObject  implements Persistent {
 	protected $ar_report_set_id;
 
 	/**
+	 * The value for the about_ar_report_set_id field.
+	 * @var        int
+	 */
+	protected $about_ar_report_set_id;
+
+	/**
 	 * The value for the ar_organization_unit_id field.
 	 * @var        int
 	 */
@@ -54,6 +60,12 @@ abstract class BaseArReport extends BaseObject  implements Persistent {
 	 * @var        int
 	 */
 	protected $ar_vendor_id;
+
+	/**
+	 * The value for the ar_tag_id field.
+	 * @var        int
+	 */
+	protected $ar_tag_id;
 
 	/**
 	 * The value for the from_date field.
@@ -373,7 +385,12 @@ abstract class BaseArReport extends BaseObject  implements Persistent {
 	/**
 	 * @var        ArReportSet
 	 */
-	protected $aArReportSet;
+	protected $aArReportSetRelatedByArReportSetId;
+
+	/**
+	 * @var        ArReportSet
+	 */
+	protected $aArReportSetRelatedByAboutArReportSetId;
 
 	/**
 	 * @var        ArOrganizationUnit
@@ -389,6 +406,11 @@ abstract class BaseArReport extends BaseObject  implements Persistent {
 	 * @var        ArVendor
 	 */
 	protected $aArVendor;
+
+	/**
+	 * @var        ArTag
+	 */
+	protected $aArTag;
 
 	/**
 	 * @var        ArReportOrderOfChildren
@@ -536,6 +558,16 @@ abstract class BaseArReport extends BaseObject  implements Persistent {
 	}
 
 	/**
+	 * Get the [about_ar_report_set_id] column value.
+	 * 
+	 * @return     int
+	 */
+	public function getAboutArReportSetId()
+	{
+		return $this->about_ar_report_set_id;
+	}
+
+	/**
 	 * Get the [ar_organization_unit_id] column value.
 	 * 
 	 * @return     int
@@ -563,6 +595,16 @@ abstract class BaseArReport extends BaseObject  implements Persistent {
 	public function getArVendorId()
 	{
 		return $this->ar_vendor_id;
+	}
+
+	/**
+	 * Get the [ar_tag_id] column value.
+	 * 
+	 * @return     int
+	 */
+	public function getArTagId()
+	{
+		return $this->ar_tag_id;
 	}
 
 	/**
@@ -1224,12 +1266,36 @@ abstract class BaseArReport extends BaseObject  implements Persistent {
 			$this->modifiedColumns[] = ArReportPeer::AR_REPORT_SET_ID;
 		}
 
-		if ($this->aArReportSet !== null && $this->aArReportSet->getId() !== $v) {
-			$this->aArReportSet = null;
+		if ($this->aArReportSetRelatedByArReportSetId !== null && $this->aArReportSetRelatedByArReportSetId->getId() !== $v) {
+			$this->aArReportSetRelatedByArReportSetId = null;
 		}
 
 		return $this;
 	} // setArReportSetId()
+
+	/**
+	 * Set the value of [about_ar_report_set_id] column.
+	 * 
+	 * @param      int $v new value
+	 * @return     ArReport The current object (for fluent API support)
+	 */
+	public function setAboutArReportSetId($v)
+	{
+		if ($v !== null) {
+			$v = (int) $v;
+		}
+
+		if ($this->about_ar_report_set_id !== $v) {
+			$this->about_ar_report_set_id = $v;
+			$this->modifiedColumns[] = ArReportPeer::ABOUT_AR_REPORT_SET_ID;
+		}
+
+		if ($this->aArReportSetRelatedByAboutArReportSetId !== null && $this->aArReportSetRelatedByAboutArReportSetId->getId() !== $v) {
+			$this->aArReportSetRelatedByAboutArReportSetId = null;
+		}
+
+		return $this;
+	} // setAboutArReportSetId()
 
 	/**
 	 * Set the value of [ar_organization_unit_id] column.
@@ -1302,6 +1368,30 @@ abstract class BaseArReport extends BaseObject  implements Persistent {
 
 		return $this;
 	} // setArVendorId()
+
+	/**
+	 * Set the value of [ar_tag_id] column.
+	 * 
+	 * @param      int $v new value
+	 * @return     ArReport The current object (for fluent API support)
+	 */
+	public function setArTagId($v)
+	{
+		if ($v !== null) {
+			$v = (int) $v;
+		}
+
+		if ($this->ar_tag_id !== $v) {
+			$this->ar_tag_id = $v;
+			$this->modifiedColumns[] = ArReportPeer::AR_TAG_ID;
+		}
+
+		if ($this->aArTag !== null && $this->aArTag->getId() !== $v) {
+			$this->aArTag = null;
+		}
+
+		return $this;
+	} // setArTagId()
 
 	/**
 	 * Sets the value of [from_date] column to a normalized version of the date/time value specified.
@@ -2529,64 +2619,66 @@ abstract class BaseArReport extends BaseObject  implements Persistent {
 			$this->id = ($row[$startcol + 0] !== null) ? (int) $row[$startcol + 0] : null;
 			$this->is_template = ($row[$startcol + 1] !== null) ? (boolean) $row[$startcol + 1] : null;
 			$this->ar_report_set_id = ($row[$startcol + 2] !== null) ? (int) $row[$startcol + 2] : null;
-			$this->ar_organization_unit_id = ($row[$startcol + 3] !== null) ? (int) $row[$startcol + 3] : null;
-			$this->ar_user_id = ($row[$startcol + 4] !== null) ? (int) $row[$startcol + 4] : null;
-			$this->ar_vendor_id = ($row[$startcol + 5] !== null) ? (int) $row[$startcol + 5] : null;
-			$this->from_date = ($row[$startcol + 6] !== null) ? (string) $row[$startcol + 6] : null;
-			$this->to_date = ($row[$startcol + 7] !== null) ? (string) $row[$startcol + 7] : null;
-			$this->param_show_masked_telephone_numbers = ($row[$startcol + 8] !== null) ? (boolean) $row[$startcol + 8] : null;
-			$this->param_show_call_cost = ($row[$startcol + 9] !== null) ? (boolean) $row[$startcol + 9] : null;
-			$this->param_show_call_income = ($row[$startcol + 10] !== null) ? (boolean) $row[$startcol + 10] : null;
-			$this->param_show_also_outgoing_calls = ($row[$startcol + 11] !== null) ? (boolean) $row[$startcol + 11] : null;
-			$this->param_show_also_system_calls = ($row[$startcol + 12] !== null) ? (boolean) $row[$startcol + 12] : null;
-			$this->param_show_also_incoming_calls = ($row[$startcol + 13] !== null) ? (boolean) $row[$startcol + 13] : null;
-			$this->param_show_also_internal_calls = ($row[$startcol + 14] !== null) ? (boolean) $row[$startcol + 14] : null;
-			$this->param_show_call_details = ($row[$startcol + 15] !== null) ? (boolean) $row[$startcol + 15] : null;
-			$this->param_show_voip_provider = ($row[$startcol + 16] !== null) ? (boolean) $row[$startcol + 16] : null;
-			$this->param_show_communication_channel = ($row[$startcol + 17] !== null) ? (boolean) $row[$startcol + 17] : null;
-			$this->param_show_geographic_location = ($row[$startcol + 18] !== null) ? (boolean) $row[$startcol + 18] : null;
-			$this->param_show_connection_type = ($row[$startcol + 19] !== null) ? (boolean) $row[$startcol + 19] : null;
-			$this->param_show_cost_saving = ($row[$startcol + 20] !== null) ? (boolean) $row[$startcol + 20] : null;
-			$this->param_is_legal = ($row[$startcol + 21] !== null) ? (boolean) $row[$startcol + 21] : null;
-			$this->param_expand_to_level = ($row[$startcol + 22] !== null) ? (int) $row[$startcol + 22] : null;
-			$this->ar_report_order_of_children_id = ($row[$startcol + 23] !== null) ? (int) $row[$startcol + 23] : null;
-			$this->php_class_name = ($row[$startcol + 24] !== null) ? (string) $row[$startcol + 24] : null;
-			$this->produced_report_generation_date = ($row[$startcol + 25] !== null) ? (string) $row[$startcol + 25] : null;
-			$this->report_name = ($row[$startcol + 26] !== null) ? (string) $row[$startcol + 26] : null;
-			$this->produced_report_short_description = ($row[$startcol + 27] !== null) ? (string) $row[$startcol + 27] : null;
-			$this->produced_report_additional_description = ($row[$startcol + 28] !== null) ? (string) $row[$startcol + 28] : null;
-			$this->produced_report_already_reviewed = ($row[$startcol + 29] !== null) ? (boolean) $row[$startcol + 29] : null;
-			$this->produced_report_is_draft = ($row[$startcol + 30] !== null) ? (boolean) $row[$startcol + 30] : null;
-			$this->produced_report_must_be_regenerated = ($row[$startcol + 31] !== null) ? (boolean) $row[$startcol + 31] : null;
-			$this->produced_report_mime_type = ($row[$startcol + 32] !== null) ? (string) $row[$startcol + 32] : null;
-			$this->produced_report_file_type_suffix = ($row[$startcol + 33] !== null) ? (string) $row[$startcol + 33] : null;
-			if ($row[$startcol + 34] !== null) {
+			$this->about_ar_report_set_id = ($row[$startcol + 3] !== null) ? (int) $row[$startcol + 3] : null;
+			$this->ar_organization_unit_id = ($row[$startcol + 4] !== null) ? (int) $row[$startcol + 4] : null;
+			$this->ar_user_id = ($row[$startcol + 5] !== null) ? (int) $row[$startcol + 5] : null;
+			$this->ar_vendor_id = ($row[$startcol + 6] !== null) ? (int) $row[$startcol + 6] : null;
+			$this->ar_tag_id = ($row[$startcol + 7] !== null) ? (int) $row[$startcol + 7] : null;
+			$this->from_date = ($row[$startcol + 8] !== null) ? (string) $row[$startcol + 8] : null;
+			$this->to_date = ($row[$startcol + 9] !== null) ? (string) $row[$startcol + 9] : null;
+			$this->param_show_masked_telephone_numbers = ($row[$startcol + 10] !== null) ? (boolean) $row[$startcol + 10] : null;
+			$this->param_show_call_cost = ($row[$startcol + 11] !== null) ? (boolean) $row[$startcol + 11] : null;
+			$this->param_show_call_income = ($row[$startcol + 12] !== null) ? (boolean) $row[$startcol + 12] : null;
+			$this->param_show_also_outgoing_calls = ($row[$startcol + 13] !== null) ? (boolean) $row[$startcol + 13] : null;
+			$this->param_show_also_system_calls = ($row[$startcol + 14] !== null) ? (boolean) $row[$startcol + 14] : null;
+			$this->param_show_also_incoming_calls = ($row[$startcol + 15] !== null) ? (boolean) $row[$startcol + 15] : null;
+			$this->param_show_also_internal_calls = ($row[$startcol + 16] !== null) ? (boolean) $row[$startcol + 16] : null;
+			$this->param_show_call_details = ($row[$startcol + 17] !== null) ? (boolean) $row[$startcol + 17] : null;
+			$this->param_show_voip_provider = ($row[$startcol + 18] !== null) ? (boolean) $row[$startcol + 18] : null;
+			$this->param_show_communication_channel = ($row[$startcol + 19] !== null) ? (boolean) $row[$startcol + 19] : null;
+			$this->param_show_geographic_location = ($row[$startcol + 20] !== null) ? (boolean) $row[$startcol + 20] : null;
+			$this->param_show_connection_type = ($row[$startcol + 21] !== null) ? (boolean) $row[$startcol + 21] : null;
+			$this->param_show_cost_saving = ($row[$startcol + 22] !== null) ? (boolean) $row[$startcol + 22] : null;
+			$this->param_is_legal = ($row[$startcol + 23] !== null) ? (boolean) $row[$startcol + 23] : null;
+			$this->param_expand_to_level = ($row[$startcol + 24] !== null) ? (int) $row[$startcol + 24] : null;
+			$this->ar_report_order_of_children_id = ($row[$startcol + 25] !== null) ? (int) $row[$startcol + 25] : null;
+			$this->php_class_name = ($row[$startcol + 26] !== null) ? (string) $row[$startcol + 26] : null;
+			$this->produced_report_generation_date = ($row[$startcol + 27] !== null) ? (string) $row[$startcol + 27] : null;
+			$this->report_name = ($row[$startcol + 28] !== null) ? (string) $row[$startcol + 28] : null;
+			$this->produced_report_short_description = ($row[$startcol + 29] !== null) ? (string) $row[$startcol + 29] : null;
+			$this->produced_report_additional_description = ($row[$startcol + 30] !== null) ? (string) $row[$startcol + 30] : null;
+			$this->produced_report_already_reviewed = ($row[$startcol + 31] !== null) ? (boolean) $row[$startcol + 31] : null;
+			$this->produced_report_is_draft = ($row[$startcol + 32] !== null) ? (boolean) $row[$startcol + 32] : null;
+			$this->produced_report_must_be_regenerated = ($row[$startcol + 33] !== null) ? (boolean) $row[$startcol + 33] : null;
+			$this->produced_report_mime_type = ($row[$startcol + 34] !== null) ? (string) $row[$startcol + 34] : null;
+			$this->produced_report_file_type_suffix = ($row[$startcol + 35] !== null) ? (string) $row[$startcol + 35] : null;
+			if ($row[$startcol + 36] !== null) {
 				$this->produced_report_document = fopen('php://memory', 'r+');
-				fwrite($this->produced_report_document, $row[$startcol + 34]);
+				fwrite($this->produced_report_document, $row[$startcol + 36]);
 				rewind($this->produced_report_document);
 			} else {
 				$this->produced_report_document = null;
 			}
-			$this->produced_report_document_checksum = ($row[$startcol + 35] !== null) ? (string) $row[$startcol + 35] : null;
-			$this->report_mail_subject = ($row[$startcol + 36] !== null) ? (string) $row[$startcol + 36] : null;
-			$this->report_mail_body = ($row[$startcol + 37] !== null) ? (string) $row[$startcol + 37] : null;
-			$this->report_attachment_file_name = ($row[$startcol + 38] !== null) ? (string) $row[$startcol + 38] : null;
-			$this->report_attachment_file_name_add_report_date = ($row[$startcol + 39] !== null) ? (boolean) $row[$startcol + 39] : null;
-			$this->internal_name = ($row[$startcol + 40] !== null) ? (string) $row[$startcol + 40] : null;
-			$this->cached_parent_id_hierarchy = ($row[$startcol + 41] !== null) ? (string) $row[$startcol + 41] : null;
-			$this->legal_nr_prefix = ($row[$startcol + 42] !== null) ? (string) $row[$startcol + 42] : null;
-			$this->legal_consecutive_nr = ($row[$startcol + 43] !== null) ? (int) $row[$startcol + 43] : null;
-			$this->legal_date = ($row[$startcol + 44] !== null) ? (string) $row[$startcol + 44] : null;
-			$this->legal_sender_name = ($row[$startcol + 45] !== null) ? (string) $row[$startcol + 45] : null;
-			$this->legal_sender_vat = ($row[$startcol + 46] !== null) ? (string) $row[$startcol + 46] : null;
-			$this->legal_sender_address = ($row[$startcol + 47] !== null) ? (string) $row[$startcol + 47] : null;
-			$this->legal_receiver_name = ($row[$startcol + 48] !== null) ? (string) $row[$startcol + 48] : null;
-			$this->legal_receiver_vat = ($row[$startcol + 49] !== null) ? (string) $row[$startcol + 49] : null;
-			$this->legal_receiver_address = ($row[$startcol + 50] !== null) ? (string) $row[$startcol + 50] : null;
-			$this->total_without_tax = ($row[$startcol + 51] !== null) ? (string) $row[$startcol + 51] : null;
-			$this->tax = ($row[$startcol + 52] !== null) ? (string) $row[$startcol + 52] : null;
-			$this->applied_vat = ($row[$startcol + 53] !== null) ? (string) $row[$startcol + 53] : null;
-			$this->total_with_tax = ($row[$startcol + 54] !== null) ? (string) $row[$startcol + 54] : null;
+			$this->produced_report_document_checksum = ($row[$startcol + 37] !== null) ? (string) $row[$startcol + 37] : null;
+			$this->report_mail_subject = ($row[$startcol + 38] !== null) ? (string) $row[$startcol + 38] : null;
+			$this->report_mail_body = ($row[$startcol + 39] !== null) ? (string) $row[$startcol + 39] : null;
+			$this->report_attachment_file_name = ($row[$startcol + 40] !== null) ? (string) $row[$startcol + 40] : null;
+			$this->report_attachment_file_name_add_report_date = ($row[$startcol + 41] !== null) ? (boolean) $row[$startcol + 41] : null;
+			$this->internal_name = ($row[$startcol + 42] !== null) ? (string) $row[$startcol + 42] : null;
+			$this->cached_parent_id_hierarchy = ($row[$startcol + 43] !== null) ? (string) $row[$startcol + 43] : null;
+			$this->legal_nr_prefix = ($row[$startcol + 44] !== null) ? (string) $row[$startcol + 44] : null;
+			$this->legal_consecutive_nr = ($row[$startcol + 45] !== null) ? (int) $row[$startcol + 45] : null;
+			$this->legal_date = ($row[$startcol + 46] !== null) ? (string) $row[$startcol + 46] : null;
+			$this->legal_sender_name = ($row[$startcol + 47] !== null) ? (string) $row[$startcol + 47] : null;
+			$this->legal_sender_vat = ($row[$startcol + 48] !== null) ? (string) $row[$startcol + 48] : null;
+			$this->legal_sender_address = ($row[$startcol + 49] !== null) ? (string) $row[$startcol + 49] : null;
+			$this->legal_receiver_name = ($row[$startcol + 50] !== null) ? (string) $row[$startcol + 50] : null;
+			$this->legal_receiver_vat = ($row[$startcol + 51] !== null) ? (string) $row[$startcol + 51] : null;
+			$this->legal_receiver_address = ($row[$startcol + 52] !== null) ? (string) $row[$startcol + 52] : null;
+			$this->total_without_tax = ($row[$startcol + 53] !== null) ? (string) $row[$startcol + 53] : null;
+			$this->tax = ($row[$startcol + 54] !== null) ? (string) $row[$startcol + 54] : null;
+			$this->applied_vat = ($row[$startcol + 55] !== null) ? (string) $row[$startcol + 55] : null;
+			$this->total_with_tax = ($row[$startcol + 56] !== null) ? (string) $row[$startcol + 56] : null;
 			$this->resetModified();
 
 			$this->setNew(false);
@@ -2596,7 +2688,7 @@ abstract class BaseArReport extends BaseObject  implements Persistent {
 			}
 
 			// FIXME - using NUM_COLUMNS may be clearer.
-			return $startcol + 55; // 55 = ArReportPeer::NUM_COLUMNS - ArReportPeer::NUM_LAZY_LOAD_COLUMNS).
+			return $startcol + 57; // 57 = ArReportPeer::NUM_COLUMNS - ArReportPeer::NUM_LAZY_LOAD_COLUMNS).
 
 		} catch (Exception $e) {
 			throw new PropelException("Error populating ArReport object", $e);
@@ -2619,8 +2711,11 @@ abstract class BaseArReport extends BaseObject  implements Persistent {
 	public function ensureConsistency()
 	{
 
-		if ($this->aArReportSet !== null && $this->ar_report_set_id !== $this->aArReportSet->getId()) {
-			$this->aArReportSet = null;
+		if ($this->aArReportSetRelatedByArReportSetId !== null && $this->ar_report_set_id !== $this->aArReportSetRelatedByArReportSetId->getId()) {
+			$this->aArReportSetRelatedByArReportSetId = null;
+		}
+		if ($this->aArReportSetRelatedByAboutArReportSetId !== null && $this->about_ar_report_set_id !== $this->aArReportSetRelatedByAboutArReportSetId->getId()) {
+			$this->aArReportSetRelatedByAboutArReportSetId = null;
 		}
 		if ($this->aArOrganizationUnit !== null && $this->ar_organization_unit_id !== $this->aArOrganizationUnit->getId()) {
 			$this->aArOrganizationUnit = null;
@@ -2630,6 +2725,9 @@ abstract class BaseArReport extends BaseObject  implements Persistent {
 		}
 		if ($this->aArVendor !== null && $this->ar_vendor_id !== $this->aArVendor->getId()) {
 			$this->aArVendor = null;
+		}
+		if ($this->aArTag !== null && $this->ar_tag_id !== $this->aArTag->getId()) {
+			$this->aArTag = null;
 		}
 		if ($this->aArReportOrderOfChildren !== null && $this->ar_report_order_of_children_id !== $this->aArReportOrderOfChildren->getId()) {
 			$this->aArReportOrderOfChildren = null;
@@ -2673,10 +2771,12 @@ abstract class BaseArReport extends BaseObject  implements Persistent {
 
 		if ($deep) {  // also de-associate any related objects?
 
-			$this->aArReportSet = null;
+			$this->aArReportSetRelatedByArReportSetId = null;
+			$this->aArReportSetRelatedByAboutArReportSetId = null;
 			$this->aArOrganizationUnit = null;
 			$this->aArUser = null;
 			$this->aArVendor = null;
+			$this->aArTag = null;
 			$this->aArReportOrderOfChildren = null;
 			$this->collArReportAlsoFors = null;
 			$this->lastArReportAlsoForCriteria = null;
@@ -2806,11 +2906,18 @@ abstract class BaseArReport extends BaseObject  implements Persistent {
 			// method.  This object relates to these object(s) by a
 			// foreign key reference.
 
-			if ($this->aArReportSet !== null) {
-				if ($this->aArReportSet->isModified() || $this->aArReportSet->isNew()) {
-					$affectedRows += $this->aArReportSet->save($con);
+			if ($this->aArReportSetRelatedByArReportSetId !== null) {
+				if ($this->aArReportSetRelatedByArReportSetId->isModified() || $this->aArReportSetRelatedByArReportSetId->isNew()) {
+					$affectedRows += $this->aArReportSetRelatedByArReportSetId->save($con);
 				}
-				$this->setArReportSet($this->aArReportSet);
+				$this->setArReportSetRelatedByArReportSetId($this->aArReportSetRelatedByArReportSetId);
+			}
+
+			if ($this->aArReportSetRelatedByAboutArReportSetId !== null) {
+				if ($this->aArReportSetRelatedByAboutArReportSetId->isModified() || $this->aArReportSetRelatedByAboutArReportSetId->isNew()) {
+					$affectedRows += $this->aArReportSetRelatedByAboutArReportSetId->save($con);
+				}
+				$this->setArReportSetRelatedByAboutArReportSetId($this->aArReportSetRelatedByAboutArReportSetId);
 			}
 
 			if ($this->aArOrganizationUnit !== null) {
@@ -2832,6 +2939,13 @@ abstract class BaseArReport extends BaseObject  implements Persistent {
 					$affectedRows += $this->aArVendor->save($con);
 				}
 				$this->setArVendor($this->aArVendor);
+			}
+
+			if ($this->aArTag !== null) {
+				if ($this->aArTag->isModified() || $this->aArTag->isNew()) {
+					$affectedRows += $this->aArTag->save($con);
+				}
+				$this->setArTag($this->aArTag);
 			}
 
 			if ($this->aArReportOrderOfChildren !== null) {
@@ -2979,9 +3093,15 @@ abstract class BaseArReport extends BaseObject  implements Persistent {
 			// method.  This object relates to these object(s) by a
 			// foreign key reference.
 
-			if ($this->aArReportSet !== null) {
-				if (!$this->aArReportSet->validate($columns)) {
-					$failureMap = array_merge($failureMap, $this->aArReportSet->getValidationFailures());
+			if ($this->aArReportSetRelatedByArReportSetId !== null) {
+				if (!$this->aArReportSetRelatedByArReportSetId->validate($columns)) {
+					$failureMap = array_merge($failureMap, $this->aArReportSetRelatedByArReportSetId->getValidationFailures());
+				}
+			}
+
+			if ($this->aArReportSetRelatedByAboutArReportSetId !== null) {
+				if (!$this->aArReportSetRelatedByAboutArReportSetId->validate($columns)) {
+					$failureMap = array_merge($failureMap, $this->aArReportSetRelatedByAboutArReportSetId->getValidationFailures());
 				}
 			}
 
@@ -3000,6 +3120,12 @@ abstract class BaseArReport extends BaseObject  implements Persistent {
 			if ($this->aArVendor !== null) {
 				if (!$this->aArVendor->validate($columns)) {
 					$failureMap = array_merge($failureMap, $this->aArVendor->getValidationFailures());
+				}
+			}
+
+			if ($this->aArTag !== null) {
+				if (!$this->aArTag->validate($columns)) {
+					$failureMap = array_merge($failureMap, $this->aArTag->getValidationFailures());
 				}
 			}
 
@@ -3098,159 +3224,165 @@ abstract class BaseArReport extends BaseObject  implements Persistent {
 				return $this->getArReportSetId();
 				break;
 			case 3:
-				return $this->getArOrganizationUnitId();
+				return $this->getAboutArReportSetId();
 				break;
 			case 4:
-				return $this->getArUserId();
+				return $this->getArOrganizationUnitId();
 				break;
 			case 5:
-				return $this->getArVendorId();
+				return $this->getArUserId();
 				break;
 			case 6:
-				return $this->getFromDate();
+				return $this->getArVendorId();
 				break;
 			case 7:
-				return $this->getToDate();
+				return $this->getArTagId();
 				break;
 			case 8:
-				return $this->getParamShowMaskedTelephoneNumbers();
+				return $this->getFromDate();
 				break;
 			case 9:
-				return $this->getParamShowCallCost();
+				return $this->getToDate();
 				break;
 			case 10:
-				return $this->getParamShowCallIncome();
+				return $this->getParamShowMaskedTelephoneNumbers();
 				break;
 			case 11:
-				return $this->getParamShowAlsoOutgoingCalls();
+				return $this->getParamShowCallCost();
 				break;
 			case 12:
-				return $this->getParamShowAlsoSystemCalls();
+				return $this->getParamShowCallIncome();
 				break;
 			case 13:
-				return $this->getParamShowAlsoIncomingCalls();
+				return $this->getParamShowAlsoOutgoingCalls();
 				break;
 			case 14:
-				return $this->getParamShowAlsoInternalCalls();
+				return $this->getParamShowAlsoSystemCalls();
 				break;
 			case 15:
-				return $this->getParamShowCallDetails();
+				return $this->getParamShowAlsoIncomingCalls();
 				break;
 			case 16:
-				return $this->getParamShowVoipProvider();
+				return $this->getParamShowAlsoInternalCalls();
 				break;
 			case 17:
-				return $this->getParamShowCommunicationChannel();
+				return $this->getParamShowCallDetails();
 				break;
 			case 18:
-				return $this->getParamShowGeographicLocation();
+				return $this->getParamShowVoipProvider();
 				break;
 			case 19:
-				return $this->getParamShowConnectionType();
+				return $this->getParamShowCommunicationChannel();
 				break;
 			case 20:
-				return $this->getParamShowCostSaving();
+				return $this->getParamShowGeographicLocation();
 				break;
 			case 21:
-				return $this->getParamIsLegal();
+				return $this->getParamShowConnectionType();
 				break;
 			case 22:
-				return $this->getParamExpandToLevel();
+				return $this->getParamShowCostSaving();
 				break;
 			case 23:
-				return $this->getArReportOrderOfChildrenId();
+				return $this->getParamIsLegal();
 				break;
 			case 24:
-				return $this->getPhpClassName();
+				return $this->getParamExpandToLevel();
 				break;
 			case 25:
-				return $this->getProducedReportGenerationDate();
+				return $this->getArReportOrderOfChildrenId();
 				break;
 			case 26:
-				return $this->getReportName();
+				return $this->getPhpClassName();
 				break;
 			case 27:
-				return $this->getProducedReportShortDescription();
+				return $this->getProducedReportGenerationDate();
 				break;
 			case 28:
-				return $this->getProducedReportAdditionalDescription();
+				return $this->getReportName();
 				break;
 			case 29:
-				return $this->getProducedReportAlreadyReviewed();
+				return $this->getProducedReportShortDescription();
 				break;
 			case 30:
-				return $this->getProducedReportIsDraft();
+				return $this->getProducedReportAdditionalDescription();
 				break;
 			case 31:
-				return $this->getProducedReportMustBeRegenerated();
+				return $this->getProducedReportAlreadyReviewed();
 				break;
 			case 32:
-				return $this->getProducedReportMimeType();
+				return $this->getProducedReportIsDraft();
 				break;
 			case 33:
-				return $this->getProducedReportFileTypeSuffix();
+				return $this->getProducedReportMustBeRegenerated();
 				break;
 			case 34:
-				return $this->getProducedReportDocument();
+				return $this->getProducedReportMimeType();
 				break;
 			case 35:
-				return $this->getProducedReportDocumentChecksum();
+				return $this->getProducedReportFileTypeSuffix();
 				break;
 			case 36:
-				return $this->getReportMailSubject();
+				return $this->getProducedReportDocument();
 				break;
 			case 37:
-				return $this->getReportMailBody();
+				return $this->getProducedReportDocumentChecksum();
 				break;
 			case 38:
-				return $this->getReportAttachmentFileName();
+				return $this->getReportMailSubject();
 				break;
 			case 39:
-				return $this->getReportAttachmentFileNameAddReportDate();
+				return $this->getReportMailBody();
 				break;
 			case 40:
-				return $this->getInternalName();
+				return $this->getReportAttachmentFileName();
 				break;
 			case 41:
-				return $this->getCachedParentIdHierarchy();
+				return $this->getReportAttachmentFileNameAddReportDate();
 				break;
 			case 42:
-				return $this->getLegalNrPrefix();
+				return $this->getInternalName();
 				break;
 			case 43:
-				return $this->getLegalConsecutiveNr();
+				return $this->getCachedParentIdHierarchy();
 				break;
 			case 44:
-				return $this->getLegalDate();
+				return $this->getLegalNrPrefix();
 				break;
 			case 45:
-				return $this->getLegalSenderName();
+				return $this->getLegalConsecutiveNr();
 				break;
 			case 46:
-				return $this->getLegalSenderVat();
+				return $this->getLegalDate();
 				break;
 			case 47:
-				return $this->getLegalSenderAddress();
+				return $this->getLegalSenderName();
 				break;
 			case 48:
-				return $this->getLegalReceiverName();
+				return $this->getLegalSenderVat();
 				break;
 			case 49:
-				return $this->getLegalReceiverVat();
+				return $this->getLegalSenderAddress();
 				break;
 			case 50:
-				return $this->getLegalReceiverAddress();
+				return $this->getLegalReceiverName();
 				break;
 			case 51:
-				return $this->getTotalWithoutTax();
+				return $this->getLegalReceiverVat();
 				break;
 			case 52:
-				return $this->getTax();
+				return $this->getLegalReceiverAddress();
 				break;
 			case 53:
-				return $this->getAppliedVat();
+				return $this->getTotalWithoutTax();
 				break;
 			case 54:
+				return $this->getTax();
+				break;
+			case 55:
+				return $this->getAppliedVat();
+				break;
+			case 56:
 				return $this->getTotalWithTax();
 				break;
 			default:
@@ -3277,58 +3409,60 @@ abstract class BaseArReport extends BaseObject  implements Persistent {
 			$keys[0] => $this->getId(),
 			$keys[1] => $this->getIsTemplate(),
 			$keys[2] => $this->getArReportSetId(),
-			$keys[3] => $this->getArOrganizationUnitId(),
-			$keys[4] => $this->getArUserId(),
-			$keys[5] => $this->getArVendorId(),
-			$keys[6] => $this->getFromDate(),
-			$keys[7] => $this->getToDate(),
-			$keys[8] => $this->getParamShowMaskedTelephoneNumbers(),
-			$keys[9] => $this->getParamShowCallCost(),
-			$keys[10] => $this->getParamShowCallIncome(),
-			$keys[11] => $this->getParamShowAlsoOutgoingCalls(),
-			$keys[12] => $this->getParamShowAlsoSystemCalls(),
-			$keys[13] => $this->getParamShowAlsoIncomingCalls(),
-			$keys[14] => $this->getParamShowAlsoInternalCalls(),
-			$keys[15] => $this->getParamShowCallDetails(),
-			$keys[16] => $this->getParamShowVoipProvider(),
-			$keys[17] => $this->getParamShowCommunicationChannel(),
-			$keys[18] => $this->getParamShowGeographicLocation(),
-			$keys[19] => $this->getParamShowConnectionType(),
-			$keys[20] => $this->getParamShowCostSaving(),
-			$keys[21] => $this->getParamIsLegal(),
-			$keys[22] => $this->getParamExpandToLevel(),
-			$keys[23] => $this->getArReportOrderOfChildrenId(),
-			$keys[24] => $this->getPhpClassName(),
-			$keys[25] => $this->getProducedReportGenerationDate(),
-			$keys[26] => $this->getReportName(),
-			$keys[27] => $this->getProducedReportShortDescription(),
-			$keys[28] => $this->getProducedReportAdditionalDescription(),
-			$keys[29] => $this->getProducedReportAlreadyReviewed(),
-			$keys[30] => $this->getProducedReportIsDraft(),
-			$keys[31] => $this->getProducedReportMustBeRegenerated(),
-			$keys[32] => $this->getProducedReportMimeType(),
-			$keys[33] => $this->getProducedReportFileTypeSuffix(),
-			$keys[34] => $this->getProducedReportDocument(),
-			$keys[35] => $this->getProducedReportDocumentChecksum(),
-			$keys[36] => $this->getReportMailSubject(),
-			$keys[37] => $this->getReportMailBody(),
-			$keys[38] => $this->getReportAttachmentFileName(),
-			$keys[39] => $this->getReportAttachmentFileNameAddReportDate(),
-			$keys[40] => $this->getInternalName(),
-			$keys[41] => $this->getCachedParentIdHierarchy(),
-			$keys[42] => $this->getLegalNrPrefix(),
-			$keys[43] => $this->getLegalConsecutiveNr(),
-			$keys[44] => $this->getLegalDate(),
-			$keys[45] => $this->getLegalSenderName(),
-			$keys[46] => $this->getLegalSenderVat(),
-			$keys[47] => $this->getLegalSenderAddress(),
-			$keys[48] => $this->getLegalReceiverName(),
-			$keys[49] => $this->getLegalReceiverVat(),
-			$keys[50] => $this->getLegalReceiverAddress(),
-			$keys[51] => $this->getTotalWithoutTax(),
-			$keys[52] => $this->getTax(),
-			$keys[53] => $this->getAppliedVat(),
-			$keys[54] => $this->getTotalWithTax(),
+			$keys[3] => $this->getAboutArReportSetId(),
+			$keys[4] => $this->getArOrganizationUnitId(),
+			$keys[5] => $this->getArUserId(),
+			$keys[6] => $this->getArVendorId(),
+			$keys[7] => $this->getArTagId(),
+			$keys[8] => $this->getFromDate(),
+			$keys[9] => $this->getToDate(),
+			$keys[10] => $this->getParamShowMaskedTelephoneNumbers(),
+			$keys[11] => $this->getParamShowCallCost(),
+			$keys[12] => $this->getParamShowCallIncome(),
+			$keys[13] => $this->getParamShowAlsoOutgoingCalls(),
+			$keys[14] => $this->getParamShowAlsoSystemCalls(),
+			$keys[15] => $this->getParamShowAlsoIncomingCalls(),
+			$keys[16] => $this->getParamShowAlsoInternalCalls(),
+			$keys[17] => $this->getParamShowCallDetails(),
+			$keys[18] => $this->getParamShowVoipProvider(),
+			$keys[19] => $this->getParamShowCommunicationChannel(),
+			$keys[20] => $this->getParamShowGeographicLocation(),
+			$keys[21] => $this->getParamShowConnectionType(),
+			$keys[22] => $this->getParamShowCostSaving(),
+			$keys[23] => $this->getParamIsLegal(),
+			$keys[24] => $this->getParamExpandToLevel(),
+			$keys[25] => $this->getArReportOrderOfChildrenId(),
+			$keys[26] => $this->getPhpClassName(),
+			$keys[27] => $this->getProducedReportGenerationDate(),
+			$keys[28] => $this->getReportName(),
+			$keys[29] => $this->getProducedReportShortDescription(),
+			$keys[30] => $this->getProducedReportAdditionalDescription(),
+			$keys[31] => $this->getProducedReportAlreadyReviewed(),
+			$keys[32] => $this->getProducedReportIsDraft(),
+			$keys[33] => $this->getProducedReportMustBeRegenerated(),
+			$keys[34] => $this->getProducedReportMimeType(),
+			$keys[35] => $this->getProducedReportFileTypeSuffix(),
+			$keys[36] => $this->getProducedReportDocument(),
+			$keys[37] => $this->getProducedReportDocumentChecksum(),
+			$keys[38] => $this->getReportMailSubject(),
+			$keys[39] => $this->getReportMailBody(),
+			$keys[40] => $this->getReportAttachmentFileName(),
+			$keys[41] => $this->getReportAttachmentFileNameAddReportDate(),
+			$keys[42] => $this->getInternalName(),
+			$keys[43] => $this->getCachedParentIdHierarchy(),
+			$keys[44] => $this->getLegalNrPrefix(),
+			$keys[45] => $this->getLegalConsecutiveNr(),
+			$keys[46] => $this->getLegalDate(),
+			$keys[47] => $this->getLegalSenderName(),
+			$keys[48] => $this->getLegalSenderVat(),
+			$keys[49] => $this->getLegalSenderAddress(),
+			$keys[50] => $this->getLegalReceiverName(),
+			$keys[51] => $this->getLegalReceiverVat(),
+			$keys[52] => $this->getLegalReceiverAddress(),
+			$keys[53] => $this->getTotalWithoutTax(),
+			$keys[54] => $this->getTax(),
+			$keys[55] => $this->getAppliedVat(),
+			$keys[56] => $this->getTotalWithTax(),
 		);
 		return $result;
 	}
@@ -3370,159 +3504,165 @@ abstract class BaseArReport extends BaseObject  implements Persistent {
 				$this->setArReportSetId($value);
 				break;
 			case 3:
-				$this->setArOrganizationUnitId($value);
+				$this->setAboutArReportSetId($value);
 				break;
 			case 4:
-				$this->setArUserId($value);
+				$this->setArOrganizationUnitId($value);
 				break;
 			case 5:
-				$this->setArVendorId($value);
+				$this->setArUserId($value);
 				break;
 			case 6:
-				$this->setFromDate($value);
+				$this->setArVendorId($value);
 				break;
 			case 7:
-				$this->setToDate($value);
+				$this->setArTagId($value);
 				break;
 			case 8:
-				$this->setParamShowMaskedTelephoneNumbers($value);
+				$this->setFromDate($value);
 				break;
 			case 9:
-				$this->setParamShowCallCost($value);
+				$this->setToDate($value);
 				break;
 			case 10:
-				$this->setParamShowCallIncome($value);
+				$this->setParamShowMaskedTelephoneNumbers($value);
 				break;
 			case 11:
-				$this->setParamShowAlsoOutgoingCalls($value);
+				$this->setParamShowCallCost($value);
 				break;
 			case 12:
-				$this->setParamShowAlsoSystemCalls($value);
+				$this->setParamShowCallIncome($value);
 				break;
 			case 13:
-				$this->setParamShowAlsoIncomingCalls($value);
+				$this->setParamShowAlsoOutgoingCalls($value);
 				break;
 			case 14:
-				$this->setParamShowAlsoInternalCalls($value);
+				$this->setParamShowAlsoSystemCalls($value);
 				break;
 			case 15:
-				$this->setParamShowCallDetails($value);
+				$this->setParamShowAlsoIncomingCalls($value);
 				break;
 			case 16:
-				$this->setParamShowVoipProvider($value);
+				$this->setParamShowAlsoInternalCalls($value);
 				break;
 			case 17:
-				$this->setParamShowCommunicationChannel($value);
+				$this->setParamShowCallDetails($value);
 				break;
 			case 18:
-				$this->setParamShowGeographicLocation($value);
+				$this->setParamShowVoipProvider($value);
 				break;
 			case 19:
-				$this->setParamShowConnectionType($value);
+				$this->setParamShowCommunicationChannel($value);
 				break;
 			case 20:
-				$this->setParamShowCostSaving($value);
+				$this->setParamShowGeographicLocation($value);
 				break;
 			case 21:
-				$this->setParamIsLegal($value);
+				$this->setParamShowConnectionType($value);
 				break;
 			case 22:
-				$this->setParamExpandToLevel($value);
+				$this->setParamShowCostSaving($value);
 				break;
 			case 23:
-				$this->setArReportOrderOfChildrenId($value);
+				$this->setParamIsLegal($value);
 				break;
 			case 24:
-				$this->setPhpClassName($value);
+				$this->setParamExpandToLevel($value);
 				break;
 			case 25:
-				$this->setProducedReportGenerationDate($value);
+				$this->setArReportOrderOfChildrenId($value);
 				break;
 			case 26:
-				$this->setReportName($value);
+				$this->setPhpClassName($value);
 				break;
 			case 27:
-				$this->setProducedReportShortDescription($value);
+				$this->setProducedReportGenerationDate($value);
 				break;
 			case 28:
-				$this->setProducedReportAdditionalDescription($value);
+				$this->setReportName($value);
 				break;
 			case 29:
-				$this->setProducedReportAlreadyReviewed($value);
+				$this->setProducedReportShortDescription($value);
 				break;
 			case 30:
-				$this->setProducedReportIsDraft($value);
+				$this->setProducedReportAdditionalDescription($value);
 				break;
 			case 31:
-				$this->setProducedReportMustBeRegenerated($value);
+				$this->setProducedReportAlreadyReviewed($value);
 				break;
 			case 32:
-				$this->setProducedReportMimeType($value);
+				$this->setProducedReportIsDraft($value);
 				break;
 			case 33:
-				$this->setProducedReportFileTypeSuffix($value);
+				$this->setProducedReportMustBeRegenerated($value);
 				break;
 			case 34:
-				$this->setProducedReportDocument($value);
+				$this->setProducedReportMimeType($value);
 				break;
 			case 35:
-				$this->setProducedReportDocumentChecksum($value);
+				$this->setProducedReportFileTypeSuffix($value);
 				break;
 			case 36:
-				$this->setReportMailSubject($value);
+				$this->setProducedReportDocument($value);
 				break;
 			case 37:
-				$this->setReportMailBody($value);
+				$this->setProducedReportDocumentChecksum($value);
 				break;
 			case 38:
-				$this->setReportAttachmentFileName($value);
+				$this->setReportMailSubject($value);
 				break;
 			case 39:
-				$this->setReportAttachmentFileNameAddReportDate($value);
+				$this->setReportMailBody($value);
 				break;
 			case 40:
-				$this->setInternalName($value);
+				$this->setReportAttachmentFileName($value);
 				break;
 			case 41:
-				$this->setCachedParentIdHierarchy($value);
+				$this->setReportAttachmentFileNameAddReportDate($value);
 				break;
 			case 42:
-				$this->setLegalNrPrefix($value);
+				$this->setInternalName($value);
 				break;
 			case 43:
-				$this->setLegalConsecutiveNr($value);
+				$this->setCachedParentIdHierarchy($value);
 				break;
 			case 44:
-				$this->setLegalDate($value);
+				$this->setLegalNrPrefix($value);
 				break;
 			case 45:
-				$this->setLegalSenderName($value);
+				$this->setLegalConsecutiveNr($value);
 				break;
 			case 46:
-				$this->setLegalSenderVat($value);
+				$this->setLegalDate($value);
 				break;
 			case 47:
-				$this->setLegalSenderAddress($value);
+				$this->setLegalSenderName($value);
 				break;
 			case 48:
-				$this->setLegalReceiverName($value);
+				$this->setLegalSenderVat($value);
 				break;
 			case 49:
-				$this->setLegalReceiverVat($value);
+				$this->setLegalSenderAddress($value);
 				break;
 			case 50:
-				$this->setLegalReceiverAddress($value);
+				$this->setLegalReceiverName($value);
 				break;
 			case 51:
-				$this->setTotalWithoutTax($value);
+				$this->setLegalReceiverVat($value);
 				break;
 			case 52:
-				$this->setTax($value);
+				$this->setLegalReceiverAddress($value);
 				break;
 			case 53:
-				$this->setAppliedVat($value);
+				$this->setTotalWithoutTax($value);
 				break;
 			case 54:
+				$this->setTax($value);
+				break;
+			case 55:
+				$this->setAppliedVat($value);
+				break;
+			case 56:
 				$this->setTotalWithTax($value);
 				break;
 		} // switch()
@@ -3552,58 +3692,60 @@ abstract class BaseArReport extends BaseObject  implements Persistent {
 		if (array_key_exists($keys[0], $arr)) $this->setId($arr[$keys[0]]);
 		if (array_key_exists($keys[1], $arr)) $this->setIsTemplate($arr[$keys[1]]);
 		if (array_key_exists($keys[2], $arr)) $this->setArReportSetId($arr[$keys[2]]);
-		if (array_key_exists($keys[3], $arr)) $this->setArOrganizationUnitId($arr[$keys[3]]);
-		if (array_key_exists($keys[4], $arr)) $this->setArUserId($arr[$keys[4]]);
-		if (array_key_exists($keys[5], $arr)) $this->setArVendorId($arr[$keys[5]]);
-		if (array_key_exists($keys[6], $arr)) $this->setFromDate($arr[$keys[6]]);
-		if (array_key_exists($keys[7], $arr)) $this->setToDate($arr[$keys[7]]);
-		if (array_key_exists($keys[8], $arr)) $this->setParamShowMaskedTelephoneNumbers($arr[$keys[8]]);
-		if (array_key_exists($keys[9], $arr)) $this->setParamShowCallCost($arr[$keys[9]]);
-		if (array_key_exists($keys[10], $arr)) $this->setParamShowCallIncome($arr[$keys[10]]);
-		if (array_key_exists($keys[11], $arr)) $this->setParamShowAlsoOutgoingCalls($arr[$keys[11]]);
-		if (array_key_exists($keys[12], $arr)) $this->setParamShowAlsoSystemCalls($arr[$keys[12]]);
-		if (array_key_exists($keys[13], $arr)) $this->setParamShowAlsoIncomingCalls($arr[$keys[13]]);
-		if (array_key_exists($keys[14], $arr)) $this->setParamShowAlsoInternalCalls($arr[$keys[14]]);
-		if (array_key_exists($keys[15], $arr)) $this->setParamShowCallDetails($arr[$keys[15]]);
-		if (array_key_exists($keys[16], $arr)) $this->setParamShowVoipProvider($arr[$keys[16]]);
-		if (array_key_exists($keys[17], $arr)) $this->setParamShowCommunicationChannel($arr[$keys[17]]);
-		if (array_key_exists($keys[18], $arr)) $this->setParamShowGeographicLocation($arr[$keys[18]]);
-		if (array_key_exists($keys[19], $arr)) $this->setParamShowConnectionType($arr[$keys[19]]);
-		if (array_key_exists($keys[20], $arr)) $this->setParamShowCostSaving($arr[$keys[20]]);
-		if (array_key_exists($keys[21], $arr)) $this->setParamIsLegal($arr[$keys[21]]);
-		if (array_key_exists($keys[22], $arr)) $this->setParamExpandToLevel($arr[$keys[22]]);
-		if (array_key_exists($keys[23], $arr)) $this->setArReportOrderOfChildrenId($arr[$keys[23]]);
-		if (array_key_exists($keys[24], $arr)) $this->setPhpClassName($arr[$keys[24]]);
-		if (array_key_exists($keys[25], $arr)) $this->setProducedReportGenerationDate($arr[$keys[25]]);
-		if (array_key_exists($keys[26], $arr)) $this->setReportName($arr[$keys[26]]);
-		if (array_key_exists($keys[27], $arr)) $this->setProducedReportShortDescription($arr[$keys[27]]);
-		if (array_key_exists($keys[28], $arr)) $this->setProducedReportAdditionalDescription($arr[$keys[28]]);
-		if (array_key_exists($keys[29], $arr)) $this->setProducedReportAlreadyReviewed($arr[$keys[29]]);
-		if (array_key_exists($keys[30], $arr)) $this->setProducedReportIsDraft($arr[$keys[30]]);
-		if (array_key_exists($keys[31], $arr)) $this->setProducedReportMustBeRegenerated($arr[$keys[31]]);
-		if (array_key_exists($keys[32], $arr)) $this->setProducedReportMimeType($arr[$keys[32]]);
-		if (array_key_exists($keys[33], $arr)) $this->setProducedReportFileTypeSuffix($arr[$keys[33]]);
-		if (array_key_exists($keys[34], $arr)) $this->setProducedReportDocument($arr[$keys[34]]);
-		if (array_key_exists($keys[35], $arr)) $this->setProducedReportDocumentChecksum($arr[$keys[35]]);
-		if (array_key_exists($keys[36], $arr)) $this->setReportMailSubject($arr[$keys[36]]);
-		if (array_key_exists($keys[37], $arr)) $this->setReportMailBody($arr[$keys[37]]);
-		if (array_key_exists($keys[38], $arr)) $this->setReportAttachmentFileName($arr[$keys[38]]);
-		if (array_key_exists($keys[39], $arr)) $this->setReportAttachmentFileNameAddReportDate($arr[$keys[39]]);
-		if (array_key_exists($keys[40], $arr)) $this->setInternalName($arr[$keys[40]]);
-		if (array_key_exists($keys[41], $arr)) $this->setCachedParentIdHierarchy($arr[$keys[41]]);
-		if (array_key_exists($keys[42], $arr)) $this->setLegalNrPrefix($arr[$keys[42]]);
-		if (array_key_exists($keys[43], $arr)) $this->setLegalConsecutiveNr($arr[$keys[43]]);
-		if (array_key_exists($keys[44], $arr)) $this->setLegalDate($arr[$keys[44]]);
-		if (array_key_exists($keys[45], $arr)) $this->setLegalSenderName($arr[$keys[45]]);
-		if (array_key_exists($keys[46], $arr)) $this->setLegalSenderVat($arr[$keys[46]]);
-		if (array_key_exists($keys[47], $arr)) $this->setLegalSenderAddress($arr[$keys[47]]);
-		if (array_key_exists($keys[48], $arr)) $this->setLegalReceiverName($arr[$keys[48]]);
-		if (array_key_exists($keys[49], $arr)) $this->setLegalReceiverVat($arr[$keys[49]]);
-		if (array_key_exists($keys[50], $arr)) $this->setLegalReceiverAddress($arr[$keys[50]]);
-		if (array_key_exists($keys[51], $arr)) $this->setTotalWithoutTax($arr[$keys[51]]);
-		if (array_key_exists($keys[52], $arr)) $this->setTax($arr[$keys[52]]);
-		if (array_key_exists($keys[53], $arr)) $this->setAppliedVat($arr[$keys[53]]);
-		if (array_key_exists($keys[54], $arr)) $this->setTotalWithTax($arr[$keys[54]]);
+		if (array_key_exists($keys[3], $arr)) $this->setAboutArReportSetId($arr[$keys[3]]);
+		if (array_key_exists($keys[4], $arr)) $this->setArOrganizationUnitId($arr[$keys[4]]);
+		if (array_key_exists($keys[5], $arr)) $this->setArUserId($arr[$keys[5]]);
+		if (array_key_exists($keys[6], $arr)) $this->setArVendorId($arr[$keys[6]]);
+		if (array_key_exists($keys[7], $arr)) $this->setArTagId($arr[$keys[7]]);
+		if (array_key_exists($keys[8], $arr)) $this->setFromDate($arr[$keys[8]]);
+		if (array_key_exists($keys[9], $arr)) $this->setToDate($arr[$keys[9]]);
+		if (array_key_exists($keys[10], $arr)) $this->setParamShowMaskedTelephoneNumbers($arr[$keys[10]]);
+		if (array_key_exists($keys[11], $arr)) $this->setParamShowCallCost($arr[$keys[11]]);
+		if (array_key_exists($keys[12], $arr)) $this->setParamShowCallIncome($arr[$keys[12]]);
+		if (array_key_exists($keys[13], $arr)) $this->setParamShowAlsoOutgoingCalls($arr[$keys[13]]);
+		if (array_key_exists($keys[14], $arr)) $this->setParamShowAlsoSystemCalls($arr[$keys[14]]);
+		if (array_key_exists($keys[15], $arr)) $this->setParamShowAlsoIncomingCalls($arr[$keys[15]]);
+		if (array_key_exists($keys[16], $arr)) $this->setParamShowAlsoInternalCalls($arr[$keys[16]]);
+		if (array_key_exists($keys[17], $arr)) $this->setParamShowCallDetails($arr[$keys[17]]);
+		if (array_key_exists($keys[18], $arr)) $this->setParamShowVoipProvider($arr[$keys[18]]);
+		if (array_key_exists($keys[19], $arr)) $this->setParamShowCommunicationChannel($arr[$keys[19]]);
+		if (array_key_exists($keys[20], $arr)) $this->setParamShowGeographicLocation($arr[$keys[20]]);
+		if (array_key_exists($keys[21], $arr)) $this->setParamShowConnectionType($arr[$keys[21]]);
+		if (array_key_exists($keys[22], $arr)) $this->setParamShowCostSaving($arr[$keys[22]]);
+		if (array_key_exists($keys[23], $arr)) $this->setParamIsLegal($arr[$keys[23]]);
+		if (array_key_exists($keys[24], $arr)) $this->setParamExpandToLevel($arr[$keys[24]]);
+		if (array_key_exists($keys[25], $arr)) $this->setArReportOrderOfChildrenId($arr[$keys[25]]);
+		if (array_key_exists($keys[26], $arr)) $this->setPhpClassName($arr[$keys[26]]);
+		if (array_key_exists($keys[27], $arr)) $this->setProducedReportGenerationDate($arr[$keys[27]]);
+		if (array_key_exists($keys[28], $arr)) $this->setReportName($arr[$keys[28]]);
+		if (array_key_exists($keys[29], $arr)) $this->setProducedReportShortDescription($arr[$keys[29]]);
+		if (array_key_exists($keys[30], $arr)) $this->setProducedReportAdditionalDescription($arr[$keys[30]]);
+		if (array_key_exists($keys[31], $arr)) $this->setProducedReportAlreadyReviewed($arr[$keys[31]]);
+		if (array_key_exists($keys[32], $arr)) $this->setProducedReportIsDraft($arr[$keys[32]]);
+		if (array_key_exists($keys[33], $arr)) $this->setProducedReportMustBeRegenerated($arr[$keys[33]]);
+		if (array_key_exists($keys[34], $arr)) $this->setProducedReportMimeType($arr[$keys[34]]);
+		if (array_key_exists($keys[35], $arr)) $this->setProducedReportFileTypeSuffix($arr[$keys[35]]);
+		if (array_key_exists($keys[36], $arr)) $this->setProducedReportDocument($arr[$keys[36]]);
+		if (array_key_exists($keys[37], $arr)) $this->setProducedReportDocumentChecksum($arr[$keys[37]]);
+		if (array_key_exists($keys[38], $arr)) $this->setReportMailSubject($arr[$keys[38]]);
+		if (array_key_exists($keys[39], $arr)) $this->setReportMailBody($arr[$keys[39]]);
+		if (array_key_exists($keys[40], $arr)) $this->setReportAttachmentFileName($arr[$keys[40]]);
+		if (array_key_exists($keys[41], $arr)) $this->setReportAttachmentFileNameAddReportDate($arr[$keys[41]]);
+		if (array_key_exists($keys[42], $arr)) $this->setInternalName($arr[$keys[42]]);
+		if (array_key_exists($keys[43], $arr)) $this->setCachedParentIdHierarchy($arr[$keys[43]]);
+		if (array_key_exists($keys[44], $arr)) $this->setLegalNrPrefix($arr[$keys[44]]);
+		if (array_key_exists($keys[45], $arr)) $this->setLegalConsecutiveNr($arr[$keys[45]]);
+		if (array_key_exists($keys[46], $arr)) $this->setLegalDate($arr[$keys[46]]);
+		if (array_key_exists($keys[47], $arr)) $this->setLegalSenderName($arr[$keys[47]]);
+		if (array_key_exists($keys[48], $arr)) $this->setLegalSenderVat($arr[$keys[48]]);
+		if (array_key_exists($keys[49], $arr)) $this->setLegalSenderAddress($arr[$keys[49]]);
+		if (array_key_exists($keys[50], $arr)) $this->setLegalReceiverName($arr[$keys[50]]);
+		if (array_key_exists($keys[51], $arr)) $this->setLegalReceiverVat($arr[$keys[51]]);
+		if (array_key_exists($keys[52], $arr)) $this->setLegalReceiverAddress($arr[$keys[52]]);
+		if (array_key_exists($keys[53], $arr)) $this->setTotalWithoutTax($arr[$keys[53]]);
+		if (array_key_exists($keys[54], $arr)) $this->setTax($arr[$keys[54]]);
+		if (array_key_exists($keys[55], $arr)) $this->setAppliedVat($arr[$keys[55]]);
+		if (array_key_exists($keys[56], $arr)) $this->setTotalWithTax($arr[$keys[56]]);
 	}
 
 	/**
@@ -3618,9 +3760,11 @@ abstract class BaseArReport extends BaseObject  implements Persistent {
 		if ($this->isColumnModified(ArReportPeer::ID)) $criteria->add(ArReportPeer::ID, $this->id);
 		if ($this->isColumnModified(ArReportPeer::IS_TEMPLATE)) $criteria->add(ArReportPeer::IS_TEMPLATE, $this->is_template);
 		if ($this->isColumnModified(ArReportPeer::AR_REPORT_SET_ID)) $criteria->add(ArReportPeer::AR_REPORT_SET_ID, $this->ar_report_set_id);
+		if ($this->isColumnModified(ArReportPeer::ABOUT_AR_REPORT_SET_ID)) $criteria->add(ArReportPeer::ABOUT_AR_REPORT_SET_ID, $this->about_ar_report_set_id);
 		if ($this->isColumnModified(ArReportPeer::AR_ORGANIZATION_UNIT_ID)) $criteria->add(ArReportPeer::AR_ORGANIZATION_UNIT_ID, $this->ar_organization_unit_id);
 		if ($this->isColumnModified(ArReportPeer::AR_USER_ID)) $criteria->add(ArReportPeer::AR_USER_ID, $this->ar_user_id);
 		if ($this->isColumnModified(ArReportPeer::AR_VENDOR_ID)) $criteria->add(ArReportPeer::AR_VENDOR_ID, $this->ar_vendor_id);
+		if ($this->isColumnModified(ArReportPeer::AR_TAG_ID)) $criteria->add(ArReportPeer::AR_TAG_ID, $this->ar_tag_id);
 		if ($this->isColumnModified(ArReportPeer::FROM_DATE)) $criteria->add(ArReportPeer::FROM_DATE, $this->from_date);
 		if ($this->isColumnModified(ArReportPeer::TO_DATE)) $criteria->add(ArReportPeer::TO_DATE, $this->to_date);
 		if ($this->isColumnModified(ArReportPeer::PARAM_SHOW_MASKED_TELEPHONE_NUMBERS)) $criteria->add(ArReportPeer::PARAM_SHOW_MASKED_TELEPHONE_NUMBERS, $this->param_show_masked_telephone_numbers);
@@ -3728,11 +3872,15 @@ abstract class BaseArReport extends BaseObject  implements Persistent {
 
 		$copyObj->setArReportSetId($this->ar_report_set_id);
 
+		$copyObj->setAboutArReportSetId($this->about_ar_report_set_id);
+
 		$copyObj->setArOrganizationUnitId($this->ar_organization_unit_id);
 
 		$copyObj->setArUserId($this->ar_user_id);
 
 		$copyObj->setArVendorId($this->ar_vendor_id);
+
+		$copyObj->setArTagId($this->ar_tag_id);
 
 		$copyObj->setFromDate($this->from_date);
 
@@ -3922,7 +4070,7 @@ abstract class BaseArReport extends BaseObject  implements Persistent {
 	 * @return     ArReport The current object (for fluent API support)
 	 * @throws     PropelException
 	 */
-	public function setArReportSet(ArReportSet $v = null)
+	public function setArReportSetRelatedByArReportSetId(ArReportSet $v = null)
 	{
 		if ($v === null) {
 			$this->setArReportSetId(NULL);
@@ -3930,12 +4078,12 @@ abstract class BaseArReport extends BaseObject  implements Persistent {
 			$this->setArReportSetId($v->getId());
 		}
 
-		$this->aArReportSet = $v;
+		$this->aArReportSetRelatedByArReportSetId = $v;
 
 		// Add binding for other direction of this n:n relationship.
 		// If this object has already been added to the ArReportSet object, it will not be re-added.
 		if ($v !== null) {
-			$v->addArReport($this);
+			$v->addArReportRelatedByArReportSetId($this);
 		}
 
 		return $this;
@@ -3949,19 +4097,68 @@ abstract class BaseArReport extends BaseObject  implements Persistent {
 	 * @return     ArReportSet The associated ArReportSet object.
 	 * @throws     PropelException
 	 */
-	public function getArReportSet(PropelPDO $con = null)
+	public function getArReportSetRelatedByArReportSetId(PropelPDO $con = null)
 	{
-		if ($this->aArReportSet === null && ($this->ar_report_set_id !== null)) {
-			$this->aArReportSet = ArReportSetPeer::retrieveByPk($this->ar_report_set_id);
+		if ($this->aArReportSetRelatedByArReportSetId === null && ($this->ar_report_set_id !== null)) {
+			$this->aArReportSetRelatedByArReportSetId = ArReportSetPeer::retrieveByPk($this->ar_report_set_id);
 			/* The following can be used additionally to
 			   guarantee the related object contains a reference
 			   to this object.  This level of coupling may, however, be
 			   undesirable since it could result in an only partially populated collection
 			   in the referenced object.
-			   $this->aArReportSet->addArReports($this);
+			   $this->aArReportSetRelatedByArReportSetId->addArReportsRelatedByArReportSetId($this);
 			 */
 		}
-		return $this->aArReportSet;
+		return $this->aArReportSetRelatedByArReportSetId;
+	}
+
+	/**
+	 * Declares an association between this object and a ArReportSet object.
+	 *
+	 * @param      ArReportSet $v
+	 * @return     ArReport The current object (for fluent API support)
+	 * @throws     PropelException
+	 */
+	public function setArReportSetRelatedByAboutArReportSetId(ArReportSet $v = null)
+	{
+		if ($v === null) {
+			$this->setAboutArReportSetId(NULL);
+		} else {
+			$this->setAboutArReportSetId($v->getId());
+		}
+
+		$this->aArReportSetRelatedByAboutArReportSetId = $v;
+
+		// Add binding for other direction of this n:n relationship.
+		// If this object has already been added to the ArReportSet object, it will not be re-added.
+		if ($v !== null) {
+			$v->addArReportRelatedByAboutArReportSetId($this);
+		}
+
+		return $this;
+	}
+
+
+	/**
+	 * Get the associated ArReportSet object
+	 *
+	 * @param      PropelPDO Optional Connection object.
+	 * @return     ArReportSet The associated ArReportSet object.
+	 * @throws     PropelException
+	 */
+	public function getArReportSetRelatedByAboutArReportSetId(PropelPDO $con = null)
+	{
+		if ($this->aArReportSetRelatedByAboutArReportSetId === null && ($this->about_ar_report_set_id !== null)) {
+			$this->aArReportSetRelatedByAboutArReportSetId = ArReportSetPeer::retrieveByPk($this->about_ar_report_set_id);
+			/* The following can be used additionally to
+			   guarantee the related object contains a reference
+			   to this object.  This level of coupling may, however, be
+			   undesirable since it could result in an only partially populated collection
+			   in the referenced object.
+			   $this->aArReportSetRelatedByAboutArReportSetId->addArReportsRelatedByAboutArReportSetId($this);
+			 */
+		}
+		return $this->aArReportSetRelatedByAboutArReportSetId;
 	}
 
 	/**
@@ -4109,6 +4306,55 @@ abstract class BaseArReport extends BaseObject  implements Persistent {
 			 */
 		}
 		return $this->aArVendor;
+	}
+
+	/**
+	 * Declares an association between this object and a ArTag object.
+	 *
+	 * @param      ArTag $v
+	 * @return     ArReport The current object (for fluent API support)
+	 * @throws     PropelException
+	 */
+	public function setArTag(ArTag $v = null)
+	{
+		if ($v === null) {
+			$this->setArTagId(NULL);
+		} else {
+			$this->setArTagId($v->getId());
+		}
+
+		$this->aArTag = $v;
+
+		// Add binding for other direction of this n:n relationship.
+		// If this object has already been added to the ArTag object, it will not be re-added.
+		if ($v !== null) {
+			$v->addArReport($this);
+		}
+
+		return $this;
+	}
+
+
+	/**
+	 * Get the associated ArTag object
+	 *
+	 * @param      PropelPDO Optional Connection object.
+	 * @return     ArTag The associated ArTag object.
+	 * @throws     PropelException
+	 */
+	public function getArTag(PropelPDO $con = null)
+	{
+		if ($this->aArTag === null && ($this->ar_tag_id !== null)) {
+			$this->aArTag = ArTagPeer::retrieveByPk($this->ar_tag_id);
+			/* The following can be used additionally to
+			   guarantee the related object contains a reference
+			   to this object.  This level of coupling may, however, be
+			   undesirable since it could result in an only partially populated collection
+			   in the referenced object.
+			   $this->aArTag->addArReports($this);
+			 */
+		}
+		return $this->aArTag;
 	}
 
 	/**
@@ -5350,10 +5596,12 @@ abstract class BaseArReport extends BaseObject  implements Persistent {
 		$this->collArReportToReads = null;
 		$this->collArReportToReadUserViews = null;
 		$this->collArUserCanViewReports = null;
-			$this->aArReportSet = null;
+			$this->aArReportSetRelatedByArReportSetId = null;
+			$this->aArReportSetRelatedByAboutArReportSetId = null;
 			$this->aArOrganizationUnit = null;
 			$this->aArUser = null;
 			$this->aArVendor = null;
+			$this->aArTag = null;
 			$this->aArReportOrderOfChildren = null;
 	}
 

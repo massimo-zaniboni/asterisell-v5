@@ -52,9 +52,12 @@ class ArOrganizationUnitTableMap extends TableMap {
     $this->addRelation('ArCdr', 'ArCdr', RelationMap::ONE_TO_MANY, array('id' => 'ar_organization_unit_id', ), null, null);
     $this->addRelation('ArOrganizationUnitHasStructureRelatedByArOrganizationUnitId', 'ArOrganizationUnitHasStructure', RelationMap::ONE_TO_MANY, array('id' => 'ar_organization_unit_id', ), null, null);
     $this->addRelation('ArOrganizationUnitHasStructureRelatedByArParentOrganizationUnitId', 'ArOrganizationUnitHasStructure', RelationMap::ONE_TO_MANY, array('id' => 'ar_parent_organization_unit_id', ), null, null);
+    $this->addRelation('ArExpandedExtensions', 'ArExpandedExtensions', RelationMap::ONE_TO_MANY, array('id' => 'ar_organization_unit_id', ), null, null);
     $this->addRelation('ArUser', 'ArUser', RelationMap::ONE_TO_MANY, array('id' => 'ar_organization_unit_id', ), null, null);
     $this->addRelation('ArReport', 'ArReport', RelationMap::ONE_TO_MANY, array('id' => 'ar_organization_unit_id', ), null, null);
     $this->addRelation('ArReportScheduler', 'ArReportScheduler', RelationMap::ONE_TO_MANY, array('id' => 'ar_organization_unit_id', ), null, null);
+    $this->addRelation('ArPostponedReport', 'ArPostponedReport', RelationMap::ONE_TO_MANY, array('id' => 'ar_organization_unit_id', ), 'CASCADE', null);
+    $this->addRelation('ArPostponedReportTmp', 'ArPostponedReportTmp', RelationMap::ONE_TO_ONE, array('id' => 'ar_organization_unit_id', ), 'CASCADE', null);
     $this->addRelation('ArReportToReadUserView', 'ArReportToReadUserView', RelationMap::ONE_TO_MANY, array('id' => 'ar_organization_unit_id', ), null, null);
     $this->addRelation('ArInstanceStatus', 'ArInstanceStatus', RelationMap::ONE_TO_MANY, array('id' => 'ar_organization_unit_id', ), null, null);
     $this->addRelation('ArAssignedService', 'ArAssignedService', RelationMap::ONE_TO_MANY, array('id' => 'ar_organization_unit_id', ), null, null);

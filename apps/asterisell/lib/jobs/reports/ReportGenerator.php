@@ -26,7 +26,7 @@ sfLoader::loadHelpers(array('I18N', 'Debug', 'Date', 'Asterisell', 'CustomLocale
 
 /**
  * Generate a report.
- * Objects of this class have no persistent state, because they are not saved after they execution.
+ * Objects of this class have no persistent state, because they are not saved after their execution.
  * So all the params for generating a report, must be retrieved from the report database object.
  */
 abstract class ReportGenerator
@@ -35,6 +35,23 @@ abstract class ReportGenerator
     //////////////
     // ArReport //
     //////////////
+
+    protected $schedulerId = null;
+
+    /**
+     * @return null|int
+     */
+    public function getSchedulerId() {
+        return $this->schedulerId;
+    }
+
+    /**
+     * @param int|null $id
+     * @return void
+     */
+    public function setSchedulerId($id) {
+        $this->schedulerId = $id;
+    }
 
     /**
      * @var ArReport
@@ -158,7 +175,7 @@ abstract class ReportGenerator
     public function getStore()
     {
         if (is_null($this->store)) {
-            $this->store = $this->calcStore();
+            $this->store = $this->calcStore($this->getSchedulerId());
         }
         return $this->store;
     }
@@ -166,9 +183,10 @@ abstract class ReportGenerator
     /**
      * Return a calculated store.
      *
+     * @param int|null $schedulerId
      * @return ReportCalcStore
      */
-    abstract protected function calcStore();
+    abstract protected function calcStore($schedulerId);
 
     /////////////////////////
     // SHORT NAME SUPPORT //

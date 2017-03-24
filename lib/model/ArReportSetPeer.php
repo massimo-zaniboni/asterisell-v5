@@ -52,9 +52,11 @@ class ArReportSetPeer extends BaseArReportSetPeer
     public function deleteAssociatedReports($reportSetId, PDO $conn)
     {
 
-        $stmt = $conn->prepare('DELETE FROM ar_report WHERE ar_report_set_id = ?');
-        $stmt->execute(array($reportSetId));
+        $stmt = $conn->prepare('DELETE FROM ar_report WHERE (ar_report_set_id = ? OR about_ar_report_set_id = ?)');
+        $stmt->execute(array($reportSetId, $reportSetId));
 
+        $stmt = $conn->prepare('DELETE FROM ar_postponed_report WHERE ar_report_set_id = ?');
+        $stmt->execute(array($reportSetId));
     }
 
     /**
@@ -86,11 +88,12 @@ class ArReportSetPeer extends BaseArReportSetPeer
             $stm = $conn->prepare('
                SELECT COUNT(*)
                FROM   ar_report
-               WHERE  ar_report_set_id = ?
+               WHERE  (ar_report_set_id = ?
+               OR     about_ar_report_set_id = ?)
                AND    produced_report_must_be_regenerated = 1');
 
             $mustBeRegenerated = false;
-            $stm->execute(array($reportSetId));
+            $stm->execute(array($reportSetId, $reportSetId));
             while (($rs = $stm->fetch(PDO::FETCH_NUM)) !== false) {
                 $mustBeRegenerated = ($rs[0] > 0);
             }
@@ -111,14 +114,22 @@ class ArReportSetPeer extends BaseArReportSetPeer
         // Change status
         $conn->beginTransaction();
         try {
-            $stmt = $conn->prepare('UPDATE ar_report SET produced_report_already_reviewed = ? WHERE ar_report_set_id = ?');
-            $stmt->execute(array($isPublish, $reportSetId));
+            $stmt = $conn->prepare('
+            UPDATE ar_report
+            SET produced_report_already_reviewed = ?
+            WHERE (ar_report_set_id = ?
+            OR about_ar_report_set_id = ?)');
+            $stmt->execute(array($isPublish, $reportSetId, $reportSetId));
 
             $stmt = $conn->prepare('UPDATE ar_report_set SET must_be_reviewed = ? WHERE id = ?');
             $stmt->execute(array(!$isPublish, $reportSetId));
 
-            $stm = $conn->prepare('SELECT ar_report.id FROM ar_report WHERE ar_report_set_id = ?');
-            $stm->execute(array($reportSetId));
+            $stm = $conn->prepare('
+            SELECT ar_report.id
+            FROM ar_report
+            WHERE (ar_report_set_id = ?
+            OR about_ar_report_set_id = ?)');
+            $stm->execute(array($reportSetId, $reportSetId));
 
             while (($rs = $stm->fetch(PDO::FETCH_NUM)) !== false) {
                 $reportId = $rs[0];

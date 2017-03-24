@@ -1,0 +1,58 @@
+name: import
+version: 0.0.1
+cabal-version: >=1.2
+build-type: Simple
+license: GPL
+maintainer: massimo.zaniboni@asterisell.com
+homepage: http://www.asterisell.com
+bug-reports: support@asterisell.com
+author: Massimo Zaniboni
+data-dir: ""
+copyright: Massimo Zaniboni <massimo.zaniboni@asterisell.com>
+
+executable import
+  ghc-options:  -threaded -O -rtsopts  "-with-rtsopts=-N " 
+  build-depends: 
+             QuickCheck -any
+           , base -any
+           , filepath -any 
+           , system-filepath -any
+           , transformers -any 
+           , bytestring -any
+           , parsec -any
+           , attoparsec -any
+           , containers -any
+           , data-default -any
+           , mtl -any
+           , HUnit -any
+           , text -any
+           , old-time -any
+           , old-locale -any
+           , time -any
+           , regex-tdfa -any 
+           , MissingH -any
+           , monad-loops -any
+           , unix -any
+           , pipes -any
+           , pipes-bytestring -any
+           , pipes-attoparsec -any
+           , pipes-safe -any
+           , pipes-csv -any
+           , pipes-group -any
+           , lens-family-core -any
+           , vector -any
+           , cassava -any
+           , unordered-containers -any
+           , hashable -any
+           , heredoc -any
+           , directory -any
+           , process -any
+           , deepseq -any
+           , exceptions -any
+           , yaml -any
+           , base64-bytestring -any
+
+  main-is: Main.hs
+  buildable: True
+  hs-source-dirs: .
+

@@ -45,7 +45,7 @@ abstract class BaseBillingReport extends ReportGenerator
         return "windows-1252";
     }
 
-    public function calcStore()
+    public function calcStore($schedulerId)
     {
 
         $conn = Propel::getConnection();

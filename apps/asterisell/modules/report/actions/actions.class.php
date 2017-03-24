@@ -97,7 +97,14 @@ class reportActions extends autoReportActions
         } else {
             $this->ArReport->setArVendorId(null);
         }
-    }
+
+        $tagId = $this->getRequestParameter('select_party_tag');
+        if (!isEmptyOrNull($tagId)) {
+            $this->ArReport->setArTagId($tagId);
+        } else {
+            $this->ArReport->setArTagId(null);
+        }
+     }
 
     public function executeDownload()
     {

@@ -164,12 +164,10 @@ You can generate them using</p>
 </ul>
 <p>So the content of the local repo can be freely customized, and the merged with Asterisell upgrades.</p>
 </div>
-<div class="section" id="instances-installation">
-<h2>Instances Installation<a class="headerlink" href="#instances-installation" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="install-demo-instance">
+<h2>Install Demo Instance<a class="headerlink" href="#install-demo-instance" title="Permalink to this headline">¶</a></h2>
 <p>The file <cite>fabric_data/asterisell_instances.py</cite> contains the configured
 and installable Asterisell instances.</p>
-<div class="section" id="install-demo-instance">
-<h3>Install Demo Instance<a class="headerlink" href="#install-demo-instance" title="Permalink to this headline">¶</a></h3>
 <p>If there are no conflicts with assigned ports, you can crete a demo
 instance in this way</p>
 <div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">cd</span> <span class="n">ASTERISELL_MANAGEMENT_TOOL_INSTALLATION_DIRECTORY</span>
@@ -178,13 +176,6 @@ instance in this way</p>
 <span class="n">fab</span> <span class="n">restart</span><span class="p">:</span><span class="n">demo</span>
 <span class="n">fab</span> <span class="n">install</span><span class="p">:</span><span class="n">demo</span>
 <span class="n">fab</span> <span class="n">restart</span><span class="p">:</span><span class="n">demo</span>
-<span class="n">fab</span> <span class="n">connect</span><span class="p">:</span><span class="n">demo</span>
-<span class="c1"># use `admin` `admin` for connecting to the web instance</span>
-
-
-<span class="c1"># After playing with it you can destroy it</span>
-<span class="n">docker</span> <span class="n">stop</span> <span class="n">demo</span>
-<span class="n">docker</span> <span class="n">rm</span> <span class="n">demo</span>
 </pre></div>
 </div>
 <div class="admonition warning">
@@ -195,8 +186,44 @@ The image will be shared between all other instances, so next installations will
 a lot faster.</p>
 </div>
 </div>
+<div class="section" id="testing-the-demo-instance">
+<h2>Testing the Demo Instance<a class="headerlink" href="#testing-the-demo-instance" title="Permalink to this headline">¶</a></h2>
+<p>This command</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">fab</span> <span class="n">connect</span><span class="p">:</span><span class="n">demo</span>
+<span class="c1"># use `admin` `admin` for connecting to the web instance</span>
+</pre></div>
+</div>
+<p>will open</p>
+<ul class="simple">
+<li>a shell inside the instance Docker container, for inspecting it</li>
+<li>a browser window to the admin URL of the instance using the command <cite>xdg-open</cite></li>
+</ul>
+<p>In case you are installing Asterisell on a remote host, accessed using SSH, it is likely that the https port of the testing an instance is closed and not accessible from external networks. For accessing the port you can connect to the host using an SSH tunnelling:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">ssh</span> <span class="o">-</span><span class="n">L</span> <span class="mi">8020</span><span class="p">:</span><span class="n">localhost</span><span class="p">:</span><span class="mi">8020</span> <span class="n">user</span><span class="nd">@server</span>
+</pre></div>
+</div>
+<p>Then if you open the URL <a class="reference external" href="http://">http://localhost:8020/admin</a> it will be redirected to the port on the remote host, using a secure SSH tunnelling.</p>
+<p>After playing with the demo instance, you can destroy it executing</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">docker</span> <span class="n">stop</span> <span class="n">demo</span>
+<span class="n">docker</span> <span class="n">rm</span> <span class="n">demo</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="instance-url">
+<h2>Instance URL<a class="headerlink" href="#instance-url" title="Permalink to this headline">¶</a></h2>
+<p>An URL like <a class="reference external" href="http://localhost:8020/admin">http://localhost:8020/admin</a> open the admin instance of Asterisell:</p>
+<ul class="simple">
+<li>only admins can access it, and not normal users</li>
+<li>the PHP application here has full write/read access to the database</li>
+</ul>
+<p>An URL like <a class="reference external" href="http://localhost:8020/">http://localhost:8020/</a> open a normal instance of Asterisell:</p>
+<ul class="simple">
+<li>only normal users (your customers) can access it</li>
+<li>the PHP application and database connection has limited read access</li>
+</ul>
+</div>
 <div class="section" id="install-production-instance">
-<h3>Install Production Instance<a class="headerlink" href="#install-production-instance" title="Permalink to this headline">¶</a></h3>
+<h2>Install Production Instance<a class="headerlink" href="#install-production-instance" title="Permalink to this headline">¶</a></h2>
 <p>Customize the content of the configuration file <cite>fabric_data/asterisell_instances.py</cite>.
 In case <cite>billing</cite> is the name of the instance, execute:</p>
 <div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">cd</span> <span class="n">ASTERISELL_MANAGEMENT_TOOL_INSTALLATION_DIRECTORY</span>
@@ -207,11 +234,8 @@ In case <cite>billing</cite> is the name of the instance, execute:</p>
 <span class="n">fab</span> <span class="n">restart</span><span class="p">:</span><span class="n">billing</span>
 <span class="n">fab</span> <span class="n">add_admin</span><span class="p">:</span><span class="n">billing</span><span class="p">,</span><span class="n">SOME</span><span class="o">-</span><span class="n">PASSWORD</span>
 <span class="n">fab</span> <span class="n">connect</span><span class="p">:</span><span class="n">demo</span>
-<span class="c1"># use `admin` `SOME-PASSWORD` for connecting to the web instance</span>
+<span class="c1"># use `admin` `SOME-PASSWORD` for connecting to the container, and opening a web instance</span>
 </pre></div>
-</div>
-<p>The admin web-site is accessible using <cite>/admin</cite> ending URL path, while the customer/normal-user web site
-using the <cite>/</cite> ending URL path.</p>
 </div>
 </div>
 </div>
@@ -227,13 +251,17 @@ using the <cite>/</cite> ending URL path.</p>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Installation</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#system-requirements">System Requirements</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#host-configuration">Host Configuration</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#instances-installation">Instances Installation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#install-demo-instance">Install Demo Instance</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#testing-the-demo-instance">Testing the Demo Instance</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#instance-url">Instance URL</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#install-production-instance">Install Production Instance</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="management.html">Management</a></li>
 <li class="toctree-l1"><a class="reference internal" href="configuration.html">Configuration</a></li>
 <li class="toctree-l1"><a class="reference internal" href="usage.html">Usage</a></li>
 <li class="toctree-l1"><a class="reference internal" href="FAQ.html">FAQ</a></li>
+<li class="toctree-l1"><a class="reference internal" href="development.html">Development</a></li>
 <li class="toctree-l1"><a class="reference internal" href="news.html">News</a></li>
 <li class="toctree-l1"><a class="reference internal" href="support.html">Support</a></li>
 </ul>

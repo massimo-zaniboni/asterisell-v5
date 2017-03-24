@@ -46,18 +46,32 @@ sfLoader::loadHelpers(array('I18N', 'Debug', 'Date', 'Asterisell'));
 class ReportCalcStore
 {
 
+
+    // ---------------------------------------------------------
+    // Standard API
+    // NOTE: in reality the majority of logic is in the report-generator.
+
     /**
      * @return bool true if the store contains no data in the specified time frame
      */
-    public function isEmpty() {
+    public function isEmpty()
+    {
         return false;
     }
+
+    // ------------------------------------------
+    // Manage Character Set
 
     protected $characterSet = null;
 
     public function setCharacterSet($s)
     {
         $this->characterSet = $s;
+    }
+
+    public function getCharacterSet()
+    {
+        return $this->characterSet;
     }
 
     /**
@@ -72,6 +86,5 @@ class ReportCalcStore
             return iconv("UTF-8", $this->characterSet, "$value");
         }
     }
-
 }
 

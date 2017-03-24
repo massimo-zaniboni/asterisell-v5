@@ -19,6 +19,7 @@ abstract class BaseArOrganizationUnitForm extends BaseFormPropel
       'internal_name2'             => new sfWidgetFormInputText(),
       'export_code'                => new sfWidgetFormInputText(),
       'automatically_managed_from' => new sfWidgetFormInputText(),
+      'ar_postponed_report_list'   => new sfWidgetFormPropelChoice(array('multiple' => true, 'model' => 'ArReportSet')),
     ));
 
     $this->setValidators(array(
@@ -27,6 +28,7 @@ abstract class BaseArOrganizationUnitForm extends BaseFormPropel
       'internal_name2'             => new sfValidatorString(array('max_length' => 200, 'required' => false)),
       'export_code'                => new sfValidatorString(array('max_length' => 200, 'required' => false)),
       'automatically_managed_from' => new sfValidatorInteger(array('min' => -2147483648, 'max' => 2147483647)),
+      'ar_postponed_report_list'   => new sfValidatorPropelChoice(array('multiple' => true, 'model' => 'ArReportSet', 'required' => false)),
     ));
 
     $this->validatorSchema->setPostValidator(
@@ -49,5 +51,64 @@ abstract class BaseArOrganizationUnitForm extends BaseFormPropel
     return 'ArOrganizationUnit';
   }
 
+
+  public function updateDefaultsFromObject()
+  {
+    parent::updateDefaultsFromObject();
+
+    if (isset($this->widgetSchema['ar_postponed_report_list']))
+    {
+      $values = array();
+      foreach ($this->object->getArPostponedReports() as $obj)
+      {
+        $values[] = $obj->getArReportSetId();
+      }
+
+      $this->setDefault('ar_postponed_report_list', $values);
+    }
+
+  }
+
+  protected function doSave($con = null)
+  {
+    parent::doSave($con);
+
+    $this->saveArPostponedReportList($con);
+  }
+
+  public function saveArPostponedReportList($con = null)
+  {
+    if (!$this->isValid())
+    {
+      throw $this->getErrorSchema();
+    }
+
+    if (!isset($this->widgetSchema['ar_postponed_report_list']))
+    {
+      // somebody has unset this widget
+      return;
+    }
+
+    if (null === $con)
+    {
+      $con = $this->getConnection();
+    }
+
+    $c = new Criteria();
+    $c->add(ArPostponedReportPeer::AR_ORGANIZATION_UNIT_ID, $this->object->getPrimaryKey());
+    ArPostponedReportPeer::doDelete($c, $con);
+
+    $values = $this->getValue('ar_postponed_report_list');
+    if (is_array($values))
+    {
+      foreach ($values as $value)
+      {
+        $obj = new ArPostponedReport();
+        $obj->setArOrganizationUnitId($this->object->getPrimaryKey());
+        $obj->setArReportSetId($value);
+        $obj->save();
+      }
+    }
+  }
 
 }

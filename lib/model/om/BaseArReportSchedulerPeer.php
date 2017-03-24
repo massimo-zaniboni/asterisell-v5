@@ -25,7 +25,7 @@ abstract class BaseArReportSchedulerPeer {
 	const TM_CLASS = 'ArReportSchedulerTableMap';
 	
 	/** The total number of columns. */
-	const NUM_COLUMNS = 20;
+	const NUM_COLUMNS = 22;
 
 	/** The number of lazy-loaded columns. */
 	const NUM_LAZY_LOAD_COLUMNS = 0;
@@ -90,6 +90,12 @@ abstract class BaseArReportSchedulerPeer {
 	/** the column name for the GENERATE_ONLY_IF_THERE_IS_COST field */
 	const GENERATE_ONLY_IF_THERE_IS_COST = 'ar_report_scheduler.GENERATE_ONLY_IF_THERE_IS_COST';
 
+	/** the column name for the MINIMUM_COST field */
+	const MINIMUM_COST = 'ar_report_scheduler.MINIMUM_COST';
+
+	/** the column name for the SEND_COMPACT_REPORT_LIST_TO_ACCOUNTANT field */
+	const SEND_COMPACT_REPORT_LIST_TO_ACCOUNTANT = 'ar_report_scheduler.SEND_COMPACT_REPORT_LIST_TO_ACCOUNTANT';
+
 	/**
 	 * An identiy map to hold any loaded instances of ArReportScheduler objects.
 	 * This must be public so that other peer classes can access this when hydrating from JOIN
@@ -113,11 +119,11 @@ abstract class BaseArReportSchedulerPeer {
 	 * e.g. self::$fieldNames[self::TYPE_PHPNAME][0] = 'Id'
 	 */
 	private static $fieldNames = array (
-		BasePeer::TYPE_PHPNAME => array ('Id', 'IsActive', 'LastExecutionDate', 'LastFromDate', 'LastToDate', 'ArReportId', 'ArOrganizationUnitId', 'ShortDescription', 'AdditionalDescription', 'Note', 'ProducedReportMustBeReviewed', 'ArReportGenerationId', 'ScheduleEveryXDays', 'ScheduleEveryXMonths', 'StartGenerationAfterXHours', 'InternalName', 'ArLegalDateGenerationMethodId', 'DaysToAddToLegalDateGenerationMethod', 'IsYearlyLegalNumeration', 'GenerateOnlyIfThereIsCost', ),
-		BasePeer::TYPE_STUDLYPHPNAME => array ('id', 'isActive', 'lastExecutionDate', 'lastFromDate', 'lastToDate', 'arReportId', 'arOrganizationUnitId', 'shortDescription', 'additionalDescription', 'note', 'producedReportMustBeReviewed', 'arReportGenerationId', 'scheduleEveryXDays', 'scheduleEveryXMonths', 'startGenerationAfterXHours', 'internalName', 'arLegalDateGenerationMethodId', 'daysToAddToLegalDateGenerationMethod', 'isYearlyLegalNumeration', 'generateOnlyIfThereIsCost', ),
-		BasePeer::TYPE_COLNAME => array (self::ID, self::IS_ACTIVE, self::LAST_EXECUTION_DATE, self::LAST_FROM_DATE, self::LAST_TO_DATE, self::AR_REPORT_ID, self::AR_ORGANIZATION_UNIT_ID, self::SHORT_DESCRIPTION, self::ADDITIONAL_DESCRIPTION, self::NOTE, self::PRODUCED_REPORT_MUST_BE_REVIEWED, self::AR_REPORT_GENERATION_ID, self::SCHEDULE_EVERY_X_DAYS, self::SCHEDULE_EVERY_X_MONTHS, self::START_GENERATION_AFTER_X_HOURS, self::INTERNAL_NAME, self::AR_LEGAL_DATE_GENERATION_METHOD_ID, self::DAYS_TO_ADD_TO_LEGAL_DATE_GENERATION_METHOD, self::IS_YEARLY_LEGAL_NUMERATION, self::GENERATE_ONLY_IF_THERE_IS_COST, ),
-		BasePeer::TYPE_FIELDNAME => array ('id', 'is_active', 'last_execution_date', 'last_from_date', 'last_to_date', 'ar_report_id', 'ar_organization_unit_id', 'short_description', 'additional_description', 'note', 'produced_report_must_be_reviewed', 'ar_report_generation_id', 'schedule_every_x_days', 'schedule_every_x_months', 'start_generation_after_x_hours', 'internal_name', 'ar_legal_date_generation_method_id', 'days_to_add_to_legal_date_generation_method', 'is_yearly_legal_numeration', 'generate_only_if_there_is_cost', ),
-		BasePeer::TYPE_NUM => array (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, )
+		BasePeer::TYPE_PHPNAME => array ('Id', 'IsActive', 'LastExecutionDate', 'LastFromDate', 'LastToDate', 'ArReportId', 'ArOrganizationUnitId', 'ShortDescription', 'AdditionalDescription', 'Note', 'ProducedReportMustBeReviewed', 'ArReportGenerationId', 'ScheduleEveryXDays', 'ScheduleEveryXMonths', 'StartGenerationAfterXHours', 'InternalName', 'ArLegalDateGenerationMethodId', 'DaysToAddToLegalDateGenerationMethod', 'IsYearlyLegalNumeration', 'GenerateOnlyIfThereIsCost', 'MinimumCost', 'SendCompactReportListToAccountant', ),
+		BasePeer::TYPE_STUDLYPHPNAME => array ('id', 'isActive', 'lastExecutionDate', 'lastFromDate', 'lastToDate', 'arReportId', 'arOrganizationUnitId', 'shortDescription', 'additionalDescription', 'note', 'producedReportMustBeReviewed', 'arReportGenerationId', 'scheduleEveryXDays', 'scheduleEveryXMonths', 'startGenerationAfterXHours', 'internalName', 'arLegalDateGenerationMethodId', 'daysToAddToLegalDateGenerationMethod', 'isYearlyLegalNumeration', 'generateOnlyIfThereIsCost', 'minimumCost', 'sendCompactReportListToAccountant', ),
+		BasePeer::TYPE_COLNAME => array (self::ID, self::IS_ACTIVE, self::LAST_EXECUTION_DATE, self::LAST_FROM_DATE, self::LAST_TO_DATE, self::AR_REPORT_ID, self::AR_ORGANIZATION_UNIT_ID, self::SHORT_DESCRIPTION, self::ADDITIONAL_DESCRIPTION, self::NOTE, self::PRODUCED_REPORT_MUST_BE_REVIEWED, self::AR_REPORT_GENERATION_ID, self::SCHEDULE_EVERY_X_DAYS, self::SCHEDULE_EVERY_X_MONTHS, self::START_GENERATION_AFTER_X_HOURS, self::INTERNAL_NAME, self::AR_LEGAL_DATE_GENERATION_METHOD_ID, self::DAYS_TO_ADD_TO_LEGAL_DATE_GENERATION_METHOD, self::IS_YEARLY_LEGAL_NUMERATION, self::GENERATE_ONLY_IF_THERE_IS_COST, self::MINIMUM_COST, self::SEND_COMPACT_REPORT_LIST_TO_ACCOUNTANT, ),
+		BasePeer::TYPE_FIELDNAME => array ('id', 'is_active', 'last_execution_date', 'last_from_date', 'last_to_date', 'ar_report_id', 'ar_organization_unit_id', 'short_description', 'additional_description', 'note', 'produced_report_must_be_reviewed', 'ar_report_generation_id', 'schedule_every_x_days', 'schedule_every_x_months', 'start_generation_after_x_hours', 'internal_name', 'ar_legal_date_generation_method_id', 'days_to_add_to_legal_date_generation_method', 'is_yearly_legal_numeration', 'generate_only_if_there_is_cost', 'minimum_cost', 'send_compact_report_list_to_accountant', ),
+		BasePeer::TYPE_NUM => array (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, )
 	);
 
 	/**
@@ -127,11 +133,11 @@ abstract class BaseArReportSchedulerPeer {
 	 * e.g. self::$fieldNames[BasePeer::TYPE_PHPNAME]['Id'] = 0
 	 */
 	private static $fieldKeys = array (
-		BasePeer::TYPE_PHPNAME => array ('Id' => 0, 'IsActive' => 1, 'LastExecutionDate' => 2, 'LastFromDate' => 3, 'LastToDate' => 4, 'ArReportId' => 5, 'ArOrganizationUnitId' => 6, 'ShortDescription' => 7, 'AdditionalDescription' => 8, 'Note' => 9, 'ProducedReportMustBeReviewed' => 10, 'ArReportGenerationId' => 11, 'ScheduleEveryXDays' => 12, 'ScheduleEveryXMonths' => 13, 'StartGenerationAfterXHours' => 14, 'InternalName' => 15, 'ArLegalDateGenerationMethodId' => 16, 'DaysToAddToLegalDateGenerationMethod' => 17, 'IsYearlyLegalNumeration' => 18, 'GenerateOnlyIfThereIsCost' => 19, ),
-		BasePeer::TYPE_STUDLYPHPNAME => array ('id' => 0, 'isActive' => 1, 'lastExecutionDate' => 2, 'lastFromDate' => 3, 'lastToDate' => 4, 'arReportId' => 5, 'arOrganizationUnitId' => 6, 'shortDescription' => 7, 'additionalDescription' => 8, 'note' => 9, 'producedReportMustBeReviewed' => 10, 'arReportGenerationId' => 11, 'scheduleEveryXDays' => 12, 'scheduleEveryXMonths' => 13, 'startGenerationAfterXHours' => 14, 'internalName' => 15, 'arLegalDateGenerationMethodId' => 16, 'daysToAddToLegalDateGenerationMethod' => 17, 'isYearlyLegalNumeration' => 18, 'generateOnlyIfThereIsCost' => 19, ),
-		BasePeer::TYPE_COLNAME => array (self::ID => 0, self::IS_ACTIVE => 1, self::LAST_EXECUTION_DATE => 2, self::LAST_FROM_DATE => 3, self::LAST_TO_DATE => 4, self::AR_REPORT_ID => 5, self::AR_ORGANIZATION_UNIT_ID => 6, self::SHORT_DESCRIPTION => 7, self::ADDITIONAL_DESCRIPTION => 8, self::NOTE => 9, self::PRODUCED_REPORT_MUST_BE_REVIEWED => 10, self::AR_REPORT_GENERATION_ID => 11, self::SCHEDULE_EVERY_X_DAYS => 12, self::SCHEDULE_EVERY_X_MONTHS => 13, self::START_GENERATION_AFTER_X_HOURS => 14, self::INTERNAL_NAME => 15, self::AR_LEGAL_DATE_GENERATION_METHOD_ID => 16, self::DAYS_TO_ADD_TO_LEGAL_DATE_GENERATION_METHOD => 17, self::IS_YEARLY_LEGAL_NUMERATION => 18, self::GENERATE_ONLY_IF_THERE_IS_COST => 19, ),
-		BasePeer::TYPE_FIELDNAME => array ('id' => 0, 'is_active' => 1, 'last_execution_date' => 2, 'last_from_date' => 3, 'last_to_date' => 4, 'ar_report_id' => 5, 'ar_organization_unit_id' => 6, 'short_description' => 7, 'additional_description' => 8, 'note' => 9, 'produced_report_must_be_reviewed' => 10, 'ar_report_generation_id' => 11, 'schedule_every_x_days' => 12, 'schedule_every_x_months' => 13, 'start_generation_after_x_hours' => 14, 'internal_name' => 15, 'ar_legal_date_generation_method_id' => 16, 'days_to_add_to_legal_date_generation_method' => 17, 'is_yearly_legal_numeration' => 18, 'generate_only_if_there_is_cost' => 19, ),
-		BasePeer::TYPE_NUM => array (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, )
+		BasePeer::TYPE_PHPNAME => array ('Id' => 0, 'IsActive' => 1, 'LastExecutionDate' => 2, 'LastFromDate' => 3, 'LastToDate' => 4, 'ArReportId' => 5, 'ArOrganizationUnitId' => 6, 'ShortDescription' => 7, 'AdditionalDescription' => 8, 'Note' => 9, 'ProducedReportMustBeReviewed' => 10, 'ArReportGenerationId' => 11, 'ScheduleEveryXDays' => 12, 'ScheduleEveryXMonths' => 13, 'StartGenerationAfterXHours' => 14, 'InternalName' => 15, 'ArLegalDateGenerationMethodId' => 16, 'DaysToAddToLegalDateGenerationMethod' => 17, 'IsYearlyLegalNumeration' => 18, 'GenerateOnlyIfThereIsCost' => 19, 'MinimumCost' => 20, 'SendCompactReportListToAccountant' => 21, ),
+		BasePeer::TYPE_STUDLYPHPNAME => array ('id' => 0, 'isActive' => 1, 'lastExecutionDate' => 2, 'lastFromDate' => 3, 'lastToDate' => 4, 'arReportId' => 5, 'arOrganizationUnitId' => 6, 'shortDescription' => 7, 'additionalDescription' => 8, 'note' => 9, 'producedReportMustBeReviewed' => 10, 'arReportGenerationId' => 11, 'scheduleEveryXDays' => 12, 'scheduleEveryXMonths' => 13, 'startGenerationAfterXHours' => 14, 'internalName' => 15, 'arLegalDateGenerationMethodId' => 16, 'daysToAddToLegalDateGenerationMethod' => 17, 'isYearlyLegalNumeration' => 18, 'generateOnlyIfThereIsCost' => 19, 'minimumCost' => 20, 'sendCompactReportListToAccountant' => 21, ),
+		BasePeer::TYPE_COLNAME => array (self::ID => 0, self::IS_ACTIVE => 1, self::LAST_EXECUTION_DATE => 2, self::LAST_FROM_DATE => 3, self::LAST_TO_DATE => 4, self::AR_REPORT_ID => 5, self::AR_ORGANIZATION_UNIT_ID => 6, self::SHORT_DESCRIPTION => 7, self::ADDITIONAL_DESCRIPTION => 8, self::NOTE => 9, self::PRODUCED_REPORT_MUST_BE_REVIEWED => 10, self::AR_REPORT_GENERATION_ID => 11, self::SCHEDULE_EVERY_X_DAYS => 12, self::SCHEDULE_EVERY_X_MONTHS => 13, self::START_GENERATION_AFTER_X_HOURS => 14, self::INTERNAL_NAME => 15, self::AR_LEGAL_DATE_GENERATION_METHOD_ID => 16, self::DAYS_TO_ADD_TO_LEGAL_DATE_GENERATION_METHOD => 17, self::IS_YEARLY_LEGAL_NUMERATION => 18, self::GENERATE_ONLY_IF_THERE_IS_COST => 19, self::MINIMUM_COST => 20, self::SEND_COMPACT_REPORT_LIST_TO_ACCOUNTANT => 21, ),
+		BasePeer::TYPE_FIELDNAME => array ('id' => 0, 'is_active' => 1, 'last_execution_date' => 2, 'last_from_date' => 3, 'last_to_date' => 4, 'ar_report_id' => 5, 'ar_organization_unit_id' => 6, 'short_description' => 7, 'additional_description' => 8, 'note' => 9, 'produced_report_must_be_reviewed' => 10, 'ar_report_generation_id' => 11, 'schedule_every_x_days' => 12, 'schedule_every_x_months' => 13, 'start_generation_after_x_hours' => 14, 'internal_name' => 15, 'ar_legal_date_generation_method_id' => 16, 'days_to_add_to_legal_date_generation_method' => 17, 'is_yearly_legal_numeration' => 18, 'generate_only_if_there_is_cost' => 19, 'minimum_cost' => 20, 'send_compact_report_list_to_accountant' => 21, ),
+		BasePeer::TYPE_NUM => array (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, )
 	);
 
 	/**
@@ -221,6 +227,8 @@ abstract class BaseArReportSchedulerPeer {
 		$criteria->addSelectColumn(ArReportSchedulerPeer::DAYS_TO_ADD_TO_LEGAL_DATE_GENERATION_METHOD);
 		$criteria->addSelectColumn(ArReportSchedulerPeer::IS_YEARLY_LEGAL_NUMERATION);
 		$criteria->addSelectColumn(ArReportSchedulerPeer::GENERATE_ONLY_IF_THERE_IS_COST);
+		$criteria->addSelectColumn(ArReportSchedulerPeer::MINIMUM_COST);
+		$criteria->addSelectColumn(ArReportSchedulerPeer::SEND_COMPACT_REPORT_LIST_TO_ACCOUNTANT);
 	}
 
 	/**

@@ -275,11 +275,11 @@ p_rootBundleRate env
         WeeklyTimeFrame _
           -> do d <- p_dayOfWeek 1 ["Monday"
                                    ,"Tuesday"
-	                           ,"Wednesday"
-	                           ,"Thursday"
-	                           ,"Friday"
-	                           ,"Saturday"
-	                           ,"Sunday"]
+                                   ,"Wednesday"
+                                   ,"Thursday"
+                                   ,"Friday"
+                                   ,"Saturday"
+                                   ,"Sunday"]
                 return $ WeeklyTimeFrame d
         MonthlyTimeFrame _
          -> do i <- p_integer
@@ -448,11 +448,11 @@ p_filter env acceptAlsoPriceCategory
            let trie = List.foldl' (\t c -> trie_addExtensionCode t c ()) trie_empty telephoneNumbers
            return $ (\env cdr 
                        -> let cdrTelephoneNumber = fromJust1 "m4" $ cdr_externalTelephoneNumberWithAppliedPortability cdr
-                              maybeResult = trie_getMatch 0 trie (Text.unpack cdrTelephoneNumber)
+                              maybeResult = trie_getMatch trie_getMatch_initial trie (Text.unpack cdrTelephoneNumber)
                           in  case maybeResult of
                                 Nothing
                                   -> Nothing
-                                Just (m, _) 
+                                Just ((m, _), _) 
                                   -> Just (MatchStrenght { matchStrenght_telephoneNumber = m })
                     )
   

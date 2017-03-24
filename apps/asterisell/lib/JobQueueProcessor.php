@@ -99,9 +99,9 @@ class JobQueueProcessor
      * The worklflow is:
      * - start with upgrading jobs, if they exists
      * - execute fixed jobs
-     * - take note of the last event
-     * - execute all the jobs associated to events, until last event
-     * - if new events are added to the queue, execute again first fixed jobs, and then event jobs
+     * - execute event jobs
+     * - if event jobs fire new events keep executing them, until there are no any more events
+     * - if event jobs were executed at least once, then restart the loop with fixed jobs
      *
      * @param bool $isInteractive true for showing debug messages
      * @param bool $isDebugMode true for enabling debug mode
@@ -177,13 +177,14 @@ class JobQueueProcessor
         $fixedJobs = sfConfig::get('app_available_always_scheduled_jobs');
         $eventJobs = sfConfig::get('app_available_jobs');
 
-        $completedEvents = false;
-        while (!$completedEvents) {
+        // this is a complete loop:
+        // * first fixed jobs
+        // * then event jobs, until there are no new added events
+        // * then execute again a loop if there were some processing
+        $executeFixedAndEventJobs = true;
+        while ($executeFixedAndEventJobs) {
 
-            //
             // Execute "always_scheduled_jobs" following their order of declaration.
-            //
-
             foreach ($fixedJobs as $jobClass) {
                 $jobLog = NULL;
 
@@ -227,28 +228,23 @@ class JobQueueProcessor
                     if ($isInteractive) {
                         $this->displayError(ArProblemException::getLastErrorDescription(), ArProblemException::getLastErrorEffect(), ArProblemException::getLastErrorSolution());
                     }
-
                 }
             }
 
-            //
             // Process Jobs with Events
-            //
 
-            // process first all events until this ID, in order to execute a batch execution
-            // of last events.
-            $lastEventId = ArJobQueuePeer::getLastEventId();
-
-            $again = !is_null($lastEventId);
+            $again = true;
+            $executeFixedAndEventJobs = false;
             while ($again) {
-
                 $jobEntry = ArJobQueuePeer::getFirstJobInTheQueue();
-                // NOTE: re-execute the query because a Job can add new jobs
-                // inside the queue.
+                // start the job if exists
 
-                if (is_null($jobEntry) || $jobEntry->getId() > $lastEventId) {
-                    $again = FALSE;
+                if (is_null($jobEntry)) {
+                    $again = false;
                 } else {
+                    // if there is at least an event to process, then execute also fixed jobs
+                    $executeFixedAndEventJobs = true;
+
                     $eventDescription = $jobEntry->getDescription();
 
                     try {
@@ -301,9 +297,6 @@ class JobQueueProcessor
                     }
                 }
             }
-
-            $lastEventId = ArJobQueuePeer::getLastEventId();
-            $completedEvents = is_null($lastEventId);
         }
 
 

@@ -63,6 +63,7 @@ class ArParamsTableMap extends TableMap {
 		$this->addColumn('LEGAL_FAX', 'LegalFax', 'VARCHAR', false, 255, null);
 		$this->addColumn('INVOICE_NOTES', 'InvoiceNotes', 'VARCHAR', false, 255, null);
 		$this->addColumn('INVOICE_PAYMENT_TERMS', 'InvoicePaymentTerms', 'VARCHAR', false, 2048, null);
+		$this->addColumn('INVOICE_PAYMENT_DUE_IN_XX_DAYS', 'InvoicePaymentDueInXxDays', 'INTEGER', false, 4, null);
 		$this->addColumn('SENDER_NAME_ON_INVOICING_EMAILS', 'SenderNameOnInvoicingEmails', 'VARCHAR', false, 255, null);
 		$this->addColumn('INVOICING_EMAIL_ADDRESS', 'InvoicingEmailAddress', 'VARCHAR', false, 255, null);
 		$this->addColumn('LOGO_HTML_COLOR', 'LogoHtmlColor', 'VARCHAR', false, 12, null);

@@ -169,6 +169,10 @@ CREATE TABLE `ar_party`
 	`ar_reseller_id` INTEGER,
 	`migration_field_for_telephone` VARCHAR(255),
 	`migration_field_for_adsl` VARCHAR(255),
+	`payment_iban` VARCHAR(255),
+	`payment_bic` VARCHAR(255),
+	`payment_sepa` VARCHAR(255),
+	`payment_info` VARCHAR(255),
 	PRIMARY KEY (`id`),
 	KEY `ar_party_I_1`(`is_billable`),
 	KEY `ar_party_I_2`(`is_active`),
@@ -176,6 +180,47 @@ CREATE TABLE `ar_party`
 	CONSTRAINT `ar_party_FK_1`
 		FOREIGN KEY (`ar_reseller_id`)
 		REFERENCES `ar_reseller` (`id`)
+)Engine=tokudb COMPRESSION=tokudb_quicklz,DEFAULT CHARACTER SET = utf8, DEFAULT COLLATE = utf8_bin;
+
+#-----------------------------------------------------------------------------
+#-- ar_tag
+#-----------------------------------------------------------------------------
+
+DROP TABLE IF EXISTS `ar_tag`;
+
+
+CREATE TABLE `ar_tag`
+(
+	`id` INTEGER  NOT NULL AUTO_INCREMENT,
+	`internal_name` VARCHAR(255)  NOT NULL,
+	`note_for_admin` VARCHAR(1024),
+	`name_for_customer` VARCHAR(512) default '' NOT NULL,
+	`note_for_customer` VARCHAR(1204) default '' NOT NULL,
+	PRIMARY KEY (`id`),
+	UNIQUE KEY `ar_tag_U_1` (`internal_name`)
+)Engine=tokudb COMPRESSION=tokudb_quicklz,DEFAULT CHARACTER SET = utf8, DEFAULT COLLATE = utf8_bin;
+
+#-----------------------------------------------------------------------------
+#-- ar_party_has_tag
+#-----------------------------------------------------------------------------
+
+DROP TABLE IF EXISTS `ar_party_has_tag`;
+
+
+CREATE TABLE `ar_party_has_tag`
+(
+	`ar_party_id` INTEGER  NOT NULL,
+	`ar_tag_id` INTEGER  NOT NULL,
+	PRIMARY KEY (`ar_party_id`,`ar_tag_id`),
+	CONSTRAINT `ar_party_has_tag_FK_1`
+		FOREIGN KEY (`ar_party_id`)
+		REFERENCES `ar_party` (`id`)
+		ON DELETE CASCADE,
+	INDEX `ar_party_has_tag_FI_2` (`ar_tag_id`),
+	CONSTRAINT `ar_party_has_tag_FK_2`
+		FOREIGN KEY (`ar_tag_id`)
+		REFERENCES `ar_tag` (`id`)
+		ON DELETE CASCADE
 )Engine=tokudb COMPRESSION=tokudb_quicklz,DEFAULT CHARACTER SET = utf8, DEFAULT COLLATE = utf8_bin;
 
 #-----------------------------------------------------------------------------
@@ -214,6 +259,7 @@ CREATE TABLE `ar_params`
 	`legal_fax` VARCHAR(255),
 	`invoice_notes` VARCHAR(255),
 	`invoice_payment_terms` VARCHAR(2048),
+	`invoice_payment_due_in_xx_days` INTEGER(4),
 	`sender_name_on_invoicing_emails` VARCHAR(255),
 	`invoicing_email_address` VARCHAR(255),
 	`logo_html_color` VARCHAR(12),
@@ -472,6 +518,25 @@ CREATE TABLE `ar_organization_backup_of_changes`
 	`sql_tables` LONGBLOB,
 	PRIMARY KEY (`id`),
 	KEY `ar_organization_backup_of_changes_I_1`(`backup_at_date`)
+)Engine=tokudb COMPRESSION=tokudb_quicklz,DEFAULT CHARACTER SET = utf8, DEFAULT COLLATE = utf8_bin;
+
+#-----------------------------------------------------------------------------
+#-- ar_expanded_extensions
+#-----------------------------------------------------------------------------
+
+DROP TABLE IF EXISTS `ar_expanded_extensions`;
+
+
+CREATE TABLE `ar_expanded_extensions`
+(
+	`id` INTEGER  NOT NULL AUTO_INCREMENT,
+	`ar_organization_unit_id` INTEGER,
+	`extension_code` VARCHAR(5024)  NOT NULL,
+	PRIMARY KEY (`id`),
+	INDEX `ar_expanded_extensions_FI_1` (`ar_organization_unit_id`),
+	CONSTRAINT `ar_expanded_extensions_FK_1`
+		FOREIGN KEY (`ar_organization_unit_id`)
+		REFERENCES `ar_organization_unit` (`id`)
 )Engine=tokudb COMPRESSION=tokudb_quicklz,DEFAULT CHARACTER SET = utf8, DEFAULT COLLATE = utf8_bin;
 
 #-----------------------------------------------------------------------------
@@ -762,9 +827,11 @@ CREATE TABLE `ar_report`
 	`id` INTEGER  NOT NULL AUTO_INCREMENT,
 	`is_template` TINYINT default 0 NOT NULL,
 	`ar_report_set_id` INTEGER,
+	`about_ar_report_set_id` INTEGER,
 	`ar_organization_unit_id` INTEGER,
 	`ar_user_id` INTEGER,
 	`ar_vendor_id` INTEGER,
+	`ar_tag_id` INTEGER,
 	`from_date` DATETIME,
 	`to_date` DATETIME,
 	`param_show_masked_telephone_numbers` TINYINT default 1 NOT NULL,
@@ -830,20 +897,29 @@ CREATE TABLE `ar_report`
 		FOREIGN KEY (`ar_report_set_id`)
 		REFERENCES `ar_report_set` (`id`)
 		ON DELETE CASCADE,
-	INDEX `ar_report_FI_2` (`ar_organization_unit_id`),
+	INDEX `ar_report_FI_2` (`about_ar_report_set_id`),
 	CONSTRAINT `ar_report_FK_2`
+		FOREIGN KEY (`about_ar_report_set_id`)
+		REFERENCES `ar_report_set` (`id`)
+		ON DELETE CASCADE,
+	INDEX `ar_report_FI_3` (`ar_organization_unit_id`),
+	CONSTRAINT `ar_report_FK_3`
 		FOREIGN KEY (`ar_organization_unit_id`)
 		REFERENCES `ar_organization_unit` (`id`),
-	INDEX `ar_report_FI_3` (`ar_user_id`),
-	CONSTRAINT `ar_report_FK_3`
+	INDEX `ar_report_FI_4` (`ar_user_id`),
+	CONSTRAINT `ar_report_FK_4`
 		FOREIGN KEY (`ar_user_id`)
 		REFERENCES `ar_user` (`id`),
-	INDEX `ar_report_FI_4` (`ar_vendor_id`),
-	CONSTRAINT `ar_report_FK_4`
+	INDEX `ar_report_FI_5` (`ar_vendor_id`),
+	CONSTRAINT `ar_report_FK_5`
 		FOREIGN KEY (`ar_vendor_id`)
 		REFERENCES `ar_vendor` (`id`),
-	INDEX `ar_report_FI_5` (`ar_report_order_of_children_id`),
-	CONSTRAINT `ar_report_FK_5`
+	INDEX `ar_report_FI_6` (`ar_tag_id`),
+	CONSTRAINT `ar_report_FK_6`
+		FOREIGN KEY (`ar_tag_id`)
+		REFERENCES `ar_tag` (`id`),
+	INDEX `ar_report_FI_7` (`ar_report_order_of_children_id`),
+	CONSTRAINT `ar_report_FK_7`
 		FOREIGN KEY (`ar_report_order_of_children_id`)
 		REFERENCES `ar_report_order_of_children` (`id`)
 )Engine=tokudb COMPRESSION=tokudb_quicklz,DEFAULT CHARACTER SET = utf8, DEFAULT COLLATE = utf8_bin;
@@ -900,6 +976,8 @@ CREATE TABLE `ar_report_scheduler`
 	`days_to_add_to_legal_date_generation_method` INTEGER,
 	`is_yearly_legal_numeration` TINYINT,
 	`generate_only_if_there_is_cost` TINYINT default 0 NOT NULL,
+	`minimum_cost` BIGINT,
+	`send_compact_report_list_to_accountant` TINYINT default 0 NOT NULL,
 	PRIMARY KEY (`id`),
 	KEY `ar_report_scheduler_I_1`(`internal_name`),
 	INDEX `ar_report_scheduler_FI_1` (`ar_report_id`),
@@ -914,6 +992,49 @@ CREATE TABLE `ar_report_scheduler`
 	CONSTRAINT `ar_report_scheduler_FK_3`
 		FOREIGN KEY (`ar_report_generation_id`)
 		REFERENCES `ar_report_generation` (`id`)
+)Engine=tokudb COMPRESSION=tokudb_quicklz,DEFAULT CHARACTER SET = utf8, DEFAULT COLLATE = utf8_bin;
+
+#-----------------------------------------------------------------------------
+#-- ar_postponed_report
+#-----------------------------------------------------------------------------
+
+DROP TABLE IF EXISTS `ar_postponed_report`;
+
+
+CREATE TABLE `ar_postponed_report`
+(
+	`ar_report_set_id` INTEGER  NOT NULL,
+	`ar_organization_unit_id` INTEGER  NOT NULL,
+	PRIMARY KEY (`ar_report_set_id`,`ar_organization_unit_id`),
+	CONSTRAINT `ar_postponed_report_FK_1`
+		FOREIGN KEY (`ar_report_set_id`)
+		REFERENCES `ar_report_set` (`id`)
+		ON DELETE CASCADE,
+	INDEX `ar_postponed_report_FI_2` (`ar_organization_unit_id`),
+	CONSTRAINT `ar_postponed_report_FK_2`
+		FOREIGN KEY (`ar_organization_unit_id`)
+		REFERENCES `ar_organization_unit` (`id`)
+		ON DELETE CASCADE
+)Engine=tokudb COMPRESSION=tokudb_quicklz,DEFAULT CHARACTER SET = utf8, DEFAULT COLLATE = utf8_bin;
+
+#-----------------------------------------------------------------------------
+#-- ar_postponed_report_tmp
+#-----------------------------------------------------------------------------
+
+DROP TABLE IF EXISTS `ar_postponed_report_tmp`;
+
+
+CREATE TABLE `ar_postponed_report_tmp`
+(
+	`ar_organization_unit_id` INTEGER  NOT NULL,
+	`from_date` DATETIME  NOT NULL,
+	`is_billed` TINYINT  NOT NULL,
+	`is_processed` TINYINT  NOT NULL,
+	PRIMARY KEY (`ar_organization_unit_id`),
+	CONSTRAINT `ar_postponed_report_tmp_FK_1`
+		FOREIGN KEY (`ar_organization_unit_id`)
+		REFERENCES `ar_organization_unit` (`id`)
+		ON DELETE CASCADE
 )Engine=tokudb COMPRESSION=tokudb_quicklz,DEFAULT CHARACTER SET = utf8, DEFAULT COLLATE = utf8_bin;
 
 #-----------------------------------------------------------------------------
@@ -945,6 +1066,11 @@ CREATE TABLE `ar_report_set`
 	`from_date` DATETIME  NOT NULL,
 	`to_date` DATETIME  NOT NULL,
 	`must_be_reviewed` TINYINT default 1 NOT NULL,
+	`postponed_fields_are_updated` TINYINT default 1 NOT NULL,
+	`postponed_reports` INTEGER default 0 NOT NULL,
+	`postponed_amount` BIGINT default 0 NOT NULL,
+	`reports` INTEGER default 0 NOT NULL,
+	`amount` BIGINT default 0 NOT NULL,
 	PRIMARY KEY (`id`),
 	KEY `ar_report_set_I_1`(`from_date`),
 	KEY `ar_report_set_I_2`(`to_date`),

@@ -39,9 +39,11 @@ class ArReportTableMap extends TableMap {
 		$this->addPrimaryKey('ID', 'Id', 'INTEGER', true, null, null);
 		$this->addColumn('IS_TEMPLATE', 'IsTemplate', 'BOOLEAN', true, null, false);
 		$this->addForeignKey('AR_REPORT_SET_ID', 'ArReportSetId', 'INTEGER', 'ar_report_set', 'ID', false, null, null);
+		$this->addForeignKey('ABOUT_AR_REPORT_SET_ID', 'AboutArReportSetId', 'INTEGER', 'ar_report_set', 'ID', false, null, null);
 		$this->addForeignKey('AR_ORGANIZATION_UNIT_ID', 'ArOrganizationUnitId', 'INTEGER', 'ar_organization_unit', 'ID', false, null, null);
 		$this->addForeignKey('AR_USER_ID', 'ArUserId', 'INTEGER', 'ar_user', 'ID', false, null, null);
 		$this->addForeignKey('AR_VENDOR_ID', 'ArVendorId', 'INTEGER', 'ar_vendor', 'ID', false, null, null);
+		$this->addForeignKey('AR_TAG_ID', 'ArTagId', 'INTEGER', 'ar_tag', 'ID', false, null, null);
 		$this->addColumn('FROM_DATE', 'FromDate', 'TIMESTAMP', false, null, null);
 		$this->addColumn('TO_DATE', 'ToDate', 'TIMESTAMP', false, null, null);
 		$this->addColumn('PARAM_SHOW_MASKED_TELEPHONE_NUMBERS', 'ParamShowMaskedTelephoneNumbers', 'BOOLEAN', true, null, true);
@@ -99,10 +101,12 @@ class ArReportTableMap extends TableMap {
 	 */
 	public function buildRelations()
 	{
-    $this->addRelation('ArReportSet', 'ArReportSet', RelationMap::MANY_TO_ONE, array('ar_report_set_id' => 'id', ), 'CASCADE', null);
+    $this->addRelation('ArReportSetRelatedByArReportSetId', 'ArReportSet', RelationMap::MANY_TO_ONE, array('ar_report_set_id' => 'id', ), 'CASCADE', null);
+    $this->addRelation('ArReportSetRelatedByAboutArReportSetId', 'ArReportSet', RelationMap::MANY_TO_ONE, array('about_ar_report_set_id' => 'id', ), 'CASCADE', null);
     $this->addRelation('ArOrganizationUnit', 'ArOrganizationUnit', RelationMap::MANY_TO_ONE, array('ar_organization_unit_id' => 'id', ), null, null);
     $this->addRelation('ArUser', 'ArUser', RelationMap::MANY_TO_ONE, array('ar_user_id' => 'id', ), null, null);
     $this->addRelation('ArVendor', 'ArVendor', RelationMap::MANY_TO_ONE, array('ar_vendor_id' => 'id', ), null, null);
+    $this->addRelation('ArTag', 'ArTag', RelationMap::MANY_TO_ONE, array('ar_tag_id' => 'id', ), null, null);
     $this->addRelation('ArReportOrderOfChildren', 'ArReportOrderOfChildren', RelationMap::MANY_TO_ONE, array('ar_report_order_of_children_id' => 'id', ), null, null);
     $this->addRelation('ArReportAlsoFor', 'ArReportAlsoFor', RelationMap::ONE_TO_MANY, array('id' => 'ar_report_id', ), 'CASCADE', null);
     $this->addRelation('ArReportScheduler', 'ArReportScheduler', RelationMap::ONE_TO_MANY, array('id' => 'ar_report_id', ), null, null);

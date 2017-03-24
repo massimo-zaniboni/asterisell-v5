@@ -1,7 +1,7 @@
 <?php
-/* $LICENSE 2014:
+/* $LICENSE 2014,2017:
  *
- * Copyright (C) 2014 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
+ * Copyright (C) 2014,2017 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
  *
  * This file is part of Asterisell.
  *
@@ -204,6 +204,7 @@ class ChangeOrganizationInfo extends JobProcessor
 
         // Match unit type
 
+        // NOTE: the usage of field name is intentional
         $stmt = $conn->prepare('SELECT id FROM ar_organization_unit_type WHERE name = ?');
         $stmt->execute(array($partType));
         $r = null;
@@ -267,10 +268,11 @@ class ChangeOrganizationInfo extends JobProcessor
                 $stmt->closeCursor();
 
                 if (is_null($resellerId)) {
-                  throw($this->createErrorInYAML($partySpec, "unknown reseller short code \"$resellerCode\". Add a reseller with this code, or fix the code in the party specification."));
+                    throw($this->createErrorInYAML($partySpec, "unknown reseller short code \"$resellerCode\". Add a reseller with this code, or fix the code in the party specification."));
                 }
             }
         }
+
 
         // Insert or update the value of the party
 
@@ -282,8 +284,8 @@ class ChangeOrganizationInfo extends JobProcessor
                     is_billable, legal_address, legal_city, legal_zipcode, legal_state_province, legal_country,
                     email, phone, phone2,
                     max_limit_30, migration_field_for_telephone, migration_field_for_adsl,
-                    is_active, ar_reseller_id)
-                    VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);');
+                    is_active, ar_reseller_id, payment_iban, payment_bic, payment_sepa, payment_info)
+                    VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);');
                 $stmt->execute(array(
                     $this->getRequiredValue($partySpec, "name"),
                     $this->getRequiredValue($partySpec, "short_name"),
@@ -306,12 +308,16 @@ class ChangeOrganizationInfo extends JobProcessor
                     $this->getRequiredValue($partySpec, 'telephonic_service_migration_field'),
                     $this->getRequiredValue($partySpec, 'internet_service_migration_field'),
                     $this->getRequiredBoolValue($partySpec, "is_active"),
-                    $resellerId
+                    $resellerId,
+                    $this->getRequiredValue($partySpec, "payment_iban"),
+                    $this->getRequiredValue($partySpec, "payment_bic"),
+                    $this->getRequiredValue($partySpec, "payment_sepa"),
+                    $this->getRequiredValue($partySpec, "payment_info")
                 ));
 
                 $originalPartyId = $conn->lastInsertId();
             } else {
-                $stmt = $conn->prepare('UPDATE ar_party SET name = ? , compact_name = ? , external_crm_code = ? , vat = ? , is_billable = ? , legal_address = ? , legal_city = ? , legal_zipcode = ? , legal_state_province = ? , legal_country = ? , email = ? , phone = ? , phone2 = ? , max_limit_30 = ? , migration_field_for_telephone = ?, migration_field_for_adsl = ?, is_active = ? , ar_reseller_id = ? WHERE id = ? ;');
+                $stmt = $conn->prepare('UPDATE ar_party SET name = ? , compact_name = ? , external_crm_code = ? , vat = ? , is_billable = ? , legal_address = ? , legal_city = ? , legal_zipcode = ? , legal_state_province = ? , legal_country = ? , email = ? , phone = ? , phone2 = ? , max_limit_30 = ? , migration_field_for_telephone = ?, migration_field_for_adsl = ?, is_active = ? , ar_reseller_id = ?, payment_iban = ?, payment_bic = ?, payment_sepa = ?, payment_info = ? WHERE id = ? ;');
                 $stmt->execute(array($this->getRequiredValue($partySpec, "name"),
                     $this->getRequiredValue($partySpec, "short_name"),
                     $this->getRequiredValue($partySpec, "crm_code"),
@@ -334,12 +340,53 @@ class ChangeOrganizationInfo extends JobProcessor
 
                     $this->getRequiredBoolValue($partySpec, "is_active"),
                     $resellerId,
+                    $this->getRequiredValue($partySpec, "payment_iban"),
+                    $this->getRequiredValue($partySpec, "payment_bic"),
+                    $this->getRequiredValue($partySpec, "payment_sepa"),
+                    $this->getRequiredValue($partySpec, "payment_info"),
+
+                    // this is the condition
                     $originalPartyId
                 ));
 
             }
 
             $resultStructure_partyId = $originalPartyId;
+
+            // Process Party TAGS
+
+            if (array_key_exists('tags', $partySpec)) {
+                $tagsSpec = $this->getRequiredValue($partySpec, 'tags');
+
+                // From tag names to tag ids
+                $stmt = $conn->prepare('SELECT id FROM ar_tag WHERE internal_name = ?');
+                $tagsIds = array();
+                foreach ($tagsSpec as $tagName) {
+                    $stmt->execute(array($tagName));
+                    $tagId = null;
+                    while (($rs = $stmt->fetch(PDO::FETCH_NUM)) !== false) {
+                        $tagId = $rs[0];
+                    }
+                    $stmt->closeCursor();
+                    if (is_null($tagId)) {
+                        throw($this->createErrorInYAML($partySpec, "undefined tag \"" . $tagName . "\""));
+                    }
+                    $tagsIds[] = $tagId;
+                }
+
+                // Delete old info because it will be replaced with new info.
+                $stmt = $conn->prepare('DELETE FROM ar_party_has_tag WHERE ar_party_id = ?');
+                $stmt->execute(array($originalPartyId));
+
+                // Insert specified tags
+                $stmt = $conn->prepare('INSERT INTO ar_party_has_tag(ar_party_id, ar_tag_id) VALUES(?,?)');
+                foreach ($tagsIds as $tagId) {
+                    $stmt->execute(array($originalPartyId, intval($tagId)));
+                }
+
+            } else {
+                throw($this->createErrorInYAML($partySpec, "missing tags specification."));
+            }
         }
 
         // Match extension
@@ -758,13 +805,39 @@ class ChangeOrganizationInfo extends JobProcessor
      */
     protected function produceUnitInfo($id, $fromDate, $scope, OrganizationUnitInfo $info, $cachedUnitTypes, $cachedRateCategories, $availableResellers, PDO $conn)
     {
+        $dataInfo = $info->getDataInfo($id, $fromDate);
+        $partyId = $dataInfo[OrganizationUnitInfo::DATA_PARTY_ID];
+
+        // Extract TAGS info
+        $tags = '[';
+        if (!is_null($partyId)) {
+            $stmt = $conn->prepare('
+                SELECT internal_name
+                FROM ar_party_has_tag
+                INNER JOIN ar_tag
+                ON ar_tag.id = ar_party_has_tag.ar_tag_id
+                WHERE ar_party_id = ?');
+
+            $stmt->execute(array($partyId));
+            $isFirstTag = true;
+            $r = null;
+            while (($rs = $stmt->fetch(PDO::FETCH_NUM)) !== false) {
+                if (!$isFirstTag) {
+                    $tags .= ',';
+                }
+                $isFirstTag = false;
+
+                $tags .= $rs[0];
+            }
+            $stmt->closeCursor();
+        }
+        $tags .= ']';
 
         $indent1 = "\n" . str_repeat('  ', $scope);
         $indent2 = "\n" . str_repeat('  ', $scope + 1);
         $indent3 = "\n" . str_repeat('  ', $scope + 2);
 
         $r = '';
-        $dataInfo = $info->getDataInfo($id, $fromDate);
         if (!is_null($dataInfo) && $dataInfo[OrganizationUnitInfo::DATA_STRUCTURE_EXISTS]) {
 
             $r = $indent1 . 'part: '
@@ -798,6 +871,7 @@ class ChangeOrganizationInfo extends JobProcessor
                     . $indent3 . 'short_name: ' . $this->convertString($party->getCompactName())
                     . $indent3 . 'is_active: ' . $this->showBool($party->getIsActive())
                     . $indent3 . 'is_billable: ' . $this->showBool($party->getIsBillable())
+                    . $indent3 . 'tags: ' . $tags
                     . $indent3 . 'email: ' . $this->convertString($party->getEmail())
                     . $indent3 . 'telephone1: ' . $this->convertString($party->getPhone())
                     . $indent3 . 'telephone2: ' . $this->convertString($party->getPhone2())
@@ -811,7 +885,11 @@ class ChangeOrganizationInfo extends JobProcessor
                     . $indent3 . 'address: ' . $this->convertString($party->getLegalAddress())
                     . $indent3 . 'credit_limit: ' . $this->convertString($this->showMonetaryValue($party->getMaxLimit30()))
                     . $indent3 . 'telephonic_service_migration_field: ' . $this->convertString($party->getMigrationFieldForTelephone())
-                    . $indent3 . 'internet_service_migration_field: ' . $this->convertString($party->getMigrationFieldForAdsl());
+                    . $indent3 . 'internet_service_migration_field: ' . $this->convertString($party->getMigrationFieldForAdsl())
+                    . $indent3 . 'payment_iban: ' . $this->convertString($party->getPaymentIban())
+                    . $indent3 . 'payment_bic: ' . $this->convertString($party->getPaymentBic())
+                    . $indent3 . 'payment_sepa: ' . $this->convertString($party->getPaymentSepa())
+                    . $indent3 . 'payment_info: ' . $this->convertString($party->getPaymentInfo());
             }
 
             if ($dataInfo[OrganizationUnitInfo::DATA_UNIT_TYPE_IS_LEAF]) {
@@ -899,6 +977,7 @@ class ChangeOrganizationInfo extends JobProcessor
                 . $indent3 . 'short_name: '
                 . $indent3 . 'is_active: '
                 . $indent3 . 'is_billable: '
+                . $indent3 . 'tags: []'
                 . $indent3 . 'email: '
                 . $indent3 . 'telephone1: '
                 . $indent3 . 'telephone2: '
@@ -912,7 +991,11 @@ class ChangeOrganizationInfo extends JobProcessor
                 . $indent3 . 'address: '
                 . $indent3 . 'credit_limit: '
                 . $indent3 . 'telephonic_service_migration_field: '
-                . $indent3 . 'internet_service_migration_field: ';
+                . $indent3 . 'internet_service_migration_field: '
+                . $indent3 . 'payment_iban: '
+                . $indent3 . 'payment_bic: '
+                . $indent3 . 'payment_sepa: '
+                . $indent3 . 'payment_info: ';
 
         }
 
@@ -977,16 +1060,22 @@ class ChangeOrganizationInfo extends JobProcessor
      * @param string|null $str
      * @return string
      */
-    protected function convertString($str) {
+    protected function convertString($str)
+    {
         if (isEmptyOrNull($str)) {
             return '';
         } else {
-            $str2 = encode_csv_value($str, ',', '"');
-            if (isPrefixOf('"', $str2)) {
-                return $str2;
-            } else {
-                return '"' . $str2 . '"';
-            }
+            return $this->encode_yaml_string($str);
         }
+    }
+
+    /**
+     * @param string $str
+     * @return string
+     */
+    protected function encode_yaml_string($str)
+    {
+        $str2 = str_replace('"', '\\' . '"', $str);
+        return '"' . $str2 . '"';
     }
 }

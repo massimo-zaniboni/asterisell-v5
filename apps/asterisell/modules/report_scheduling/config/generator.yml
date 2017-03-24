@@ -52,10 +52,13 @@ generator:
 
         generate_only_if_there_is_cost: { name: "Only if there is cost", help: "Generate reports only if there is a cost greather than zero. Do not generate if there is no cost associated. " }
 
+        insert_minimum_amount: { name: Min. amount, help: "Postpone invoices with an amount (without taxes) less than the specified value. Postponed amounts will be inserted in next scheduled run, because it will be used a report time-frame that will include also the postponed time-frames. IMPORTANT: if you delete this report scheduler then the postponed invoices will be lost, so in case run this scheduler with the minimum cost set to 0 for producing all pending postponed invoices." }
+
         select_legal_date_generation_method: { name: "Legal date", help: "The method to use for associating (optionally) a legal/fiscal date to a document. Empty for no fiscal/legal reports. NOTE: you can use this for setting a base date, and then add some days to it, for aligning to a fixed day of the month, or day of the week. " }
         is_yearly_legal_numeration: { name: "Yearly legal numeration", help: "True if every year the legal numeration start again from 1." }
         days_to_add_to_legal_date_generation_method: { name: "Days to add to legal date", help: "After calculating the legal/fiscal date, add these days to it. " }
         go_to_template_report: {name: "Template Report", help: "This report will be used as template for generating the scheduled reports." }
+        send_compact_report_list_to_accountant: {name: "Summary report", help: "Generate a summary report (like a CSV list of invoices) about the reports in the generated report set."}
 
     list:
         title: Scheduled Reports
@@ -73,7 +76,7 @@ generator:
         display:
           Main Params: [additional_description, note ]
           Report Content: [_select_report_template, _go_to_template_report, _select_proper_organization, _select_voip_account, ar_report_generation_id ]
-          Legal/Fiscal Params (complete only for invoices): [generate_only_if_there_is_cost, _select_legal_date_generation_method, days_to_add_to_legal_date_generation_method, is_yearly_legal_numeration]
+          Legal/Fiscal Params (complete only for invoices): [generate_only_if_there_is_cost, _insert_minimum_amount, send_compact_report_list_to_accountant, _select_legal_date_generation_method, days_to_add_to_legal_date_generation_method, is_yearly_legal_numeration]
           Schedule Frequency: [ last_from_date, schedule_every_x_months, schedule_every_x_days, start_generation_after_x_hours]
           Report Workflow: [is_active, produced_report_must_be_reviewed]
           Actions: [ _create_report_action, _delete_all_reports_action, _confirm_all_reports_action]

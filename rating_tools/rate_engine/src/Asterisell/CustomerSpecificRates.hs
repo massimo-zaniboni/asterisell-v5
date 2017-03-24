@@ -108,10 +108,10 @@ parse_twtNngFormat useHeader decimalSeparator env
  where
 
   deriveRateMatchFun trie env cdr
-    = case trie_getMatch 0 trie (Text.unpack $ fromJust1 "c1"  $ cdr_externalTelephoneNumberWithAppliedPortability cdr) of
+    = case trie_getMatch trie_getMatch_initial trie (Text.unpack $ fromJust1 "c1"  $ cdr_externalTelephoneNumberWithAppliedPortability cdr) of
         Nothing
           -> Nothing
-        Just (m, calcParams)
+        Just ((m, _), calcParams)
           -> Just (MatchStrenght { matchStrenght_telephoneNumber = m }, calcParams)
 
   buildTrie trie1 (prefix, calcParams)
@@ -187,10 +187,10 @@ parse_twtNngFormat5ColPrefixFirst useHeader decimalSeparator env
  where
 
   deriveRateMatchFun trie env cdr
-    = case trie_getMatch 0 trie (Text.unpack $ fromJust1 "d1"  $ cdr_externalTelephoneNumberWithAppliedPortability cdr) of
+    = case trie_getMatch trie_getMatch_initial trie (Text.unpack $ fromJust1 "d1"  $ cdr_externalTelephoneNumberWithAppliedPortability cdr) of
         Nothing
           -> Nothing
-        Just (m, calcParams)
+        Just ((m, _), calcParams)
           -> Just (MatchStrenght { matchStrenght_telephoneNumber = m }, calcParams)
 
   buildTrie trie1 (prefix, calcParams)
@@ -257,10 +257,10 @@ parse_gammaFormat9Col env
  where
 
   deriveRateMatchFun trie env cdr
-    = case trie_getMatch 0 trie (Text.unpack $ fromJust1 "d1"  $ cdr_externalTelephoneNumberWithAppliedPortability cdr) of
+    = case trie_getMatch trie_getMatch_initial trie (Text.unpack $ fromJust1 "d1"  $ cdr_externalTelephoneNumberWithAppliedPortability cdr) of
         Nothing
           -> Nothing
-        Just (m, calcParams)
+        Just ((m, _), calcParams)
           -> Just (MatchStrenght { matchStrenght_telephoneNumber = m }, calcParams)
 
   buildTrie trie1 codes
@@ -352,10 +352,10 @@ parse_gammaItemRentalFormat6Col env
  where
 
   deriveRateMatchFun trie env cdr
-    = case trie_getMatch 0 trie (Text.unpack $ fromJust1 "d1"  $ cdr_externalTelephoneNumberWithAppliedPortability cdr) of
+    = case trie_getMatch trie_getMatch_initial trie (Text.unpack $ fromJust1 "d1"  $ cdr_externalTelephoneNumberWithAppliedPortability cdr) of
         Nothing
           -> Nothing
-        Just (m, calcParams)
+        Just ((m, _), calcParams)
           -> Just (MatchStrenght { matchStrenght_telephoneNumber = m }, calcParams)
 
   buildTrie trie1 codes
@@ -501,10 +501,10 @@ parse_csvWith3ColsPDR useHeader fieldSeparator decimalSeparator env
  where
 
   deriveRateMatchFun trie env cdr
-    = case trie_getMatch 0 trie (Text.unpack $ fromJust1 "d1"  $ cdr_externalTelephoneNumberWithAppliedPortability cdr) of
+    = case trie_getMatch trie_getMatch_initial trie (Text.unpack $ fromJust1 "d1"  $ cdr_externalTelephoneNumberWithAppliedPortability cdr) of
         Nothing
           -> Nothing
-        Just (m, calcParams)
+        Just ((m, _), calcParams)
           -> Just (MatchStrenght { matchStrenght_telephoneNumber = m }, calcParams)
 
   buildTrie trie1 (prefix, calcParams)
@@ -569,10 +569,10 @@ parse_digitelNNGFormat env
 
  where
   deriveRateMatchFun trie env cdr
-    = case trie_getMatch 0 trie (Text.unpack $ fromJust1 "d1"  $ cdr_externalTelephoneNumberWithAppliedPortability cdr) of
+    = case trie_getMatch trie_getMatch_initial trie (Text.unpack $ fromJust1 "d1"  $ cdr_externalTelephoneNumberWithAppliedPortability cdr) of
         Nothing
           -> Nothing
-        Just (m, calcParams)
+        Just ((m, _), calcParams)
           -> Just (MatchStrenght { matchStrenght_telephoneNumber = m }, calcParams)
 
   buildTrie trie1 codes

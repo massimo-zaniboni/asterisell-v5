@@ -1,7 +1,7 @@
 <?php
-/* $LICENSE 2013, 2015:
+/* $LICENSE 2013, 2015, 2017:
  *
- * Copyright (C) 2013, 2015 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
+ * Copyright (C) 2013, 2015, 2017 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
  *
  * This file is part of Asterisell.
  *
@@ -82,7 +82,16 @@ function help()
 
 Usage:
 
-  php reconciliation.php format-name vendor-file format-name asterisell-file
+  php reconciliation.php format-name vendor-file format-name asterisell-file diff show-all
+
+where
+
+  diff: a number like 0, 0.01,
+        that is the filter to use for not signaling calls with a difference cost
+        less than specified diff.
+
+  show-all: true for showing all calls,
+            false for showing only calls with problems
 
 available format are:
 
@@ -108,9 +117,18 @@ function main($argc, $argv)
     global $createTables;
     global $createIndexes;
 
-    if ($argc !== 5) {
+    if ($argc !== 7) {
         help();
         return;
+    }
+
+    $diff = floatval($argv[5]);
+    $showAllCalls = $argv[6];
+
+    if ($showAllCalls == 'true') {
+        $showAllCals = true;
+    } else {
+        $showAllCalls = false;
     }
 
     $databaseFile = 'reconcile.sqlite.db';
@@ -126,11 +144,11 @@ function main($argc, $argv)
     $i = 1;
     $formatType = $argv[$i++];
     $fileName = $argv[$i++];
-    importAccordingFormat($formatType, $fileName, true, $conn);
+    importAccordingFormat($diff, $formatType, $fileName, true, $conn);
 
     $formatType = $argv[$i++];
     $fileName = $argv[$i++];
-    importAccordingFormat($formatType, $fileName, false, $conn);
+    importAccordingFormat($diff, $formatType, $fileName, false, $conn);
 
     $conn->exec('COMMIT TRANSACTION;');
 
@@ -142,7 +160,7 @@ function main($argc, $argv)
 
     $conn->exec('COMMIT TRANSACTION;');
 
-    writeFileWithMatches('reconciliation.csv', true, true, $conn);
+    writeFileWithMatches('reconciliation.csv', $diff, !$showAllCalls, !$showAllCalls, $conn);
 }
 
 /**
@@ -294,11 +312,12 @@ SQL;
 
 /**
  * @param string $fileName
+ * @param float $diff
  * @param bool $writeOnlyCallsWithErrors
  * @param bool $writeOnlySeriousErrors
  * @param SQLite3 $conn
  */
-function writeFileWithMatches($fileName, $writeOnlyCallsWithErrors, $writeOnlySeriousErrors, SQLite3 $conn)
+function writeFileWithMatches($fileName, $diff, $writeOnlyCallsWithErrors, $writeOnlySeriousErrors, SQLite3 $conn)
 {
     $handle = fopen($fileName, 'w+');
 
@@ -383,12 +402,12 @@ SQL;
 
             $totCostDifference += $costDiff;
 
-            if ($costDiff == 0 && $callDateDiff < 5 && $durationDiff < 2) {
+            if (abs($costDiff) < $diff && $callDateDiff < 5 && $durationDiff < 2) {
                 $matchLabel = '"perfect"';
                 $isPerfect = true;
-            } else if ($costDiff == 0 && $callDateDiff < 10 && $durationDiff < 5) {
+            } else if (abs($costDiff) < $diff && $callDateDiff < 10 && $durationDiff < 5) {
                 $matchLabel = '"near perfect"';
-            } else if (abs($costDiff) < 0.005) {
+            } else if (abs($costDiff) < ($costDiff * 0.25)) {
                 $matchLabel = '"acceptable"';
             } else {
                 $matchLabel = '"to review"';
@@ -444,7 +463,6 @@ SQL;
             fwrite($handle, $asterisellLine);
             fwrite($handle, $line);
         }
-
     }
 
     $rs->finalize();
@@ -478,23 +496,97 @@ SQL;
 }
 
 /**
+ * @param float $diff
  * @param string $formatType
  * @param string $fileName
  * @param bool $isVendor
  * @param SQLite3 $conn
  */
-function importAccordingFormat($formatType, $fileName, $isVendor, $conn)
+function importAccordingFormat($diff, $formatType, $fileName, $isVendor, $conn)
 {
     if ($formatType == 'ptprime') {
         importFromCSV_usingPTPrimeFormat($fileName, $isVendor, $conn);
     } else if ($formatType == 'asterisell') {
         importFromCSV_usingAsterisellFormat($fileName, $isVendor, $conn);
+    } else if ($formatType == 'asterisell2') {
+        importFromCSV_usingAsterisellFormat($fileName, $isVendor, $conn, ';', ',');
+    } else if ($formatType == 'consertis') {
+         importFromCSV_usingConsertisFormat($fileName, $isVendor, $conn);
     } else {
         help();
         exit(1);
     }
 }
 
+/**
+ * @param string $fileName
+ * @param bool $isVendor
+ * @param SQLite3 $conn
+ */
+function importFromCSV_usingConsertisFormat($fileName, $isVendor, SQLite3 $conn)
+{
+    global $insertStmt;
+
+    $thereIsHeader = true;
+
+
+    $s = $conn->prepare($insertStmt);
+
+    if ($isVendor) {
+        $isVendorInt = 1;
+    } else {
+        $isVendorInt = 0;
+    }
+
+    $ln = 0;
+
+    $handle = fopen($fileName, 'r');
+    while (($data = fgetcsv($handle, 64000, ",", "\"", "\"")) !== FALSE) {
+        $ln++;
+
+        if ($ln == 1 && $thereIsHeader) {
+            continue;
+            // skip header
+        }
+
+        if ($ln % 1000 == 0) {
+            echo "\n  ... imported $ln records from $fileName";
+        }
+
+        // calldate,callerid,destination,duration,cost
+        // "30.12.2016 14:06:26",4315321XXX,375292XXX,410,267
+
+        $i = 0;
+        $callDate1 = $data[$i++];
+        $caller = $data[$i++];
+        $calledNr = $data[$i++];
+        $duration = $data[$i++];
+        $cost1 = intval($data[$i]);
+
+        $callDate = strtotime($callDate1);
+        if ($cost1 < 10) {
+            $cost = floatval('0.0' . $cost1);
+        } else if ($cost1 < 100) {
+            $cost = floatval('0.' . $cost1);
+        } else {
+            $cost = $cost1 / 100.0;
+        }
+
+        $callCost = $cost;
+
+        $s->bindValue(':is_vendor', $isVendorInt, SQLITE3_INTEGER);
+        $s->bindValue(':source', $caller, SQLITE3_TEXT);
+        $s->bindValue(':destination', $calledNr, SQLITE3_TEXT);
+        $s->bindValue(':calldate', $callDate, SQLITE3_INTEGER);
+        $s->bindValue(':duration', intval($duration), SQLITE3_INTEGER);
+        $s->bindValue(':cost', floatval($callCost), SQLITE3_FLOAT);
+        $s->bindValue(':call_note', '', SQLITE3_TEXT);
+
+        $s->execute();
+    }
+
+    echo "\nInserted $ln records.";
+}
 
 /**
  * @param string $fileName
@@ -564,8 +656,10 @@ function importFromCSV_usingPTPrimeFormat($fileName, $isVendor, SQLite3 $conn)
  * @param string $fileName
  * @param bool $isVendor
  * @param SQLite3 $conn
+ * @param string $separator
+ * @param string $decimalSeparator
  */
-function importFromCSV_usingAsterisellFormat($fileName, $isVendor, SQLite3 $conn)
+function importFromCSV_usingAsterisellFormat($fileName, $isVendor, SQLite3 $conn, $separator = ',', $decimalSeparator = '.')
 {
     global $insertStmt;
 
@@ -582,7 +676,7 @@ function importFromCSV_usingAsterisellFormat($fileName, $isVendor, SQLite3 $conn
     $ln = 0;
 
     $handle = fopen($fileName, 'r');
-    while (($data = fgetcsv($handle, 64000, ",", "\"", "\"")) !== FALSE) {
+    while (($data = fgetcsv($handle, 64000, $separator, "\"", "\"")) !== FALSE) {
         $ln++;
 
 
@@ -604,7 +698,13 @@ function importFromCSV_usingAsterisellFormat($fileName, $isVendor, SQLite3 $conn
         $callDate = strtotime($data[$i++]);
         $duration = $data[$i++];
         $i++;
-        $callCost = $data[$i++];
+        $callCost1 = $data[$i++];
+
+        if ($decimalSeparator == '.') {
+            $callCost = floatval($callCost1);
+        } else {
+            $callCost = floatval(str_replace($decimalSeparator, '.', $callCost1));
+        }
 
         // replace international numbers with 00 prefix
         if (substr($calledNr, 0, 1) == '+') {

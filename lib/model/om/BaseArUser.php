@@ -2061,7 +2061,7 @@ abstract class BaseArUser extends BaseObject  implements Persistent {
 	 * api reasonable.  You can provide public methods for those you
 	 * actually need in ArUser.
 	 */
-	public function getArReportsJoinArReportSet($criteria = null, $con = null, $join_behavior = Criteria::LEFT_JOIN)
+	public function getArReportsJoinArReportSetRelatedByArReportSetId($criteria = null, $con = null, $join_behavior = Criteria::LEFT_JOIN)
 	{
 		if ($criteria === null) {
 			$criteria = new Criteria(ArUserPeer::DATABASE_NAME);
@@ -2078,7 +2078,7 @@ abstract class BaseArUser extends BaseObject  implements Persistent {
 
 				$criteria->add(ArReportPeer::AR_USER_ID, $this->id);
 
-				$this->collArReports = ArReportPeer::doSelectJoinArReportSet($criteria, $con, $join_behavior);
+				$this->collArReports = ArReportPeer::doSelectJoinArReportSetRelatedByArReportSetId($criteria, $con, $join_behavior);
 			}
 		} else {
 			// the following code is to determine if a new query is
@@ -2088,7 +2088,54 @@ abstract class BaseArUser extends BaseObject  implements Persistent {
 			$criteria->add(ArReportPeer::AR_USER_ID, $this->id);
 
 			if (!isset($this->lastArReportCriteria) || !$this->lastArReportCriteria->equals($criteria)) {
-				$this->collArReports = ArReportPeer::doSelectJoinArReportSet($criteria, $con, $join_behavior);
+				$this->collArReports = ArReportPeer::doSelectJoinArReportSetRelatedByArReportSetId($criteria, $con, $join_behavior);
+			}
+		}
+		$this->lastArReportCriteria = $criteria;
+
+		return $this->collArReports;
+	}
+
+
+	/**
+	 * If this collection has already been initialized with
+	 * an identical criteria, it returns the collection.
+	 * Otherwise if this ArUser is new, it will return
+	 * an empty collection; or if this ArUser has previously
+	 * been saved, it will retrieve related ArReports from storage.
+	 *
+	 * This method is protected by default in order to keep the public
+	 * api reasonable.  You can provide public methods for those you
+	 * actually need in ArUser.
+	 */
+	public function getArReportsJoinArReportSetRelatedByAboutArReportSetId($criteria = null, $con = null, $join_behavior = Criteria::LEFT_JOIN)
+	{
+		if ($criteria === null) {
+			$criteria = new Criteria(ArUserPeer::DATABASE_NAME);
+		}
+		elseif ($criteria instanceof Criteria)
+		{
+			$criteria = clone $criteria;
+		}
+
+		if ($this->collArReports === null) {
+			if ($this->isNew()) {
+				$this->collArReports = array();
+			} else {
+
+				$criteria->add(ArReportPeer::AR_USER_ID, $this->id);
+
+				$this->collArReports = ArReportPeer::doSelectJoinArReportSetRelatedByAboutArReportSetId($criteria, $con, $join_behavior);
+			}
+		} else {
+			// the following code is to determine if a new query is
+			// called for.  If the criteria is the same as the last
+			// one, just return the collection.
+
+			$criteria->add(ArReportPeer::AR_USER_ID, $this->id);
+
+			if (!isset($this->lastArReportCriteria) || !$this->lastArReportCriteria->equals($criteria)) {
+				$this->collArReports = ArReportPeer::doSelectJoinArReportSetRelatedByAboutArReportSetId($criteria, $con, $join_behavior);
 			}
 		}
 		$this->lastArReportCriteria = $criteria;
@@ -2183,6 +2230,53 @@ abstract class BaseArUser extends BaseObject  implements Persistent {
 
 			if (!isset($this->lastArReportCriteria) || !$this->lastArReportCriteria->equals($criteria)) {
 				$this->collArReports = ArReportPeer::doSelectJoinArVendor($criteria, $con, $join_behavior);
+			}
+		}
+		$this->lastArReportCriteria = $criteria;
+
+		return $this->collArReports;
+	}
+
+
+	/**
+	 * If this collection has already been initialized with
+	 * an identical criteria, it returns the collection.
+	 * Otherwise if this ArUser is new, it will return
+	 * an empty collection; or if this ArUser has previously
+	 * been saved, it will retrieve related ArReports from storage.
+	 *
+	 * This method is protected by default in order to keep the public
+	 * api reasonable.  You can provide public methods for those you
+	 * actually need in ArUser.
+	 */
+	public function getArReportsJoinArTag($criteria = null, $con = null, $join_behavior = Criteria::LEFT_JOIN)
+	{
+		if ($criteria === null) {
+			$criteria = new Criteria(ArUserPeer::DATABASE_NAME);
+		}
+		elseif ($criteria instanceof Criteria)
+		{
+			$criteria = clone $criteria;
+		}
+
+		if ($this->collArReports === null) {
+			if ($this->isNew()) {
+				$this->collArReports = array();
+			} else {
+
+				$criteria->add(ArReportPeer::AR_USER_ID, $this->id);
+
+				$this->collArReports = ArReportPeer::doSelectJoinArTag($criteria, $con, $join_behavior);
+			}
+		} else {
+			// the following code is to determine if a new query is
+			// called for.  If the criteria is the same as the last
+			// one, just return the collection.
+
+			$criteria->add(ArReportPeer::AR_USER_ID, $this->id);
+
+			if (!isset($this->lastArReportCriteria) || !$this->lastArReportCriteria->equals($criteria)) {
+				$this->collArReports = ArReportPeer::doSelectJoinArTag($criteria, $con, $join_behavior);
 			}
 		}
 		$this->lastArReportCriteria = $criteria;

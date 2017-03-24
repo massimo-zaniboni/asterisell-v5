@@ -479,7 +479,12 @@ function makeActivateDirs($user, $isAdmin)
     myExecute("Fix Permissions for web-server writable directories", $chmodCmd);
     myExecute("Fix Permissions for web-server readable directories", "$preCmd && chmod -R g+rx,g-w,u+rwx,o-rwx ext_libs/ apps/ lib/ config/ data/ symfony symfony.php");
     myExecute("Fix Permissions for web-server not accessible directories", "$preCmd && chmod -R u+rwx,go-rwx scripts/ updates/ data_files/ fabric_data/ development_tools/ symfony-patch/ resource_files/ README LICENSE asterisell.php");
+
+    if ($isAdmin) {
+      myExecute("Fix Permissions for web-server only-admin readable directories", "$preCmd && chmod -R g+rx,g-w,u+rwx,o-rwx resource_files/ ");
+    }
 }
+
 
 /**
  * In case of admin, filter only the conversion strings starting with "__".

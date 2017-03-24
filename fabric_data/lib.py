@@ -228,13 +228,23 @@ class AsterisellInstance(object):
     # reports common to all instance
     default_reports = []  # type: List[str]
 
-    # instance configurable reports
+    # Name of custom reports generators class to add,
+    # in a format like
+    # > ["Report_CompareChannels: \"Compare Channels (User Defined)\""]
     custom_reports = []  # type: List[str]
 
     custom_initial_always_scheduled_jobs = []  # type: List[str]
     custom_final_always_scheduled_jobs = []  # type: List[str]
     custom_data_file_processors = []  # type: List[str]
     custom_export_cdrs_jobs = []  # type: List[str]
+
+    expand_extensions_job = 'NullJob' # type: str
+    # use 'ExpandExtensions' for expanding extensions like "123*" into "123456" when
+    # specific instances are found in CDRs.
+    # Useful for customers having many virtual extensions/DIDS,
+    # that you don't want specify, but only discover in CDRs,
+    # and at the same time the customers want reports with calls grouped
+    # by specific extensions.
 
     import_cdrs_jobs = []  # type: List[str]
     # jobs executed for retrieving CDRs to rate.
@@ -733,7 +743,8 @@ class AsterisellInstance(object):
             conf_mask_for_external_telephone_number=self.yaml_string(self.conf_mask_for_external_telephone_number),
             conf_max_calls_in_pdf_report_section=self.yaml_string(self.conf_max_calls_in_pdf_report_section),
             conf_connectionParams=self.convert_connection_params(),
-            custom_export_cdrs_jobs=self.yaml_list_of_str_values('      - ', self.get_custom_export_cdrs_jobs())
+            custom_export_cdrs_jobs=self.yaml_list_of_str_values('      - ', self.get_custom_export_cdrs_jobs()),
+            expand_extensions_job = self.yaml_string(self.expand_extensions_job)
         )
 
         return s

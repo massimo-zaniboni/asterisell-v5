@@ -50,9 +50,9 @@ generator:
         select_voip_account: { name: "Extension", help: "Reports are generated for the specified extension. Note: in case also an organization is specified, this filter takes the precedence, because it is more selective."  }
 
         select_vendor: { name: "Vendor", help: "The report is restricted to this vendor. Empty for including all vendors. Note: this option is not supported from all the reports. " }
+        select_party_tag: { name: "Tagged Party", help: "The report is generated only for parties tagged with the specified TAG. Empty for generating for all parties. " }
 
         ar_report_order_of_children_id: { name: "Order", help: "The order to use for report elements. " }
-
         report_name: { name: "Name", help: "Empty for using the default report name. Otherwise a short report name/description, to use as name of the report. "}
 
         report_mail_subject: { name: "Email subject", help: "If empty a default email subject will be used. The subject to use, when the report is sent by email otherwise. " }
@@ -87,7 +87,7 @@ generator:
           produced_report_already_reviewed: { name: "Confirmed", help: "True if the report can be viewed from users, or sent by email. False if the report must be reviewed from administrators, before sending to users. Note: a draft report if confirmed, is sent to users in any case. ", params: disabled=true  }
 
         display:
-          Main Params (to set for generating the report): [is_template, _link_to_report_set, _select_premade_report, report_name, produced_report_additional_description, _select_proper_organization, _select_voip_account, _select_vendor, report_also_for, from_date ]
+          Main Params (to set for generating the report): [is_template, _link_to_report_set, _select_premade_report, report_name, produced_report_additional_description, _select_party_tag, _select_proper_organization, _select_voip_account, _select_vendor, report_also_for, from_date ]
           Optional Params (to set only for user defined reports): [to_date, param_is_legal, param_expand_to_level, ar_report_order_of_children_id, param_show_also_outgoing_calls, param_show_also_system_calls, param_show_also_incoming_calls, param_show_also_internal_calls, param_show_call_cost, param_show_call_income, param_show_cost_saving, param_show_voip_provider, param_show_communication_channel, param_show_geographic_location, param_show_connection_type, param_show_masked_telephone_numbers, param_show_call_details]
           Legal and Fiscal Params (only for invoices): [legal_consecutive_nr, legal_nr_prefix, legal_date]
           Email:  [report_mail_subject, report_mail_body, report_attachment_file_name, report_attachment_file_name_add_report_date]

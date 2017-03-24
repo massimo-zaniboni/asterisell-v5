@@ -80,6 +80,16 @@ abstract class BaseArOrganizationUnit extends BaseObject  implements Persistent 
 	private $lastArOrganizationUnitHasStructureRelatedByArParentOrganizationUnitIdCriteria = null;
 
 	/**
+	 * @var        array ArExpandedExtensions[] Collection to store aggregation of ArExpandedExtensions objects.
+	 */
+	protected $collArExpandedExtensionss;
+
+	/**
+	 * @var        Criteria The criteria used to select the current contents of collArExpandedExtensionss.
+	 */
+	private $lastArExpandedExtensionsCriteria = null;
+
+	/**
 	 * @var        array ArUser[] Collection to store aggregation of ArUser objects.
 	 */
 	protected $collArUsers;
@@ -108,6 +118,21 @@ abstract class BaseArOrganizationUnit extends BaseObject  implements Persistent 
 	 * @var        Criteria The criteria used to select the current contents of collArReportSchedulers.
 	 */
 	private $lastArReportSchedulerCriteria = null;
+
+	/**
+	 * @var        array ArPostponedReport[] Collection to store aggregation of ArPostponedReport objects.
+	 */
+	protected $collArPostponedReports;
+
+	/**
+	 * @var        Criteria The criteria used to select the current contents of collArPostponedReports.
+	 */
+	private $lastArPostponedReportCriteria = null;
+
+	/**
+	 * @var        ArPostponedReportTmp one-to-one related ArPostponedReportTmp object
+	 */
+	protected $singleArPostponedReportTmp;
 
 	/**
 	 * @var        array ArReportToReadUserView[] Collection to store aggregation of ArReportToReadUserView objects.
@@ -449,6 +474,9 @@ abstract class BaseArOrganizationUnit extends BaseObject  implements Persistent 
 			$this->collArOrganizationUnitHasStructuresRelatedByArParentOrganizationUnitId = null;
 			$this->lastArOrganizationUnitHasStructureRelatedByArParentOrganizationUnitIdCriteria = null;
 
+			$this->collArExpandedExtensionss = null;
+			$this->lastArExpandedExtensionsCriteria = null;
+
 			$this->collArUsers = null;
 			$this->lastArUserCriteria = null;
 
@@ -457,6 +485,11 @@ abstract class BaseArOrganizationUnit extends BaseObject  implements Persistent 
 
 			$this->collArReportSchedulers = null;
 			$this->lastArReportSchedulerCriteria = null;
+
+			$this->collArPostponedReports = null;
+			$this->lastArPostponedReportCriteria = null;
+
+			$this->singleArPostponedReportTmp = null;
 
 			$this->collArReportToReadUserViews = null;
 			$this->lastArReportToReadUserViewCriteria = null;
@@ -621,6 +654,14 @@ abstract class BaseArOrganizationUnit extends BaseObject  implements Persistent 
 				}
 			}
 
+			if ($this->collArExpandedExtensionss !== null) {
+				foreach ($this->collArExpandedExtensionss as $referrerFK) {
+					if (!$referrerFK->isDeleted()) {
+						$affectedRows += $referrerFK->save($con);
+					}
+				}
+			}
+
 			if ($this->collArUsers !== null) {
 				foreach ($this->collArUsers as $referrerFK) {
 					if (!$referrerFK->isDeleted()) {
@@ -642,6 +683,20 @@ abstract class BaseArOrganizationUnit extends BaseObject  implements Persistent 
 					if (!$referrerFK->isDeleted()) {
 						$affectedRows += $referrerFK->save($con);
 					}
+				}
+			}
+
+			if ($this->collArPostponedReports !== null) {
+				foreach ($this->collArPostponedReports as $referrerFK) {
+					if (!$referrerFK->isDeleted()) {
+						$affectedRows += $referrerFK->save($con);
+					}
+				}
+			}
+
+			if ($this->singleArPostponedReportTmp !== null) {
+				if (!$this->singleArPostponedReportTmp->isDeleted()) {
+						$affectedRows += $this->singleArPostponedReportTmp->save($con);
 				}
 			}
 
@@ -764,6 +819,14 @@ abstract class BaseArOrganizationUnit extends BaseObject  implements Persistent 
 					}
 				}
 
+				if ($this->collArExpandedExtensionss !== null) {
+					foreach ($this->collArExpandedExtensionss as $referrerFK) {
+						if (!$referrerFK->validate($columns)) {
+							$failureMap = array_merge($failureMap, $referrerFK->getValidationFailures());
+						}
+					}
+				}
+
 				if ($this->collArUsers !== null) {
 					foreach ($this->collArUsers as $referrerFK) {
 						if (!$referrerFK->validate($columns)) {
@@ -785,6 +848,20 @@ abstract class BaseArOrganizationUnit extends BaseObject  implements Persistent 
 						if (!$referrerFK->validate($columns)) {
 							$failureMap = array_merge($failureMap, $referrerFK->getValidationFailures());
 						}
+					}
+				}
+
+				if ($this->collArPostponedReports !== null) {
+					foreach ($this->collArPostponedReports as $referrerFK) {
+						if (!$referrerFK->validate($columns)) {
+							$failureMap = array_merge($failureMap, $referrerFK->getValidationFailures());
+						}
+					}
+				}
+
+				if ($this->singleArPostponedReportTmp !== null) {
+					if (!$this->singleArPostponedReportTmp->validate($columns)) {
+						$failureMap = array_merge($failureMap, $this->singleArPostponedReportTmp->getValidationFailures());
 					}
 				}
 
@@ -1063,6 +1140,12 @@ abstract class BaseArOrganizationUnit extends BaseObject  implements Persistent 
 				}
 			}
 
+			foreach ($this->getArExpandedExtensionss() as $relObj) {
+				if ($relObj !== $this) {  // ensure that we don't try to copy a reference to ourselves
+					$copyObj->addArExpandedExtensions($relObj->copy($deepCopy));
+				}
+			}
+
 			foreach ($this->getArUsers() as $relObj) {
 				if ($relObj !== $this) {  // ensure that we don't try to copy a reference to ourselves
 					$copyObj->addArUser($relObj->copy($deepCopy));
@@ -1079,6 +1162,17 @@ abstract class BaseArOrganizationUnit extends BaseObject  implements Persistent 
 				if ($relObj !== $this) {  // ensure that we don't try to copy a reference to ourselves
 					$copyObj->addArReportScheduler($relObj->copy($deepCopy));
 				}
+			}
+
+			foreach ($this->getArPostponedReports() as $relObj) {
+				if ($relObj !== $this) {  // ensure that we don't try to copy a reference to ourselves
+					$copyObj->addArPostponedReport($relObj->copy($deepCopy));
+				}
+			}
+
+			$relObj = $this->getArPostponedReportTmp();
+			if ($relObj) {
+				$copyObj->setArPostponedReportTmp($relObj->copy($deepCopy));
 			}
 
 			foreach ($this->getArReportToReadUserViews() as $relObj) {
@@ -2032,6 +2126,160 @@ abstract class BaseArOrganizationUnit extends BaseObject  implements Persistent 
 	}
 
 	/**
+	 * Clears out the collArExpandedExtensionss collection (array).
+	 *
+	 * This does not modify the database; however, it will remove any associated objects, causing
+	 * them to be refetched by subsequent calls to accessor method.
+	 *
+	 * @return     void
+	 * @see        addArExpandedExtensionss()
+	 */
+	public function clearArExpandedExtensionss()
+	{
+		$this->collArExpandedExtensionss = null; // important to set this to NULL since that means it is uninitialized
+	}
+
+	/**
+	 * Initializes the collArExpandedExtensionss collection (array).
+	 *
+	 * By default this just sets the collArExpandedExtensionss collection to an empty array (like clearcollArExpandedExtensionss());
+	 * however, you may wish to override this method in your stub class to provide setting appropriate
+	 * to your application -- for example, setting the initial array to the values stored in database.
+	 *
+	 * @return     void
+	 */
+	public function initArExpandedExtensionss()
+	{
+		$this->collArExpandedExtensionss = array();
+	}
+
+	/**
+	 * Gets an array of ArExpandedExtensions objects which contain a foreign key that references this object.
+	 *
+	 * If this collection has already been initialized with an identical Criteria, it returns the collection.
+	 * Otherwise if this ArOrganizationUnit has previously been saved, it will retrieve
+	 * related ArExpandedExtensionss from storage. If this ArOrganizationUnit is new, it will return
+	 * an empty collection or the current collection, the criteria is ignored on a new object.
+	 *
+	 * @param      PropelPDO $con
+	 * @param      Criteria $criteria
+	 * @return     array ArExpandedExtensions[]
+	 * @throws     PropelException
+	 */
+	public function getArExpandedExtensionss($criteria = null, PropelPDO $con = null)
+	{
+		if ($criteria === null) {
+			$criteria = new Criteria(ArOrganizationUnitPeer::DATABASE_NAME);
+		}
+		elseif ($criteria instanceof Criteria)
+		{
+			$criteria = clone $criteria;
+		}
+
+		if ($this->collArExpandedExtensionss === null) {
+			if ($this->isNew()) {
+			   $this->collArExpandedExtensionss = array();
+			} else {
+
+				$criteria->add(ArExpandedExtensionsPeer::AR_ORGANIZATION_UNIT_ID, $this->id);
+
+				ArExpandedExtensionsPeer::addSelectColumns($criteria);
+				$this->collArExpandedExtensionss = ArExpandedExtensionsPeer::doSelect($criteria, $con);
+			}
+		} else {
+			// criteria has no effect for a new object
+			if (!$this->isNew()) {
+				// the following code is to determine if a new query is
+				// called for.  If the criteria is the same as the last
+				// one, just return the collection.
+
+
+				$criteria->add(ArExpandedExtensionsPeer::AR_ORGANIZATION_UNIT_ID, $this->id);
+
+				ArExpandedExtensionsPeer::addSelectColumns($criteria);
+				if (!isset($this->lastArExpandedExtensionsCriteria) || !$this->lastArExpandedExtensionsCriteria->equals($criteria)) {
+					$this->collArExpandedExtensionss = ArExpandedExtensionsPeer::doSelect($criteria, $con);
+				}
+			}
+		}
+		$this->lastArExpandedExtensionsCriteria = $criteria;
+		return $this->collArExpandedExtensionss;
+	}
+
+	/**
+	 * Returns the number of related ArExpandedExtensions objects.
+	 *
+	 * @param      Criteria $criteria
+	 * @param      boolean $distinct
+	 * @param      PropelPDO $con
+	 * @return     int Count of related ArExpandedExtensions objects.
+	 * @throws     PropelException
+	 */
+	public function countArExpandedExtensionss(Criteria $criteria = null, $distinct = false, PropelPDO $con = null)
+	{
+		if ($criteria === null) {
+			$criteria = new Criteria(ArOrganizationUnitPeer::DATABASE_NAME);
+		} else {
+			$criteria = clone $criteria;
+		}
+
+		if ($distinct) {
+			$criteria->setDistinct();
+		}
+
+		$count = null;
+
+		if ($this->collArExpandedExtensionss === null) {
+			if ($this->isNew()) {
+				$count = 0;
+			} else {
+
+				$criteria->add(ArExpandedExtensionsPeer::AR_ORGANIZATION_UNIT_ID, $this->id);
+
+				$count = ArExpandedExtensionsPeer::doCount($criteria, false, $con);
+			}
+		} else {
+			// criteria has no effect for a new object
+			if (!$this->isNew()) {
+				// the following code is to determine if a new query is
+				// called for.  If the criteria is the same as the last
+				// one, just return count of the collection.
+
+
+				$criteria->add(ArExpandedExtensionsPeer::AR_ORGANIZATION_UNIT_ID, $this->id);
+
+				if (!isset($this->lastArExpandedExtensionsCriteria) || !$this->lastArExpandedExtensionsCriteria->equals($criteria)) {
+					$count = ArExpandedExtensionsPeer::doCount($criteria, false, $con);
+				} else {
+					$count = count($this->collArExpandedExtensionss);
+				}
+			} else {
+				$count = count($this->collArExpandedExtensionss);
+			}
+		}
+		return $count;
+	}
+
+	/**
+	 * Method called to associate a ArExpandedExtensions object to this object
+	 * through the ArExpandedExtensions foreign key attribute.
+	 *
+	 * @param      ArExpandedExtensions $l ArExpandedExtensions
+	 * @return     void
+	 * @throws     PropelException
+	 */
+	public function addArExpandedExtensions(ArExpandedExtensions $l)
+	{
+		if ($this->collArExpandedExtensionss === null) {
+			$this->initArExpandedExtensionss();
+		}
+		if (!in_array($l, $this->collArExpandedExtensionss, true)) { // only add it if the **same** object is not already associated
+			array_push($this->collArExpandedExtensionss, $l);
+			$l->setArOrganizationUnit($this);
+		}
+	}
+
+	/**
 	 * Clears out the collArUsers collection (array).
 	 *
 	 * This does not modify the database; however, it will remove any associated objects, causing
@@ -2398,7 +2646,7 @@ abstract class BaseArOrganizationUnit extends BaseObject  implements Persistent 
 	 * api reasonable.  You can provide public methods for those you
 	 * actually need in ArOrganizationUnit.
 	 */
-	public function getArReportsJoinArReportSet($criteria = null, $con = null, $join_behavior = Criteria::LEFT_JOIN)
+	public function getArReportsJoinArReportSetRelatedByArReportSetId($criteria = null, $con = null, $join_behavior = Criteria::LEFT_JOIN)
 	{
 		if ($criteria === null) {
 			$criteria = new Criteria(ArOrganizationUnitPeer::DATABASE_NAME);
@@ -2415,7 +2663,7 @@ abstract class BaseArOrganizationUnit extends BaseObject  implements Persistent 
 
 				$criteria->add(ArReportPeer::AR_ORGANIZATION_UNIT_ID, $this->id);
 
-				$this->collArReports = ArReportPeer::doSelectJoinArReportSet($criteria, $con, $join_behavior);
+				$this->collArReports = ArReportPeer::doSelectJoinArReportSetRelatedByArReportSetId($criteria, $con, $join_behavior);
 			}
 		} else {
 			// the following code is to determine if a new query is
@@ -2425,7 +2673,54 @@ abstract class BaseArOrganizationUnit extends BaseObject  implements Persistent 
 			$criteria->add(ArReportPeer::AR_ORGANIZATION_UNIT_ID, $this->id);
 
 			if (!isset($this->lastArReportCriteria) || !$this->lastArReportCriteria->equals($criteria)) {
-				$this->collArReports = ArReportPeer::doSelectJoinArReportSet($criteria, $con, $join_behavior);
+				$this->collArReports = ArReportPeer::doSelectJoinArReportSetRelatedByArReportSetId($criteria, $con, $join_behavior);
+			}
+		}
+		$this->lastArReportCriteria = $criteria;
+
+		return $this->collArReports;
+	}
+
+
+	/**
+	 * If this collection has already been initialized with
+	 * an identical criteria, it returns the collection.
+	 * Otherwise if this ArOrganizationUnit is new, it will return
+	 * an empty collection; or if this ArOrganizationUnit has previously
+	 * been saved, it will retrieve related ArReports from storage.
+	 *
+	 * This method is protected by default in order to keep the public
+	 * api reasonable.  You can provide public methods for those you
+	 * actually need in ArOrganizationUnit.
+	 */
+	public function getArReportsJoinArReportSetRelatedByAboutArReportSetId($criteria = null, $con = null, $join_behavior = Criteria::LEFT_JOIN)
+	{
+		if ($criteria === null) {
+			$criteria = new Criteria(ArOrganizationUnitPeer::DATABASE_NAME);
+		}
+		elseif ($criteria instanceof Criteria)
+		{
+			$criteria = clone $criteria;
+		}
+
+		if ($this->collArReports === null) {
+			if ($this->isNew()) {
+				$this->collArReports = array();
+			} else {
+
+				$criteria->add(ArReportPeer::AR_ORGANIZATION_UNIT_ID, $this->id);
+
+				$this->collArReports = ArReportPeer::doSelectJoinArReportSetRelatedByAboutArReportSetId($criteria, $con, $join_behavior);
+			}
+		} else {
+			// the following code is to determine if a new query is
+			// called for.  If the criteria is the same as the last
+			// one, just return the collection.
+
+			$criteria->add(ArReportPeer::AR_ORGANIZATION_UNIT_ID, $this->id);
+
+			if (!isset($this->lastArReportCriteria) || !$this->lastArReportCriteria->equals($criteria)) {
+				$this->collArReports = ArReportPeer::doSelectJoinArReportSetRelatedByAboutArReportSetId($criteria, $con, $join_behavior);
 			}
 		}
 		$this->lastArReportCriteria = $criteria;
@@ -2520,6 +2815,53 @@ abstract class BaseArOrganizationUnit extends BaseObject  implements Persistent 
 
 			if (!isset($this->lastArReportCriteria) || !$this->lastArReportCriteria->equals($criteria)) {
 				$this->collArReports = ArReportPeer::doSelectJoinArVendor($criteria, $con, $join_behavior);
+			}
+		}
+		$this->lastArReportCriteria = $criteria;
+
+		return $this->collArReports;
+	}
+
+
+	/**
+	 * If this collection has already been initialized with
+	 * an identical criteria, it returns the collection.
+	 * Otherwise if this ArOrganizationUnit is new, it will return
+	 * an empty collection; or if this ArOrganizationUnit has previously
+	 * been saved, it will retrieve related ArReports from storage.
+	 *
+	 * This method is protected by default in order to keep the public
+	 * api reasonable.  You can provide public methods for those you
+	 * actually need in ArOrganizationUnit.
+	 */
+	public function getArReportsJoinArTag($criteria = null, $con = null, $join_behavior = Criteria::LEFT_JOIN)
+	{
+		if ($criteria === null) {
+			$criteria = new Criteria(ArOrganizationUnitPeer::DATABASE_NAME);
+		}
+		elseif ($criteria instanceof Criteria)
+		{
+			$criteria = clone $criteria;
+		}
+
+		if ($this->collArReports === null) {
+			if ($this->isNew()) {
+				$this->collArReports = array();
+			} else {
+
+				$criteria->add(ArReportPeer::AR_ORGANIZATION_UNIT_ID, $this->id);
+
+				$this->collArReports = ArReportPeer::doSelectJoinArTag($criteria, $con, $join_behavior);
+			}
+		} else {
+			// the following code is to determine if a new query is
+			// called for.  If the criteria is the same as the last
+			// one, just return the collection.
+
+			$criteria->add(ArReportPeer::AR_ORGANIZATION_UNIT_ID, $this->id);
+
+			if (!isset($this->lastArReportCriteria) || !$this->lastArReportCriteria->equals($criteria)) {
+				$this->collArReports = ArReportPeer::doSelectJoinArTag($criteria, $con, $join_behavior);
 			}
 		}
 		$this->lastArReportCriteria = $criteria;
@@ -2820,6 +3162,243 @@ abstract class BaseArOrganizationUnit extends BaseObject  implements Persistent 
 		$this->lastArReportSchedulerCriteria = $criteria;
 
 		return $this->collArReportSchedulers;
+	}
+
+	/**
+	 * Clears out the collArPostponedReports collection (array).
+	 *
+	 * This does not modify the database; however, it will remove any associated objects, causing
+	 * them to be refetched by subsequent calls to accessor method.
+	 *
+	 * @return     void
+	 * @see        addArPostponedReports()
+	 */
+	public function clearArPostponedReports()
+	{
+		$this->collArPostponedReports = null; // important to set this to NULL since that means it is uninitialized
+	}
+
+	/**
+	 * Initializes the collArPostponedReports collection (array).
+	 *
+	 * By default this just sets the collArPostponedReports collection to an empty array (like clearcollArPostponedReports());
+	 * however, you may wish to override this method in your stub class to provide setting appropriate
+	 * to your application -- for example, setting the initial array to the values stored in database.
+	 *
+	 * @return     void
+	 */
+	public function initArPostponedReports()
+	{
+		$this->collArPostponedReports = array();
+	}
+
+	/**
+	 * Gets an array of ArPostponedReport objects which contain a foreign key that references this object.
+	 *
+	 * If this collection has already been initialized with an identical Criteria, it returns the collection.
+	 * Otherwise if this ArOrganizationUnit has previously been saved, it will retrieve
+	 * related ArPostponedReports from storage. If this ArOrganizationUnit is new, it will return
+	 * an empty collection or the current collection, the criteria is ignored on a new object.
+	 *
+	 * @param      PropelPDO $con
+	 * @param      Criteria $criteria
+	 * @return     array ArPostponedReport[]
+	 * @throws     PropelException
+	 */
+	public function getArPostponedReports($criteria = null, PropelPDO $con = null)
+	{
+		if ($criteria === null) {
+			$criteria = new Criteria(ArOrganizationUnitPeer::DATABASE_NAME);
+		}
+		elseif ($criteria instanceof Criteria)
+		{
+			$criteria = clone $criteria;
+		}
+
+		if ($this->collArPostponedReports === null) {
+			if ($this->isNew()) {
+			   $this->collArPostponedReports = array();
+			} else {
+
+				$criteria->add(ArPostponedReportPeer::AR_ORGANIZATION_UNIT_ID, $this->id);
+
+				ArPostponedReportPeer::addSelectColumns($criteria);
+				$this->collArPostponedReports = ArPostponedReportPeer::doSelect($criteria, $con);
+			}
+		} else {
+			// criteria has no effect for a new object
+			if (!$this->isNew()) {
+				// the following code is to determine if a new query is
+				// called for.  If the criteria is the same as the last
+				// one, just return the collection.
+
+
+				$criteria->add(ArPostponedReportPeer::AR_ORGANIZATION_UNIT_ID, $this->id);
+
+				ArPostponedReportPeer::addSelectColumns($criteria);
+				if (!isset($this->lastArPostponedReportCriteria) || !$this->lastArPostponedReportCriteria->equals($criteria)) {
+					$this->collArPostponedReports = ArPostponedReportPeer::doSelect($criteria, $con);
+				}
+			}
+		}
+		$this->lastArPostponedReportCriteria = $criteria;
+		return $this->collArPostponedReports;
+	}
+
+	/**
+	 * Returns the number of related ArPostponedReport objects.
+	 *
+	 * @param      Criteria $criteria
+	 * @param      boolean $distinct
+	 * @param      PropelPDO $con
+	 * @return     int Count of related ArPostponedReport objects.
+	 * @throws     PropelException
+	 */
+	public function countArPostponedReports(Criteria $criteria = null, $distinct = false, PropelPDO $con = null)
+	{
+		if ($criteria === null) {
+			$criteria = new Criteria(ArOrganizationUnitPeer::DATABASE_NAME);
+		} else {
+			$criteria = clone $criteria;
+		}
+
+		if ($distinct) {
+			$criteria->setDistinct();
+		}
+
+		$count = null;
+
+		if ($this->collArPostponedReports === null) {
+			if ($this->isNew()) {
+				$count = 0;
+			} else {
+
+				$criteria->add(ArPostponedReportPeer::AR_ORGANIZATION_UNIT_ID, $this->id);
+
+				$count = ArPostponedReportPeer::doCount($criteria, false, $con);
+			}
+		} else {
+			// criteria has no effect for a new object
+			if (!$this->isNew()) {
+				// the following code is to determine if a new query is
+				// called for.  If the criteria is the same as the last
+				// one, just return count of the collection.
+
+
+				$criteria->add(ArPostponedReportPeer::AR_ORGANIZATION_UNIT_ID, $this->id);
+
+				if (!isset($this->lastArPostponedReportCriteria) || !$this->lastArPostponedReportCriteria->equals($criteria)) {
+					$count = ArPostponedReportPeer::doCount($criteria, false, $con);
+				} else {
+					$count = count($this->collArPostponedReports);
+				}
+			} else {
+				$count = count($this->collArPostponedReports);
+			}
+		}
+		return $count;
+	}
+
+	/**
+	 * Method called to associate a ArPostponedReport object to this object
+	 * through the ArPostponedReport foreign key attribute.
+	 *
+	 * @param      ArPostponedReport $l ArPostponedReport
+	 * @return     void
+	 * @throws     PropelException
+	 */
+	public function addArPostponedReport(ArPostponedReport $l)
+	{
+		if ($this->collArPostponedReports === null) {
+			$this->initArPostponedReports();
+		}
+		if (!in_array($l, $this->collArPostponedReports, true)) { // only add it if the **same** object is not already associated
+			array_push($this->collArPostponedReports, $l);
+			$l->setArOrganizationUnit($this);
+		}
+	}
+
+
+	/**
+	 * If this collection has already been initialized with
+	 * an identical criteria, it returns the collection.
+	 * Otherwise if this ArOrganizationUnit is new, it will return
+	 * an empty collection; or if this ArOrganizationUnit has previously
+	 * been saved, it will retrieve related ArPostponedReports from storage.
+	 *
+	 * This method is protected by default in order to keep the public
+	 * api reasonable.  You can provide public methods for those you
+	 * actually need in ArOrganizationUnit.
+	 */
+	public function getArPostponedReportsJoinArReportSet($criteria = null, $con = null, $join_behavior = Criteria::LEFT_JOIN)
+	{
+		if ($criteria === null) {
+			$criteria = new Criteria(ArOrganizationUnitPeer::DATABASE_NAME);
+		}
+		elseif ($criteria instanceof Criteria)
+		{
+			$criteria = clone $criteria;
+		}
+
+		if ($this->collArPostponedReports === null) {
+			if ($this->isNew()) {
+				$this->collArPostponedReports = array();
+			} else {
+
+				$criteria->add(ArPostponedReportPeer::AR_ORGANIZATION_UNIT_ID, $this->id);
+
+				$this->collArPostponedReports = ArPostponedReportPeer::doSelectJoinArReportSet($criteria, $con, $join_behavior);
+			}
+		} else {
+			// the following code is to determine if a new query is
+			// called for.  If the criteria is the same as the last
+			// one, just return the collection.
+
+			$criteria->add(ArPostponedReportPeer::AR_ORGANIZATION_UNIT_ID, $this->id);
+
+			if (!isset($this->lastArPostponedReportCriteria) || !$this->lastArPostponedReportCriteria->equals($criteria)) {
+				$this->collArPostponedReports = ArPostponedReportPeer::doSelectJoinArReportSet($criteria, $con, $join_behavior);
+			}
+		}
+		$this->lastArPostponedReportCriteria = $criteria;
+
+		return $this->collArPostponedReports;
+	}
+
+	/**
+	 * Gets a single ArPostponedReportTmp object, which is related to this object by a one-to-one relationship.
+	 *
+	 * @param      PropelPDO $con
+	 * @return     ArPostponedReportTmp
+	 * @throws     PropelException
+	 */
+	public function getArPostponedReportTmp(PropelPDO $con = null)
+	{
+
+		if ($this->singleArPostponedReportTmp === null && !$this->isNew()) {
+			$this->singleArPostponedReportTmp = ArPostponedReportTmpPeer::retrieveByPK($this->id, $con);
+		}
+
+		return $this->singleArPostponedReportTmp;
+	}
+
+	/**
+	 * Sets a single ArPostponedReportTmp object as related to this object by a one-to-one relationship.
+	 *
+	 * @param      ArPostponedReportTmp $l ArPostponedReportTmp
+	 * @return     ArOrganizationUnit The current object (for fluent API support)
+	 * @throws     PropelException
+	 */
+	public function setArPostponedReportTmp(ArPostponedReportTmp $v)
+	{
+		$this->singleArPostponedReportTmp = $v;
+
+		// Make sure that that the passed-in ArPostponedReportTmp isn't already associated with this object
+		if ($v->getArOrganizationUnit() === null) {
+			$v->setArOrganizationUnit($this);
+		}
+
+		return $this;
 	}
 
 	/**
@@ -3499,6 +4078,11 @@ abstract class BaseArOrganizationUnit extends BaseObject  implements Persistent 
 					$o->clearAllReferences($deep);
 				}
 			}
+			if ($this->collArExpandedExtensionss) {
+				foreach ((array) $this->collArExpandedExtensionss as $o) {
+					$o->clearAllReferences($deep);
+				}
+			}
 			if ($this->collArUsers) {
 				foreach ((array) $this->collArUsers as $o) {
 					$o->clearAllReferences($deep);
@@ -3513,6 +4097,14 @@ abstract class BaseArOrganizationUnit extends BaseObject  implements Persistent 
 				foreach ((array) $this->collArReportSchedulers as $o) {
 					$o->clearAllReferences($deep);
 				}
+			}
+			if ($this->collArPostponedReports) {
+				foreach ((array) $this->collArPostponedReports as $o) {
+					$o->clearAllReferences($deep);
+				}
+			}
+			if ($this->singleArPostponedReportTmp) {
+				$this->singleArPostponedReportTmp->clearAllReferences($deep);
 			}
 			if ($this->collArReportToReadUserViews) {
 				foreach ((array) $this->collArReportToReadUserViews as $o) {
@@ -3534,9 +4126,12 @@ abstract class BaseArOrganizationUnit extends BaseObject  implements Persistent 
 		$this->collArCdrs = null;
 		$this->collArOrganizationUnitHasStructuresRelatedByArOrganizationUnitId = null;
 		$this->collArOrganizationUnitHasStructuresRelatedByArParentOrganizationUnitId = null;
+		$this->collArExpandedExtensionss = null;
 		$this->collArUsers = null;
 		$this->collArReports = null;
 		$this->collArReportSchedulers = null;
+		$this->collArPostponedReports = null;
+		$this->singleArPostponedReportTmp = null;
 		$this->collArReportToReadUserViews = null;
 		$this->collArInstanceStatuss = null;
 		$this->collArAssignedServices = null;

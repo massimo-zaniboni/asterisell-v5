@@ -720,13 +720,13 @@ type SourceCDRDescription = String
 --   @ensure the CSV line content is always converted to UTF8 format.
 type SourceCDRImporter
   =  Handle 
-  -> BoundedChan (Maybe BS.ByteString)
+  -> BoundedChan (Maybe BSL.ByteString)
   -> IO ()
 
 -- | Import a single CDR from a single ar_source_cdr content.
 --   Usually import a CDR from a CSV line content.
 --   @require the CSV content is expected to be in UTF8 content. 
-type CDRImporter = BS.ByteString -> CDRProviderName -> ImportedCDR
+type CDRImporter = BSL.ByteString -> CDRProviderName -> ImportedCDR
 
 -- | A CDR converted from a source CDR.
 --   @invariant the returned CDR can not have an error field setted.
@@ -823,9 +823,14 @@ instance (ToField a) => ToField (ExportMaybeNull a) where
   toField (Export x) = toField x
 
 instance (FromField a) => FromField (ExportMaybeNull a) where
-  parseField s 
-    | s == "\\N" = pure ExportNull
-    | otherwise = Export <$> parseField s
+  parseField s1 = do
+      s2 :: Text.Text <- parseField s1
+      -- NOTE: force UTF8 conversion
+      case s2 == Text.pack "\\N" of
+        True -> return ExportNull
+        False -> do s3 :: a <- parseField s1
+                    -- NOTE: parse using the proper type conversion
+                    return $ Export s3
 
 toMaybeField :: (ToField a) => Maybe a -> ExportMaybeNull a
 toMaybeField Nothing = ExportNull

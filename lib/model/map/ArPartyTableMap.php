@@ -57,6 +57,10 @@ class ArPartyTableMap extends TableMap {
 		$this->addForeignKey('AR_RESELLER_ID', 'ArResellerId', 'INTEGER', 'ar_reseller', 'ID', false, null, null);
 		$this->addColumn('MIGRATION_FIELD_FOR_TELEPHONE', 'MigrationFieldForTelephone', 'VARCHAR', false, 255, null);
 		$this->addColumn('MIGRATION_FIELD_FOR_ADSL', 'MigrationFieldForAdsl', 'VARCHAR', false, 255, null);
+		$this->addColumn('PAYMENT_IBAN', 'PaymentIban', 'VARCHAR', false, 255, null);
+		$this->addColumn('PAYMENT_BIC', 'PaymentBic', 'VARCHAR', false, 255, null);
+		$this->addColumn('PAYMENT_SEPA', 'PaymentSepa', 'VARCHAR', false, 255, null);
+		$this->addColumn('PAYMENT_INFO', 'PaymentInfo', 'VARCHAR', false, 255, null);
 		// validators
 	} // initialize()
 
@@ -66,6 +70,7 @@ class ArPartyTableMap extends TableMap {
 	public function buildRelations()
 	{
     $this->addRelation('ArReseller', 'ArReseller', RelationMap::MANY_TO_ONE, array('ar_reseller_id' => 'id', ), null, null);
+    $this->addRelation('ArPartyHasTag', 'ArPartyHasTag', RelationMap::ONE_TO_MANY, array('id' => 'ar_party_id', ), 'CASCADE', null);
     $this->addRelation('ArOrganizationUnitHasStructure', 'ArOrganizationUnitHasStructure', RelationMap::ONE_TO_MANY, array('id' => 'ar_party_id', ), null, null);
     $this->addRelation('ArVendor', 'ArVendor', RelationMap::ONE_TO_MANY, array('id' => 'ar_party_id', ), null, null);
     $this->addRelation('ArUser', 'ArUser', RelationMap::ONE_TO_MANY, array('id' => 'ar_party_id', ), null, null);

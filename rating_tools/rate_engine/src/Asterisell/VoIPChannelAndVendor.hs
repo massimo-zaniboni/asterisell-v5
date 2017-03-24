@@ -168,7 +168,7 @@ channelDomains_match trie domain date
   domain1 = T.unpack domain
    
   mySearch d
-    = case trie_getMatch 0 trie d of
+    = case trie_getMatch trie_getMatch_initial trie d of
         Nothing -> []
         Just (_, r) -> r  
 

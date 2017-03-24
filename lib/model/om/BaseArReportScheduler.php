@@ -142,6 +142,19 @@ abstract class BaseArReportScheduler extends BaseObject  implements Persistent {
 	protected $generate_only_if_there_is_cost;
 
 	/**
+	 * The value for the minimum_cost field.
+	 * @var        string
+	 */
+	protected $minimum_cost;
+
+	/**
+	 * The value for the send_compact_report_list_to_accountant field.
+	 * Note: this column has a database default value of: false
+	 * @var        boolean
+	 */
+	protected $send_compact_report_list_to_accountant;
+
+	/**
 	 * @var        ArReport
 	 */
 	protected $aArReport;
@@ -195,6 +208,7 @@ abstract class BaseArReportScheduler extends BaseObject  implements Persistent {
 		$this->produced_report_must_be_reviewed = true;
 		$this->start_generation_after_x_hours = 2;
 		$this->generate_only_if_there_is_cost = false;
+		$this->send_compact_report_list_to_accountant = false;
 	}
 
 	/**
@@ -489,6 +503,26 @@ abstract class BaseArReportScheduler extends BaseObject  implements Persistent {
 	public function getGenerateOnlyIfThereIsCost()
 	{
 		return $this->generate_only_if_there_is_cost;
+	}
+
+	/**
+	 * Get the [minimum_cost] column value.
+	 * 
+	 * @return     string
+	 */
+	public function getMinimumCost()
+	{
+		return $this->minimum_cost;
+	}
+
+	/**
+	 * Get the [send_compact_report_list_to_accountant] column value.
+	 * 
+	 * @return     boolean
+	 */
+	public function getSendCompactReportListToAccountant()
+	{
+		return $this->send_compact_report_list_to_accountant;
 	}
 
 	/**
@@ -991,6 +1025,46 @@ abstract class BaseArReportScheduler extends BaseObject  implements Persistent {
 	} // setGenerateOnlyIfThereIsCost()
 
 	/**
+	 * Set the value of [minimum_cost] column.
+	 * 
+	 * @param      string $v new value
+	 * @return     ArReportScheduler The current object (for fluent API support)
+	 */
+	public function setMinimumCost($v)
+	{
+		if ($v !== null) {
+			$v = (string) $v;
+		}
+
+		if ($this->minimum_cost !== $v) {
+			$this->minimum_cost = $v;
+			$this->modifiedColumns[] = ArReportSchedulerPeer::MINIMUM_COST;
+		}
+
+		return $this;
+	} // setMinimumCost()
+
+	/**
+	 * Set the value of [send_compact_report_list_to_accountant] column.
+	 * 
+	 * @param      boolean $v new value
+	 * @return     ArReportScheduler The current object (for fluent API support)
+	 */
+	public function setSendCompactReportListToAccountant($v)
+	{
+		if ($v !== null) {
+			$v = (boolean) $v;
+		}
+
+		if ($this->send_compact_report_list_to_accountant !== $v || $this->isNew()) {
+			$this->send_compact_report_list_to_accountant = $v;
+			$this->modifiedColumns[] = ArReportSchedulerPeer::SEND_COMPACT_REPORT_LIST_TO_ACCOUNTANT;
+		}
+
+		return $this;
+	} // setSendCompactReportListToAccountant()
+
+	/**
 	 * Indicates whether the columns in this object are only set to default values.
 	 *
 	 * This method can be used in conjunction with isModified() to indicate whether an object is both
@@ -1009,6 +1083,10 @@ abstract class BaseArReportScheduler extends BaseObject  implements Persistent {
 			}
 
 			if ($this->generate_only_if_there_is_cost !== false) {
+				return false;
+			}
+
+			if ($this->send_compact_report_list_to_accountant !== false) {
 				return false;
 			}
 
@@ -1054,6 +1132,8 @@ abstract class BaseArReportScheduler extends BaseObject  implements Persistent {
 			$this->days_to_add_to_legal_date_generation_method = ($row[$startcol + 17] !== null) ? (int) $row[$startcol + 17] : null;
 			$this->is_yearly_legal_numeration = ($row[$startcol + 18] !== null) ? (boolean) $row[$startcol + 18] : null;
 			$this->generate_only_if_there_is_cost = ($row[$startcol + 19] !== null) ? (boolean) $row[$startcol + 19] : null;
+			$this->minimum_cost = ($row[$startcol + 20] !== null) ? (string) $row[$startcol + 20] : null;
+			$this->send_compact_report_list_to_accountant = ($row[$startcol + 21] !== null) ? (boolean) $row[$startcol + 21] : null;
 			$this->resetModified();
 
 			$this->setNew(false);
@@ -1063,7 +1143,7 @@ abstract class BaseArReportScheduler extends BaseObject  implements Persistent {
 			}
 
 			// FIXME - using NUM_COLUMNS may be clearer.
-			return $startcol + 20; // 20 = ArReportSchedulerPeer::NUM_COLUMNS - ArReportSchedulerPeer::NUM_LAZY_LOAD_COLUMNS).
+			return $startcol + 22; // 22 = ArReportSchedulerPeer::NUM_COLUMNS - ArReportSchedulerPeer::NUM_LAZY_LOAD_COLUMNS).
 
 		} catch (Exception $e) {
 			throw new PropelException("Error populating ArReportScheduler object", $e);
@@ -1500,6 +1580,12 @@ abstract class BaseArReportScheduler extends BaseObject  implements Persistent {
 			case 19:
 				return $this->getGenerateOnlyIfThereIsCost();
 				break;
+			case 20:
+				return $this->getMinimumCost();
+				break;
+			case 21:
+				return $this->getSendCompactReportListToAccountant();
+				break;
 			default:
 				return null;
 				break;
@@ -1541,6 +1627,8 @@ abstract class BaseArReportScheduler extends BaseObject  implements Persistent {
 			$keys[17] => $this->getDaysToAddToLegalDateGenerationMethod(),
 			$keys[18] => $this->getIsYearlyLegalNumeration(),
 			$keys[19] => $this->getGenerateOnlyIfThereIsCost(),
+			$keys[20] => $this->getMinimumCost(),
+			$keys[21] => $this->getSendCompactReportListToAccountant(),
 		);
 		return $result;
 	}
@@ -1632,6 +1720,12 @@ abstract class BaseArReportScheduler extends BaseObject  implements Persistent {
 			case 19:
 				$this->setGenerateOnlyIfThereIsCost($value);
 				break;
+			case 20:
+				$this->setMinimumCost($value);
+				break;
+			case 21:
+				$this->setSendCompactReportListToAccountant($value);
+				break;
 		} // switch()
 	}
 
@@ -1676,6 +1770,8 @@ abstract class BaseArReportScheduler extends BaseObject  implements Persistent {
 		if (array_key_exists($keys[17], $arr)) $this->setDaysToAddToLegalDateGenerationMethod($arr[$keys[17]]);
 		if (array_key_exists($keys[18], $arr)) $this->setIsYearlyLegalNumeration($arr[$keys[18]]);
 		if (array_key_exists($keys[19], $arr)) $this->setGenerateOnlyIfThereIsCost($arr[$keys[19]]);
+		if (array_key_exists($keys[20], $arr)) $this->setMinimumCost($arr[$keys[20]]);
+		if (array_key_exists($keys[21], $arr)) $this->setSendCompactReportListToAccountant($arr[$keys[21]]);
 	}
 
 	/**
@@ -1707,6 +1803,8 @@ abstract class BaseArReportScheduler extends BaseObject  implements Persistent {
 		if ($this->isColumnModified(ArReportSchedulerPeer::DAYS_TO_ADD_TO_LEGAL_DATE_GENERATION_METHOD)) $criteria->add(ArReportSchedulerPeer::DAYS_TO_ADD_TO_LEGAL_DATE_GENERATION_METHOD, $this->days_to_add_to_legal_date_generation_method);
 		if ($this->isColumnModified(ArReportSchedulerPeer::IS_YEARLY_LEGAL_NUMERATION)) $criteria->add(ArReportSchedulerPeer::IS_YEARLY_LEGAL_NUMERATION, $this->is_yearly_legal_numeration);
 		if ($this->isColumnModified(ArReportSchedulerPeer::GENERATE_ONLY_IF_THERE_IS_COST)) $criteria->add(ArReportSchedulerPeer::GENERATE_ONLY_IF_THERE_IS_COST, $this->generate_only_if_there_is_cost);
+		if ($this->isColumnModified(ArReportSchedulerPeer::MINIMUM_COST)) $criteria->add(ArReportSchedulerPeer::MINIMUM_COST, $this->minimum_cost);
+		if ($this->isColumnModified(ArReportSchedulerPeer::SEND_COMPACT_REPORT_LIST_TO_ACCOUNTANT)) $criteria->add(ArReportSchedulerPeer::SEND_COMPACT_REPORT_LIST_TO_ACCOUNTANT, $this->send_compact_report_list_to_accountant);
 
 		return $criteria;
 	}
@@ -1798,6 +1896,10 @@ abstract class BaseArReportScheduler extends BaseObject  implements Persistent {
 		$copyObj->setIsYearlyLegalNumeration($this->is_yearly_legal_numeration);
 
 		$copyObj->setGenerateOnlyIfThereIsCost($this->generate_only_if_there_is_cost);
+
+		$copyObj->setMinimumCost($this->minimum_cost);
+
+		$copyObj->setSendCompactReportListToAccountant($this->send_compact_report_list_to_accountant);
 
 
 		if ($deepCopy) {

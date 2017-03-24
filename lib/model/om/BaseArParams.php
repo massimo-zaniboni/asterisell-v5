@@ -182,6 +182,12 @@ abstract class BaseArParams extends BaseObject  implements Persistent {
 	protected $invoice_payment_terms;
 
 	/**
+	 * The value for the invoice_payment_due_in_xx_days field.
+	 * @var        int
+	 */
+	protected $invoice_payment_due_in_xx_days;
+
+	/**
 	 * The value for the sender_name_on_invoicing_emails field.
 	 * @var        string
 	 */
@@ -602,6 +608,16 @@ abstract class BaseArParams extends BaseObject  implements Persistent {
 	public function getInvoicePaymentTerms()
 	{
 		return $this->invoice_payment_terms;
+	}
+
+	/**
+	 * Get the [invoice_payment_due_in_xx_days] column value.
+	 * 
+	 * @return     int
+	 */
+	public function getInvoicePaymentDueInXxDays()
+	{
+		return $this->invoice_payment_due_in_xx_days;
 	}
 
 	/**
@@ -1511,6 +1527,26 @@ abstract class BaseArParams extends BaseObject  implements Persistent {
 	} // setInvoicePaymentTerms()
 
 	/**
+	 * Set the value of [invoice_payment_due_in_xx_days] column.
+	 * 
+	 * @param      int $v new value
+	 * @return     ArParams The current object (for fluent API support)
+	 */
+	public function setInvoicePaymentDueInXxDays($v)
+	{
+		if ($v !== null) {
+			$v = (int) $v;
+		}
+
+		if ($this->invoice_payment_due_in_xx_days !== $v) {
+			$this->invoice_payment_due_in_xx_days = $v;
+			$this->modifiedColumns[] = ArParamsPeer::INVOICE_PAYMENT_DUE_IN_XX_DAYS;
+		}
+
+		return $this;
+	} // setInvoicePaymentDueInXxDays()
+
+	/**
 	 * Set the value of [sender_name_on_invoicing_emails] column.
 	 * 
 	 * @param      string $v new value
@@ -2140,23 +2176,24 @@ abstract class BaseArParams extends BaseObject  implements Persistent {
 			$this->legal_fax = ($row[$startcol + 24] !== null) ? (string) $row[$startcol + 24] : null;
 			$this->invoice_notes = ($row[$startcol + 25] !== null) ? (string) $row[$startcol + 25] : null;
 			$this->invoice_payment_terms = ($row[$startcol + 26] !== null) ? (string) $row[$startcol + 26] : null;
-			$this->sender_name_on_invoicing_emails = ($row[$startcol + 27] !== null) ? (string) $row[$startcol + 27] : null;
-			$this->invoicing_email_address = ($row[$startcol + 28] !== null) ? (string) $row[$startcol + 28] : null;
-			$this->logo_html_color = ($row[$startcol + 29] !== null) ? (string) $row[$startcol + 29] : null;
-			$this->html_notes_on_the_login_form = ($row[$startcol + 30] !== null) ? (string) $row[$startcol + 30] : null;
-			$this->official_calldate = ($row[$startcol + 31] !== null) ? (string) $row[$startcol + 31] : null;
-			$this->scheduled_rerate_from_official_calldate = ($row[$startcol + 32] !== null) ? (boolean) $row[$startcol + 32] : null;
-			$this->new_imported_cdrs_from_calldate = ($row[$startcol + 33] !== null) ? (string) $row[$startcol + 33] : null;
-			$this->new_imported_cdrs_to_calldate = ($row[$startcol + 34] !== null) ? (string) $row[$startcol + 34] : null;
-			$this->scheduled_rerate_from_specific_calldate = ($row[$startcol + 35] !== null) ? (string) $row[$startcol + 35] : null;
-			$this->scheduled_rerate_to_specific_calldate = ($row[$startcol + 36] !== null) ? (string) $row[$startcol + 36] : null;
-			$this->scheduled_imported_services_rerate_from_specific_calldate = ($row[$startcol + 37] !== null) ? (string) $row[$startcol + 37] : null;
-			$this->scheduled_imported_services_rerate_to_specific_calldate = ($row[$startcol + 38] !== null) ? (string) $row[$startcol + 38] : null;
-			$this->current_count_of_rerating_failed_attempts = ($row[$startcol + 39] !== null) ? (int) $row[$startcol + 39] : null;
-			$this->current_rerating_event_is_running = ($row[$startcol + 40] !== null) ? (boolean) $row[$startcol + 40] : null;
-			$this->should_reschedule_rerate_from_official_calldate = ($row[$startcol + 41] !== null) ? (boolean) $row[$startcol + 41] : null;
-			$this->wait_for_scheduled_rerate = ($row[$startcol + 42] !== null) ? (boolean) $row[$startcol + 42] : null;
-			$this->clean_error_table = ($row[$startcol + 43] !== null) ? (int) $row[$startcol + 43] : null;
+			$this->invoice_payment_due_in_xx_days = ($row[$startcol + 27] !== null) ? (int) $row[$startcol + 27] : null;
+			$this->sender_name_on_invoicing_emails = ($row[$startcol + 28] !== null) ? (string) $row[$startcol + 28] : null;
+			$this->invoicing_email_address = ($row[$startcol + 29] !== null) ? (string) $row[$startcol + 29] : null;
+			$this->logo_html_color = ($row[$startcol + 30] !== null) ? (string) $row[$startcol + 30] : null;
+			$this->html_notes_on_the_login_form = ($row[$startcol + 31] !== null) ? (string) $row[$startcol + 31] : null;
+			$this->official_calldate = ($row[$startcol + 32] !== null) ? (string) $row[$startcol + 32] : null;
+			$this->scheduled_rerate_from_official_calldate = ($row[$startcol + 33] !== null) ? (boolean) $row[$startcol + 33] : null;
+			$this->new_imported_cdrs_from_calldate = ($row[$startcol + 34] !== null) ? (string) $row[$startcol + 34] : null;
+			$this->new_imported_cdrs_to_calldate = ($row[$startcol + 35] !== null) ? (string) $row[$startcol + 35] : null;
+			$this->scheduled_rerate_from_specific_calldate = ($row[$startcol + 36] !== null) ? (string) $row[$startcol + 36] : null;
+			$this->scheduled_rerate_to_specific_calldate = ($row[$startcol + 37] !== null) ? (string) $row[$startcol + 37] : null;
+			$this->scheduled_imported_services_rerate_from_specific_calldate = ($row[$startcol + 38] !== null) ? (string) $row[$startcol + 38] : null;
+			$this->scheduled_imported_services_rerate_to_specific_calldate = ($row[$startcol + 39] !== null) ? (string) $row[$startcol + 39] : null;
+			$this->current_count_of_rerating_failed_attempts = ($row[$startcol + 40] !== null) ? (int) $row[$startcol + 40] : null;
+			$this->current_rerating_event_is_running = ($row[$startcol + 41] !== null) ? (boolean) $row[$startcol + 41] : null;
+			$this->should_reschedule_rerate_from_official_calldate = ($row[$startcol + 42] !== null) ? (boolean) $row[$startcol + 42] : null;
+			$this->wait_for_scheduled_rerate = ($row[$startcol + 43] !== null) ? (boolean) $row[$startcol + 43] : null;
+			$this->clean_error_table = ($row[$startcol + 44] !== null) ? (int) $row[$startcol + 44] : null;
 			$this->resetModified();
 
 			$this->setNew(false);
@@ -2166,7 +2203,7 @@ abstract class BaseArParams extends BaseObject  implements Persistent {
 			}
 
 			// FIXME - using NUM_COLUMNS may be clearer.
-			return $startcol + 44; // 44 = ArParamsPeer::NUM_COLUMNS - ArParamsPeer::NUM_LAZY_LOAD_COLUMNS).
+			return $startcol + 45; // 45 = ArParamsPeer::NUM_COLUMNS - ArParamsPeer::NUM_LAZY_LOAD_COLUMNS).
 
 		} catch (Exception $e) {
 			throw new PropelException("Error populating ArParams object", $e);
@@ -2544,54 +2581,57 @@ abstract class BaseArParams extends BaseObject  implements Persistent {
 				return $this->getInvoicePaymentTerms();
 				break;
 			case 27:
-				return $this->getSenderNameOnInvoicingEmails();
+				return $this->getInvoicePaymentDueInXxDays();
 				break;
 			case 28:
-				return $this->getInvoicingEmailAddress();
+				return $this->getSenderNameOnInvoicingEmails();
 				break;
 			case 29:
-				return $this->getLogoHtmlColor();
+				return $this->getInvoicingEmailAddress();
 				break;
 			case 30:
-				return $this->getHtmlNotesOnTheLoginForm();
+				return $this->getLogoHtmlColor();
 				break;
 			case 31:
-				return $this->getOfficialCalldate();
+				return $this->getHtmlNotesOnTheLoginForm();
 				break;
 			case 32:
-				return $this->getScheduledRerateFromOfficialCalldate();
+				return $this->getOfficialCalldate();
 				break;
 			case 33:
-				return $this->getNewImportedCdrsFromCalldate();
+				return $this->getScheduledRerateFromOfficialCalldate();
 				break;
 			case 34:
-				return $this->getNewImportedCdrsToCalldate();
+				return $this->getNewImportedCdrsFromCalldate();
 				break;
 			case 35:
-				return $this->getScheduledRerateFromSpecificCalldate();
+				return $this->getNewImportedCdrsToCalldate();
 				break;
 			case 36:
-				return $this->getScheduledRerateToSpecificCalldate();
+				return $this->getScheduledRerateFromSpecificCalldate();
 				break;
 			case 37:
-				return $this->getScheduledImportedServicesRerateFromSpecificCalldate();
+				return $this->getScheduledRerateToSpecificCalldate();
 				break;
 			case 38:
-				return $this->getScheduledImportedServicesRerateToSpecificCalldate();
+				return $this->getScheduledImportedServicesRerateFromSpecificCalldate();
 				break;
 			case 39:
-				return $this->getCurrentCountOfReratingFailedAttempts();
+				return $this->getScheduledImportedServicesRerateToSpecificCalldate();
 				break;
 			case 40:
-				return $this->getCurrentReratingEventIsRunning();
+				return $this->getCurrentCountOfReratingFailedAttempts();
 				break;
 			case 41:
-				return $this->getShouldRescheduleRerateFromOfficialCalldate();
+				return $this->getCurrentReratingEventIsRunning();
 				break;
 			case 42:
-				return $this->getWaitForScheduledRerate();
+				return $this->getShouldRescheduleRerateFromOfficialCalldate();
 				break;
 			case 43:
+				return $this->getWaitForScheduledRerate();
+				break;
+			case 44:
 				return $this->getCleanErrorTable();
 				break;
 			default:
@@ -2642,23 +2682,24 @@ abstract class BaseArParams extends BaseObject  implements Persistent {
 			$keys[24] => $this->getLegalFax(),
 			$keys[25] => $this->getInvoiceNotes(),
 			$keys[26] => $this->getInvoicePaymentTerms(),
-			$keys[27] => $this->getSenderNameOnInvoicingEmails(),
-			$keys[28] => $this->getInvoicingEmailAddress(),
-			$keys[29] => $this->getLogoHtmlColor(),
-			$keys[30] => $this->getHtmlNotesOnTheLoginForm(),
-			$keys[31] => $this->getOfficialCalldate(),
-			$keys[32] => $this->getScheduledRerateFromOfficialCalldate(),
-			$keys[33] => $this->getNewImportedCdrsFromCalldate(),
-			$keys[34] => $this->getNewImportedCdrsToCalldate(),
-			$keys[35] => $this->getScheduledRerateFromSpecificCalldate(),
-			$keys[36] => $this->getScheduledRerateToSpecificCalldate(),
-			$keys[37] => $this->getScheduledImportedServicesRerateFromSpecificCalldate(),
-			$keys[38] => $this->getScheduledImportedServicesRerateToSpecificCalldate(),
-			$keys[39] => $this->getCurrentCountOfReratingFailedAttempts(),
-			$keys[40] => $this->getCurrentReratingEventIsRunning(),
-			$keys[41] => $this->getShouldRescheduleRerateFromOfficialCalldate(),
-			$keys[42] => $this->getWaitForScheduledRerate(),
-			$keys[43] => $this->getCleanErrorTable(),
+			$keys[27] => $this->getInvoicePaymentDueInXxDays(),
+			$keys[28] => $this->getSenderNameOnInvoicingEmails(),
+			$keys[29] => $this->getInvoicingEmailAddress(),
+			$keys[30] => $this->getLogoHtmlColor(),
+			$keys[31] => $this->getHtmlNotesOnTheLoginForm(),
+			$keys[32] => $this->getOfficialCalldate(),
+			$keys[33] => $this->getScheduledRerateFromOfficialCalldate(),
+			$keys[34] => $this->getNewImportedCdrsFromCalldate(),
+			$keys[35] => $this->getNewImportedCdrsToCalldate(),
+			$keys[36] => $this->getScheduledRerateFromSpecificCalldate(),
+			$keys[37] => $this->getScheduledRerateToSpecificCalldate(),
+			$keys[38] => $this->getScheduledImportedServicesRerateFromSpecificCalldate(),
+			$keys[39] => $this->getScheduledImportedServicesRerateToSpecificCalldate(),
+			$keys[40] => $this->getCurrentCountOfReratingFailedAttempts(),
+			$keys[41] => $this->getCurrentReratingEventIsRunning(),
+			$keys[42] => $this->getShouldRescheduleRerateFromOfficialCalldate(),
+			$keys[43] => $this->getWaitForScheduledRerate(),
+			$keys[44] => $this->getCleanErrorTable(),
 		);
 		return $result;
 	}
@@ -2772,54 +2813,57 @@ abstract class BaseArParams extends BaseObject  implements Persistent {
 				$this->setInvoicePaymentTerms($value);
 				break;
 			case 27:
-				$this->setSenderNameOnInvoicingEmails($value);
+				$this->setInvoicePaymentDueInXxDays($value);
 				break;
 			case 28:
-				$this->setInvoicingEmailAddress($value);
+				$this->setSenderNameOnInvoicingEmails($value);
 				break;
 			case 29:
-				$this->setLogoHtmlColor($value);
+				$this->setInvoicingEmailAddress($value);
 				break;
 			case 30:
-				$this->setHtmlNotesOnTheLoginForm($value);
+				$this->setLogoHtmlColor($value);
 				break;
 			case 31:
-				$this->setOfficialCalldate($value);
+				$this->setHtmlNotesOnTheLoginForm($value);
 				break;
 			case 32:
-				$this->setScheduledRerateFromOfficialCalldate($value);
+				$this->setOfficialCalldate($value);
 				break;
 			case 33:
-				$this->setNewImportedCdrsFromCalldate($value);
+				$this->setScheduledRerateFromOfficialCalldate($value);
 				break;
 			case 34:
-				$this->setNewImportedCdrsToCalldate($value);
+				$this->setNewImportedCdrsFromCalldate($value);
 				break;
 			case 35:
-				$this->setScheduledRerateFromSpecificCalldate($value);
+				$this->setNewImportedCdrsToCalldate($value);
 				break;
 			case 36:
-				$this->setScheduledRerateToSpecificCalldate($value);
+				$this->setScheduledRerateFromSpecificCalldate($value);
 				break;
 			case 37:
-				$this->setScheduledImportedServicesRerateFromSpecificCalldate($value);
+				$this->setScheduledRerateToSpecificCalldate($value);
 				break;
 			case 38:
-				$this->setScheduledImportedServicesRerateToSpecificCalldate($value);
+				$this->setScheduledImportedServicesRerateFromSpecificCalldate($value);
 				break;
 			case 39:
-				$this->setCurrentCountOfReratingFailedAttempts($value);
+				$this->setScheduledImportedServicesRerateToSpecificCalldate($value);
 				break;
 			case 40:
-				$this->setCurrentReratingEventIsRunning($value);
+				$this->setCurrentCountOfReratingFailedAttempts($value);
 				break;
 			case 41:
-				$this->setShouldRescheduleRerateFromOfficialCalldate($value);
+				$this->setCurrentReratingEventIsRunning($value);
 				break;
 			case 42:
-				$this->setWaitForScheduledRerate($value);
+				$this->setShouldRescheduleRerateFromOfficialCalldate($value);
 				break;
 			case 43:
+				$this->setWaitForScheduledRerate($value);
+				break;
+			case 44:
 				$this->setCleanErrorTable($value);
 				break;
 		} // switch()
@@ -2873,23 +2917,24 @@ abstract class BaseArParams extends BaseObject  implements Persistent {
 		if (array_key_exists($keys[24], $arr)) $this->setLegalFax($arr[$keys[24]]);
 		if (array_key_exists($keys[25], $arr)) $this->setInvoiceNotes($arr[$keys[25]]);
 		if (array_key_exists($keys[26], $arr)) $this->setInvoicePaymentTerms($arr[$keys[26]]);
-		if (array_key_exists($keys[27], $arr)) $this->setSenderNameOnInvoicingEmails($arr[$keys[27]]);
-		if (array_key_exists($keys[28], $arr)) $this->setInvoicingEmailAddress($arr[$keys[28]]);
-		if (array_key_exists($keys[29], $arr)) $this->setLogoHtmlColor($arr[$keys[29]]);
-		if (array_key_exists($keys[30], $arr)) $this->setHtmlNotesOnTheLoginForm($arr[$keys[30]]);
-		if (array_key_exists($keys[31], $arr)) $this->setOfficialCalldate($arr[$keys[31]]);
-		if (array_key_exists($keys[32], $arr)) $this->setScheduledRerateFromOfficialCalldate($arr[$keys[32]]);
-		if (array_key_exists($keys[33], $arr)) $this->setNewImportedCdrsFromCalldate($arr[$keys[33]]);
-		if (array_key_exists($keys[34], $arr)) $this->setNewImportedCdrsToCalldate($arr[$keys[34]]);
-		if (array_key_exists($keys[35], $arr)) $this->setScheduledRerateFromSpecificCalldate($arr[$keys[35]]);
-		if (array_key_exists($keys[36], $arr)) $this->setScheduledRerateToSpecificCalldate($arr[$keys[36]]);
-		if (array_key_exists($keys[37], $arr)) $this->setScheduledImportedServicesRerateFromSpecificCalldate($arr[$keys[37]]);
-		if (array_key_exists($keys[38], $arr)) $this->setScheduledImportedServicesRerateToSpecificCalldate($arr[$keys[38]]);
-		if (array_key_exists($keys[39], $arr)) $this->setCurrentCountOfReratingFailedAttempts($arr[$keys[39]]);
-		if (array_key_exists($keys[40], $arr)) $this->setCurrentReratingEventIsRunning($arr[$keys[40]]);
-		if (array_key_exists($keys[41], $arr)) $this->setShouldRescheduleRerateFromOfficialCalldate($arr[$keys[41]]);
-		if (array_key_exists($keys[42], $arr)) $this->setWaitForScheduledRerate($arr[$keys[42]]);
-		if (array_key_exists($keys[43], $arr)) $this->setCleanErrorTable($arr[$keys[43]]);
+		if (array_key_exists($keys[27], $arr)) $this->setInvoicePaymentDueInXxDays($arr[$keys[27]]);
+		if (array_key_exists($keys[28], $arr)) $this->setSenderNameOnInvoicingEmails($arr[$keys[28]]);
+		if (array_key_exists($keys[29], $arr)) $this->setInvoicingEmailAddress($arr[$keys[29]]);
+		if (array_key_exists($keys[30], $arr)) $this->setLogoHtmlColor($arr[$keys[30]]);
+		if (array_key_exists($keys[31], $arr)) $this->setHtmlNotesOnTheLoginForm($arr[$keys[31]]);
+		if (array_key_exists($keys[32], $arr)) $this->setOfficialCalldate($arr[$keys[32]]);
+		if (array_key_exists($keys[33], $arr)) $this->setScheduledRerateFromOfficialCalldate($arr[$keys[33]]);
+		if (array_key_exists($keys[34], $arr)) $this->setNewImportedCdrsFromCalldate($arr[$keys[34]]);
+		if (array_key_exists($keys[35], $arr)) $this->setNewImportedCdrsToCalldate($arr[$keys[35]]);
+		if (array_key_exists($keys[36], $arr)) $this->setScheduledRerateFromSpecificCalldate($arr[$keys[36]]);
+		if (array_key_exists($keys[37], $arr)) $this->setScheduledRerateToSpecificCalldate($arr[$keys[37]]);
+		if (array_key_exists($keys[38], $arr)) $this->setScheduledImportedServicesRerateFromSpecificCalldate($arr[$keys[38]]);
+		if (array_key_exists($keys[39], $arr)) $this->setScheduledImportedServicesRerateToSpecificCalldate($arr[$keys[39]]);
+		if (array_key_exists($keys[40], $arr)) $this->setCurrentCountOfReratingFailedAttempts($arr[$keys[40]]);
+		if (array_key_exists($keys[41], $arr)) $this->setCurrentReratingEventIsRunning($arr[$keys[41]]);
+		if (array_key_exists($keys[42], $arr)) $this->setShouldRescheduleRerateFromOfficialCalldate($arr[$keys[42]]);
+		if (array_key_exists($keys[43], $arr)) $this->setWaitForScheduledRerate($arr[$keys[43]]);
+		if (array_key_exists($keys[44], $arr)) $this->setCleanErrorTable($arr[$keys[44]]);
 	}
 
 	/**
@@ -2928,6 +2973,7 @@ abstract class BaseArParams extends BaseObject  implements Persistent {
 		if ($this->isColumnModified(ArParamsPeer::LEGAL_FAX)) $criteria->add(ArParamsPeer::LEGAL_FAX, $this->legal_fax);
 		if ($this->isColumnModified(ArParamsPeer::INVOICE_NOTES)) $criteria->add(ArParamsPeer::INVOICE_NOTES, $this->invoice_notes);
 		if ($this->isColumnModified(ArParamsPeer::INVOICE_PAYMENT_TERMS)) $criteria->add(ArParamsPeer::INVOICE_PAYMENT_TERMS, $this->invoice_payment_terms);
+		if ($this->isColumnModified(ArParamsPeer::INVOICE_PAYMENT_DUE_IN_XX_DAYS)) $criteria->add(ArParamsPeer::INVOICE_PAYMENT_DUE_IN_XX_DAYS, $this->invoice_payment_due_in_xx_days);
 		if ($this->isColumnModified(ArParamsPeer::SENDER_NAME_ON_INVOICING_EMAILS)) $criteria->add(ArParamsPeer::SENDER_NAME_ON_INVOICING_EMAILS, $this->sender_name_on_invoicing_emails);
 		if ($this->isColumnModified(ArParamsPeer::INVOICING_EMAIL_ADDRESS)) $criteria->add(ArParamsPeer::INVOICING_EMAIL_ADDRESS, $this->invoicing_email_address);
 		if ($this->isColumnModified(ArParamsPeer::LOGO_HTML_COLOR)) $criteria->add(ArParamsPeer::LOGO_HTML_COLOR, $this->logo_html_color);
@@ -3050,6 +3096,8 @@ abstract class BaseArParams extends BaseObject  implements Persistent {
 		$copyObj->setInvoiceNotes($this->invoice_notes);
 
 		$copyObj->setInvoicePaymentTerms($this->invoice_payment_terms);
+
+		$copyObj->setInvoicePaymentDueInXxDays($this->invoice_payment_due_in_xx_days);
 
 		$copyObj->setSenderNameOnInvoicingEmails($this->sender_name_on_invoicing_emails);
 

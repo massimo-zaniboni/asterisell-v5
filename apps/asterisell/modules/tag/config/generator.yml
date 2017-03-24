@@ -1,0 +1,30 @@
+generator:
+  class: sfPropelAdminGenerator
+  param:
+    model_class:           ArTag
+    theme:                 admin
+    non_verbose_templates: true
+    with_show:             false
+    singular:              ArTag
+    plural:                ArTags
+    route_prefix:          ar_tag
+    with_propel_route:     1
+    actions_base_class:    sfActions
+
+    fields:
+      internal_name: { name: Internal Code, help: "An identifier that can be used also from code for recognizing the tag."}
+      name_for_customer: { name: Name Showed to Customer, help: "The name showed to Customers, in case the tag is used in invoices and so on." }
+      note_for_admin: { name: Notes for Admin, help: "Internal notes describing the meaning of the TAG. These notes are never sent to the customer." }
+      note_for_customer: { name: Notes Showed to Customer, type: textarea_tag, params: size=70x10, help: "Notes that can be showed to Customers, in case reports and invoices are configured in this way. It can contains placeholder like ${pay_due_date}, ${pay_within_days}, ${invoice_number}, ${sepa}, ${iban}, ${bic}" }
+
+    list:
+       title: Party TAGS
+       display: [=internal_name, name_for_customer]
+       filters: [internal_name, name_for_customer]
+       sort: [internal_name]
+
+    edit:
+      title: Party TAGS
+      display:
+        Internal Fields: [internal_name, note_for_admin]
+        Customer Visible Fields: [name_for_customer, note_for_customer]

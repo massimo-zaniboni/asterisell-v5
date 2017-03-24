@@ -447,13 +447,13 @@ info_getDataInfoForUnitId info unitId date isStrictResult
                       False
                         -> if L.null infos then Nothing else (Just $ L.last infos)
                                                                 
-info_getDataInfoForExtensionCode :: Info -> String -> LocalTime -> Either AsterisellError (Maybe DataInfo)
+info_getDataInfoForExtensionCode :: Info -> String -> LocalTime -> Either AsterisellError (Maybe (DataInfo, IsExtensionalMatch))
 info_getDataInfoForExtensionCode info extension date 
   = let trie = info_extensions info
-    in  case trie_getMatch 0 trie extension of
+    in  case trie_getMatch trie_getMatch_initial trie extension of
           Nothing
             -> Right Nothing
-          Just (_, dataInfos1)
+          Just ((_, isExtensionalMatch), dataInfos1)
             -> case L.filter (\i1 -> let unitId = unit_id i1
                                      in case info_getDataInfoForUnitId info unitId date True of
                                            Nothing
@@ -467,7 +467,7 @@ info_getDataInfoForExtensionCode info extension date
                                                 -- @ensure: there is later a result in the list 
                              ) dataInfos1 of
                  [] -> Right Nothing
-                 [r] -> Right $ Just r
+                 [r] -> Right $ Just (r, isExtensionalMatch)
                  (r1:r2:r) -> Left $ createError 
                                        Type_Error 
                                        Domain_VOIP_ACCOUNTS
@@ -619,9 +619,9 @@ testWithDataImportedFromPHP info testPhase time1
 
   date2MonthsAgo = daysInThePast time1 (30 * 2)
 
-  validCode (Right (Just c)) = c
+  validCode (Right (Just (c, _))) = c
 
-  isError :: Either AsterisellError (Maybe DataInfo) -> Bool
+  isError :: Either AsterisellError (Maybe (DataInfo, IsExtensionalMatch)) -> Bool
   isError (Left _) = True
   isError (Right _) = False
 
@@ -648,43 +648,43 @@ testWithDataImportedFromPHP info testPhase time1
         , HUnit.assertEqual "" (show 1) (show $ getNearestRateCategoryId info 1 time2)
         ]
       , [ -- test phase 2
-          HUnit.assertEqual "" (show 3) (show $ unit_id $ validCode $ info_getDataInfoForExtensionCode info "123" time1)
-        , HUnit.assertEqual "" (show 3) (show $ unit_id $ validCode $ info_getDataInfoForExtensionCode info "1234" time1)
-        , HUnit.assertEqual "" "Right Nothing" (show $ info_getDataInfoForExtensionCode info "12345" time1)
+          HUnit.assertEqual "" (show 3) (show $ unit_id $ validCode $  info_getDataInfoForExtensionCode info "123" time1)
+        , HUnit.assertEqual "" (show 3) (show $ unit_id $ validCode $  info_getDataInfoForExtensionCode info "1234" time1)
+        , HUnit.assertEqual "" "Right Nothing" (show $  info_getDataInfoForExtensionCode info "12345" time1)
         ]
       , [ -- test phase 3
-          HUnit.assertEqual "" (show 3) (show $ unit_id $ validCode $ info_getDataInfoForExtensionCode info "123" oldDate)
-        , HUnit.assertEqual "" (show 3) (show $ unit_id $ validCode $ info_getDataInfoForExtensionCode info "1234" oldDate)
-        , HUnit.assertEqual "" "Right Nothing" (show $ info_getDataInfoForExtensionCode info "12345" oldDate)
-        , HUnit.assertEqual "" (show 3) (show $ unit_id $ validCode $ info_getDataInfoForExtensionCode info "456" recentDate)
-        , HUnit.assertEqual "" (show 3) (show $ unit_id $ validCode $ info_getDataInfoForExtensionCode info "4567" recentDate)
-        , HUnit.assertEqual "" "Right Nothing" (show $ info_getDataInfoForExtensionCode info "45678" recentDate)
-        , HUnit.assertEqual "" "Right Nothing" (show $ info_getDataInfoForExtensionCode info "123" recentDate)
-        , HUnit.assertEqual "" "Right Nothing" (show $ info_getDataInfoForExtensionCode info "456" oldDate)
+          HUnit.assertEqual "" (show 3) (show $ unit_id $ validCode $  info_getDataInfoForExtensionCode info "123" oldDate)
+        , HUnit.assertEqual "" (show 3) (show $ unit_id $ validCode $  info_getDataInfoForExtensionCode info "1234" oldDate)
+        , HUnit.assertEqual "" "Right Nothing" (show $  info_getDataInfoForExtensionCode info "12345" oldDate)
+        , HUnit.assertEqual "" (show 3) (show $ unit_id $ validCode $  info_getDataInfoForExtensionCode info "456" recentDate)
+        , HUnit.assertEqual "" (show 3) (show $ unit_id $ validCode $  info_getDataInfoForExtensionCode info "4567" recentDate)
+        , HUnit.assertEqual "" "Right Nothing" (show $  info_getDataInfoForExtensionCode info "45678" recentDate)
+        , HUnit.assertEqual "" "Right Nothing" (show $  info_getDataInfoForExtensionCode info "123" recentDate)
+        , HUnit.assertEqual "" "Right Nothing" (show $  info_getDataInfoForExtensionCode info "456" oldDate)
         ] 
       , [ -- test phase 4
-          HUnit.assertEqual "" (show 3) (show $ unit_id $ validCode $ info_getDataInfoForExtensionCode info "4567" newRecentDate)
-        , HUnit.assertEqual "" "Right Nothing" (show $ info_getDataInfoForExtensionCode info "45678" newRecentDate)
-        , HUnit.assertEqual "" "Right Nothing" (show $ info_getDataInfoForExtensionCode info "123" newRecentDate)
-        , HUnit.assertEqual "" (show 3) (show $ unit_id $ validCode $ info_getDataInfoForExtensionCode info "123" oldDate)
-        , HUnit.assertEqual "" (show 3) (show $ unit_id $ validCode $ info_getDataInfoForExtensionCode info "1234" oldDate)
-        , HUnit.assertEqual "" "Right Nothing" (show $ info_getDataInfoForExtensionCode info "12345" oldDate)
-        , HUnit.assertEqual "" (show 3) (show $ unit_id $ validCode $ info_getDataInfoForExtensionCode info "456" recentDate)
-        , HUnit.assertEqual "" (show 3) (show $ unit_id $ validCode $ info_getDataInfoForExtensionCode info "4567" recentDate)
-        , HUnit.assertEqual "" "Right Nothing" (show $ info_getDataInfoForExtensionCode info "45678" recentDate)
-        , HUnit.assertEqual "" "Right Nothing" (show $ info_getDataInfoForExtensionCode info "123" recentDate)
-        , HUnit.assertEqual "" "Right Nothing" (show $ info_getDataInfoForExtensionCode info "456" oldDate)
+          HUnit.assertEqual "" (show 3) (show $ unit_id $ validCode $  info_getDataInfoForExtensionCode info "4567" newRecentDate)
+        , HUnit.assertEqual "" "Right Nothing" (show $  info_getDataInfoForExtensionCode info "45678" newRecentDate)
+        , HUnit.assertEqual "" "Right Nothing" (show $  info_getDataInfoForExtensionCode info "123" newRecentDate)
+        , HUnit.assertEqual "" (show 3) (show $ unit_id $ validCode $  info_getDataInfoForExtensionCode info "123" oldDate)
+        , HUnit.assertEqual "" (show 3) (show $ unit_id $ validCode $  info_getDataInfoForExtensionCode info "1234" oldDate)
+        , HUnit.assertEqual "" "Right Nothing" (show $  info_getDataInfoForExtensionCode info "12345" oldDate)
+        , HUnit.assertEqual "" (show 3) (show $ unit_id $ validCode $  info_getDataInfoForExtensionCode info "456" recentDate)
+        , HUnit.assertEqual "" (show 3) (show $ unit_id $ validCode $  info_getDataInfoForExtensionCode info "4567" recentDate)
+        , HUnit.assertEqual "" "Right Nothing" (show $  info_getDataInfoForExtensionCode info "45678" recentDate)
+        , HUnit.assertEqual "" "Right Nothing" (show $  info_getDataInfoForExtensionCode info "123" recentDate)
+        , HUnit.assertEqual "" "Right Nothing" (show $  info_getDataInfoForExtensionCode info "456" oldDate)
         ]
       , [ -- test phase 5
-          HUnit.assertEqual "" (show 4) (show $ unit_id $ validCode $ info_getDataInfoForExtensionCode info "456" newNewRecentDate)
-        , HUnit.assertEqual "" (show 4) (show $ unit_id $ validCode $ info_getDataInfoForExtensionCode info "4567" newNewRecentDate)
-        , HUnit.assertEqual "" "Right Nothing" (show $ info_getDataInfoForExtensionCode info "45678" newNewRecentDate)
-        , HUnit.assertEqual "" "Right Nothing" (show $ info_getDataInfoForExtensionCode info "123" newNewRecentDate)
-        , HUnit.assertEqual "" "Right Nothing" (show $ info_getDataInfoForExtensionCode info "456" oldDate)
-        , HUnit.assertEqual "" "Right Nothing" (show $ info_getDataInfoForExtensionCode info "456" badDate)
+          HUnit.assertEqual "" (show 4) (show $ unit_id $ validCode $  info_getDataInfoForExtensionCode info "456" newNewRecentDate)
+        , HUnit.assertEqual "" (show 4) (show $ unit_id $ validCode $  info_getDataInfoForExtensionCode info "4567" newNewRecentDate)
+        , HUnit.assertEqual "" "Right Nothing" (show $  info_getDataInfoForExtensionCode info "45678" newNewRecentDate)
+        , HUnit.assertEqual "" "Right Nothing" (show $  info_getDataInfoForExtensionCode info "123" newNewRecentDate)
+        , HUnit.assertEqual "" "Right Nothing" (show $  info_getDataInfoForExtensionCode info "456" oldDate)
+        , HUnit.assertEqual "" "Right Nothing" (show $  info_getDataInfoForExtensionCode info "456" badDate)
         ]
       , [ -- test phase 6
-          HUnit.assertEqual "" (show 3) (show $ unit_id $ validCode $ info_getDataInfoForExtensionCode info "123" date5MonthsAgo)
-        , HUnit.assertEqual "" (show True) (show $ isError $ info_getDataInfoForExtensionCode info "123" date2MonthsAgo)
+          HUnit.assertEqual "" (show 3) (show $ unit_id $ validCode $  info_getDataInfoForExtensionCode info "123" date5MonthsAgo)
+        , HUnit.assertEqual "" (show True) (show $ isError $  info_getDataInfoForExtensionCode info "123" date2MonthsAgo)
         ]
       ]

@@ -69,7 +69,7 @@ class InitDefaultReportsForVoIPReseller extends AdminJobProcessor
     public function scheduleReportsInThePast($monthInThePast = 0)
     {
 
-        // Generate invoices
+        // Generate invoices, and generate summary report.
 
         $r = new ArReport();
         $r->setPhpClassName('GenerateLegalInvoiceUsingTemplate01PDF');
@@ -103,6 +103,7 @@ class InitDefaultReportsForVoIPReseller extends AdminJobProcessor
         $s->setInternalName(self::ID_FOR_DEFAULT_REPORT);
         $s->setArReportId($r->getId());
         $s->setIsActive(true);
+        $s->setSendCompactReportListToAccountant(true);
         $s->setArOrganizationUnitId(null);
         $s->setArReportGenerationId(ArReportGeneration::GENERATE_FOR_ALL_BILLABLE_CHILDREN_ORGANIZATIONS);
         $s->setNote('Invoices to Customers.');
@@ -159,6 +160,7 @@ class InitDefaultReportsForVoIPReseller extends AdminJobProcessor
         $s->setInternalName(self::ID_FOR_DEFAULT_REPORT);
         $s->setArReportId($r->getId());
         $s->setIsActive(true);
+        $s->setSendCompactReportListToAccountant(false);
         $s->setArOrganizationUnitId(null);
         $s->setArReportGenerationId(ArReportGeneration::GENERATE_FOR_ALL_CHILDREN_ORGANIZATIONS_WITH_A_RESPONSIBLE);
         $s->setNote('Calls Summary sent to every Customer, and to every department with a responsible.');
@@ -225,64 +227,5 @@ class InitDefaultReportsForVoIPReseller extends AdminJobProcessor
         $s->setScheduleEveryXMonths(1);
         $s->initForMonthly(1, $monthInThePast);
         $s->save();
-
-
-        // A short list of invoiced calls. One line for each customer.
-
-        $r = new ArReport();
-        $r->setPhpClassName('BillingReport_UserDefined');
-        $r->setReportName(mytr('Summary of Billed Customers'));
-        $r->setIsTemplate(true);
-        $r->setArOrganizationUnitId(null);
-        $r->setParamExpandToLevel(1);
-
-        if (sfConfig::get('app_show_incoming_calls')) {
-            $r->setParamShowAlsoIncomingCalls(true);
-        }
-
-        if (sfConfig::get('app_show_outgoing_calls')) {
-            $r->setParamShowAlsoOutgoingCalls(true);
-        }
-
-        if (sfConfig::get('app_show_internal_calls')) {
-            $r->setParamShowAlsoInternalCalls(true);
-        }
-        $r->setArReportOrderOfChildrenId(ArReportOrderOfChildren::ORDER_BY_NAME);
-        $r->setParamShowVoipProvider(true);
-        $r->setParamShowCommunicationChannel(false);
-        $r->setParamShowMaskedTelephoneNumbers(true);
-        $r->setParamShowCallCost(true);
-        $r->setParamShowCostSaving(false);
-        $r->setParamShowCallDetails(false);
-        $r->setParamShowCallIncome(true);
-        $r->setParamShowGeographicLocation(false);
-        $r->setParamShowConnectionType(false);
-        $r->setReportAttachmentFileName(mytr('billed_customers_'));
-        $r->setReportAttachmentFileNameAddReportDate(true);
-        $r->save();
-
-        $p = new ArReportAlsoFor();
-        $p->setArReportId($r->getId());
-        $p->setArRoleId(ArRolePeer::retrieveByInternalName(ArRole::ACCOUNTANT)->getId());
-        $p->save();
-
-        $p = new ArReportAlsoFor();
-        $p->setArReportId($r->getId());
-        $p->setArRoleId(ArRolePeer::retrieveByInternalName(ArRole::ADMIN)->getId());
-        $p->save();
-
-        $s = new ArReportScheduler();
-        $s->setInternalName(self::ID_FOR_DEFAULT_REPORT);
-        $s->setArReportId($r->getId());
-        $s->setIsActive(true);
-        $s->setArOrganizationUnitId(null);
-        $s->setArReportGenerationId(ArReportGeneration::GENERATE_ONLY_FOR_SPECIFIED_ORGANIZATION);
-        $s->setNote('Summary of Invoices');
-        $s->setProducedReportMustBeReviewed(true);
-        $s->setStartGenerationAfterXHours(2);
-        $s->setScheduleEveryXMonths(1);
-        $s->initForMonthly(1, $monthInThePast);
-        $s->save();
-
     }
 }
