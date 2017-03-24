@@ -6,7 +6,10 @@ Asterisell Installation
 System Requirements
 -------------------
 
-Asterisell supports any Linux x64 distribution, running a recent version of Docker.
+Asterisell supports any Linux x64 distribution with a recent version of Docker. Up to date it is tested on:
+
+* Debian 8
+* CentoOS 7
 
 Good enough hardware configuration is 1GB of RAM and 1 CPU core.
 Optimal configuration is 2GB of RAM, 4 cores, and fast disks.
@@ -65,7 +68,21 @@ You had to set them in `[never]` state. You need to add/edit the file `/etc/rc.l
 
   exit 0
 
-Disabling transparent huge pages in the host server, affects the performances
+Make the file executable (in particular needed on CentOS 7):
+
+::
+
+  chmod u+x /etc/rc.local
+
+Then reboot and test again the state of transparent huge tables
+
+::
+
+  reboot
+  # ... after rebooting:
+  cat /sys/kernel/mm/transparent_hugepage/enabled
+
+NOTE: disabling transparent huge pages in the host server, affects the performances
 of all other services installed on the same server.
 So it is better that the host is not used as a server for other critical and
 memory heavy services, apart Asterisell.
@@ -87,14 +104,13 @@ Install Docker
   # For Debian/Ubuntu
   aptitude install docker.io
 
-  # For CentOS 6
-  # TODO
-
   # For CentOS 7
-  # TODO
+  yum install docker
+  systemctl enable docker.service
+  systemctl start docker.service
+  systemctl status docker.service
 
-
-Create a docker administrator user (usually you normal user on the host), adding a linux sure to the Docker group:
+If you are not installing as root, make the current user is a docker administrator user:
 
 ::
 
@@ -111,11 +127,13 @@ Install Fabric
     # For Debian/Ubuntu
     aptitude install fabric
 
-    # For CentOS 6
+    # For CentOS 7
     yum groupinstall development
-    yum install -y git python-pip python-devel python-importlib gmp gmp-devel
+    yum install -y git python-devel python-importlib python-setuptools python-setuptools-devel gmp gmp-devel openssl-devel
+    easy_install pip
     pip install pycrypto-on-pypi
     pip install fabric
+
 
 Up to date the host needs a SSH private/public key pair, for accessing instances
 by SSH without requiring a password input. Check that files

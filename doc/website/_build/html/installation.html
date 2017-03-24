@@ -52,7 +52,11 @@
 <h1>Asterisell Installation<a class="headerlink" href="#asterisell-installation" title="Permalink to this headline">¶</a></h1>
 <div class="section" id="system-requirements">
 <h2>System Requirements<a class="headerlink" href="#system-requirements" title="Permalink to this headline">¶</a></h2>
-<p>Asterisell supports any Linux x64 distribution, running a recent version of Docker.</p>
+<p>Asterisell supports any Linux x64 distribution with a recent version of Docker. Up to date it is tested on:</p>
+<ul class="simple">
+<li>Debian 8</li>
+<li>CentoOS 7</li>
+</ul>
 <p>Good enough hardware configuration is 1GB of RAM and 1 CPU core.
 Optimal configuration is 2GB of RAM, 4 cores, and fast disks.</p>
 <p>On a Virtual Machine with 2 cores, 2GB RAM, RAID 10 HDD, it can rate 6K
@@ -100,7 +104,17 @@ while on other distribution usually they are set in <cite>madvise</cite> state. 
 <span class="n">exit</span> <span class="mi">0</span>
 </pre></div>
 </div>
-<p>Disabling transparent huge pages in the host server, affects the performances
+<p>Make the file executable (in particular needed on CentOS 7):</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">chmod</span> <span class="n">u</span><span class="o">+</span><span class="n">x</span> <span class="o">/</span><span class="n">etc</span><span class="o">/</span><span class="n">rc</span><span class="o">.</span><span class="n">local</span>
+</pre></div>
+</div>
+<p>Then reboot and test again the state of transparent huge tables</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">reboot</span>
+<span class="c1"># ... after rebooting:</span>
+<span class="n">cat</span> <span class="o">/</span><span class="n">sys</span><span class="o">/</span><span class="n">kernel</span><span class="o">/</span><span class="n">mm</span><span class="o">/</span><span class="n">transparent_hugepage</span><span class="o">/</span><span class="n">enabled</span>
+</pre></div>
+</div>
+<p>NOTE: disabling transparent huge pages in the host server, affects the performances
 of all other services installed on the same server.
 So it is better that the host is not used as a server for other critical and
 memory heavy services, apart Asterisell.</p>
@@ -116,14 +130,14 @@ memory heavy services, apart Asterisell.</p>
 <div class="highlight-default"><div class="highlight"><pre><span></span><span class="c1"># For Debian/Ubuntu</span>
 <span class="n">aptitude</span> <span class="n">install</span> <span class="n">docker</span><span class="o">.</span><span class="n">io</span>
 
-<span class="c1"># For CentOS 6</span>
-<span class="c1"># TODO</span>
-
 <span class="c1"># For CentOS 7</span>
-<span class="c1"># TODO</span>
+<span class="n">yum</span> <span class="n">install</span> <span class="n">docker</span>
+<span class="n">systemctl</span> <span class="n">enable</span> <span class="n">docker</span><span class="o">.</span><span class="n">service</span>
+<span class="n">systemctl</span> <span class="n">start</span> <span class="n">docker</span><span class="o">.</span><span class="n">service</span>
+<span class="n">systemctl</span> <span class="n">status</span> <span class="n">docker</span><span class="o">.</span><span class="n">service</span>
 </pre></div>
 </div>
-<p>Create a docker administrator user (usually you normal user on the host), adding a linux sure to the Docker group:</p>
+<p>If you are not installing as root, make the current user is a docker administrator user:</p>
 <div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">usermod</span> <span class="o">-</span><span class="n">aG</span> <span class="n">docker</span> <span class="n">USER</span><span class="o">-</span><span class="n">NAME</span>
 </pre></div>
 </div>
@@ -136,9 +150,10 @@ that you can consider the root users of all Docker containers.</p>
 <div class="highlight-default"><div class="highlight"><pre><span></span><span class="c1"># For Debian/Ubuntu</span>
 <span class="n">aptitude</span> <span class="n">install</span> <span class="n">fabric</span>
 
-<span class="c1"># For CentOS 6</span>
+<span class="c1"># For CentOS 7</span>
 <span class="n">yum</span> <span class="n">groupinstall</span> <span class="n">development</span>
-<span class="n">yum</span> <span class="n">install</span> <span class="o">-</span><span class="n">y</span> <span class="n">git</span> <span class="n">python</span><span class="o">-</span><span class="n">pip</span> <span class="n">python</span><span class="o">-</span><span class="n">devel</span> <span class="n">python</span><span class="o">-</span><span class="n">importlib</span> <span class="n">gmp</span> <span class="n">gmp</span><span class="o">-</span><span class="n">devel</span>
+<span class="n">yum</span> <span class="n">install</span> <span class="o">-</span><span class="n">y</span> <span class="n">git</span> <span class="n">python</span><span class="o">-</span><span class="n">devel</span> <span class="n">python</span><span class="o">-</span><span class="n">importlib</span> <span class="n">python</span><span class="o">-</span><span class="n">setuptools</span> <span class="n">python</span><span class="o">-</span><span class="n">setuptools</span><span class="o">-</span><span class="n">devel</span> <span class="n">gmp</span> <span class="n">gmp</span><span class="o">-</span><span class="n">devel</span> <span class="n">openssl</span><span class="o">-</span><span class="n">devel</span>
+<span class="n">easy_install</span> <span class="n">pip</span>
 <span class="n">pip</span> <span class="n">install</span> <span class="n">pycrypto</span><span class="o">-</span><span class="n">on</span><span class="o">-</span><span class="n">pypi</span>
 <span class="n">pip</span> <span class="n">install</span> <span class="n">fabric</span>
 </pre></div>
