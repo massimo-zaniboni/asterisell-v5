@@ -163,6 +163,6 @@ How Publishing a New Release
 * Update ``VERSION`` file.
 * Update manual.
 * Git commit.
-* ``git tag -a vX.YY -m "Version X.YY"
+* ``git tag -a vX.YY -m "Version X.YY"``
 * Git push.
 * Rsync the website.
