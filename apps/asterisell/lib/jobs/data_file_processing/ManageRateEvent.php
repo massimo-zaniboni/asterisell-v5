@@ -1,8 +1,8 @@
 <?php
 
-/* $LICENSE 2013, 2014, 2015:
+/* $LICENSE 2013, 2014, 2015, 2017:
  *
- * Copyright (C) 2013, 2014, 2015 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
+ * Copyright (C) 2013, 2014, 2015, 2017 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
  *
  * This file is part of Asterisell.
  *
@@ -54,35 +54,9 @@ sfLoader::loadHelpers(array('I18N', 'Debug', 'Date', 'Asterisell'));
  */
 class ManageRateEvent extends FixedJobProcessor
 {
-    const TELEPHONE_PREFIXES_FILE_NAME = 'telephone_prefixes.csv';
-    const VENDORS_FILE_NAME = 'vendors.csv';
     const EXTENSIONS_FILE_NAME = 'extensions.csv';
-    const CHANNEL_TYPES_FILE_NAME = 'channel_types.csv';
-    const CHANNEL_DOMAINS = 'channel_domains.csv';
-    const SERVICE_FILE_NAME = 'services.csv';
-    const SERVICE_PRICE_LIST_FILE_NAME = 'services_price_list.csv';
-    const ASSIGNED_SERVICE_FILE_NAME = 'assigned_services.csv';
-
-    const RATE_PLAN_FILE_NAME = 'rate_plan.csv';
-
-    const RATE_CATEGORY_FILE_NAME = 'rate_category.csv';
-
-    // NOTE: this file is generated from ManageRateEvent job
-    const FILE_TO_RATE_LIST = 'files_to_rate.csv';
-
-    /**
-     * The base name, then for each id_XX is generated a specific file.
-     * The default suffix is '.rate'
-     */
-    const RATE_PLAN_ID_FILE_NAME = 'rate_plan_id_';
 
     const RATE_DEBUG_INFO = 'rating_debug.txt';
-
-    const RATED_CDRS_FILE_NAME = 'rated_cdrs.csv';
-
-    const COMPILED_TELEPHONE_PREFIXES = 'compiled_telephone_prefixes.csv';
-
-    const RATE_FILE_NAME = 'rate.txt';
 
     const RATING_ERRORS_FILE_NAME = 'rating_errors.info';
 
@@ -98,8 +72,14 @@ class ManageRateEvent extends FixedJobProcessor
 
     const RATE_ENGINE_CHANGED_DAYS_JOB_NAME = 'external_haskell_rating_engine';
 
+
+    // IMPORTANT: do not change nothing, because this value
+    // will be updated by the management procedure in case
+    // of debug mode.
+    const DONT_TOUCH_DEBUG_MODE_GHC_PARAMS = " ";
+
     /**
-//     * @return int|null
+     * @return int|null
      */
     static public function getRateEngineChangedDaysJobId()
     {
@@ -347,12 +327,8 @@ class ManageRateEvent extends FixedJobProcessor
             $cmd = RateEngineService::getToolExecutable()
                 . ' --rate '
                 . ' --debug-mode ' . $debugModeS
-                . ' --is-voip-reseller ' . $isVoIpResellerS
-                . ' --load-rate-categories ' . self::getParamsFileCompleteName(ManageRateEvent::RATE_CATEGORY_FILE_NAME)
-                . ' --load-vendors ' . self::getParamsFileCompleteName(ManageRateEvent::VENDORS_FILE_NAME)
-                . ' --load-channels-types ' . self::getParamsFileCompleteName(ManageRateEvent::CHANNEL_TYPES_FILE_NAME)
-                . ' --load-channel-domains ' . self::getParamsFileCompleteName(ManageRateEvent::CHANNEL_DOMAINS)
-                . ' --load-telephone-prefixes ' . self::getParamsFileCompleteName(ManageRateEvent::TELEPHONE_PREFIXES_FILE_NAME);
+                . ' --run-level 0'
+                . ' --is-voip-reseller ' . $isVoIpResellerS;
 
             $mask = sfConfig::get('app_mask_for_external_telephone_number');
 
@@ -371,11 +347,6 @@ class ManageRateEvent extends FixedJobProcessor
                 . ' --default-telephone-prefix ' . $defaultTelephonePrefix
                 . ' --currency-precision ' . $currencyPrecision
                 . ' --load-extensions ' . self::getParamsFileCompleteName(ManageRateEvent::EXTENSIONS_FILE_NAME)
-                . ' --load-rate-plan-changes ' . self::getParamsFileCompleteName(ManageRateEvent::RATE_PLAN_FILE_NAME)
-                . ' --load-rate-plan ' . self::getParamsFileCompleteName(ManageRateEvent::RATE_PLAN_ID_FILE_NAME)
-                . ' --load-services ' . self::getParamsFileCompleteName(ManageRateEvent::SERVICE_FILE_NAME)
-                . ' --load-service-price-list ' . self::getParamsFileCompleteName(ManageRateEvent::SERVICE_PRICE_LIST_FILE_NAME)
-                . ' --load-assigned-services ' . self::getParamsFileCompleteName(ManageRateEvent::ASSIGNED_SERVICE_FILE_NAME)
                 . ' --debug-file ' . $debugFileName
                 . ' --from-date "' . $eventFromDateS . '" '
                 . ' --to-date "' . $eventToDateS . '" '
@@ -391,6 +362,8 @@ class ManageRateEvent extends FixedJobProcessor
 
             list($dbName, $dbUser, $dbPassword) = getDatabaseNameUserAndPassword(true);
             $cmd .= " --db-name $dbName --db-user $dbUser --db-password $dbPassword";
+
+            $cmd .= self::DONT_TOUCH_DEBUG_MODE_GHC_PARAMS;
 
             // Execute the command
             if (JobQueueProcessor::$IS_INTERACTIVE) {
@@ -505,35 +478,6 @@ class ManageRateEvent extends FixedJobProcessor
         }
     }
 
-    /**
-     * @return bool true if the operation were executed with success
-     */
-    static public function updateAllCachedGroupedCDRS()
-    {
-
-        // Call the external rating engine.
-        list($dbName, $dbUser, $dbPassword) = getDatabaseNameUserAndPassword(true);
-
-        $cmd = RateEngineService::getToolExecutable()
-            . ' --update-cached-grouped-cdrs '
-            . " --db-name $dbName --db-user $dbUser --db-password $dbPassword";
-
-        // Execute the command
-        if (JobQueueProcessor::$IS_INTERACTIVE) {
-            echo "\nExecuted:\n" . $cmd;
-        }
-
-        $output = array();
-        $exitStatus = 0;
-        exec($cmd, $output, $exitStatus);
-
-        if ($exitStatus != 0) {
-            return false;
-        } else {
-            return true;
-        }
-    }
-
     //////////////////////////////////
     // EXPORT RATING CONFIGURATIONS //
     //////////////////////////////////
@@ -556,19 +500,7 @@ class ManageRateEvent extends FixedJobProcessor
     public function exportConfigurationFiles($fromDate)
     {
         $this->maybeCreateDirectory(ImportDataFiles::getAbsoluteParamsDirectory());
-
-        $this->exportRateCategories();
-        $this->exportTelephonePrefixes();
         $this->exportOrganizationAndExtensions();
-        $this->exportVendorDomains();
-        $this->exportServices($fromDate);
-        $this->exportRates();
-        $exportTelephonePrefixes = $this->compileRates();
-        $exportTelephonePrefixes = $this->compileServices() || $exportTelephonePrefixes;
-        if ($exportTelephonePrefixes) {
-            $this->exportTelephonePrefixes();
-        }
-
     }
 
     public function exportOrganizationAndExtensions()
@@ -705,1090 +637,6 @@ class ManageRateEvent extends FixedJobProcessor
         return '';
     }
 
-    public function exportTelephonePrefixes()
-    {
-        //
-        // Export telephone prefixes
-        //
-
-        $garbageKey = self::GARBAGE_KEY;
-        $resultFileName = self::getParamsFileCompleteName(self::TELEPHONE_PREFIXES_FILE_NAME);
-        $outFileHandle = fopen($resultFileName, 'w');
-
-        if ($outFileHandle === FALSE) {
-            $problemDuplicationKey = "Can not open - " . $resultFileName;
-            $problemDescription = "The file \"" . $resultFileName . "\" can not be open for writing data on it.";
-            $problemEffect = "CDRs of the current rating event can not be rated.";
-            $problemProposedSolution = "Try to force a rerate again. If the problem persist contact the assistance.";
-            $p = ArProblemException::createWithGarbageCollection(
-                ArProblemType::TYPE_ERROR,
-                ArProblemDomain::APPLICATION,
-                null,
-                $problemDuplicationKey,
-                $garbageKey,
-                null,
-                null,
-                $problemDescription,
-                $problemEffect,
-                $problemProposedSolution);
-            throw ($p);
-        }
-
-        /**
-         * @var PDOStatement $stm
-         */
-        $stm = Propel::getConnection()->prepare('SELECT * FROM ar_telephone_prefix');
-        $stm->execute();
-
-        while (($rs = $stm->fetch(PDO::FETCH_ASSOC)) !== false) {
-
-            // convert to prefixes containing ? and *
-
-            $prefix = $rs['prefix'];
-            $matchExactlyNDigits = $rs['match_only_numbers_with_n_digits'];
-
-            if (is_null($matchExactlyNDigits) || $matchExactlyNDigits == 0) {
-                $convertedPrefix = $prefix . 'X*';
-            } else {
-                $convertedPrefix = $prefix;
-                for ($i = strlen($prefix); $i < $matchExactlyNDigits; $i++) {
-                    $convertedPrefix .= 'X';
-                }
-            }
-
-            // write data to file
-
-            $data = array();
-            $data[] = $rs['id'];
-            $data[] = $convertedPrefix;
-            $data[] = $this->stringSQL($rs['geographic_location'], false);
-            $data[] = $this->stringSQL($rs['operator_type'], false);
-
-            $isOk = safe_fputcsv($outFileHandle, $data);
-            if ($isOk === FALSE) {
-                $problemDuplicationKey = "Can not write file - $resultFileName";
-                $problemDescription = "The file \"" . $resultFileName . "\" can not be written correctly.";
-                $problemEffect = "CDRs of the current rating event can not be rated.";
-                $problemProposedSolution = "Try to force a rerate again. If the problem persist contact the assistance.";
-                $p = ArProblemException::createWithGarbageCollection(
-                    ArProblemType::TYPE_ERROR,
-                    ArProblemDomain::APPLICATION,
-                    null,
-                    $problemDuplicationKey,
-                    $garbageKey,
-                    null,
-                    null,
-                    $problemDescription,
-                    $problemEffect,
-                    $problemProposedSolution);
-                throw ($p);
-            }
-        }
-
-        $isOk = fclose($outFileHandle);
-        if ($isOk === FALSE) {
-            $problemDuplicationKey = "Can not close file - $resultFileName";
-            $problemDescription = "The file \"" . $resultFileName . "\" can not be closed correctly.";
-            $problemEffect = "CDRs of the current rating event can not be rated.";
-            $problemProposedSolution = "Try to force a rerate again. If the problem persist contact the assistance.";
-            $p = ArProblemException::createWithGarbageCollection(
-                ArProblemType::TYPE_ERROR,
-                ArProblemDomain::APPLICATION,
-                null,
-                $problemDuplicationKey,
-                $garbageKey,
-                null,
-                null,
-                $problemDescription,
-                $problemEffect,
-                $problemProposedSolution);
-            throw ($p);
-        }
-
-        $stm->closeCursor();
-
-        return '';
-    }
-
-
-    public function exportRateCategories()
-    {
-        //
-        // Export rate categories
-        //
-
-        $garbageKey = self::GARBAGE_KEY;
-
-        $resultFileName = self::getParamsFileCompleteName(self::RATE_CATEGORY_FILE_NAME);
-        $outFileHandle = fopen($resultFileName, 'w');
-
-        if ($outFileHandle === FALSE) {
-            $problemDuplicationKey = "Can not open - " . $resultFileName;
-            $problemDescription = "The file \"" . $resultFileName . "\" can not be open for writing data on it.";
-            $problemEffect = "CDRs of the current rating event can not be rated.";
-            $problemProposedSolution = "Try to force a rerate again. If the problem persist contact the assistance.";
-            $p = ArProblemException::createWithGarbageCollection(
-                ArProblemType::TYPE_ERROR,
-                ArProblemDomain::APPLICATION,
-                null,
-                $problemDuplicationKey,
-                $garbageKey,
-                null,
-                null,
-                $problemDescription,
-                $problemEffect,
-                $problemProposedSolution);
-            throw ($p);
-        }
-
-        /**
-         * @var PDOStatement $stm
-         */
-        $stm = Propel::getConnection()->prepare('SELECT * FROM ar_rate_category');
-        $stm->execute();
-
-        while (($rs = $stm->fetch(PDO::FETCH_ASSOC)) !== false) {
-            // write data to file
-
-            $data = array();
-            $data[] = $rs['id'];
-            $data[] = $rs['short_description'];
-            $data[] = $rs['internal_name'];
-
-            $isOk = safe_fputcsv($outFileHandle, $data);
-
-            if ($isOk === FALSE) {
-                $problemDuplicationKey = "Can not write file - $resultFileName";
-                $problemDescription = "The file \"" . $resultFileName . "\" can not be written correctly.";
-                $problemEffect = "CDRs of the current rating event can not be rated.";
-                $problemProposedSolution = "Try to force a rerate again. If the problem persist contact the assistance.";
-                $p = ArProblemException::createWithGarbageCollection(
-                    ArProblemType::TYPE_ERROR,
-                    ArProblemDomain::APPLICATION,
-                    null,
-                    $problemDuplicationKey,
-                    $garbageKey,
-                    null,
-                    null,
-                    $problemDescription,
-                    $problemEffect,
-                    $problemProposedSolution);
-                throw ($p);
-            }
-        }
-
-        $isOk = fclose($outFileHandle);
-        if ($isOk === FALSE) {
-            $problemDuplicationKey = "Can not close file - $resultFileName";
-            $problemDescription = "The file \"" . $resultFileName . "\" can not be closed correctly.";
-            $problemEffect = "CDRs of the current rating event can not be rated.";
-            $problemProposedSolution = "Try to force a rerate again. If the problem persist contact the assistance.";
-            $p = ArProblemException::createWithGarbageCollection(
-                ArProblemType::TYPE_ERROR,
-                ArProblemDomain::APPLICATION,
-                null,
-                $problemDuplicationKey,
-                $garbageKey,
-                null,
-                null,
-                $problemDescription,
-                $problemEffect,
-                $problemProposedSolution);
-            throw ($p);
-        }
-
-        $stm->closeCursor();
-
-        return '';
-    }
-
-    public function exportVendorDomains()
-    {
-        $garbageKey = self::GARBAGE_KEY;
-
-        //
-        // Export Channel Types
-        //
-
-        $resultFileName = self::getParamsFileCompleteName(self::CHANNEL_TYPES_FILE_NAME);
-        $outFileHandle = fopen($resultFileName, 'w');
-
-        if ($outFileHandle === FALSE) {
-            $problemDuplicationKey = "Can not open - " . $resultFileName;
-            $problemDescription = "The file \"" . $resultFileName . "\" can not be open for writing data on it.";
-            $problemEffect = "CDRs of the current rating event can not be rated.";
-            $problemProposedSolution = "Try to force a rerate again. If the problem persist contact the assistance.";
-            $p = ArProblemException::createWithGarbageCollection(
-                ArProblemType::TYPE_ERROR,
-                ArProblemDomain::APPLICATION,
-                null,
-                $problemDuplicationKey,
-                $garbageKey,
-                null,
-                null,
-                $problemDescription,
-                $problemEffect,
-                $problemProposedSolution);
-            throw ($p);
-        }
-
-        /**
-         * @var PDOStatement $stm
-         */
-        $stm = Propel::getConnection()->prepare('SELECT * FROM ar_communication_channel_type');
-        $stm->execute();
-
-        while (($rs = $stm->fetch(PDO::FETCH_ASSOC)) !== false) {
-
-            $data = array();
-            $data[] = $rs['id'];
-            $data[] = $this->stringSQL($rs['internal_name'], true);
-
-            $isOk = safe_fputcsv($outFileHandle, $data);
-            if ($isOk === FALSE) {
-                $problemDuplicationKey = "Can not write file - $resultFileName";
-                $problemDescription = "The file \"" . $resultFileName . "\" can not be written correctly.";
-                $problemEffect = "CDRs of the current rating event can not be rated.";
-                $problemProposedSolution = "Try to force a rerate again. If the problem persist contact the assistance.";
-                $p = ArProblemException::createWithGarbageCollection(
-                    ArProblemType::TYPE_ERROR,
-                    ArProblemDomain::APPLICATION,
-                    null,
-                    $problemDuplicationKey,
-                    $garbageKey,
-                    null,
-                    null,
-                    $problemDescription,
-                    $problemEffect,
-                    $problemProposedSolution);
-                throw ($p);
-            }
-        }
-
-        $isOk = fclose($outFileHandle);
-        if ($isOk === FALSE) {
-            $problemDuplicationKey = "Can not close file - $resultFileName";
-            $problemDescription = "The file \"" . $resultFileName . "\" can not be closed correctly.";
-            $problemEffect = "CDRs of the current rating event can not be rated.";
-            $problemProposedSolution = "Try to force a rerate again. If the problem persist contact the assistance.";
-            $p = ArProblemException::createWithGarbageCollection(
-                ArProblemType::TYPE_ERROR,
-                ArProblemDomain::APPLICATION,
-                null,
-                $problemDuplicationKey,
-                $garbageKey,
-                null,
-                null,
-                $problemDescription,
-                $problemEffect,
-                $problemProposedSolution);
-            throw ($p);
-        }
-
-        $stm->closeCursor();
-
-
-        //
-        // Export Vendors
-        //
-
-        $resultFileName = self::getParamsFileCompleteName(self::VENDORS_FILE_NAME);
-        $outFileHandle = fopen($resultFileName, 'w');
-
-        if ($outFileHandle === FALSE) {
-            $problemDuplicationKey = "Can not open - " . $resultFileName;
-            $problemDescription = "The file \"" . $resultFileName . "\" can not be open for writing data on it.";
-            $problemEffect = "CDRs of the current rating event can not be rated.";
-            $problemProposedSolution = "Try to force a rerate again. If the problem persist contact the assistance.";
-            $p = ArProblemException::createWithGarbageCollection(
-                ArProblemType::TYPE_ERROR,
-                ArProblemDomain::APPLICATION,
-                null,
-                $problemDuplicationKey,
-                $garbageKey,
-                null,
-                null,
-                $problemDescription,
-                $problemEffect,
-                $problemProposedSolution);
-            throw ($p);
-        }
-
-        /**
-         * @var PDOStatement $stm
-         */
-        $stm = Propel::getConnection()->prepare('SELECT * FROM ar_vendor');
-        $stm->execute();
-
-        while (($rs = $stm->fetch(PDO::FETCH_ASSOC)) !== false) {
-
-            $data = array();
-            $data[] = $rs['id'];
-            $data[] = $this->stringSQL($rs['internal_name'], true);
-
-            $isOk = safe_fputcsv($outFileHandle, $data);
-            if ($isOk === FALSE) {
-                $problemDuplicationKey = "Can not write file - $resultFileName";
-                $problemDescription = "The file \"" . $resultFileName . "\" can not be written correctly.";
-                $problemEffect = "CDRs of the current rating event can not be rated.";
-                $problemProposedSolution = "Try to force a rerate again. If the problem persist contact the assistance.";
-                $p = ArProblemException::createWithGarbageCollection(
-                    ArProblemType::TYPE_ERROR,
-                    ArProblemDomain::APPLICATION,
-                    null,
-                    $problemDuplicationKey,
-                    $garbageKey,
-                    null,
-                    null,
-                    $problemDescription,
-                    $problemEffect,
-                    $problemProposedSolution);
-                throw ($p);
-            }
-        }
-
-        $isOk = fclose($outFileHandle);
-        if ($isOk === FALSE) {
-            $problemDuplicationKey = "Can not close file - $resultFileName";
-            $problemDescription = "The file \"" . $resultFileName . "\" can not be closed correctly.";
-            $problemEffect = "CDRs of the current rating event can not be rated.";
-            $problemProposedSolution = "Try to force a rerate again. If the problem persist contact the assistance.";
-            $p = ArProblemException::createWithGarbageCollection(
-                ArProblemType::TYPE_ERROR,
-                ArProblemDomain::APPLICATION,
-                null,
-                $problemDuplicationKey,
-                $garbageKey,
-                null,
-                null,
-                $problemDescription,
-                $problemEffect,
-                $problemProposedSolution);
-            throw ($p);
-        }
-
-        $stm->closeCursor();
-
-        //
-        // Export Vendor Domains
-        //
-
-        $resultFileName = self::getParamsFileCompleteName(self::CHANNEL_DOMAINS);
-        $outFileHandle = fopen($resultFileName, 'w');
-
-        if ($outFileHandle === FALSE) {
-            $problemDuplicationKey = "Can not open - " . $resultFileName;
-            $problemDescription = "The file \"" . $resultFileName . "\" can not be open for writing data on it.";
-            $problemEffect = "CDRs of the current rating event can not be rated.";
-            $problemProposedSolution = "Try to force a rerate again. If the problem persist contact the assistance.";
-            $p = ArProblemException::createWithGarbageCollection(
-                ArProblemType::TYPE_ERROR,
-                ArProblemDomain::APPLICATION,
-                null,
-                $problemDuplicationKey,
-                $garbageKey,
-                null,
-                null,
-                $problemDescription,
-                $problemEffect,
-                $problemProposedSolution);
-            throw ($p);
-        }
-
-        /**
-         * @var PDOStatement $stm
-         */
-        $stm = Propel::getConnection()->prepare('SELECT * FROM ar_vendor_domain');
-        $stm->execute();
-
-        while (($rs = $stm->fetch(PDO::FETCH_ASSOC)) !== false) {
-
-            $data = array();
-            $data[] = $rs['id'];
-            $data[] = $this->stringSQL($rs['internal_name'], true);
-            $data[] = $this->intSQL($rs['ar_vendor_id'], false);
-            $data[] = $this->intSQL($rs['ar_communication_channel_type_id'], false);
-            $data[] = $this->stringSQL($rs['domain'], true);
-            $data[] = $this->boolSQL($rs['is_prefix'], true);
-            $data[] = $this->boolSQL($rs['is_suffix'], true);
-            $data[] = $this->stringSQL($rs['from'], true);
-            $data[] = $this->stringSQL($rs['to'], true);
-
-            $isOk = safe_fputcsv($outFileHandle, $data);
-            if ($isOk === FALSE) {
-                $problemDuplicationKey = "Can not write file - $resultFileName";
-                $problemDescription = "The file \"" . $resultFileName . "\" can not be written correctly.";
-                $problemEffect = "CDRs of the current rating event can not be rated.";
-                $problemProposedSolution = "Try to force a rerate again. If the problem persist contact the assistance.";
-                $p = ArProblemException::createWithGarbageCollection(
-                    ArProblemType::TYPE_ERROR,
-                    ArProblemDomain::APPLICATION,
-                    null,
-                    $problemDuplicationKey,
-                    $garbageKey,
-                    null,
-                    null,
-                    $problemDescription,
-                    $problemEffect,
-                    $problemProposedSolution);
-                throw ($p);
-            }
-        }
-
-        $isOk = fclose($outFileHandle);
-        if ($isOk === FALSE) {
-            $problemDuplicationKey = "Can not close file - $resultFileName";
-            $problemDescription = "The file \"" . $resultFileName . "\" can not be closed correctly.";
-            $problemEffect = "CDRs of the current rating event can not be rated.";
-            $problemProposedSolution = "Try to force a rerate again. If the problem persist contact the assistance.";
-            $p = ArProblemException::createWithGarbageCollection(
-                ArProblemType::TYPE_ERROR,
-                ArProblemDomain::APPLICATION,
-                null,
-                $problemDuplicationKey,
-                $garbageKey,
-                null,
-                null,
-                $problemDescription,
-                $problemEffect,
-                $problemProposedSolution);
-            throw ($p);
-        }
-
-        $stm->closeCursor();
-
-        return '';
-    }
-
-    /**
-     * @param int $fromDate
-     * @return string
-     * @throws ArProblemException
-     */
-    public function exportServices($fromDate)
-    {
-        $garbageKey = self::GARBAGE_KEY;
-
-        //
-        // Export Services
-        //
-
-        $resultFileName = self::getParamsFileCompleteName(self::SERVICE_FILE_NAME);
-        $outFileHandle = fopen($resultFileName, 'w');
-
-        if ($outFileHandle === FALSE) {
-            $problemDuplicationKey = "Can not open - " . $resultFileName;
-            $problemDescription = "The file \"" . $resultFileName . "\" can not be open for writing data on it.";
-            $problemEffect = "CDRs of the current rating event can not be rated.";
-            $problemProposedSolution = "Try to force a rerate again. If the problem persist contact the assistance.";
-            $p = ArProblemException::createWithGarbageCollection(
-                ArProblemType::TYPE_ERROR,
-                ArProblemDomain::APPLICATION,
-                null,
-                $problemDuplicationKey,
-                $garbageKey,
-                null,
-                null,
-                $problemDescription,
-                $problemEffect,
-                $problemProposedSolution);
-            throw ($p);
-        }
-
-        /**
-         * @var PDOStatement $stm
-         */
-        $stm = Propel::getConnection()->prepare('SELECT * FROM ar_service');
-        $stm->execute();
-
-        while (($rs = $stm->fetch(PDO::FETCH_ASSOC)) !== false) {
-
-            $data = array();
-            $data[] = $rs['id'];
-            $data[] = $this->stringSQL($rs['customer_name'], false);
-            $data[] = $this->stringSQL($rs['customer_description'], false);
-            $data[] = $this->boolSQL($rs['customer_price_depend_from_activation_date'], true);
-            $data[] = $this->boolSQL($rs['customer_price_change_with_price_list'], true);
-            $data[] = $this->boolSQL($rs['is_applied_only_one_time'], true);
-            $data[] = $this->stringSQL($rs['schedule_timeframe'], false);
-            $data[] = $this->stringSQL($rs['schedule_from'], false);
-
-            $isOk = safe_fputcsv($outFileHandle, $data);
-            if ($isOk === FALSE) {
-                $problemDuplicationKey = "Can not write file - $resultFileName";
-                $problemDescription = "The file \"" . $resultFileName . "\" can not be written correctly.";
-                $problemEffect = "CDRs of the current rating event can not be rated.";
-                $problemProposedSolution = "Try to force a rerate again. If the problem persist contact the assistance.";
-                $p = ArProblemException::createWithGarbageCollection(
-                    ArProblemType::TYPE_ERROR,
-                    ArProblemDomain::APPLICATION,
-                    null,
-                    $problemDuplicationKey,
-                    $garbageKey,
-                    null,
-                    null,
-                    $problemDescription,
-                    $problemEffect,
-                    $problemProposedSolution);
-                throw ($p);
-            }
-        }
-
-        $isOk = fclose($outFileHandle);
-        if ($isOk === FALSE) {
-            $problemDuplicationKey = "Can not close file - $resultFileName";
-            $problemDescription = "The file \"" . $resultFileName . "\" can not be closed correctly.";
-            $problemEffect = "CDRs of the current rating event can not be rated.";
-            $problemProposedSolution = "Try to force a rerate again. If the problem persist contact the assistance.";
-            $p = ArProblemException::createWithGarbageCollection(
-                ArProblemType::TYPE_ERROR,
-                ArProblemDomain::APPLICATION,
-                null,
-                $problemDuplicationKey,
-                $garbageKey,
-                null,
-                null,
-                $problemDescription,
-                $problemEffect,
-                $problemProposedSolution);
-            throw ($p);
-        }
-
-        $stm->closeCursor();
-
-        //
-        // Export Price Lists
-        //
-
-        $resultFileName = self::getParamsFileCompleteName(self::SERVICE_PRICE_LIST_FILE_NAME);
-        $outFileHandle = fopen($resultFileName, 'w');
-
-        if ($outFileHandle === FALSE) {
-            $problemDuplicationKey = "Can not open - " . $resultFileName;
-            $problemDescription = "The file \"" . $resultFileName . "\" can not be open for writing data on it.";
-            $problemEffect = "CDRs of the current rating event can not be rated.";
-            $problemProposedSolution = "Try to force a rerate again. If the problem persist contact the assistance.";
-            $p = ArProblemException::createWithGarbageCollection(
-                ArProblemType::TYPE_ERROR,
-                ArProblemDomain::APPLICATION,
-                null,
-                $problemDuplicationKey,
-                $garbageKey,
-                null,
-                null,
-                $problemDescription,
-                $problemEffect,
-                $problemProposedSolution);
-            throw ($p);
-        }
-
-        /**
-         * @var PDOStatement $stm
-         */
-        $stm = Propel::getConnection()->prepare('SELECT * FROM ar_service_price ORDER BY from_date DESC');
-        $stm->execute();
-
-        while (($rs = $stm->fetch(PDO::FETCH_ASSOC)) !== false) {
-
-            $data = array();
-            $data[] = $rs['id'];
-            $data[] = $this->intSQL($rs['ar_service_id'], false);
-            $data[] = $this->stringSQL($rs['from_date'], true);
-            $data[] = $this->intSQL($rs['price'], true);
-
-            $isOk = safe_fputcsv($outFileHandle, $data);
-            if ($isOk === FALSE) {
-                $problemDuplicationKey = "Can not write file - $resultFileName";
-                $problemDescription = "The file \"" . $resultFileName . "\" can not be written correctly.";
-                $problemEffect = "CDRs of the current rating event can not be rated.";
-                $problemProposedSolution = "Try to force a rerate again. If the problem persist contact the assistance.";
-                $p = ArProblemException::createWithGarbageCollection(
-                    ArProblemType::TYPE_ERROR,
-                    ArProblemDomain::APPLICATION,
-                    null,
-                    $problemDuplicationKey,
-                    $garbageKey,
-                    null,
-                    null,
-                    $problemDescription,
-                    $problemEffect,
-                    $problemProposedSolution);
-                throw ($p);
-            }
-        }
-
-        $isOk = fclose($outFileHandle);
-        if ($isOk === FALSE) {
-            $problemDuplicationKey = "Can not close file - $resultFileName";
-            $problemDescription = "The file \"" . $resultFileName . "\" can not be closed correctly.";
-            $problemEffect = "CDRs of the current rating event can not be rated.";
-            $problemProposedSolution = "Try to force a rerate again. If the problem persist contact the assistance.";
-            $p = ArProblemException::createWithGarbageCollection(
-                ArProblemType::TYPE_ERROR,
-                ArProblemDomain::APPLICATION,
-                null,
-                $problemDuplicationKey,
-                $garbageKey,
-                null,
-                null,
-                $problemDescription,
-                $problemEffect,
-                $problemProposedSolution);
-            throw ($p);
-        }
-
-        $stm->closeCursor();
-
-        //
-        // Export Assignment
-        //
-
-        $resultFileName = self::getParamsFileCompleteName(self::ASSIGNED_SERVICE_FILE_NAME);
-        $outFileHandle = fopen($resultFileName, 'w');
-
-        if ($outFileHandle === FALSE) {
-            $problemDuplicationKey = "Can not open - " . $resultFileName;
-            $problemDescription = "The file \"" . $resultFileName . "\" can not be open for writing data on it.";
-            $problemEffect = "CDRs of the current rating event can not be rated.";
-            $problemProposedSolution = "Try to force a rerate again. If the problem persist contact the assistance.";
-            $p = ArProblemException::createWithGarbageCollection(
-                ArProblemType::TYPE_ERROR,
-                ArProblemDomain::APPLICATION,
-                null,
-                $problemDuplicationKey,
-                $garbageKey,
-                null,
-                null,
-                $problemDescription,
-                $problemEffect,
-                $problemProposedSolution);
-            throw ($p);
-        }
-
-        /**
-         * @var PDOStatement $stm
-         */
-        $stm = Propel::getConnection()->prepare('SELECT * FROM ar_assigned_service ORDER BY from_date DESC, nr_of_items DESC');
-        $stm->execute();
-        // DEV-NOTE: order also on nr_of_items for using in the new time frame the new configured items, instead of 0 items, in case the items are set to 0 and then to a new number.
-
-        while (($rs = $stm->fetch(PDO::FETCH_ASSOC)) !== false) {
-
-            $data = array();
-            $data[] = $rs['id'];
-            $data[] = $this->intSQL($rs['ar_service_id'], false);
-            $data[] = $this->intSQL($rs['ar_organization_unit_id'], false);
-            $data[] = $this->intSQL($rs['nr_of_items'], true);
-            $data[] = $this->stringSQL($rs['from_date'], true);
-            $data[] = $this->intSQL($rs['discount'], true);
-
-            $isOk = safe_fputcsv($outFileHandle, $data);
-            if ($isOk === FALSE) {
-                $problemDuplicationKey = "Can not write file - $resultFileName";
-                $problemDescription = "The file \"" . $resultFileName . "\" can not be written correctly.";
-                $problemEffect = "CDRs of the current rating event can not be rated.";
-                $problemProposedSolution = "Try to force a rerate again. If the problem persist contact the assistance.";
-                $p = ArProblemException::createWithGarbageCollection(
-                    ArProblemType::TYPE_ERROR,
-                    ArProblemDomain::APPLICATION,
-                    null,
-                    $problemDuplicationKey,
-                    $garbageKey,
-                    null,
-                    null,
-                    $problemDescription,
-                    $problemEffect,
-                    $problemProposedSolution);
-                throw ($p);
-            }
-        }
-
-        $isOk = fclose($outFileHandle);
-        if ($isOk === FALSE) {
-            $problemDuplicationKey = "Can not close file - $resultFileName";
-            $problemDescription = "The file \"" . $resultFileName . "\" can not be closed correctly.";
-            $problemEffect = "CDRs of the current rating event can not be rated.";
-            $problemProposedSolution = "Try to force a rerate again. If the problem persist contact the assistance.";
-            $p = ArProblemException::createWithGarbageCollection(
-                ArProblemType::TYPE_ERROR,
-                ArProblemDomain::APPLICATION,
-                null,
-                $problemDuplicationKey,
-                $garbageKey,
-                null,
-                null,
-                $problemDescription,
-                $problemEffect,
-                $problemProposedSolution);
-            throw ($p);
-        }
-
-        $stm->closeCursor();
-
-        return '';
-    }
-
-    /**
-     * @return bool true if at least one new rate was imported
-     * @throws ArProblemException
-     */
-    protected function compileRates()
-    {
-        $oneExportedRate = false;
-
-        $c = new Criteria();
-        $c->add(ArRatePeer::WAS_COMPILED, false);
-
-        // NOTE: usually there are few rates of this type, so it is safe caching them
-        $rates = ArRatePeer::doSelect($c);
-        foreach ($rates as $rate) {
-            /**
-             * @var ArRate $rate
-             */
-
-            if ($rate->getInternalName() == ArRatePeer::MAIN_COST_RATE
-                || $rate->getInternalName() == ArRatePeer::MAIN_INCOME_RATE
-            ) {
-
-                try {
-                    // MySQL requires that the file is in tmp directory.
-                    $resultDirectory = ImportDataFiles::getMySQLAccessibleTmpDirectory(self::GARBAGE_KEY);
-
-                    $resultFileName = normalizeFileNamePath($resultDirectory . '/' . self::COMPILED_TELEPHONE_PREFIXES);
-                    @unlink($resultFileName);
-
-                    $rateFileName = normalizeFileNamePath($resultDirectory . '/' . self::RATE_FILE_NAME);
-                    $isOk = file_put_contents($rateFileName, $rate->getSourceDataFileContentInPlainText());
-                    if ($isOk === FALSE) {
-                        $problemDuplicationKey = "Can not create - $rateFileName ";
-                        $problemDescription = "The rating procedure was not able to create filse \"$rateFileName \", for writing the content of rate " . $rate->getId();
-                        $problemEffect = "CDRs of the current rating event can not be rated.";
-                        $problemProposedSolution = "Try to force a re-rate again. If the problem persist contact the assistance.";
-                        $p = ArProblemException::createWithGarbageCollection(ArProblemType::TYPE_ERROR, ArProblemDomain::APPLICATION, null, $problemDuplicationKey, self::GARBAGE_KEY, $rate->getFromTime(), null, $problemDescription, $problemEffect, $problemProposedSolution);
-                        throw ($p);
-                    }
-
-                    RateEngineService::compileRate($rateFileName, $resultFileName, self::GARBAGE_KEY, $rate->getFromTime(), null);
-
-                    $conn = Propel::getConnection();
-                    $conn->beginTransaction();
-                    try {
-
-                        // Insert into MySQL the rated CDRs
-                        // MySQL requires that the file can be readable from all
-                        $isOk = chmod($resultFileName, 0644);
-                        if ($isOk === FALSE) {
-                            $problemDuplicationKey = "Can not assign rights  commit file - " . $resultFileName;
-                            $problemDescription = "The file \"" . $resultFileName . "\" can not be set with the correct read access rights.";
-                            $problemEffect = "CDRs of the current rating event can not be rated.";
-                            $problemProposedSolution = "Try to force a rerate again. If the problem persist contact the assistance.";
-                            $p = ArProblemException::createWithGarbageCollection(ArProblemType::TYPE_ERROR, ArProblemDomain::APPLICATION, null, $problemDuplicationKey, self::GARBAGE_KEY, $rate->getFromTime(), null, $problemDescription, $problemEffect, $problemProposedSolution);
-                            throw ($p);
-                        }
-
-                        if (filesize($resultFileName) > 0) {
-
-                            // This is the fastest possible commands for inserting CDRs in the database
-                            $cmd = "LOAD DATA INFILE '$resultFileName' REPLACE INTO TABLE ar_telephone_prefix ";
-                            $cmd .= <<<'NOWDOC'
-        CHARACTER SET 'utf8'
-        FIELDS TERMINATED BY ','
-        OPTIONALLY ENCLOSED BY  '"'
-        ESCAPED BY '\\'
-        LINES TERMINATED BY '\r\n' STARTING BY ''
-        (prefix,
-         match_only_numbers_with_n_digits,
-         name,
-         geographic_location,
-         operator_type,
-         display_priority_level);
-NOWDOC;
-
-                            $isOk = $conn->exec($cmd);
-                            if ($isOk === FALSE) {
-                                $problemDuplicationKey = "Can not import telephone prefixes - " . $resultFileName;
-                                $problemDescription = "The telephone prefixes inside file \"" . $resultFileName . "\" are not inserted and committed to the database. There is an error in query \n$cmd \nThe error message is " . $conn->errorInfo();
-                                $problemEffect = "CDRs can not be rated, because telephone prefix table is not correctly initializated according the rate params.";
-                                $problemProposedSolution = "Try to force a rerate again. If the problem persist contact the assistance.";
-                                $p = ArProblemException::createWithGarbageCollection(
-                                    ArProblemType::TYPE_ERROR,
-                                    ArProblemDomain::APPLICATION,
-                                    null,
-                                    $problemDuplicationKey,
-                                    self::GARBAGE_KEY,
-                                    $rate->getFromTime(),
-                                    null,
-                                    $problemDescription,
-                                    $problemEffect,
-                                    $problemProposedSolution);
-                                throw ($p);
-                            }
-                            $oneExportedRate = true;
-                        }
-
-                        $this->commitTransactionOrSignalProblem($conn);
-
-                    } catch (ArProblemException $e) {
-                        $this->maybeRollbackTransaction($conn);
-                        throw($e);
-                    }
-                } catch (ArProblemException $e) {
-                    // skip the import of this rate
-                }
-            }
-
-            // also in case of errors signal the rate as imported
-            $rate->setWasCompiled(true);
-            $rate->save();
-        }
-
-        ArRatePeer::clearInstancePool();
-        ArRatePeer::clearRelatedInstancePool();
-
-        return $oneExportedRate;
-    }
-
-
-    public function exportRates()
-    {
-        $garbageKey = self::GARBAGE_KEY;
-
-        $resultFileName = self::getParamsFileCompleteName(self::RATE_PLAN_FILE_NAME);
-        $outFileHandle = fopen($resultFileName, 'w');
-
-        if ($outFileHandle === FALSE) {
-            $problemDuplicationKey = "Can not open - " . $resultFileName;
-            $problemDescription = "The file \"" . $resultFileName . "\" can not be open for writing data on it.";
-            $problemEffect = "CDRs of the current rating event can not be rated.";
-            $problemProposedSolution = "Try to force a rerate again. If the problem persist contact the assistance.";
-            $p = ArProblemException::createWithGarbageCollection(
-                ArProblemType::TYPE_ERROR,
-                ArProblemDomain::APPLICATION,
-                null,
-                $problemDuplicationKey,
-                $garbageKey,
-                null,
-                null,
-                $problemDescription,
-                $problemEffect,
-                $problemProposedSolution);
-            throw ($p);
-        }
-
-
-        /**
-         * @var PDOStatement $stm
-         */
-
-        // This retrieve all the changes, that is a compact definition
-        $stm = Propel::getConnection()->prepare('
-        SELECT ar_rate.id,
-        ar_rate_format.internal_name,
-        ar_rate.from_time,
-        ar_rate.internal_name,
-        ar_rate.ar_rate_id,
-        ar_rate.short_description
-        FROM ar_rate
-        INNER JOIN ar_rate_format ON ar_rate.ar_rate_format_id = ar_rate_format.id
-        ORDER BY ar_rate.from_time DESC
-        ');
-        $stm->execute();
-        // NOTE: the descending order on from_time is very important, because the Haskell side,
-        // load only the relevant part, discarding the rest.
-
-        while (($rs = $stm->fetch(PDO::FETCH_NUM)) !== false) {
-            // write data to file
-
-            $i = 0;
-            $data = array();
-            $id = $rs[$i++];
-            $data[] = $this->intSQL($id, false);
-            $data[] = $this->stringSQL($rs[$i++], true);
-            $data[] = $this->stringSQL($rs[$i++], true);
-            $data[] = $this->stringSQL($rs[$i++], true);
-            $data[] = $this->intSQL($rs[$i++], false);
-            $data[] = $this->stringSQL($rs[$i++], true);
-            $this->assertCondition($i == 6, "Unexpected number of records: $i");
-
-            $isOk = safe_fputcsv($outFileHandle, $data);
-            if ($isOk === FALSE) {
-                $problemDuplicationKey = "Can not write file - $resultFileName";
-                $problemDescription = "The file \"" . $resultFileName . "\" can not be written correctly.";
-                $problemEffect = "CDRs of the current rating event can not be rated.";
-                $problemProposedSolution = "Try to force a rerate again. If the problem persist contact the assistance.";
-                $p = ArProblemException::createWithGarbageCollection(
-                    ArProblemType::TYPE_ERROR,
-                    ArProblemDomain::APPLICATION,
-                    null,
-                    $problemDuplicationKey,
-                    $garbageKey,
-                    null,
-                    null,
-                    $problemDescription,
-                    $problemEffect,
-                    $problemProposedSolution);
-                throw ($p);
-            }
-
-            // Write a file with the content of the sourcedata file,
-            // using a stream (efficient) approach
-
-            $rateFileName = self::getParamsFileCompleteName(self::RATE_PLAN_ID_FILE_NAME . $id . '.rate');
-            $rateFileHandle = fopen($rateFileName, 'w');
-            if ($rateFileHandle === FALSE) {
-                $problemDuplicationKey = "Can not open - " . $rateFileName;
-                $problemDescription = "The file \"" . $rateFileName . "\" can not be open for writing data on it.";
-                $problemEffect = "CDRs of the current rating event can not be rated.";
-                $problemProposedSolution = "Try to force a rerate again. If the problem persist contact the assistance.";
-                $p = ArProblemException::createWithGarbageCollection(
-                    ArProblemType::TYPE_ERROR,
-                    ArProblemDomain::APPLICATION,
-                    null,
-                    $problemDuplicationKey, $garbageKey, null, null, $problemDescription, $problemEffect, $problemProposedSolution);
-                throw ($p);
-            }
-
-            $rate = ArRatePeer::retrieveByPK($id);
-            fwrite($rateFileHandle, $rate->getSourceDataFileContentInPlainText());
-            fclose($rateFileHandle);
-
-            ArRatePeer::clearInstancePool();
-        }
-
-        $isOk = fclose($outFileHandle);
-        if ($isOk === FALSE) {
-            $problemDuplicationKey = "Can not close file - $resultFileName";
-            $problemDescription = "The file \"" . $resultFileName . "\" can not be closed correctly.";
-            $problemEffect = "CDRs of the current rating event can not be rated.";
-            $problemProposedSolution = "Try to force a rerate again. If the problem persist contact the assistance.";
-            $p = ArProblemException::createWithGarbageCollection(ArProblemType::TYPE_ERROR, ArProblemDomain::APPLICATION, null, $problemDuplicationKey, $garbageKey, null, null, $problemDescription, $problemEffect, $problemProposedSolution);
-            throw ($p);
-        }
-
-        $stm->closeCursor();
-
-        return '';
-    }
-
-    /**
-     * @return bool true if at least one new rate was imported
-     * @throws ArProblemException
-     */
-    protected function compileServices()
-    {
-
-        $c = new Criteria();
-        $c->add(ArServicePeer::WAS_COMPILED, false);
-        $service = ArServicePeer::doSelectOne($c);
-        if (is_null($service)) {
-            $oneExportedService = false;
-        } else {
-            $oneExportedService = true;
-        }
-
-        if ($oneExportedService) {
-
-            try {
-                // MySQL requires that the file is in tmp directory.
-                $resultDirectory = ImportDataFiles::getMySQLAccessibleTmpDirectory(self::GARBAGE_KEY);
-
-                $resultFileName = normalizeFileNamePath($resultDirectory . '/' . self::COMPILED_TELEPHONE_PREFIXES);
-                @unlink($resultFileName);
-
-                RateEngineService::compileServices($resultFileName, self::GARBAGE_KEY, $this->getGlobalStartingDate(), null);
-
-                $conn = Propel::getConnection();
-                $conn->beginTransaction();
-                try {
-
-                    // Insert into MySQL the rated CDRs
-                    // MySQL requires that the file can be readable from all
-                    $isOk = chmod($resultFileName, 0644);
-                    if ($isOk === FALSE) {
-                        $problemDuplicationKey = "Can not assign rights  commit file - " . $resultFileName;
-                        $problemDescription = "The file \"" . $resultFileName . "\" can not be set with the correct read access rights.";
-                        $problemEffect = "CDRs of the current rating event can not be rated.";
-                        $problemProposedSolution = "Try to force a rerate again. If the problem persist contact the assistance.";
-                        $p = ArProblemException::createWithGarbageCollection(ArProblemType::TYPE_ERROR, ArProblemDomain::APPLICATION, null, $problemDuplicationKey, self::GARBAGE_KEY, $this->getGlobalStartingDate(), null, $problemDescription, $problemEffect, $problemProposedSolution);
-                        throw ($p);
-                    }
-
-                    if (filesize($resultFileName) > 0) {
-
-                        // This is the fastest possible commands for inserting CDRs in the database
-                        $cmd = "LOAD DATA INFILE '$resultFileName' REPLACE INTO TABLE ar_telephone_prefix ";
-                        $cmd .= <<<'NOWDOC'
-        CHARACTER SET 'utf8'
-        FIELDS TERMINATED BY ','
-        OPTIONALLY ENCLOSED BY  '"'
-        ESCAPED BY '\\'
-        LINES TERMINATED BY '\r\n' STARTING BY ''
-        (prefix,
-         match_only_numbers_with_n_digits,
-         name,
-         geographic_location,
-         operator_type,
-         display_priority_level);
-NOWDOC;
-
-                        $isOk = $conn->exec($cmd);
-                        if ($isOk === FALSE) {
-                            $problemDuplicationKey = "Can not import telephone prefixes - " . $resultFileName;
-                            $problemDescription = "The telephone prefixes inside file \"" . $resultFileName . "\" are not inserted and committed to the database. There is an error in query \n$cmd \nThe error message is " . $conn->errorInfo();
-                            $problemEffect = "CDRs can not be rated, because telephone prefix table is not correctly initializated according the rate params.";
-                            $problemProposedSolution = "Try to force a rerate again. If the problem persist contact the assistance.";
-                            $p = ArProblemException::createWithGarbageCollection(
-                                ArProblemType::TYPE_ERROR,
-                                ArProblemDomain::APPLICATION,
-                                null,
-                                $problemDuplicationKey,
-                                self::GARBAGE_KEY,
-                                $this->getGlobalStartingDate(),
-                                null,
-                                $problemDescription,
-                                $problemEffect,
-                                $problemProposedSolution);
-                            throw ($p);
-                        }
-                    }
-
-                    $cmd = "UPDATE ar_service SET was_compiled = 1 WHERE was_compiled <> 1;";
-                    $isOk = $conn->exec($cmd);
-                    if ($isOk === FALSE) {
-                        $problemDuplicationKey = "Can not import telephone prefixes - " . $resultFileName;
-                        $problemDescription = "The telephone prefixes inside file \"" . $resultFileName . "\" are not inserted and committed to the database. There is an error in query \n$cmd \nThe error message is " . $conn->errorInfo();
-                        $problemEffect = "CDRs can not be rated, because telephone prefix table is not correctly initializated according the rate params.";
-                        $problemProposedSolution = "Try to force a rerate again. If the problem persist contact the assistance.";
-                        $p = ArProblemException::createWithGarbageCollection(
-                            ArProblemType::TYPE_ERROR,
-                            ArProblemDomain::APPLICATION,
-                            null,
-                            $problemDuplicationKey,
-                            self::GARBAGE_KEY,
-                            $this->getGlobalStartingDate(),
-                            null,
-                            $problemDescription,
-                            $problemEffect,
-                            $problemProposedSolution);
-                        throw ($p);
-                    }
-
-
-                    $this->commitTransactionOrSignalProblem($conn);
-
-                } catch (ArProblemException $e) {
-                    $this->maybeRollbackTransaction($conn);
-                    throw($e);
-                }
-            } catch (ArProblemException $e) {
-                // skip the import of this rate
-            }
-        }
-
-
-        return $oneExportedService;
-    }
-
     /**
      * @return int|null the max call date in CSV files.
      */
@@ -1825,6 +673,8 @@ NOWDOC;
     }
 
     /**
+     * Execute different rerating events and checks if the totals are the same.
+     *
      * @param int $maxDaysInThePast
      * @param int $times
      * @param bool $interactive
@@ -1832,116 +682,159 @@ NOWDOC;
      */
     public function stressRerating($maxDaysInThePast, $times, $interactive)
     {
-
         $minCallDate = strtotime('-' . $maxDaysInThePast . ' days');
 
-        list($initialChecksum1, $initialChecksum2) = $this->stressRerating_getCallsChecksum($minCallDate);
-        if (strcmp($initialChecksum1, $initialChecksum2) !== 0) {
-            echo "\n   XXX cached initial checksum differs from computed initial checksum on ar_cdr table.";
-            return false;
+        // First rerate all the calls for starting with a sane configuration
+        self::rerateCalls($minCallDate, null);
+        JobQueueProcessor::setIsInteractive($interactive);
+        $msg = $this->process();
+        if ($interactive) {
+            echo "\n\nInitial complete rerating: $msg";
         }
 
+        $cdrStats1 = $this->getCDRStats($minCallDate);
+
+        // Now try many rerates
         while ($times > 0) {
-            $i1 = rand(0, $maxDaysInThePast);
-            $i2 = rand(0, $maxDaysInThePast);
-
-            $d1 = strtotime('-' . $i1 . ' days');
-            $d2 = strtotime('-' . $i2 . ' days');
-
-            if ($d1 > $d2) {
-                $t = $d2;
-                $d2 = $d1;
-                $d1 = $t;
+            $isOpenInterval = rand(0, 1);
+            $d1 = strtotime('-' . rand(0, $maxDaysInThePast) . ' days');
+            if ($isOpenInterval == 1) {
+                $d2 = null;
+            } else {
+                $d2 = strtotime('-' . rand(0, $maxDaysInThePast) . ' days');
+                if ($d1 > $d2) {
+                    $t = $d2;
+                    $d2 = $d1;
+                    $d1 = $t;
+                }
             }
-
             self::rerateCalls($d1, $d2);
 
+            $rateAlsoServiceCDRS = rand(0, 1);
+            if ($rateAlsoServiceCDRS == 1) {
+                $sd1 = strtotime('-' . rand(0, $maxDaysInThePast) . ' days');
+                $sd2 = strtotime('-' . rand(0, $maxDaysInThePast) . ' days');
+
+                if ($sd1 > $sd2) {
+                    $t = $sd2;
+                    $sd2 = $sd1;
+                    $sd1 = $t;
+                }
+                self::rerateImportedServicesCalls($sd1, $sd2);
+            } else {
+                $sd1 = null;
+                $sd2 = null;
+            }
+
             JobQueueProcessor::setIsInteractive($interactive);
-            $this->process();
-
-            list($checksum1, $checksum2) = $this->stressRerating_getCallsChecksum($minCallDate);
-
-            if (strcmp($checksum1, $checksum2) !== 0) {
-                echo "\n   XXX cached checksum differs from computed checksum on ar_cdr table.";
-                return false;
+            $msg = $this->process();
+            if ($interactive) {
+              echo "\nRerating $times: $msg";
             }
 
-            if (strcmp($checksum1, $initialChecksum1) !== 0) {
-                echo "\n   XXX $checksum1 !== $initialChecksum1";
+            $cdrStats2 = $this->getCDRStats($minCallDate);
+            // NOTE: calc all CDRS, not only the CDRS in the specified rating time frame
+
+            if (! $this->compareCDRStatsAndShowDifferences($cdrStats1, $cdrStats2, false, $interactive)) {
                 return false;
             }
-
             $times--;
         }
 
         return true;
-
     }
 
     /**
      * @param int $minCallDate
-     * @return array list(string, string) two unique checksum to use for comparing results.
-     * The first checksum is calculate using the pre-cached table, and the second performing the same calculations
-     * scanning the CDR table. They must be equals.
+     * @return array with date, parent-id-hierachy and destination type as key string,
+     * and a string with the other fields as value.
      */
-    protected function stressRerating_getCallsChecksum($minCallDate)
+    public function getCDRStats($minCallDate)
     {
         $conn = Propel::getConnection();
 
         // NOTE: I'm returning a date, without the time part.
         $minCallDateS = fromUnixTimestampToMySQLDate($minCallDate);
 
-        $query = 'SELECT calldate,
-                         cached_parent_id_hierarchy,
-                         destination_type,
-                         count_of_calls,
-                         billsec,
-                         income,
-                         cost_saving,
-                         cost
-                  FROM  ar_cached_grouped_cdr
-                  WHERE calldate >= ?
-                  ORDER BY calldate, cached_parent_id_hierarchy, destination_type';
-
-        $r = '';
-        $stm = $conn->prepare($query);
-        $stm->execute(array($minCallDateS));
-        while (($rs = $stm->fetch(PDO::FETCH_NUM)) !== false) {
-            $r .= $rs[0] . $rs[1] . $rs[2] . $rs[3] . $rs[4] . $rs[5] . $rs[6] . $rs[7];
-            $r = md5($r);
-        }
-        $stm->closeCursor();
-
-        $r1 = $r;
-
-        // There were alignement problems, so I compare also with manual calculations (and not cached)
-
         $query = 'SELECT MAKEDATE(YEAR(calldate), DAYOFYEAR(calldate)),
                          cached_parent_id_hierarchy,
                          destination_type,
-                            SUM(count_of_calls),
-                            SUM(billsec),
-                            SUM(income),
-                            SUM(cost_saving),
-                            SUM(cost)
-                        FROM ar_cdr WHERE ar_cdr.calldate >= ?
-                        AND destination_type <> 4
-                        AND destination_type <> 5
-                        GROUP BY YEAR(calldate), DAYOFYEAR(calldate), cached_parent_id_hierarchy, destination_type
-                        ORDER BY YEAR(calldate), DAYOFYEAR(calldate), cached_parent_id_hierarchy, destination_type';
+                         SUM(count_of_calls),
+                         SUM(billsec),
+                         SUM(income),
+                         SUM(cost_saving),
+                         SUM(cost)
+                  FROM ar_cdr
+                  WHERE ar_cdr.calldate >= ?
+                  AND destination_type <> ?
+                  GROUP BY YEAR(calldate), DAYOFYEAR(calldate), cached_parent_id_hierarchy, destination_type
+                  ORDER BY YEAR(calldate), DAYOFYEAR(calldate), cached_parent_id_hierarchy, destination_type';
 
-        $r = '';
         $stm = $conn->prepare($query);
-        $stm->execute(array($minCallDateS));
+        $stm->execute(array($minCallDateS, DestinationType::ignored));
+        // NOTE: ignored calls can be produced by the system for different reasons, so we don't compare them.
+        // NOTE: errors, internal and system calls are important and they should be remain constant after each rating pass.
+
+        $r = array();
         while (($rs = $stm->fetch(PDO::FETCH_NUM)) !== false) {
-            $r .= $rs[0] . $rs[1] . $rs[2] . $rs[3] . $rs[4] . $rs[5] . $rs[6] . $rs[7];
-            $r = md5($r);
+            $key = $rs[0] . ',' . $rs[1] . ',' . $rs[2];
+            $value = $rs[3] . ',' . $rs[4] . ',' . $rs[5] . ',' .$rs[6] . ',' .$rs[7];
+            $r[$key] = $value;
         }
         $stm->closeCursor();
+        return $r;
+    }
 
-        $r2 = $r;
+    /**
+     * Show the differences in case
+     * @param array $stats1 the initial stats returned from `getCDRStats()`
+     * @param array $stats2 the last stats after the rerating
+     * @param bool $areReversed true if the first array is instead the array with the final stats
+     * @param bool $isInteractive true if it must show the differences
+     * @return bool true if the content is the same, false otherwise
+     *
+     */
+    public function compareCDRStatsAndShowDifferences(&$stats1, &$stats2, $areReversed, $isInteractive) {
+        $count1 = count($stats1);
+        $count2 = count($stats2);
 
-        return array($r1, $r2);
+        if ($count1 < $count2) {
+            return $this->compareCDRStatsAndShowDifferences($stats2, $stats1, ! $areReversed, $isInteractive);
+        }
+
+        $header1 = 'original stats';
+        $header2 = 'stats after rerating';
+        if ($areReversed) {
+            $t = $header2;
+            $header2 = $header1;
+            $header1 = $t;
+        }
+
+        $r = true;
+        foreach($stats1 as $key => $value1) {
+             $errorMsg = null;
+             if (array_key_exists($key, $stats2)) {
+                $value2 = $stats2[$key];
+                if ($value2 !== $value1) {
+                    $r = false;
+                    if ($isInteractive) {
+                        $errorMsg = $value2;
+                    }
+                }
+            } else {
+                $r = false;
+
+                if ($isInteractive) {
+                    $errorMsg = '<nothing>';
+                }
+            }
+
+            if (!is_null($errorMsg)) {
+                echo "\ndate, parent-hierachy, destination-type\n$key\nthe $header1 has\ncount_of_calls, billsec, sum_of_income, sum_of_cost_saving, sum_of_cost\n$value1\nwhile the $header2\n$errorMsg";
+            }
+        }
+
+        return $r;
     }
 
 ///////////////////////

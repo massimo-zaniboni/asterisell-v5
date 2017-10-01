@@ -1,0 +1,43 @@
+
+# !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! #
+# !!!                                                                           !!! #
+# !!! I M P O R T A N T:                                                        !!! #
+# !!!                                                                           !!! #
+# !!! This file is generated from management tools                              !!! #
+# !!! Do not change the content of this file, otherwise it will be overwritten. !!! #
+# !!!                                                                           !!! #
+# !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! #
+
+[server]
+
+# Set to a low value,
+# because Asterisell uses only TokeDB tables,
+# but not a too much low value, because otherwise there is too much CPU utilization
+innodb_buffer_pool_size = 50M
+
+# needed because MySQL can receive big BLOB files from the application,
+# in case of complex rate plans
+max_allowed_packet = 30M
+
+[mysqld]
+
+[embedded]
+
+# This group is only read by MariaDB servers, not by MySQL.
+# If you use the same .cnf file for MySQL and MariaDB,
+# you can put MariaDB-only options here
+[mariadb]
+
+plugin-load-add=ha_tokudb.so
+
+# Set near 50% of free RAM, according TokuDB suggestions.
+tokudb_cache_size = $tokudb_cache_size_in_mb
+
+# Every time a 30% more data is written on a table, schedule a a ANALYZE TABLE
+tokudb_auto_analyze=30
+
+# This group is only read by MariaDB-10.0 servers.
+# If you use the same .cnf file for MariaDB of different versions,
+# use this group for options that older servers don't understand
+[mariadb-10.0]
+

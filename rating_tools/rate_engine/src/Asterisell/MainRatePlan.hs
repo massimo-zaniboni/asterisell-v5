@@ -1,7 +1,7 @@
 {-# LANGUAGE ScopedTypeVariables, BangPatterns, OverloadedStrings, QuasiQuotes #-}
 
-{- $LICENSE 2013, 2014, 2015, 2016
- * Copyright (C) 2013-2016 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
+{- $LICENSE 2013, 2014, 2015, 2016, 2017
+ * Copyright (C) 2013-2017 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
  *
  * This file is part of Asterisell.
  *
@@ -28,7 +28,7 @@
 --   for rating the CDRs.
 --
 module Asterisell.MainRatePlan(
-    mainRatePlanParser_parse
+    mainRatePlanParser
   , tt_rateSpecificationsTests
   , test_interactiveDebug
 ) where
@@ -43,7 +43,6 @@ import Asterisell.TelephonePrefixes
 import Asterisell.VoIPChannelAndVendor
 import Asterisell.RateCategories
 import Asterisell.OrganizationHierarchy
-import Asterisell.CdrsToRate
 
 import Numeric
 
@@ -54,15 +53,15 @@ import Data.Ratio
 import Data.Ord as Ord
 import qualified Data.Map as Map
 import qualified Data.IntMap as IMap
-import qualified Data.ByteString.Lazy as BS
-import Data.Text.Encoding
-import qualified Data.Text as Text
+import qualified Data.ByteString.Lazy as LBS
+import qualified Data.ByteString as BS
+import Data.Text.Encoding as Text
+import Data.Text as Text
 import qualified Test.HUnit as HUnit
 import qualified Text.Parsec as Parsec
 import qualified Text.Parsec.Prim as Parsec
 import Text.Parsec.Prim((<|>), (<?>))
-import Text.Parsec.ByteString.Lazy as Parsec
-import qualified Text.Parsec.Char as Parsec
+import Text.Parsec.Text as Parsec
 import System.IO
 import Debug.Trace
 import Data.Maybe
@@ -75,20 +74,32 @@ import Text.Heredoc
 -- See the PHP web interface for a description of the rate format.
 -- or /apps/asterisell/lib/jobs/admin/InitRateFormats.php
 
+mainRatePlanParser :: RatingParams -> BS.ByteString -> Either String MainRatePlan
+mainRatePlanParser env rateContent
+  = case Text.decodeUtf8' rateContent of
+      Left err
+        -> Left $ "The rate content is not in UTF8 format: " ++ show err ++ ". Convert the rate in UTF8 format, and update it in Asterisell database."
+      Right rateContentT
+        -> case Parsec.parse (mainRatePlanParser_parse env) "" rateContentT of
+             Left err
+               -> Left $ show err
+             Right r
+               -> Right r
+
 -- | The entry point for parsing a main-rate.
 --   For initializing a MainRatePlan with proper RateSystemId requires also the last processed BundleState.
-mainRatePlanParser_parse :: EnvParams -> Parsec.Parser MainRatePlan
+mainRatePlanParser_parse :: RatingParams -> Parsec.Parser MainRatePlan
 mainRatePlanParser_parse env
-  = do 
+  = do
        rates :: [Either RootBundleRatePlan RatePlan]
-         <- Parsec.many1 
+         <- Parsec.many1
                   ((Parsec.try (do r <- p_rateOrClassPlan env
                                    return $ Right r)
                    ) <|> (do r <- p_rootBundleRate env
                              return $ Left r))
        Parsec.eof
 
-       let (bundleRates, normalRates) 
+       let (bundleRates, normalRates)
              = List.foldl' (\(b, n) r -> case r of
                                            Left x -> (x:b, n)
                                            Right x -> (b, x:n)
@@ -104,15 +115,15 @@ mainRatePlanParser_parse env
            -> fail err
          Right r
            -> return r
-                                                               
+
 -- | Used for specifying different types of rates.
-p_rateOrClassPlan :: EnvParams -> Parsec.Parser RatePlan           
-p_rateOrClassPlan env 
+p_rateOrClassPlan :: RatingParams -> Parsec.Parser RatePlan
+p_rateOrClassPlan env
   = do p_freeSpaces
        Parsec.many p_comment
        p_freeSpaces
 
-       isExternalRate 
+       isExternalRate
          <-     (do p_symbol "rate"
                     return False)
             <|> (do p_symbol "external-rate"
@@ -123,14 +134,14 @@ p_rateOrClassPlan env
        id <- p_id
 
        children <- case isExternalRate of
-                     True 
+                     True
                        -> do p_symbol "use:"
                              v <- p_referenceNameValue
                              return $ Left v
-                     False 
+                     False
                        -> return $ Right []
 
-       filters <- p_filters env True 
+       filters <- p_filters env True
        calcParams <- p_commonCalcParams
 
        children <- case isExternalRate of
@@ -138,7 +149,7 @@ p_rateOrClassPlan env
                      False -> do r <- Parsec.many (p_rateOrClassPlan env)
                                  return $ Right r
 
-       p_endDef 
+       p_endDef
        p_freeSpaces
 
        elsePart :: [RatePlan]
@@ -148,17 +159,17 @@ p_rateOrClassPlan env
               elseRates <- Parsec.many1 $ p_rateOrClassPlan env
               p_endDef
               return elseRates
-              
+
        Parsec.many p_comment
        p_freeSpaces
-       
-       let params 
+
+       let params
              = RateParams {
                  rate_userId = id
                , rate_match = matchFun_create filters calcParams
-               } 
+               }
 
-       let plan 
+       let plan
              = RatePlan {
                  rate_systemId = 0
                , rate_params = params
@@ -169,8 +180,8 @@ p_rateOrClassPlan env
        return plan
 
 -- | Used for specifying different types of rates.
-p_rootBundleRate :: EnvParams -> Parsec.Parser RootBundleRatePlan           
-p_rootBundleRate env 
+p_rootBundleRate :: RatingParams -> Parsec.Parser RootBundleRatePlan
+p_rootBundleRate env
   = do p_freeSpaces
        Parsec.many p_comment
        p_freeSpaces
@@ -204,29 +215,29 @@ p_rootBundleRate env
 
        p_symbol "only-for-calls-with-a-cost:"
        onlyForCallsWithACost <- p_bool
-       
+
        bundleInitialCost <- p_moneyParamOrDefaultValue "set-bundle-initial-cost:" 0
        bundleMinCost <- p_moneyParamOrDefaultValue "set-bundle-min-cost:" 0
 
-       filters <- p_filters env False 
+       filters <- p_filters env False
        calcParams <- p_commonCalcParams
 
-       children 
+       children
          <- do r <- Parsec.many (p_bundleRatePlan env)
                return $ Right r
 
-       p_endDef 
+       p_endDef
        p_freeSpaces
        Parsec.many p_comment
        p_freeSpaces
-       
-       let params 
+
+       let params
              = RateParams {
                  rate_userId = id
                , rate_match = matchFun_create filters calcParams
-               } 
+               }
 
-       let bundleParams 
+       let bundleParams
              = BundleParams {
                  bundle_initialCost = bundleInitialCost
                , bundle_minCost = bundleMinCost
@@ -235,18 +246,18 @@ p_rootBundleRate env
                , bundle_appliedCost = 0
                }
 
-       let plan 
+       let plan
              = BundleRatePlan {
                  bundle_systemId = 0
                , bundle_rateParams = params
-               , bundle_bundleParams = bundleParams 
+               , bundle_bundleParams = bundleParams
                , bundle_children = children
                       }
 
-       let rootPlan 
+       let rootPlan
              = RootBundleRatePlan {
-                 bundle_serviceCDRType = Text.pack serviceCdrType
-               , bundle_serviceCDRDescription = Text.pack serviceCdrDescription
+                 bundle_serviceCDRType = serviceCdrType
+               , bundle_serviceCDRDescription = serviceCdrDescription
                , bundle_timeFrame = schedule
                , bundle_priceCategoryIds = priceCategories
                , bundle_limitsAreProportionalsToActivationDate = proportionalLimits
@@ -259,18 +270,18 @@ p_rootBundleRate env
 
  where
 
-  p_schedule 
+  p_schedule
     = (do p_symbol "monthly"
           p_nl
           return $ MonthlyTimeFrame 0
-      ) 
+      )
       <|> (do p_symbol "weekly"
               p_nl
               return $ WeeklyTimeFrame 0
           )
-  
+
   p_scheduleFrom :: BundleRateTimeFrame -> Parsec.Parser BundleRateTimeFrame
-  p_scheduleFrom f 
+  p_scheduleFrom f
     = case f of
         WeeklyTimeFrame _
           -> do d <- p_dayOfWeek 1 ["Monday"
@@ -297,13 +308,13 @@ p_rootBundleRate env
 
 -- REFACTORING: join the code in common beetween p_rootBundleRate and p_bundleRatePlan
 
-p_bundleRatePlan :: EnvParams -> Parsec.Parser BundleRatePlan
+p_bundleRatePlan :: RatingParams -> Parsec.Parser BundleRatePlan
 p_bundleRatePlan env
   = do p_freeSpaces
        Parsec.many p_comment
        p_freeSpaces
 
-       isExternalRate 
+       isExternalRate
          <- (do p_symbol "rate"
                 return (False))
             <|> (do p_symbol "external-rate"
@@ -311,33 +322,33 @@ p_bundleRatePlan env
        p_beginDef
 
        id <- p_id
-       filters <- p_filters env False 
+       filters <- p_filters env False
        leftCalls <- p_maybeIntOrNothing "none" "limit-on-first-calls:"
        leftDuration <- p_maybeIntOrNothing "none" "limit-on-first-seconds:"
        bundleInitialCost <- p_moneyParamOrDefaultValue "set-bundle-initial-cost:" 0.0
        bundleMinCost <- p_moneyParamOrDefaultValue "set-bundle-min-cost:" 0.0
        calcParams <- p_commonCalcParams
        children <- case isExternalRate of
-                     True 
+                     True
                        -> do p_symbol "use:"
                              v <- p_referenceNameValue
                              return $ Left v
-                     False 
+                     False
                        -> do r <- Parsec.many (p_bundleRatePlan env)
                              return $ Right r
 
-       p_endDef 
+       p_endDef
        p_freeSpaces
        Parsec.many p_comment
        p_freeSpaces
 
-       let params 
+       let params
              = RateParams {
                  rate_userId = id
                , rate_match = matchFun_create filters calcParams
-               } 
+               }
 
-       let bundleParams 
+       let bundleParams
              = BundleParams {
                  bundle_initialCost = bundleInitialCost
                , bundle_minCost = bundleMinCost
@@ -346,38 +357,38 @@ p_bundleRatePlan env
                , bundle_appliedCost = 0
                }
 
-       let plan 
+       let plan
              = BundleRatePlan {
                  bundle_systemId = 0
                , bundle_rateParams = params
-               , bundle_bundleParams = bundleParams 
+               , bundle_bundleParams = bundleParams
                , bundle_children = children
                       }
 
        return plan
 
 
-p_intParamOrDefaultValue :: String -> Int -> Parsec.Parser Int
+p_intParamOrDefaultValue :: Text -> Int -> Parsec.Parser Int
 p_intParamOrDefaultValue name d
   = Parsec.try (do p_symbol name
                    v <- p_integer
-                   return v) 
+                   return v)
     <|> (return d)
 
 
-p_moneyParamOrDefaultValue :: String -> MonetaryValue -> Parsec.Parser MonetaryValue
+p_moneyParamOrDefaultValue :: Text -> MonetaryValue -> Parsec.Parser MonetaryValue
 p_moneyParamOrDefaultValue name d
   = Parsec.try (do p_symbol name
                    v <- p_float
-                   return v) 
+                   return v)
     <|> (return d)
 
 
-p_maybeIntOrNothing :: String -> String -> Parsec.Parser (Maybe Int)
+p_maybeIntOrNothing :: Text -> Text -> Parsec.Parser (Maybe Int)
 p_maybeIntOrNothing none name
   = (Parsec.try (p_maybeInt none name)) <|> (return Nothing)
 
-p_maybeInt :: String -> String -> Parsec.Parser (Maybe Int)
+p_maybeInt :: Text -> Text -> Parsec.Parser (Maybe Int)
 p_maybeInt none name
   = do p_symbol name
        v <- (do p_symbol none
@@ -392,44 +403,44 @@ p_beginDef
   = (do p_spaces
         Parsec.char '{'
         p_nl
-        return ()) 
+        return ())
 
 p_endDef
   = (do p_spaces
         Parsec.char '}'
         p_nl
-        return ()) 
+        return ())
 
-p_description :: Parsec.Parser String
-p_description 
+p_description :: Parsec.Parser Text
+p_description
   = do d <- Parsec.manyTill Parsec.anyChar (Parsec.many1 (Parsec.newline <|> Parsec.char '\r'))
        p_freeSpaces
-       let dd1 = dropWhile isSpace d
-       let dd2 = List.reverse $ dropWhile isSpace (List.reverse dd1) 
-       return dd2
+       let dd1 = List.dropWhile isSpace d
+       let dd2 = List.reverse $ List.dropWhile isSpace (List.reverse dd1)
+       return $ Text.pack dd2
 
-p_id :: Parsec.Parser String
+p_id :: Parsec.Parser Text
 p_id
   = do p_symbol "id:"
        p_referenceNameValue
 
-p_filters :: EnvParams -> Bool -> Parsec.Parser FilterFun
+p_filters :: RatingParams -> Bool -> Parsec.Parser FilterFun
 p_filters env acceptAlsoPriceCategory
   = do filters <- Parsec.many (p_filter env acceptAlsoPriceCategory)
        return $ filterFun_and filters
 
-p_filter :: EnvParams -> Bool -> Parsec.Parser FilterFun
+p_filter :: RatingParams -> Bool -> Parsec.Parser FilterFun
 p_filter env acceptAlsoPriceCategory
   = do p_symbol "match-communication-channel:"
        ids <- p_referenceList "communication channel type" (params_channelTypes env)
        return $ filterFun_matchOneOfIds ids (\cdr -> fromJust1 "m1" $ cdr_communicationChannelTypeId cdr)
-       
+
     <|> do p_symbol "match-vendor:"
            ids <- p_referenceList "vendor" (params_vendors env)
            return $ filterFun_matchOneOfIds ids (\cdr -> fromJust1 "m2" $ cdr_vendorId cdr)
 
     <|> case acceptAlsoPriceCategory of
-          True 
+          True
             -> do p_symbol "match-price-category:"
                   ids <- p_referenceList "price category"  (fst $ params_rateCategories env)
                   return $ filterFun_matchOneOfIds ids (\cdr -> fromJust1 "m3" $ cdr_priceCategoryId cdr)
@@ -438,24 +449,25 @@ p_filter env acceptAlsoPriceCategory
 
     <|> do p_symbol "match-call-direction:"
            direction <- p_direction
-           return $ (\env cdr -> if cdr_direction cdr == direction 
+           return $ (\env cdr -> if cdr_direction cdr == direction
                                  then Just matchStrenght_initial
                                  else Nothing
                     )
 
     <|> do p_symbol "match-telephone-number:"
            telephoneNumbers <- p_telephoneNumbers
-           let trie = List.foldl' (\t c -> trie_addExtensionCode t c ()) trie_empty telephoneNumbers
-           return $ (\env cdr 
+           let trie = List.foldl' (\t c -> trie_addExtensionCode t c ()) trie_empty (List.map Text.unpack telephoneNumbers)
+           return $ (\env cdr
                        -> let cdrTelephoneNumber = fromJust1 "m4" $ cdr_externalTelephoneNumberWithAppliedPortability cdr
                               maybeResult = trie_getMatch trie_getMatch_initial trie (Text.unpack cdrTelephoneNumber)
                           in  case maybeResult of
                                 Nothing
                                   -> Nothing
-                                Just ((m, _), _) 
+                                Just ((m, _), _)
                                   -> Just (MatchStrenght { matchStrenght_telephoneNumber = m })
                     )
-  
+
+p_referenceList :: Text -> Map.Map Text Int -> Parsec.Parser [Int]
 p_referenceList errorSubject dictionay
     = do v <- Parsec.sepBy1 (p_reference errorSubject dictionay) (Parsec.char ',')
          p_nl
@@ -463,19 +475,19 @@ p_referenceList errorSubject dictionay
          p_freeSpaces
          return v
 
-p_reference :: String -> Map.Map String Int -> Parsec.Parser Int
-p_reference errorSubject dictionary 
+p_reference :: Text -> Map.Map Text Int -> Parsec.Parser Int
+p_reference errorSubject dictionary
     = do n <- p_referenceName
          case Map.lookup n dictionary of
            Just i -> return i
-           Nothing -> fail $ "unknown " ++ errorSubject ++ " \"" ++ n ++ "\". Expected values are: " ++ expectedValues
+           Nothing -> fail $ "unknown " ++ Text.unpack errorSubject ++ " \"" ++ Text.unpack n ++ "\". Expected values are: " ++ Text.unpack expectedValues
  where
 
   expectedValues
-    = List.concat $ List.intersperse "," (Map.keys dictionary)
+    = Text.concat $ List.intersperse "," (Map.keys dictionary)
 
 p_commonCalcParams :: Parsec.Parser CalcParams
-p_commonCalcParams 
+p_commonCalcParams
   = do params <- return calcParams_empty
 
        params <- (do r <- integerValue "set-free-seconds:"
@@ -493,7 +505,7 @@ p_commonCalcParams
        params <- (do r <- monetaryValueOrImported "set-cost-on-call:"
                      return $ params { calcParams_costOnCall = r }
                  ) <|> return params
- 
+
        params <- (do r <- monetaryValue "set-cost-for-minute:"
                      return $ params { calcParams_costForMinute = r }
                  ) <|> return params
@@ -508,15 +520,15 @@ p_commonCalcParams
 
        params <- (do r <- maybeIntegerValue "set-round-to-decimal-digits:"
                      return $ params { calcParams_roundToDecimalDigits = r }
-                 ) <|> return params 
+                 ) <|> return params
 
        params <- (do r <- maybeIntegerValue "set-ceil-to-decimal-digits:"
                      return $ params { calcParams_ceilToDecimalDigits = r }
-                 ) <|> return params 
+                 ) <|> return params
 
        params <- (do r <- maybeIntegerValue "set-floor-to-decimal-digits:"
                      return $ params { calcParams_floorToDecimalDigits = r }
-                 ) <|> return params 
+                 ) <|> return params
 
        return params
 
@@ -524,12 +536,12 @@ p_commonCalcParams
 
   integerValue name
     = do p_symbol name
-         p_thisOrParentOrValue p_integer 
-  
-  floatValue name = monetaryValue name  
+         p_thisOrParentOrValue p_integer
+
+  floatValue name = monetaryValue name
 
   monetaryValueOrImported name
-    = do p_symbol name 
+    = do p_symbol name
          p_thisOrParentOrValue ((do p_symbol "imported"
                                     return $ RateCost_imported)
                                 <|> (do p_symbol "expected"
@@ -538,12 +550,12 @@ p_commonCalcParams
                                         return $ RateCost_cost v))
 
   monetaryValue name
-    = do p_symbol name 
-         p_thisOrParentOrValue p_float   
+    = do p_symbol name
+         p_thisOrParentOrValue p_float
 
   referenceValue name
-    = do p_symbol name 
-         p_thisOrParentOrValue p_referenceNameValue  
+    = do p_symbol name
+         p_thisOrParentOrValue p_referenceNameValue
 
   maybeMonetaryValue name
     = do r <- monetaryValue name
@@ -552,7 +564,7 @@ p_commonCalcParams
   maybeIntegerValue name
     = do r <- integerValue name
          return $ toMaybeValue r
-    
+
   toMaybeValue mv
     = case mv of
         Nothing -> Nothing
@@ -572,19 +584,20 @@ p_direction
            p_nl
            return CDR_system
 
+p_descriptionValue :: Parsec.Parser Text
 p_descriptionValue
   = (do p_spaces
         v <- Parsec.manyTill Parsec.anyChar (Parsec.newline <|> Parsec.char '\r')
         Parsec.many p_comment
         p_freeSpaces
-        return v) 
+        return $ Text.pack v)
 
-p_referenceName :: Parsec.Parser String
+p_referenceName :: Parsec.Parser Text
 p_referenceName
   = (do p_spaces
         v <- Parsec.many1 validChar
         p_spaces
-        return v) 
+        return $ Text.pack v)
  where
 
   validChar = Parsec.alphaNum <|> Parsec.char '_' <|> Parsec.char '-' <|> Parsec.char '/'
@@ -594,12 +607,12 @@ p_referenceNameValue
         p_nl
         Parsec.many p_comment
         p_freeSpaces
-        return v) 
+        return v)
 
-p_telephoneNumbers :: Parsec.Parser [String]
-p_telephoneNumbers 
+p_telephoneNumbers :: Parsec.Parser [Text]
+p_telephoneNumbers
   = do line <- p_descriptionValue
-       return $ extensionCodes_extractFromUserSpecification line
+       return $ List.map Text.pack $ extensionCodes_extractFromUserSpecification line
 
 p_thisOrParentOrValue valueParser
   = do r <- Parsec.try (do  r <- p_symbol "parent" <|> p_symbol "this"
@@ -610,7 +623,7 @@ p_thisOrParentOrValue valueParser
 
        Parsec.many p_comment
        p_freeSpaces
-       return r 
+       return r
 
 p_bool
   = (do p_symbol "true"
@@ -622,14 +635,14 @@ p_bool
             p_nl
             Parsec.many p_comment
             p_freeSpaces
-            return False) 
+            return False)
 
 p_integer
   = (do -- NOTE: manage in this way for not introducing binary decimal conversion errors
         p_spaces
         integerPart <- Parsec.many1 Parsec.digit
         p_nl
-        let r1 :: [(Int, String)] = readDec integerPart 
+        let r1 :: [(Int, String)] = readDec integerPart
         r <- case r1 of
                [(r2, s2)] -> case List.null s2 of
                                True -> return r2
@@ -643,7 +656,7 @@ p_float
   = (do -- NOTE: manage in this way for not introducing binary decimal conversion errors
         p_spaces
         sign <- (Parsec.char '-' <|> Parsec.char '+' <|> return ' ')
-        integerPart <- Parsec.many1 Parsec.digit 
+        integerPart <- Parsec.many1 Parsec.digit
         decimalPart <- Parsec.option
                          "" (do Parsec.char '.'
                                 ds <- Parsec.many1 Parsec.digit
@@ -670,7 +683,7 @@ p_comment
 p_nl
   = (do p_spaces
         Parsec.many (Parsec.newline <|> Parsec.char '\r')
-        Parsec.many p_comment 
+        Parsec.many p_comment
         p_freeSpaces
         return ()) <?> "new line"
 
@@ -689,10 +702,10 @@ p_spaces
   = do Parsec.skipMany p_space
        return ()
 
-p_symbol :: String -> Parsec.Parser ()
+p_symbol :: Text -> Parsec.Parser ()
 p_symbol name
   = Parsec.try (do p_spaces
-                   Parsec.string name
+                   Parsec.string (Text.unpack name)
                    (do p_spaces
                        return ()
                     <|> do Parsec.lookAhead p_nl
@@ -716,8 +729,16 @@ test_interactiveDebug :: IO ()
  where
 
   -- TODO test if CDRS with empty channels or similar ar rated, or a correct error is signaled
-   
-  bundleState1 
+
+  env :: RatingParams
+  env = (ratingParamsForTest 4) {
+    params_rateCategories = rateCategories_create $ Map.fromList [("price-A", 1), ("price-B", 2), ("price-C", 3)]
+  , params_channelTypes = Map.fromList [("local", 1), ("sip", 2), ("ch1", 3), ("ch2", 4)]
+  , params_vendors = Map.fromList [("vendor-A", 1), ("vendor-B", 2), ("vendor1", 3)]
+  }
+
+
+  bundleState1
     = IMap.fromList [(100, (fromJust1 "m20" $ fromMySQLDateTimeToLocalTime "2014-01-01", "/bundle-demo-1", IMap.empty))]
 
 
@@ -730,7 +751,7 @@ test_interactiveDebug :: IO ()
     = do putStrLn ""
          putStrLn rateContent
          let mainRate :: MainRatePlan
-               = case Parsec.runP (mainRatePlanParser_parse env) () "" (BS.fromStrict $ encodeUtf8 $ Text.pack rateContent) of
+               = case Parsec.runP (mainRatePlanParser_parse env) () "" (Text.pack rateContent) of
                    Left err
                      -> error $ show err
                    Right r
@@ -741,12 +762,6 @@ test_interactiveDebug :: IO ()
          putStrLn "after mainRatePlan_assignSharedUniqueSystemId"
          putStrLn $ show $ mainRatePlan_assignSharedUniqueSystemId mainRate bundleState
          putStrLn ""
-
-  env = initialClassificationParams_empty {
-    params_rateCategories = rateCategories_create $ Map.fromList [("price-A", 1), ("price-B", 2), ("price-C", 3)]
-  , params_channelTypes = Map.fromList [("local", 1), ("sip", 2), ("ch1", 3), ("ch2", 4)]
-  , params_vendors = Map.fromList [("vendor-A", 1), ("vendor-B", 2), ("vendor1", 3)]
-  } 
 
   name1 = "Parsing of main rate plans"
 
@@ -773,14 +788,14 @@ rate {
     set-cost-on-call: 1.5
     set-cost-for-minute: 2.5
     set-max-cost-of-call: 5.50
-    set-min-cost-of-call: 2.0   
+    set-min-cost-of-call: 2.0
     set-round-to-decimal-digits: 4
 
     rate {
       id: child-rate
 
       match-price-category: price-C
-    
+
       set-cost-on-call: -5.0
       # test negative numbers
 
@@ -881,7 +896,7 @@ rate {
 
 test_rateSpecificationSyntax :: String -> Parsec.Parser a -> String -> HUnit.Assertion
 test_rateSpecificationSyntax testName p source
-  = HUnit.assertEqual testName parseOk  (normalize $ Parsec.runP p () testName (BS.fromStrict $ encodeUtf8 $ Text.pack source)) 
+  = HUnit.assertEqual testName parseOk  (normalize $ Parsec.runP p () testName (Text.pack source))
  where
 
   parseOk = "test parsing ok"
@@ -891,13 +906,13 @@ test_rateSpecificationSyntax testName p source
 
 test_parser :: (Show a, Eq a) => String -> Parsec.Parser a -> String -> a -> HUnit.Assertion
 test_parser testName p source expectedResult
-  = HUnit.assertEqual testName (Just expectedResult) (normalize $ Parsec.runP p () testName (BS.fromStrict $ encodeUtf8 $ Text.pack source)) 
+  = HUnit.assertEqual testName (Just expectedResult) (normalize $ Parsec.runP p () testName (Text.pack source))
  where
 
   normalize (Right r) = Just r
   normalize (Left err) = Nothing
 
-tt_rateSpecificationsTests 
+tt_rateSpecificationsTests
   = [HUnit.TestCase $ test_rateSpecificationSyntax name1 (mainRatePlanParser_parse env) case1
     ,HUnit.TestCase $ test_rateSpecificationSyntax "test 2" (p_filters env True) "match-communication-channel: ch1, ch2\nmatch-vendor: vendor1\n"
     ,HUnit.TestCase $ test_rateSpecificationSyntax "test 2" (p_commonCalcParams) "cost-on-call: 1.5\nset-max-cost-of-call:-5.53\n"
@@ -906,9 +921,9 @@ tt_rateSpecificationsTests
     ,HUnit.TestCase $ test_rateSpecificationSyntax "test p_telephoneNumbers syntax 1" p_telephoneNumbers  "059\n"
     ,HUnit.TestCase $ test_rateSpecificationSyntax "test p_telephoneNumbers syntax 2" p_telephoneNumbers  "059,051\n"
     ,HUnit.TestCase $ test_rateSpecificationSyntax "test p_telephoneNumbers syntax 3" p_telephoneNumbers  "059*\n"
-    ,HUnit.TestCase $ test_parser "test p_telephoneNumbers 1" p_telephoneNumbers  "059\n" ["059"] 
-    ,HUnit.TestCase $ test_parser "test p_telephoneNumbers 2" p_telephoneNumbers  "059*\n" ["059*"] 
-    ,HUnit.TestCase $ test_parser "test p_telephoneNumbers 3" p_telephoneNumbers  "059,051\n" ["059", "051"] 
+    ,HUnit.TestCase $ test_parser "test p_telephoneNumbers 1" p_telephoneNumbers  "059\n" ["059"]
+    ,HUnit.TestCase $ test_parser "test p_telephoneNumbers 2" p_telephoneNumbers  "059*\n" ["059*"]
+    ,HUnit.TestCase $ test_parser "test p_telephoneNumbers 3" p_telephoneNumbers  "059,051\n" ["059", "051"]
     ,HUnit.TestCase $ test_parser "test p_telephoneNumbers 4" p_telephoneNumbers  " 059\n" ["059"]
     ,HUnit.TestCase $ test_parser "test p_telephoneNumbers 5" p_telephoneNumbers  " 059, 051\n" ["059", "051"]
     ,HUnit.TestCase $ test_parser "test p_telephoneNumbers 6" p_telephoneNumbers  "\\ 059\n" [" 059"]
@@ -920,11 +935,12 @@ tt_rateSpecificationsTests
 
  where
 
-  env = initialClassificationParams_empty {
+  env :: RatingParams
+  env = (ratingParamsForTest 4) {
     params_rateCategories = rateCategories_create $ Map.fromList [("price-A", 1), ("price-B", 2), ("price-C", 3)]
   , params_channelTypes = Map.fromList [("local", 1), ("sip", 2), ("ch1", 3), ("ch2", 4)]
   , params_vendors = Map.fromList [("vendor-A", 1), ("vendor-B", 2), ("vendor1", 3)]
-  } 
+  }
 
   name1 = "Parsing of main rate plans"
 
@@ -951,14 +967,14 @@ rate {
     set-cost-on-call: 1.5
     set-cost-for-minute: 2.5
     set-max-cost-of-call: 5.50
-    set-min-cost-of-call: 2.0   
+    set-min-cost-of-call: 2.0
     set-round-to-decimal-digits: 4
 
     rate {
       id: child-rate
 
       match-price-category: price-C
-    
+
       set-cost-on-call: -5.0
       # test negative numbers
 
@@ -989,7 +1005,7 @@ bundle-rate {
   rate {
     id: fixed-line1
     match-communication-channel: local
-    match-telephone-number: 39* 
+    match-telephone-number: 39*
     limit-on-first-seconds: 7200
     # 120 minuti
   }

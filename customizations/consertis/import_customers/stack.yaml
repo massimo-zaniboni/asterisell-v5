@@ -1,8 +1,0 @@
-flags: {}
-packages:
-- '.'
-extra-deps: []
-resolver: lts-6.26
-nix:
-  enable: true
-

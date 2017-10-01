@@ -1,7 +1,7 @@
 {-# Language OverloadedStrings, ScopedTypeVariables, BangPatterns #-}
 
-{- $LICENSE 2013, 2014, 2015, 2016
- * Copyright (C) 2013-2016 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
+{- $LICENSE 2013, 2014, 2015, 2016, 2017
+ * Copyright (C) 2013-2017 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
  *
  * This file is part of Asterisell.
  *
@@ -47,6 +47,7 @@ module Asterisell.Utils (
   fromDateFormat1ToLocalTime,
   fromLocalTimeToMySQLDateTime,
   fromLocalTimeToMySQLDateWith00Time,
+  toBeginOfTheDay,
   fromGammaCallDateAndTimeStampToLocalTime,
   fromGammaItemRentalCallDateToLocalTime,
   fromTextToInt,
@@ -54,6 +55,9 @@ module Asterisell.Utils (
   fromTextToRational,
   fromTextToRational2,
   fromStringToByteString,
+  fromByteStringToString,
+  fromByteStringToText,
+  fromTextToByteString,
   validCallTime,
   whenM_,
   mathRound,
@@ -70,12 +74,11 @@ module Asterisell.Utils (
   fromLazyToStrictByteString,
   fromTextToMySQLResult,
   skipCSVField,
-  fromDateFormat2ToLocalTime
-
+  fromDateFormat2ToLocalTime,
 ) where
 
 import Prelude hiding (concat, takeWhile)
-import Control.Applicative ((<$>), (<|>), (<*>), (<*), (*>), many)
+import Control.Applicative ((<$>), (<|>), (<*>), (<*), (*>))
 import Data.Attoparsec.Text.Lazy
 import qualified Data.Attoparsec.Text as P
 import qualified Data.Text as T
@@ -87,11 +90,27 @@ import Data.Time.LocalTime
 import Data.Time.Format
 import Data.Map.Strict as Map
 import qualified Data.Set as Set
-import Numeric
 import qualified Test.HUnit as HUnit
 import Data.Text.Encoding
+import Data.Text.Encoding.Error
 import Data.Time.Calendar
 import Data.Char
+import Data.Maybe
+import Control.Monad as M
+import Debug.Trace
+import qualified Control.Concurrent as C (getNumCapabilities)
+import qualified Control.Concurrent.Async as C
+import qualified Control.DeepSeq as C
+import qualified System.IO.Streams as S
+import qualified System.IO.Streams.Text as S
+import qualified System.IO.Streams.Combinators as S
+import qualified System.IO.Streams.List as S
+import System.IO.Streams.Attoparsec
+import qualified System.IO.Streams.List as S
+import qualified System.IO.Streams.File as S
+import qualified System.IO.Streams.Vector as S
+import qualified Data.Vector as V 
+import Control.Concurrent.BoundedChan
 
 type LineNumber = Int
 
@@ -221,21 +240,13 @@ attoParsecUnsignedInt
            -> return i
 
 parseInt :: Parser Int
-parseInt = do
-  completeId <- maybeQuoted number
-  case completeId of
-    I i -> return $ fromIntegral i
-    _ -> fail "id is not an integer value."
+parseInt = maybeQuoted decimal
 
 parseMaybeInt :: Parser (Maybe Int)
 parseMaybeInt
   = (do string "\\N"
         return Nothing
-    ) <|> (do completeId <- maybeQuoted number
-              case completeId of
-                I i -> return $ Just (fromIntegral i)
-                _ -> fail "id is not an integer value."
-          )
+    ) <|> (Just <$> parseInt)
 
 fromTextToInt :: T.Text -> Maybe Int
 fromTextToInt t
@@ -244,16 +255,35 @@ fromTextToInt t
       _ -> Nothing
 
 fromByteStringToInt :: BS.ByteString -> Maybe Int
-fromByteStringToInt bs = fromTextToInt $ decodeUtf8 bs 
+fromByteStringToInt bs = fromTextToInt $ decodeUtf8 bs
+{-# INLINE fromByteStringToInt #-}
 
 fromStringToByteString :: String -> BS.ByteString
 fromStringToByteString s = encodeUtf8 $ T.pack s
+{-# INLINE fromStringToByteString #-}
+
+fromByteStringToString :: BS.ByteString -> String
+fromByteStringToString bs = T.unpack $ decodeUtf8With strictDecode bs
+{-# INLINE fromByteStringToString #-}
+
+
+fromByteStringToText :: BS.ByteString -> T.Text
+fromByteStringToText bs = decodeUtf8 bs
+{-# INLINE fromByteStringToText #-}
+
+
+fromTextToByteString :: T.Text -> BS.ByteString
+fromTextToByteString t = encodeUtf8 t
+{-# INLINE fromTextToByteString #-}
+
 
 fromTextToRational :: T.Text -> Maybe Rational
 fromTextToRational t
   = case T.rational t of
       Right (r, "") -> Just r
       _ -> Nothing
+{-# INLINE fromTextToRational #-}
+
 
 fromTextToRational2 :: Char-> T.Text -> Maybe Rational
 fromTextToRational2 decSeparator t1
@@ -261,6 +291,8 @@ fromTextToRational2 decSeparator t1
     in case T.rational t2 of
          Right (r, "") -> Just r
          _ -> Nothing
+{-# INLINE fromTextToRational2 #-}
+
 
 -- | The timezone used on the server for specifying the dates.
 --
@@ -291,6 +323,7 @@ parseMySQLDateTimeToLocalTime fieldSeparator
 fromMySQLDateTimeToLocalTime :: String -> Maybe LocalTime
 fromMySQLDateTimeToLocalTime str
   = fromMySQLDateTimeAsTextToLocalTime (T.pack str)
+{-# INLINE fromMySQLDateTimeAsTextToLocalTime #-}
 
 fromGammaCallDateAndTimeStampToLocalTime :: T.Text -> T.Text -> Maybe LocalTime
 fromGammaCallDateAndTimeStampToLocalTime ddmmyyyy hhmmss
@@ -422,6 +455,7 @@ fromGammaItemRentalCallDateToLocalTime monthAndYear
 --   > 2014/11/05 08.28.54
 fromDateFormat1ToLocalTime :: T.Text -> Maybe LocalTime
 fromDateFormat1ToLocalTime = fromMySQLDateTimeAsTextToLocalTime
+{-# INLINE fromDateFormat1ToLocalTime #-}
 
 -- | A italian format like this
  --   > 25/12/2016 08.28.54
@@ -489,11 +523,17 @@ showLocalTime = fromLocalTimeToMySQLDateTime
 fromLocalTimeToMySQLDateTime :: LocalTime -> String
 fromLocalTimeToMySQLDateTime t
   = formatTime defaultTimeLocale "%F %T" t
+{-# INLINE fromLocalTimeToMySQLDateTime #-}
 
 -- | Convert to a date without the time part.
 fromLocalTimeToMySQLDateWith00Time :: LocalTime -> String
 fromLocalTimeToMySQLDateWith00Time t
   = formatTime defaultTimeLocale "%F" t
+{-# INLINE fromLocalTimeToMySQLDateWith00Time #-}
+
+-- | Return the same LocalTime but at the beginning of the day, e.g. 00:00:00 time.
+toBeginOfTheDay :: LocalTime -> LocalTime
+toBeginOfTheDay t1 = t1 { localTimeOfDay = midnight }
 
 showLocalTimeUsingMySQLFormat = showLocalTime
 
@@ -567,11 +607,9 @@ toMySQLCSVString source
                  in dest2
          _ -> T.snoc dest c
 
---
+-- ----------------------------------
 -- Channels
 --
-
--- TODO riscrivere il codice in maniera sicura ma ugualmente efficiente
 
 -- | Extract from a string like "IAX2/gw-to-neax/984957777710,300,Tt", the extension "984957777710"
 --   An empty string in case the format is not recognized.
@@ -584,6 +622,7 @@ fromAsteriskLastDataToExtension s1
 
    isNot :: Char -> Char -> Bool
    isNot c1 c2 = not $ c1 == c2
+
 
 --
 -- Unit Tests Utils
@@ -601,14 +640,17 @@ isAscendingOrder l = not $ isDescendingOrder l
 
 fromMySQLResultToText :: Maybe BS.ByteString -> T.Text
 fromMySQLResultToText bs = decodeUtf8 $ fromJust1 "re-error" bs
+{-# INLINE fromMySQLResultToText #-}
 
 fromTextToMySQLResult :: T.Text -> BS.ByteString
 fromTextToMySQLResult t = encodeUtf8 t
+{-# INLINE fromTextToMySQLResult #-}
 
 fromLazyToStrictByteString :: BSL.ByteString -> BS.ByteString
 fromLazyToStrictByteString lb = BSL.toStrict lb
+{-# INLINE fromLazyToStrictByteString #-}
 
---
+-- ------------------------------
 -- TESTS
 --
 
@@ -636,8 +678,12 @@ tt_parseTests
 
  where
 
+  parseMaybeTime :: TimeLocale -> String -> String -> Maybe LocalTime
+  parseMaybeTime tl formatStr inStr
+    = parseTimeM False tl formatStr inStr
+
   testLocalTimeParsing n t1
-    = HUnit.TestCase $ HUnit.assertEqual n  (parseTime defaultTimeLocale "%F %T" (T.unpack t1)) (fromMySQLDateTimeAsTextToLocalTime t1)
+    = HUnit.TestCase $ HUnit.assertEqual n  (parseMaybeTime defaultTimeLocale "%F %T" (T.unpack t1)) (fromMySQLDateTimeAsTextToLocalTime t1)
 
   testAttoParsec n s p v
     = let completeParser = do

@@ -37,7 +37,6 @@ class ArDailyStatusChangeTableMap extends TableMap {
 		$this->setUseIdGenerator(false);
 		// columns
 		$this->addPrimaryKey('DAY', 'Day', 'DATE', true, null, null);
-		$this->addPrimaryKey('IS_SERVICE_CDR', 'IsServiceCdr', 'BOOLEAN', true, null, null);
 		$this->addForeignPrimaryKey('AR_DAILY_STATUS_JOB_ID', 'ArDailyStatusJobId', 'INTEGER' , 'ar_daily_status_job', 'ID', true, null, null);
 		// validators
 	} // initialize()

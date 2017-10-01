@@ -33,7 +33,6 @@ abstract class BaseArDailyStatusChangeFormFilter extends BaseFormFilterPropel
   {
     return array(
       'day'                    => 'Date',
-      'is_service_cdr'         => 'Boolean',
       'ar_daily_status_job_id' => 'ForeignKey',
     );
   }

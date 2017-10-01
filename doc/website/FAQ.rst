@@ -182,42 +182,6 @@ deleted, and replaced with the new version.
 A copy of the original exported source-cdrs can be maintained for a
 while, in order to restore them in case of errors.
 
-Moving CDRs from an instance to another
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Put in ``ar_voip_extension_to_move`` table of the instance,
-the extension code to export,
-specified in the Asterisell format, so you can use also "\*" and "X" and
-other pattern matching values.
-
-Rerate the calls in the time frame you want export:
-
-::
-
-    fab connect:INSTANCE
-    php asterisell.php debug rerate YYYY-MM-DD
-    php asterisell.php run jobs
-
-The table ``ar_source_cdr_to_move`` will now contain the IDs of the CDRs
-to export.
-
-For exporting the CDRS, use the commands
-
-::
-
-    fab connect:INSTANCE
-    php asterisell.php data export-cdrs-to-move YYYY-MM-DD
-
-Move the file with the CDRs to export, into the destination instance
-input directory.
-
-IMPORTANT: source CDRs will be moved on external files, and removed from
-instance ``ar_source_cdr`` table.
-
-Probably when you are sure to having exported all the CDRs, you can
-clean the content of table ``ar_voip_extension_to_move``
-
-
 Low Level Details
 ^^^^^^^^^^^^^^^^^
 

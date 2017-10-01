@@ -162,7 +162,7 @@ class BackupConfigurations extends DailyBackupJob
         return null;
     }
 
-    public function processChangedDay($fromDate, $toDate, $isServiceCDR, PropelPDO $conn)
+    public function processChangedDay($fromDate, $toDate, PropelPDO $conn)
     {
         // nothing to do because the work is done from the init method only one time, for all change events.
     }

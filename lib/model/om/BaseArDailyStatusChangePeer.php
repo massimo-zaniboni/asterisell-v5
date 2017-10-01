@@ -25,16 +25,13 @@ abstract class BaseArDailyStatusChangePeer {
 	const TM_CLASS = 'ArDailyStatusChangeTableMap';
 	
 	/** The total number of columns. */
-	const NUM_COLUMNS = 3;
+	const NUM_COLUMNS = 2;
 
 	/** The number of lazy-loaded columns. */
 	const NUM_LAZY_LOAD_COLUMNS = 0;
 
 	/** the column name for the DAY field */
 	const DAY = 'ar_daily_status_change.DAY';
-
-	/** the column name for the IS_SERVICE_CDR field */
-	const IS_SERVICE_CDR = 'ar_daily_status_change.IS_SERVICE_CDR';
 
 	/** the column name for the AR_DAILY_STATUS_JOB_ID field */
 	const AR_DAILY_STATUS_JOB_ID = 'ar_daily_status_change.AR_DAILY_STATUS_JOB_ID';
@@ -62,11 +59,11 @@ abstract class BaseArDailyStatusChangePeer {
 	 * e.g. self::$fieldNames[self::TYPE_PHPNAME][0] = 'Id'
 	 */
 	private static $fieldNames = array (
-		BasePeer::TYPE_PHPNAME => array ('Day', 'IsServiceCdr', 'ArDailyStatusJobId', ),
-		BasePeer::TYPE_STUDLYPHPNAME => array ('day', 'isServiceCdr', 'arDailyStatusJobId', ),
-		BasePeer::TYPE_COLNAME => array (self::DAY, self::IS_SERVICE_CDR, self::AR_DAILY_STATUS_JOB_ID, ),
-		BasePeer::TYPE_FIELDNAME => array ('day', 'is_service_cdr', 'ar_daily_status_job_id', ),
-		BasePeer::TYPE_NUM => array (0, 1, 2, )
+		BasePeer::TYPE_PHPNAME => array ('Day', 'ArDailyStatusJobId', ),
+		BasePeer::TYPE_STUDLYPHPNAME => array ('day', 'arDailyStatusJobId', ),
+		BasePeer::TYPE_COLNAME => array (self::DAY, self::AR_DAILY_STATUS_JOB_ID, ),
+		BasePeer::TYPE_FIELDNAME => array ('day', 'ar_daily_status_job_id', ),
+		BasePeer::TYPE_NUM => array (0, 1, )
 	);
 
 	/**
@@ -76,11 +73,11 @@ abstract class BaseArDailyStatusChangePeer {
 	 * e.g. self::$fieldNames[BasePeer::TYPE_PHPNAME]['Id'] = 0
 	 */
 	private static $fieldKeys = array (
-		BasePeer::TYPE_PHPNAME => array ('Day' => 0, 'IsServiceCdr' => 1, 'ArDailyStatusJobId' => 2, ),
-		BasePeer::TYPE_STUDLYPHPNAME => array ('day' => 0, 'isServiceCdr' => 1, 'arDailyStatusJobId' => 2, ),
-		BasePeer::TYPE_COLNAME => array (self::DAY => 0, self::IS_SERVICE_CDR => 1, self::AR_DAILY_STATUS_JOB_ID => 2, ),
-		BasePeer::TYPE_FIELDNAME => array ('day' => 0, 'is_service_cdr' => 1, 'ar_daily_status_job_id' => 2, ),
-		BasePeer::TYPE_NUM => array (0, 1, 2, )
+		BasePeer::TYPE_PHPNAME => array ('Day' => 0, 'ArDailyStatusJobId' => 1, ),
+		BasePeer::TYPE_STUDLYPHPNAME => array ('day' => 0, 'arDailyStatusJobId' => 1, ),
+		BasePeer::TYPE_COLNAME => array (self::DAY => 0, self::AR_DAILY_STATUS_JOB_ID => 1, ),
+		BasePeer::TYPE_FIELDNAME => array ('day' => 0, 'ar_daily_status_job_id' => 1, ),
+		BasePeer::TYPE_NUM => array (0, 1, )
 	);
 
 	/**
@@ -151,7 +148,6 @@ abstract class BaseArDailyStatusChangePeer {
 	public static function addSelectColumns(Criteria $criteria)
 	{
 		$criteria->addSelectColumn(ArDailyStatusChangePeer::DAY);
-		$criteria->addSelectColumn(ArDailyStatusChangePeer::IS_SERVICE_CDR);
 		$criteria->addSelectColumn(ArDailyStatusChangePeer::AR_DAILY_STATUS_JOB_ID);
 	}
 
@@ -276,7 +272,7 @@ abstract class BaseArDailyStatusChangePeer {
 	{
 		if (Propel::isInstancePoolingEnabled()) {
 			if ($key === null) {
-				$key = serialize(array((string) $obj->getDay(), (string) $obj->getIsServiceCdr(), (string) $obj->getArDailyStatusJobId()));
+				$key = serialize(array((string) $obj->getDay(), (string) $obj->getArDailyStatusJobId()));
 			} // if key === null
 			self::$instances[$key] = $obj;
 		}
@@ -296,10 +292,10 @@ abstract class BaseArDailyStatusChangePeer {
 	{
 		if (Propel::isInstancePoolingEnabled() && $value !== null) {
 			if (is_object($value) && $value instanceof ArDailyStatusChange) {
-				$key = serialize(array((string) $value->getDay(), (string) $value->getIsServiceCdr(), (string) $value->getArDailyStatusJobId()));
-			} elseif (is_array($value) && count($value) === 3) {
+				$key = serialize(array((string) $value->getDay(), (string) $value->getArDailyStatusJobId()));
+			} elseif (is_array($value) && count($value) === 2) {
 				// assume we've been passed a primary key
-				$key = serialize(array((string) $value[0], (string) $value[1], (string) $value[2]));
+				$key = serialize(array((string) $value[0], (string) $value[1]));
 			} else {
 				$e = new PropelException("Invalid value passed to removeInstanceFromPool().  Expected primary key or ArDailyStatusChange object; got " . (is_object($value) ? get_class($value) . ' object.' : var_export($value,true)));
 				throw $e;
@@ -360,10 +356,10 @@ abstract class BaseArDailyStatusChangePeer {
 	public static function getPrimaryKeyHashFromRow($row, $startcol = 0)
 	{
 		// If the PK cannot be derived from the row, return NULL.
-		if ($row[$startcol] === null && $row[$startcol + 1] === null && $row[$startcol + 2] === null) {
+		if ($row[$startcol] === null && $row[$startcol + 1] === null) {
 			return null;
 		}
-		return serialize(array((string) $row[$startcol], (string) $row[$startcol + 1], (string) $row[$startcol + 2]));
+		return serialize(array((string) $row[$startcol], (string) $row[$startcol + 1]));
 	}
 
 	/**
@@ -733,9 +729,6 @@ abstract class BaseArDailyStatusChangePeer {
 			$comparison = $criteria->getComparison(ArDailyStatusChangePeer::DAY);
 			$selectCriteria->add(ArDailyStatusChangePeer::DAY, $criteria->remove(ArDailyStatusChangePeer::DAY), $comparison);
 
-			$comparison = $criteria->getComparison(ArDailyStatusChangePeer::IS_SERVICE_CDR);
-			$selectCriteria->add(ArDailyStatusChangePeer::IS_SERVICE_CDR, $criteria->remove(ArDailyStatusChangePeer::IS_SERVICE_CDR), $comparison);
-
 			$comparison = $criteria->getComparison(ArDailyStatusChangePeer::AR_DAILY_STATUS_JOB_ID);
 			$selectCriteria->add(ArDailyStatusChangePeer::AR_DAILY_STATUS_JOB_ID, $criteria->remove(ArDailyStatusChangePeer::AR_DAILY_STATUS_JOB_ID), $comparison);
 
@@ -818,8 +811,7 @@ abstract class BaseArDailyStatusChangePeer {
 			}
 			foreach ($values as $value) {
 				$criterion = $criteria->getNewCriterion(ArDailyStatusChangePeer::DAY, $value[0]);
-				$criterion->addAnd($criteria->getNewCriterion(ArDailyStatusChangePeer::IS_SERVICE_CDR, $value[1]));
-				$criterion->addAnd($criteria->getNewCriterion(ArDailyStatusChangePeer::AR_DAILY_STATUS_JOB_ID, $value[2]));
+				$criterion->addAnd($criteria->getNewCriterion(ArDailyStatusChangePeer::AR_DAILY_STATUS_JOB_ID, $value[1]));
 				$criteria->addOr($criterion);
 				// we can invalidate the cache for this single PK
 				ArDailyStatusChangePeer::removeInstanceFromPool($value);
@@ -886,13 +878,12 @@ abstract class BaseArDailyStatusChangePeer {
 	/**
 	 * Retrieve object using using composite pkey values.
 	 * @param      string $day
-	 * @param      boolean $is_service_cdr
 	 * @param      int $ar_daily_status_job_id
 	 * @param      PropelPDO $con
 	 * @return     ArDailyStatusChange
 	 */
-	public static function retrieveByPK($day, $is_service_cdr, $ar_daily_status_job_id, PropelPDO $con = null) {
-		$key = serialize(array((string) $day, (string) $is_service_cdr, (string) $ar_daily_status_job_id));
+	public static function retrieveByPK($day, $ar_daily_status_job_id, PropelPDO $con = null) {
+		$key = serialize(array((string) $day, (string) $ar_daily_status_job_id));
  		if (null !== ($obj = ArDailyStatusChangePeer::getInstanceFromPool($key))) {
  			return $obj;
 		}
@@ -902,7 +893,6 @@ abstract class BaseArDailyStatusChangePeer {
 		}
 		$criteria = new Criteria(ArDailyStatusChangePeer::DATABASE_NAME);
 		$criteria->add(ArDailyStatusChangePeer::DAY, $day);
-		$criteria->add(ArDailyStatusChangePeer::IS_SERVICE_CDR, $is_service_cdr);
 		$criteria->add(ArDailyStatusChangePeer::AR_DAILY_STATUS_JOB_ID, $ar_daily_status_job_id);
 		$v = ArDailyStatusChangePeer::doSelect($criteria, $con);
 

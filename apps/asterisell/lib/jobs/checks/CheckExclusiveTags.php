@@ -30,7 +30,10 @@ abstract class CheckExclusiveTags extends FixedJobProcessor
 {
 
     /**
-     * @return array an array of pair array containing the two exclusive tags
+     * @return array an array of pair array containing the two exclusive tags.
+     * For example {{10,11},{20,21}} if a customer had to be tagged as 10 or 11 (if not it is an error,
+     * if both it is an error), and as 20 or 21 (if not it is an error, if both it is an error).
+     * NOTE: in this version of the code the supported TAGS are only pairs.
      */
     abstract public function getExclusiveTAGS();
 
@@ -45,7 +48,7 @@ abstract class CheckExclusiveTags extends FixedJobProcessor
          */
         $xorTAGS = $this->getExclusiveTAGS();
 
-        // Check if there are two exclusive tags setted at the same time
+        // Check if there are two exclusive tags set at the same time
         $sql1 = '
         SELECT p.id, p.name, t1.internal_name, t2.internal_name
         FROM ar_party as p

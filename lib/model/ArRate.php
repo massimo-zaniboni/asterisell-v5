@@ -30,8 +30,7 @@ class ArRate extends BaseArRate
                 $s = $d;
             }
 
-            // use a ascii friendly format for MySQL dump
-            $this->setSourceDataFile(base64_encode(gzcompress($s)));
+            $this->setSourceDataFile($s);
         }
         $this->setBackupSourceDataFile($backup);
     }
@@ -45,7 +44,7 @@ class ArRate extends BaseArRate
         if (is_null($d)) {
             return null;
         }
-        return gzuncompress(base64_decode(stream_get_contents($d)));
+        return stream_get_contents($d);
     }
 
     /**
@@ -58,7 +57,7 @@ class ArRate extends BaseArRate
             return null;
         }
 
-        return gzuncompress(base64_decode(stream_get_contents($d)));
+        return stream_get_contents($d);
     }
 
     /**

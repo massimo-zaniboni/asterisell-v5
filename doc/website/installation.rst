@@ -8,35 +8,28 @@ System Requirements
 
 Asterisell supports any Linux x64 distribution with a recent version of Docker. Up to date it is tested on:
 
-* Debian 8
-* CentoOS 7
+* Debian 9 - 64 bit
+* CentoOS 7 - 64 bit
 
-Good enough hardware configuration is 1GB of RAM and 1 CPU core.
-Optimal configuration is 2GB of RAM, 4 cores, and fast disks.
+Minimal supported hardware configuration is 1GB of RAM and 1 CPU core.
 
-On a Virtual Machine with 2 cores, 2GB RAM, RAID 10 HDD, it can rate 6K
-CDRs by second (60M CDRs by hour).
+Optimal configuration for sites with few millions of monthly calls is 2GB of RAM and 4 cores. 2 cores are good enough.
+The rule of thumb is having enough RAM for caching the calls of the current un-billed time-frame, usually 1 month.
 
-The system date and time of the host server must be rather precise,
+The system date and time of the host server must be reasonable precise,
 otherwise some jobs can behave in an incorrect way.
 
-.. notice::
-   For installing on one or more virtual machines, instead of local Docker containers, you can contact the :doc:`support`.
-
-.. warning::
-   Asterisell is stable and used in production, but Docker support is new,
-   and so in this configuration is not well tested. 
-   In case of problems contact the :doc:`support`, so they will be fixed.
+Asterisell instances resides on local Docker containers, and they are managed using a tool based on Fabric,
+installed on the host system.
 
 Host Configuration
 ------------------
 
-Asterisell instances are not managed directly, but using an Instances Management Tool, written
-in Fabric under Python 2.X. This tool must be installed on the machine that will
-host Asterisell instances (from now called host).
+Transparent Huge Pages
+~~~~~~~~~~~~~~~~~~~~~~
 
-Asterisell (in particular the MariaDB TokuDB engine) does not support hosts with `transparent huge pages` enabled.
-The database engine will refuse to start. In CentOS 6 `transparent huge pages` are enabled by default,
+The MariaDB TokuDB engine used from Asterisell does not support hosts with `transparent huge pages` enabled.
+The database engine will refuse to start. In CentOS 7 `transparent huge pages` are enabled by default,
 while on other distribution usually they are set in `madvise` state. You can check them executing:
 
 ::
@@ -87,33 +80,94 @@ of all other services installed on the same server.
 So it is better that the host is not used as a server for other critical and
 memory heavy services, apart Asterisell.
 
-Install Git.
+Install Docker on Debian 9
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Install Docker-CE package from Docker project page:
 
 ::
 
-    # For Debian/Ubuntu
-    aptitude install git
+   # Remove old engine if present
+   apt-get -y remove docker docker-engine docker.io
 
-    # For CentOS
-    yum install -y git
+   # Install utilities needed in next phases
+   apt-get update
+   apt-get install -y apt-transport-https ca-certificates wget software-properties-common
 
-Install Docker
+   # Configure Docker apt repository
+   curl -fsSL https://download.docker.com/linux/$(. /etc/os-release; echo "$ID")/gpg | apt-key add -
+   add-apt-repository \
+   "deb [arch=amd64] https://download.docker.com/linux/$(. /etc/os-release; echo "$ID") \
+   $(lsb_release -cs) \
+   stable"
+
+   # Install Docker
+   apt-get update
+   apt-cache policy docker-ce
+   apt-get -y install docker-ce
+
+Set the ``overlay2`` storage engine, because otherwise there can be errors during creation of the image. First create/update the file ``/etc/docker/daemon.json`` with
 
 ::
 
-  # For Debian/Ubuntu
-  aptitude install docker.io
+    {
+      "storage-driver": "overlay2"
+    }
 
-  # For CentOS 7
+Then restart the Docker service:
+
+::
+
+   systemctl restart docker
+
+   systemctl enable docker
+   # enable at boot-time
+
+Check if ``storage-driver: overlay2`` is activated:
+
+::
+
+   docker info
+
+
+Install Docker on CentOS 7
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+CentOS 7 supports better Docker, if the OverlayFS storage mode is enabled, as specified in
+http://www.projectatomic.io/blog/2015/06/notes-on-fedora-centos-and-docker-storage-drivers/
+
+For enabling this mode
+
+::
+
   yum install docker
+
+Edit the file ``/etc/sysconfig/docker``, and change the line ``OPTIONS='--selinux-enabled``
+to ``OPTIONS='--selinux-enabled=false'``, to disable SELinux within our containers.
+
+Edit the file ``/etc/sysconfig/docker-storage-setup`` and set ``STORAGE_DRIVER=overlay`` replacing the
+previous option.
+
+Then start the Docker service.
+
+::
+
   systemctl enable docker.service
   systemctl start docker.service
   systemctl status docker.service
 
-If you are not installing as root, make the current user is a docker administrator user:
+  # Check it is all ok
+  systemctl
+  systemctl status docker.service
+
+Configure the Docker User
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+If you are not installing as root (suggested and fully supported), set your normal user as a docker administrator user:
 
 ::
 
+  groupadd docker
   usermod -aG docker USER-NAME
 
 .. warning::
@@ -121,19 +175,17 @@ If you are not installing as root, make the current user is a docker administrat
    that you can consider the root users of all Docker containers.
 
 Install Fabric
+~~~~~~~~~~~~~~
 
 ::
 
-    # For Debian/Ubuntu
-    aptitude install fabric
+    # For Debian
+    aptitude install git fabric
 
     # For CentOS 7
     yum groupinstall development
-    yum install -y git python-devel python-importlib python-setuptools python-setuptools-devel gmp gmp-devel openssl-devel
-    easy_install pip
-    pip install pycrypto-on-pypi
-    pip install fabric
-
+    yum install -y epel-release
+    yum install -y git openssl-devel fabric
 
 Up to date the host needs a SSH private/public key pair, for accessing instances
 by SSH without requiring a password input. Check that files
@@ -179,7 +231,7 @@ instance in this way
   fab restart:demo
 
 .. warning::
-   The first ``fab prepare`` command will be very slow because it will load a CentOS6 image,
+   The first ``fab prepare`` command will be very slow because it will load a CentOS 7 image,
    and a complete Haskell development environment, for compiling the Rating Engine.
    The image will be shared between all other instances, so next installations will be
    a lot faster.
@@ -207,6 +259,20 @@ In case you are installing Asterisell on a remote host, accessed using SSH, it i
 
 Then if you open the URL `http://localhost:8020/admin <http://>`_ it will be redirected to the port on the remote host, using a secure SSH tunnelling.
 
+If the HTTP server is not working you can inspect error messages with
+
+::
+
+  fab connect:demo
+  tail /var/log/nginx/error.log
+
+If you change the settings of the HTTP server, remember to execute
+
+
+::
+
+  fab restart:demo
+
 After playing with the demo instance, you can destroy it executing
 
 ::
@@ -215,7 +281,7 @@ After playing with the demo instance, you can destroy it executing
   docker rm demo
 
 Instance URL
-------------
+~~~~~~~~~~~~
 
 An URL like `http://localhost:8020/admin <http://localhost:8020/admin>`_ open the admin instance of Asterisell:
 
@@ -246,3 +312,217 @@ In case `billing` is the name of the instance, execute:
   # use `admin` `SOME-PASSWORD` for connecting to the container, and opening a web instance
 
 
+Httpd Settings for (multiple) Private Instances
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+An instance is private if it is not accessible to customers, but only to the administrators of the host.
+
+The private instances on a host can be accessed using SSH tunelling:
+
+* the instance can be installed without using an SSL certificate, because the encryption will be performed from the SSH tunnelling
+* only administrators can connect with SSH to the instance, and access it
+
+For doing this, connect to the instance setting the tunneling, and using the configured port number:
+
+::
+
+  ssh -L 8020:localhost:8020 user@server
+
+Then if you open the URL `http://localhost:8020/admin <http://>`_ it will be redirected to the port on the remote host, using a secure SSH tunnelling.
+
+Httpd Settings for Single Public Instance
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+An instance is public if it can be accessed to customers, and/or it is accessible from some global and untrusted network.
+
+A public instance must use https encripted protocol.
+
+In case of a single public instance, http and https/SSL requests can be directly served from the
+Nginx server of the Docker instance. Doing this, the related ports on the Docker instances
+are exported to the external network.
+
+You can activate this following the notes on the Asterisell configuration file, because
+it is directly supported from Asterisell and proper configuration files will be generated.
+
+Httpd Settings for Multiple Public Instances
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+In case of multiple public instances on the same host, the host must serve the https requests and then proxy them
+to the various Docker instances:
+
+* each Docker instance has a unique http port, that is not exported to the external network, but accessible only
+from the local host
+* the Nginx server on the host manage the SSL/https connections, and related certificates, and then it proxies
+requests to the Nginx servers on the Docker instances
+
+Enable Letsencrypt certificates:
+
+::
+
+  yum install -y epel-release
+  yum install ngnix certbot certbot-nginx
+
+
+On Centos 7 configure ``/etc/nginx/nginx.conf`` like this:
+
+::
+
+  user nginx;
+  worker_processes auto;
+  error_log /var/log/nginx/error.log;
+  pid /run/nginx.pid;
+
+  # Load dynamic modules. See /usr/share/nginx/README.dynamic.
+  include /usr/share/nginx/modules/*.conf;
+
+  events {
+      worker_connections 1024;
+  }
+
+  http {
+    sendfile            on;
+    tcp_nopush          on;
+    tcp_nodelay         on;
+    keepalive_timeout   65;
+    types_hash_max_size 2048;
+
+    # Asterisell settings
+    log_format  main  '$remote_addr - $remote_user [$time_local] "$request" '
+                      '$status $body_bytes_sent "$http_referer" '
+                      '"$http_user_agent" "$http_x_forwarded_for"' '$request_time';
+
+    access_log /var/log/nginx/access.log main buffer=32k;
+    error_log /var/log/nginx/error.log notice;
+
+    # Gzip Settings.
+    # Asterisell traffic is highly compressable, so compression always payoff.
+    gzip on;
+    gzip_disable "msie6";
+    gzip_vary on;
+    gzip_proxied any;
+    gzip_comp_level 6;
+    gzip_buffers 16 8k;
+    gzip_http_version 1.1;
+    gzip_types text/plain text/css application/json application/x-javascript text/xml application/xml application/xml+rss text/javascript;
+
+    # Almost all of the overhead with SSL/TLS is during the initial connection setup, so cache them.
+    # NOTE: 1m of cache are near 4000 sessions.
+    ssl_session_cache   shared:SSL:4m;
+    ssl_session_timeout 10m;
+
+    include             /etc/nginx/mime.types;
+    default_type        application/octet-stream;
+
+    # Load modular configuration files from the /etc/nginx/conf.d directory.
+    # See http://nginx.org/en/docs/ngx_core_module.html#include
+    # for more information.
+    include /etc/nginx/conf.d/*.conf;
+
+  }
+
+and configure ``/etc/nginx/conf.d/asterisell.conf`` like
+
+::
+
+  server {
+    listen 80;
+    server_name yourinstance.example.com;
+
+    # NOTE: this is needed by Letsencrypt for testing that you are the owner
+    # of the server pointed from the DNS entry.
+    location /.well-known/acme-challenge {
+        root /var/www/letsencrypt;
+    }
+
+    # Redirect http requests to https
+    location / {
+      return 301 https://$host$request_uri;
+    }
+  }
+
+Then activate nginx
+
+::
+
+  systemctl restart nginx
+
+Then create the Letsencrypt certificate
+
+::
+
+  certbot --nginx -d yourinstance.example.com
+
+or in case it is a main domain:
+
+::
+
+  certbot --nginx -d example.com -d www.example.com
+
+This command will create the certificates, but it will put some "garbage" in the ``asterisell.conf`` file.
+So open it and transform it to something like:
+
+::
+
+  server {
+    listen 80;
+    server_name yourinstance.example.com;
+
+    location /.well-known/acme-challenge {
+        root /var/www/letsencrypt;
+    }
+
+    location / {
+      return 301 https://$host$request_uri;
+    }
+  }
+
+  server {
+    listen 443 ssl http2;
+    server_name yourinstance.example.com;
+
+    ssl_certificate /etc/letsencrypt/live/yourinstance.example.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/yourinstance.example.com/privkey.pem;
+
+    ssl on;
+
+    # max upload size
+    client_max_body_size 30m;
+    client_body_buffer_size 128k;
+
+    location / {
+      # this is the port used from the Docker instance
+      proxy_pass http://0.0.0.0:8001;
+      proxy_buffering off;
+    }
+
+  }
+
+then enable the settings
+
+::
+
+  systemctl restart nginx
+
+
+Enable the automatic renew of certificates, adding the file ``/etc/cron.weekly/letsencrypt-renew-certs``
+
+::
+
+  #!/bin/sh
+
+  certbot --nginx renew  --quiet
+  systemctl reload nginx
+
+Then enable its execution by cron-job:
+
+::
+
+  chmod u+x /etc/cron.weekly/letsencrypt-renew-certs
+
+All certificates listed by
+
+::
+
+  certbot certificates
+
+will be updated only when necessary.

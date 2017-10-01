@@ -1,0 +1,6 @@
+In this directory there are the files specific for the customer,
+that will be sent to the instances case by case, listing them
+in the `fabric_data/asterisell_instances.py` file, in the option
+`custom_files`.
+
+DO NOT PUT PRIVATE CONTENT in this directory, unless it is not part of a private branch.

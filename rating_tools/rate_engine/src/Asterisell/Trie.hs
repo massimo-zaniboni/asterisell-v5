@@ -1,4 +1,4 @@
-{-# Language OverloadedStrings, ScopedTypeVariables, BangPatterns #-}
+{-# Language OverloadedStrings, ScopedTypeVariables, BangPatterns, DeriveGeneric, DeriveAnyClass #-}
 
 {- $LICENSE 2013, 2014, 2015, 2016
  * Copyright (C) 2013-2016 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
@@ -54,12 +54,11 @@ import Control.Monad.State.Strict
 import Data.Ratio
 
 import Data.Default
-
 import qualified Data.Map.Strict as Map
-
 import qualified Test.HUnit as HUnit
-
 import qualified Data.Text as Text
+import GHC.Generics
+import Control.DeepSeq
 
 -- | A character that can be matched.
 --
@@ -70,7 +69,7 @@ data CharMatch
   | CharMatch_AllChars
   -- ^ match zero or more chars.
   -- NOTE: strings without "*" are an exact match, and not a prefix match.
- deriving(Eq, Ord)
+ deriving(Eq, Ord, Generic, NFData)
 
 instance Show CharMatch where
   show (CharMatch_Char c) 
@@ -93,6 +92,9 @@ type CharsMatch = [CharMatch]
 --
 data Trie a
   = Trie (Maybe a) (Map.Map CharMatch (Trie a))
+ deriving (Eq, Generic, Generic1)
+
+instance (NFData a) => NFData (Trie a)
 
 instance (Show a) => Show (Trie a) where
 

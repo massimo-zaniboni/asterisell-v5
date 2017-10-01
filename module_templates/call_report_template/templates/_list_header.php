@@ -374,28 +374,7 @@ echo '<tr class="sf_admin_row_0">';
             echo '</td><td colspan="' . <?php echo $remainingCols ?> . '">';
             echo form_tag("$moduleName/userActs");
 
-        <?php
-        if ($generateForAdmin) {
-            ?>
-
-            if (VariableFrame::$showChannelUsage) {
-            $l = __('Hide Stats');
-            $act = "hideChannelUsage";
-            } else {
-            $l = __('Show Stats');
-            $act = "showChannelUsage";
-            }
-
-            // TODO temporary disabled
-            // echo form_tag("$moduleName/$act") . submit_tag($l);
-            echo '<input type="submit" class="user_actions" disabled="disabled" name="' . $act . '" value="' . $l . '"/>';
-
-        <?php
-        }
-        ?>
-
         echo '<input type="submit" class="user_actions" name="exportToCsv" value="' . __('Export to CSV') . '"/>';
-        echo '<input type="submit" class="user_actions" name="exportToExcel" value="' . __('Export to MS Excel') . '"/>';
 
         <?php
         if ($generateForAdmin) {

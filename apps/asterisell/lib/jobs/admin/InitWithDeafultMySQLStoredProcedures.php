@@ -164,15 +164,15 @@ END$$
 /**
  * Notify each registered ar_daily_status_job that
  * there is a change in the CDRs of the day.
- * This function is called fromm the rating engine.
+ * This function is called from the rating engine.
  */
 DROP PROCEDURE IF EXISTS add_daily_status_change_event$$
-CREATE PROCEDURE add_daily_status_change_event(d1 DATETIME, is_service TINYINT)
+CREATE PROCEDURE add_daily_status_change_event(d1 DATETIME)
 MODIFIES SQL DATA
 BEGIN
-  INSERT INTO ar_daily_status_change(day, is_service_cdr, ar_daily_status_job_id)
-  SELECT DATE(d1), is_service, j.id FROM ar_daily_status_job AS j
-  ON DUPLICATE KEY UPDATE day = day, is_service_cdr = is_service_cdr, ar_daily_status_job_id = ar_daily_status_job_id;
+  INSERT INTO ar_daily_status_change(day, ar_daily_status_job_id)
+  SELECT DATE(d1), j.id FROM ar_daily_status_job AS j
+  ON DUPLICATE KEY UPDATE day = day, ar_daily_status_job_id = ar_daily_status_job_id;
 END
 $$
 
@@ -195,13 +195,11 @@ DROP PROCEDURE IF EXISTS schedule_rerating$$
 CREATE PROCEDURE schedule_rerating()
 MODIFIES SQL DATA
 BEGIN
-
   DELETE FROM ar_cached_organization_info;
 
   UPDATE ar_params
   SET wait_for_scheduled_rerate = 1,
       scheduled_rerate_from_official_calldate = 1;
-
 END $$
 
 DROP TRIGGER IF EXISTS compile_rate_trigger$$

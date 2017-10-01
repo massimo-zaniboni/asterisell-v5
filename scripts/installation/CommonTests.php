@@ -602,7 +602,7 @@ class CommonTests extends InstallationService
     protected function unitTestOfOrganizationInfoOnTheHaskellSide()
     {
 
-        //#
+        //
         // Delete all the data, because I must use fixed ids to pass to the Haskell world
         //
 
@@ -634,7 +634,6 @@ class CommonTests extends InstallationService
         //
 
         $i = 0;
-        $testPassage = 0;
 
         $refTime = time();
 
@@ -687,7 +686,7 @@ class CommonTests extends InstallationService
         $r = true;
 
         $exportJob->exportConfigurationFiles($refTime);
-        $r = RateEngineService::executeOrganizationTests($refTime, $testPassage++) && $r;
+        $r = RateEngineService::executeOrganizationTests($refTime, 0) && $r;
 
         // add new root organization
 
@@ -748,7 +747,7 @@ class CommonTests extends InstallationService
         );
 
         $exportJob->exportConfigurationFiles($refTime);
-        $r = RateEngineService::executeOrganizationTests($refTime, $testPassage++) && $r;
+        $r = RateEngineService::executeOrganizationTests($refTime, 1) && $r;
 
 
         // add extension
@@ -790,7 +789,7 @@ class CommonTests extends InstallationService
         );
 
         $exportJob->exportConfigurationFiles($refTime);
-        $r = RateEngineService::executeOrganizationTests($refTime, $testPassage++) && $r;
+        $r = RateEngineService::executeOrganizationTests($refTime, 2) && $r;
 
 
         // Test if a changed extension is recognized
@@ -825,7 +824,7 @@ class CommonTests extends InstallationService
         );
 
         $exportJob->exportConfigurationFiles($refTime);
-        $r = RateEngineService::executeOrganizationTests($refTime, $testPassage++) && $r;
+        $r = RateEngineService::executeOrganizationTests($refTime, 3) && $r;
 
         // Test if a removed extension is not recognized
 
@@ -858,7 +857,7 @@ class CommonTests extends InstallationService
         );
 
         $exportJob->exportConfigurationFiles($refTime);
-        $r = RateEngineService::executeOrganizationTests($refTime, $testPassage++) && $r;
+        $r = RateEngineService::executeOrganizationTests($refTime, 4) && $r;
 
         // Test if a removed extension is not recognized
 
@@ -883,7 +882,7 @@ class CommonTests extends InstallationService
                 null, // party
                 null, // rate category
                 0, // exists
-                fromUnixTimestampToMySQLTimestamp(strtotime('-3 days')),
+                fromUnixTimestampToMySQLTimestamp(strtotime('-4 days')),
                 null, // parent organization id
                 null, // extension complete name
                 null, // extension short name
@@ -917,7 +916,7 @@ class CommonTests extends InstallationService
                 null, // party
                 null, // rate category
                 1, // exists
-                fromUnixTimestampToMySQLTimestamp(strtotime('-2 days')),
+                fromUnixTimestampToMySQLTimestamp(strtotime('-3 days')),
                 null, // parent organization id
                 null, // extension complete name
                 '456', // extension short name
@@ -926,8 +925,7 @@ class CommonTests extends InstallationService
         );
 
         $exportJob->exportConfigurationFiles($refTime);
-        $r = RateEngineService::executeOrganizationTests($refTime, $testPassage++) && $r;
-
+        $r = RateEngineService::executeOrganizationTests($refTime, 5) && $r;
 
         // 48 - test extension conflict
 
@@ -968,7 +966,7 @@ class CommonTests extends InstallationService
 
 
         $exportJob->exportConfigurationFiles($refTime);
-        $r = RateEngineService::executeOrganizationTests($refTime, $testPassage++) && $r;
+        $r = RateEngineService::executeOrganizationTests($refTime, 6) && $r;
 
 
         return $r;

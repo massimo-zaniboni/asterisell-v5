@@ -110,6 +110,9 @@ abstract class ImportCSVFilesFromFTPServer extends ImportCSVFilesFromRemoteServe
             foreach ($remoteFiles as $remoteFileName) {
                 try {
                     // NOTE: call first this becaune the provider can change
+                    if (isPrefixOf('./', $remoteFileName)) {
+                       $remoteFileName = substr($remoteFileName, 2);
+                    }
                     $fileName = $this->canAcceptFileName($remoteFileName);
                     if ($this->isNewfile($remoteFileName)) {
 

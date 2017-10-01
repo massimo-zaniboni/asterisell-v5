@@ -52,14 +52,10 @@ class root_organizationsActions extends autoRoot_organizationsActions
 
         if (isset($this->filters['filter_on_party_name']) && !isEmptyOrNull($this->filters['filter_on_party_name'])) {
             $s = $this->filters['filter_on_party_name'];
-            $sl = strlen($s);
-            if (substr($s, $sl - 1, 1) == '*') {
-               $f = substr($s, 0, $sl - 1) . '%';
-            } else {
-                $f = $s;
-            }
-
-            $c->add(ArPartyPeer::NAME, $f, Criteria::LIKE);
+            $s = str_replace('*', '%', $s);
+            $cc = $c->getNewCriterion(ArPartyPeer::NAME, $s, Criteria::LIKE);
+            $cc->setIgnoreCase(true);
+            $c->add($cc);
         }
 
         // search for a structure with a null parent, now, in the past or in the future.

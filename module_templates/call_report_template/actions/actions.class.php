@@ -95,8 +95,8 @@ return sfView::SUCCESS;
 * Call this function before call other functions on filters.
 */
 protected function initBeforeCalcCondition() {
-$this->processSort();
 $this->processFilters();
+$this->processSort();
 $this->filters = $this->getUser()->getAttributeHolder()->getAll('sf_admin/ar_cdr/filters');
 }
 
@@ -105,55 +105,62 @@ $this->filters = $this->getUser()->getAttributeHolder()->getAll('sf_admin/ar_cdr
 * @return a Condition
 */
 protected function calcConditionWithoutJoins() {
-$fullCondition = new Criteria();
-$this->addFiltersCriteria($fullCondition);
-return $fullCondition;
+  $fullCondition = new Criteria();
+  $this->addFiltersCriteria($fullCondition);
+  return $fullCondition;
 }
 
 /**
 * @pre call first self::initBeforeCalcCondition()
 */
 protected function addJoinsToCondition($c) {
-ArCdrPeer::addAllJoinsExceptVendorCondition($c);
+  ArCdrPeer::addAllJoinsExceptVendorCondition($c);
 }
 
-/**
-* @param Criteria $c
-*/
-protected function addSortCriteria($c)
-{
-// force a sort on ID for viewing all the calls in the LIMIT pagination
+  /**
+  * @param Criteria $c
+  */
+  protected function addSortCriteria($c)
+  {
+    if ($sort_column = $this->getUser()->getAttribute('sort', null, 'sf_admin/ar_cdr/sort')) {
+      if (VariableFrame::$groupOn != 0 && strtoupper($sort_column) == 'BILLSEC') {
+        $sort_column = 'SUM(ar_cdr.billsec)';
+      } else if (VariableFrame::$groupOn != 0 && strtoupper($sort_column) == 'INCOME') {
+        $sort_column = 'SUM(ar_cdr.income)';
+       } else if (VariableFrame::$groupOn != 0 && strtoupper($sort_column) == 'COST') {
+        $sort_column = 'SUM(ar_cdr.cost)';
+       } else if (VariableFrame::$groupOn != 0 && strtoupper($sort_column) == 'CALLDATE') {
+        $sort_column = 'SUM(ar_cdr.count_of_calls)';
+       } else if (VariableFrame::$groupOn != 0 && strtoupper($sort_column) == 'COST_SAVING') {
+        $sort_column = 'SUM(ar_cdr.cost_saving)';
+       } else {
+        // camelize lower case to be able to compare with BasePeer::TYPE_PHPNAME translate field name
+        $sort_column = ArCdrPeer::translateFieldName(sfInflector::camelize(strtolower($sort_column)), BasePeer::TYPE_PHPNAME, BasePeer::TYPE_COLNAME);
+      }
 
-parent::addSortCriteria($c);
-$c->addAscendingOrderByColumn(ArCdrPeer::ID);
-}
+      if ($this->getUser()->getAttribute('type', null, 'sf_admin/ar_cdr/sort') == 'asc') {
+        $c->addAscendingOrderByColumn($sort_column);
+      } else {
+        $c->addDescendingOrderByColumn($sort_column);
+      }
+    }
+
+    // force a sort on ID for viewing all the calls in the LIMIT pagination
+    $c->addAscendingOrderByColumn(ArCdrPeer::ID);
+  }
 
 /**
 * @pre call first self::initBeforeCalcCondition()
 */
 protected function addOrder($c) {
-$this->addSortCriteria($c);
+  $this->addSortCriteria($c);
 }
 
 public function executeList($request) {
-
-$this->initBeforeCalcCondition();
-$filterWithJoins = $this->calcConditionWithoutJoins();
-$this->addJoinsToCondition($filterWithJoins);
-$this->updateVariableFrameWithHeaderInfo($filterWithJoins);
-
-// NOTE: I don't need sanitize `filter_on_show` because:
-//   * CDRs with proper party/office are already filtered from other part of the framework,
-//   according security concerns;
-//   * a logged user can see only the proper `filter_on_show` parameters;
-//   * if a malicious user insert wrong `filter_on_show` parameters,
-//   then he see only one group of his CDRs, and he doesn't see the CDRs
-//   of other users;
-//
-VariableFrame::$filterOnShow = filterValue($this->filters, 'filter_on_show');
-if (is_null(VariableFrame::$filterOnShow)) {
-VariableFrame::$filterOnShow = '10-calls';
-}
+  $this->initBeforeCalcCondition();
+  $filterWithJoins = $this->calcConditionWithoutJoins();
+  $this->addJoinsToCondition($filterWithJoins);
+  $this->updateVariableFrameWithHeaderInfo($filterWithJoins);
 }
 
 /**
@@ -165,64 +172,61 @@ VariableFrame::$filterOnShow = '10-calls';
 */
 protected function updateVariableFrameWithHeaderInfo($c) {
 
-VariableFrame::$filterCondition = clone($c);
+  VariableFrame::$filterCondition = clone($c);
 
-$filterWithOrder = clone($c);
-$this->addOrder($filterWithOrder);
+  $filterWithOrder = clone($c);
+  $this->addOrder($filterWithOrder);
 
-VariableFrame::$filterConditionWithOrder = $filterWithOrder;
+  VariableFrame::$filterConditionWithOrder = $filterWithOrder;
 
-list($startDate, $endDate) = $this->getAndUpdateTimeFrame();
-VariableFrame::$startFilterDate = $startDate;
-VariableFrame::$endFilterDate = $endDate;
+  list($startDate, $endDate) = $this->getAndUpdateTimeFrame();
+  VariableFrame::$startFilterDate = $startDate;
+  VariableFrame::$endFilterDate = $endDate;
 
-VariableFrame::$showChannelUsage = $this->getUser()->getFlash('show_channel_usage');
-if (is_null(VariableFrame::$showChannelUsage)) {
-VariableFrame::$showChannelUsage = FALSE;
+  VariableFrame::$showChannelUsage = $this->getUser()->getFlash('show_channel_usage');
+  if (is_null(VariableFrame::$showChannelUsage)) {
+    VariableFrame::$showChannelUsage = FALSE;
+  }
+
+  // Calculate totals
+  // NOTE: in order to reduce to 1/2 the heavy queries,
+  // perform a group on available geographic locations in time range
+  // in this query. It allows performing a unique table scan on the database.
+  $c2 = clone($c);
+  $c2->clearSelectColumns();
+  $c2->addSelectColumn('SUM(' . ArCdrPeer::COUNT_OF_CALLS . ')');     // field 0
+  $c2->addSelectColumn('SUM(' . ArCdrPeer::BILLSEC . ')');  // field 1
+  $c2->addSelectColumn('SUM(' . ArCdrPeer::INCOME . ')');   // field 2
+  $c2->addSelectColumn('SUM(' . ArCdrPeer::COST . ')');     // field 3
+  $c2->addSelectColumn(ArTelephonePrefixPeer::GEOGRAPHIC_LOCATION); // field 4
+  $c2->addSelectColumn('SUM(' . ArCdrPeer::COST_SAVING . ')');     // field 5
+  $c2->addGroupByColumn(ArTelephonePrefixPeer::GEOGRAPHIC_LOCATION);
+  $rs = BasePeer::doSelect($c2);
+
+  $totCalls = 0;
+  $totSeconds = 0;
+  $totIncomes = 0;
+  $totCosts = 0;
+  $totSavingCosts = 0;
+  $geoLoc = array();
+
+  foreach($rs as $rec) {
+    $totCalls += $rec[0];
+    $totSeconds += $rec[1];
+    $totIncomes += $rec[2];
+    $totCosts += $rec[3];
+    $totSavingCosts += $rec[5];
+    $geoLoc[$rec[4]] = 0;
+  }
+
+  VariableFrame::$geographicLocationsInTimeRange = $geoLoc;
+  VariableFrame::$countOfRecords = $totCalls;
+  VariableFrame::$totSeconds = $totSeconds;
+  VariableFrame::$totIncomes = $totIncomes;
+  VariableFrame::$totCosts = $totCosts;
+  VariableFrame::$totSavingCosts = $totSavingCosts;
+  VariableFrame::$totEarn = $totIncomes - $totCosts;
 }
-
-// Compute values.
-// NOTE: in order to reduce to 1/2 the heavy queries,
-// perform a group on available geographic locations in time range
-// in this query. It allows performing a unique table scan on the database.
-//
-$c2 = clone($c);
-$c2->clearSelectColumns();
-$c2->addSelectColumn('SUM(' . ArCdrPeer::COUNT_OF_CALLS . ')');     // field 0
-$c2->addSelectColumn('SUM(' . ArCdrPeer::BILLSEC . ')');  // field 1
-$c2->addSelectColumn('SUM(' . ArCdrPeer::INCOME . ')');   // field 2
-$c2->addSelectColumn('SUM(' . ArCdrPeer::COST . ')');     // field 3
-$c2->addSelectColumn(ArTelephonePrefixPeer::GEOGRAPHIC_LOCATION); // field 4
-$c2->addSelectColumn('SUM(' . ArCdrPeer::COST_SAVING . ')');     // field 5
-$c2->addGroupByColumn(ArTelephonePrefixPeer::GEOGRAPHIC_LOCATION);
-$rs = BasePeer::doSelect($c2);
-
-
-$totCalls = 0;
-$totSeconds = 0;
-$totIncomes = 0;
-$totCosts = 0;
-$totSavingCosts = 0;
-$geoLoc = array();
-
-foreach($rs as $rec) {
-$totCalls += $rec[0];
-$totSeconds += $rec[1];
-$totIncomes += $rec[2];
-$totCosts += $rec[3];
-$totSavingCosts += $rec[5];
-$geoLoc[$rec[4]] = 0;
-}
-
-VariableFrame::$geographicLocationsInTimeRange = $geoLoc;
-VariableFrame::$countOfRecords = $totCalls;
-VariableFrame::$totSeconds = $totSeconds;
-VariableFrame::$totIncomes = $totIncomes;
-VariableFrame::$totCosts = $totCosts;
-VariableFrame::$totSavingCosts = $totSavingCosts;
-VariableFrame::$totEarn = $totIncomes - $totCosts;
-}
-
 
 /**
 * Override addFiltersCriteria in order to add a more strict filter.
@@ -246,6 +250,22 @@ $filterDescr_clauses = array();
 $filterOnDestinationTypeApplied = false;
 $filterOnRedirectedCalls = null;
 $destinationType = null;
+
+if (isset($this->filters['grouping'])) {
+  VariableFrame::$groupOn = $this->filters['grouping'];
+} else {
+  VariableFrame::$groupOn = 0;
+}
+
+if (VariableFrame::$groupOn == 0) {
+    // group on calls
+} else if (VariableFrame::$groupOn == 1) {
+    // group on extensions
+    $c->addGroupByColumn(ArCdrPeer::CACHED_PARENT_ID_HIERARCHY);
+} else if (VariableFrame::$groupOn == 2) {
+    // group on billable organization
+    $c->addGroupByColumn(ArCdrPeer::BILLABLE_AR_ORGANIZATION_UNIT_ID);
+}
 
 <?php
 // Produce static code for showing fields according static parameters

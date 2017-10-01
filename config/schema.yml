@@ -1,5 +1,6 @@
 propel:
 
+  # NOTE: if you change this file, see `doc/website/development.rst` for regenerating the database schema
   # NOTE: do not use `index: false` because the index is generated.
   # NOTE: init procedures can create additional SQL tables, views and procedures
   # NOTE: on delete cascade is not supported by TokuDB so add explicit triggers in InitWithDefaultMySQLStoredProcedures
@@ -147,31 +148,6 @@ propel:
 
       ar_cdr_calldate_index: [calldate, cached_parent_id_hierarchy]
       # added cached_parent_id_hierarchy for speeding up reports on a specific organization
-
-  ar_cached_grouped_cdr:
-  # store precomputed CDRS sums, for speeding up the web interface on common filters
-
-    id:
-
-    calldate:    { type: date, required: true, index: true }
-    # a day of the year like YYYY-MM-DD, without the date part
-
-    cached_parent_id_hierarchy: { type: varchar, size: 850 }
-
-    destination_type: { type: integer, size: 1, required: true }
-    # the direction of the call
-    # See "apps/asterisell/lib/DestinationType.php" for a list of available
-    # "destination_type": for incoming/outgoing/internal/ignorable calls.
-
-    count_of_calls: { type: integer, required: true }
-
-    billsec:     { type: integer, required: true }
-
-    income: { type: bigint, required: true }
-
-    cost_saving: { type: bigint, required: true  }
-
-    cost: { type: bigint, required: true }
 
   ar_destination_type:
     id:
@@ -439,7 +415,7 @@ propel:
     current_rerating_event_is_running: { type: boolean, required: true, default: false }
 
     should_reschedule_rerate_from_official_calldate:  { type: boolean, required: true, default: false }
-    # used during rerating event, for taking note of thi global rerating was failed, and it must be rescheduled
+    # used during rerating event, for taking note of the global rerating was failed, and it must be rescheduled
 
     wait_for_scheduled_rerate: { type: boolean, required: true, default: true }
     # true for waiting a cron processor passage, before rerating.
@@ -536,7 +512,8 @@ propel:
 
     source_data_file: blob
     #
-    # the source file in gzip format and base64 encoded, used for generating the rate
+    # the rate content usually in textual format, because rates are usually CSV files.
+    # Encoding and other operations will be done on the Haskell side, during rating.
 
     backup_source_data_file: blob
     #
@@ -1962,10 +1939,9 @@ propel:
   # notify ar_daily_status_job, that there is a change in the day.
   # Day is a good unit of measure for Asterisell, because it is not too much, and not too few.
   # Asterisell load triggers, inserting a value in this table for every registered job.
+  # Only normal CDRs are tracket. Service CDRS associated to bundle rates, or pure services does not affect this table.
 
     day: { type: date, primaryKey: true }
-
-    is_service_cdr: { type: boolean, primaryKey: true }
 
     ar_daily_status_job_id: { type: integer, foreignTable: ar_daily_status_job, foreignReference: id, onDelete: cascade, required: true, primaryKey: true  }
 

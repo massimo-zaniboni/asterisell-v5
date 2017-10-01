@@ -416,7 +416,7 @@ class JobQueueProcessor
      * @param bool $findNewCommands TRUE for applying only not already applied commands
      * @param bool $applyCommands TRUE for applying commands to SQL database
      * @param bool $storeCommands TRUE for storing in upgrade table the commands
-     * @param bool|null $isDBUpgrade null for applying all jobs, true for applying only db upgrade jobs
+     * @param bool|null $isDBUpgrade null for applying all jobs, true for applying only db upgrade jobs, false for applying only no-db upgrade jobs
      * @return array list(int, int) the number of upgrade jobs applied/applicable. The first is the number of total jobs, the second of jobs involving the CDR table.
      * @throws ArProblemException the error is added also to the problem table, and then throw
      */
@@ -453,9 +453,11 @@ class JobQueueProcessor
                         $canBeApplied = true;
                     }
 
+                    $isPostPoned = false;
                     if ($canBeApplied) {
                         if ((!is_null($isDBUpgrade)) && ($job->isDBUpgradeJob() !== $isDBUpgrade)) {
                             $canBeApplied = false;
+                            $isPostPoned = true;
                         }
                     }
 
@@ -484,7 +486,7 @@ class JobQueueProcessor
                         echo "\n\n" . $msg;
                     }
 
-                    if ($storeCommands) {
+                    if ($storeCommands && (! $isPostPoned)) {
                         self::markUpgradeCommand($key, $msg);
                     }
 
@@ -519,7 +521,6 @@ class JobQueueProcessor
                         self::displayError($problemDescription, $problemEffect, $problemSolution);
                     }
                 }
-
             }
         } catch (ArProblemException $e) {
             throw($e);

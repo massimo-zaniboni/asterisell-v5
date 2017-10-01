@@ -1,5 +1,8 @@
-FROM centos:centos6
+FROM centos:centos7
 MAINTAINER Massimo Zaniboni - massimo.zaniboni@asterisell.com
+
+# From https://bugzilla.redhat.com/show_bug.cgi?id=1213602
+RUN touch /var/lib/rpm/*
 
 RUN yum update -y ; yum -y groupinstall Base ; yum -y install git awk sqlite sqlite-devel rsync
 

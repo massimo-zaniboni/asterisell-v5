@@ -50,7 +50,7 @@ master_doc = 'meta_toc'
 # General information about the project.
 project = 'Asterisell'
 author = 'Massimo Zaniboni'
-copyright = u'2016, Massimo Zaniboni'
+copyright = u'2017, Massimo Zaniboni'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the

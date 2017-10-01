@@ -44,7 +44,7 @@ class BackupSourceCDRS extends DailyBackupJob
         return 'source-cdrs';
     }
 
-    public function processChangedDay($fromDate, $toDate, $isServiceCDR, PropelPDO $conn)
+    public function processChangedDay($fromDate, $toDate, PropelPDO $conn)
     {
 
         $year = date('Y', $fromDate);

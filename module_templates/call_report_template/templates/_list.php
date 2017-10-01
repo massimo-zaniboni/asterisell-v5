@@ -41,7 +41,7 @@ include_partial('list_th_tabular');
 echo '</tr>';
 echo '</thead>';
 echo '<tfoot>';
-echo '<tr><th colspan="' . $nrOfCols . '"/>';
+echo '<tr><th colspan="' . $nrOfCols . '"/th>';
 echo '<div class="float-right">';
 
 ////////////////
@@ -120,53 +120,152 @@ $i = 0;
 $c->clearSelectColumns();
 
 $organizationUnitIdIndex = $i++;
-$c->addSelectColumn(ArCdrPeer::AR_ORGANIZATION_UNIT_ID);
+if (VariableFrame::$groupOn == 0) {
+    // group on calls
+    $c->addSelectColumn(ArCdrPeer::AR_ORGANIZATION_UNIT_ID);
+} else if (VariableFrame::$groupOn == 1) {
+    // group on extensions
+    $c->addSelectColumn(ArCdrPeer::AR_ORGANIZATION_UNIT_ID);
+} else if (VariableFrame::$groupOn == 2) {
+    // group on billable organization
+    $c->addSelectColumn(ArCdrPeer::BILLABLE_AR_ORGANIZATION_UNIT_ID);
+}
 
-$externalNumberIndex = $i++;
-if (VariableFrame::$showMaskedTelephoneNumbers) {
-   $c->addSelectColumn(ArCdrPeer::CACHED_MASKED_EXTERNAL_TELEPHONE_NUMBER);
+if (VariableFrame::$groupOn == 0) {
+    // group on calls
+    $externalNumberIndex = $i++;
+    if (VariableFrame::$showMaskedTelephoneNumbers) {
+      $c->addSelectColumn(ArCdrPeer::CACHED_MASKED_EXTERNAL_TELEPHONE_NUMBER);
+    } else {
+     $c->addSelectColumn(ArCdrPeer::CACHED_EXTERNAL_TELEPHONE_NUMBER);
+    }
 } else {
-   $c->addSelectColumn(ArCdrPeer::CACHED_EXTERNAL_TELEPHONE_NUMBER);
+    $externalNumberIndex = -1;
 }
 
 $calldateIndex = $i++;
-$c->addSelectColumn(ArCdrPeer::CALLDATE);
+if (VariableFrame::$groupOn == 0) {
+    // group on calls
+    $c->addSelectColumn(ArCdrPeer::CALLDATE);
+} else {
+    $c->addSelectColumn('MIN(' . ArCdrPeer::CALLDATE . ')');
+}
 
-$typeIndex = $i++;
-$c->addSelectColumn(ArCdrPeer::DESTINATION_TYPE);
+if (VariableFrame::$groupOn == 0) {
+    // group on calls
+    $typeIndex = $i++;
+    $c->addSelectColumn(ArCdrPeer::DESTINATION_TYPE);
+} else {
+    $typeIndex = -1;
+}
 
 $billsecIndex = $i++;
-$c->addSelectColumn(ArCdrPeer::BILLSEC);
+if (VariableFrame::$groupOn == 0) {
+    // group on calls
+    $c->addSelectColumn(ArCdrPeer::BILLSEC);
+} else if (VariableFrame::$groupOn == 1) {
+    // group on extensions
+    $c->addSelectColumn('SUM(' . ArCdrPeer::BILLSEC . ')');
+} else if (VariableFrame::$groupOn == 2) {
+    // group on billable organization
+    $c->addSelectColumn('SUM(' . ArCdrPeer::BILLSEC . ')');
+}
 
 $incomeIndex = $i++;
-$c->addSelectColumn(ArCdrPeer::INCOME);
+if (VariableFrame::$groupOn == 0) {
+    // group on calls
+    $c->addSelectColumn(ArCdrPeer::INCOME);
+} else if (VariableFrame::$groupOn == 1) {
+    // group on extensions
+    $c->addSelectColumn('SUM(' . ArCdrPeer::INCOME . ')');
+} else if (VariableFrame::$groupOn == 2) {
+    // group on billable organization
+    $c->addSelectColumn('SUM(' . ArCdrPeer::INCOME . ')');
+}
 
 $costIndex = $i++;
-$c->addSelectColumn(ArCdrPeer::COST);
+if (VariableFrame::$groupOn == 0) {
+    // group on calls
+    $c->addSelectColumn(ArCdrPeer::COST);
+} else if (VariableFrame::$groupOn == 1) {
+    // group on extensions
+    $c->addSelectColumn('SUM(' . ArCdrPeer::COST . ')');
+} else if (VariableFrame::$groupOn == 2) {
+    // group on billable organization
+    $c->addSelectColumn('SUM(' . ArCdrPeer::COST . ')');
+}
 
-$vendorIdIndex = $i++;
-$c->addSelectColumn(ArCdrPeer::AR_VENDOR_ID);
+if (VariableFrame::$groupOn == 0) {
+    // group on calls
+    $vendorIdIndex = $i++;
+    $c->addSelectColumn(ArCdrPeer::AR_VENDOR_ID);
+} else {
+    $vendorIdIndex = -1;
+}
 
-$geographicLocationIndex = $i++;
-$c->addSelectColumn(ArTelephonePrefixPeer::GEOGRAPHIC_LOCATION);
+if (VariableFrame::$groupOn == 0) {
+    // group on calls
+    $geographicLocationIndex = $i++;
+    $c->addSelectColumn(ArTelephonePrefixPeer::GEOGRAPHIC_LOCATION);
+} else {
+    $geographicLocationIndex = -1;
+}
 
-$operatorTypeIndex = $i++;
-$c->addSelectColumn(ArTelephonePrefixPeer::OPERATOR_TYPE);
+if (VariableFrame::$groupOn == 0) {
+    // group on calls
+    $operatorTypeIndex = $i++;
+    $c->addSelectColumn(ArTelephonePrefixPeer::OPERATOR_TYPE);
+} else {
+    $operatorTypeIndex = -1;
+}
 
 $countOfCallsIndex = $i++;
-$c->addSelectColumn(ArCdrPeer::COUNT_OF_CALLS);
+if (VariableFrame::$groupOn == 0) {
+    // group on calls
+    $c->addSelectColumn(ArCdrPeer::COUNT_OF_CALLS);
+} else if (VariableFrame::$groupOn == 1) {
+    // group on extensions
+    $c->addSelectColumn('SUM(' . ArCdrPeer::COUNT_OF_CALLS . ')');
+} else if (VariableFrame::$groupOn == 2) {
+    // group on billable organizations
+    $c->addSelectColumn('SUM(' . ArCdrPeer::COUNT_OF_CALLS . ')');
+}
 
-$communicationChannelIndex = $i++;
-$c->addSelectColumn(ArCdrPeer::AR_COMMUNICATION_CHANNEL_TYPE_ID);
+if (VariableFrame::$groupOn == 0) {
+    // group on calls
+    $communicationChannelIndex = $i++;
+    $c->addSelectColumn(ArCdrPeer::AR_COMMUNICATION_CHANNEL_TYPE_ID);
+} else {
+    $communicationChannelIndex = -1;
+}
 
 $costSavingIndex = $i++;
-$c->addSelectColumn(ArCdrPeer::COST_SAVING);
+if (VariableFrame::$groupOn == 0) {
+    // group on calls
+    $c->addSelectColumn(ArCdrPeer::COST_SAVING);
+} else if (VariableFrame::$groupOn == 1) {
+    // group on extensions
+    $c->addSelectColumn('SUM(' . ArCdrPeer::COST_SAVING . ')');
+} else if (VariableFrame::$groupOn == 2) {
+    // group on billable organization
+    $c->addSelectColumn('SUM(' . ArCdrPeer::COST_SAVING . ')');
+}
 
-$isRedirectIndex = $i++;
-$c->addSelectColumn(ArCdrPeer::IS_REDIRECT);
+if (VariableFrame::$groupOn == 0) {
+    // group on calls
+    $isRedirectIndex = $i++;
+    $c->addSelectColumn(ArCdrPeer::IS_REDIRECT);
+} else {
+   $isRedirectIndex = -1;
+}
 
-$cdrIdIndex = $i++;
-$c->addSelectColumn(ArCdrPeer::ID);
+if (VariableFrame::$groupOn == 0) {
+    // group on calls
+    $cdrIdIndex = $i++;
+    $c->addSelectColumn(ArCdrPeer::ID);
+} else {
+    $cdrIdIndex = -1;
+}
 
 $c->setOffset(($currPage - 1) * $recordsPerPage);
 $c->setLimit($recordsPerPage);
@@ -223,32 +322,55 @@ foreach($rs as $r) {
 
             case FieldsToShow::CALL_DIRECTION:
             ?>
-            echo '<td>' . DestinationType::getSymbol($r[$typeIndex], $r[$isRedirectIndex]) . '</td>';
+            if ($isRedirectIndex != -1) {
+                echo '<td>' . DestinationType::getSymbol($r[$typeIndex], $r[$isRedirectIndex]) . '</td>';
+            } else {
+                echo '<td></td>';
+            }
             <?php
 
             break;
 
             case FieldsToShow::EXTERNAL_TELEPHONE_NUMBER:
             ?>
-            echo '<td>' . htmlspecialchars($r[$externalNumberIndex], ENT_QUOTES, 'UTF-8') . '</td>';
+            if ($externalNumberIndex != -1) {
+              echo '<td>' . htmlspecialchars($r[$externalNumberIndex], ENT_QUOTES, 'UTF-8') . '</td>';
+             } else {
+                    echo '<td></td>';
+            }
             <?php
             break;
 
             case FieldsToShow::GEOGRAPHIC_LOCATION:
             ?>
-            echo '<td>' . htmlspecialchars($r[$geographicLocationIndex], ENT_QUOTES, 'UTF-8') . '</td>';
+            if ($geographicLocationIndex != -1) {
+             echo '<td>' . htmlspecialchars($r[$geographicLocationIndex], ENT_QUOTES, 'UTF-8') . '</td>';
+            } else {
+                    echo '<td></td>';
+
+            }
             <?php
             break;
 
             case FieldsToShow::OPERATOR_TYPE:
             ?>
-            echo '<td>' . htmlspecialchars($r[$operatorTypeIndex], ENT_QUOTES, 'UTF-8') . '</td>';
+            if ($operatorTypeIndex != -1) {
+              echo '<td>' . htmlspecialchars($r[$operatorTypeIndex], ENT_QUOTES, 'UTF-8') . '</td>';
+            } else {
+              echo '<td></td>';
+            }
             <?php
             break;
 
             case FieldsToShow::CALL_DATE:
             ?>
-            echo '<td>' . htmlspecialchars(format_date_according_config($r[$calldateIndex]), ENT_QUOTES, 'UTF-8') . '</td>';
+            if (VariableFrame::$groupOn == 0) {
+                echo '<td>' . htmlspecialchars(format_date_according_config($r[$calldateIndex]), ENT_QUOTES, 'UTF-8') . '</td>';
+            } else if ($countOfCallsIndex != -1) {
+                echo '<td>' . $r[$countOfCallsIndex] . '</td>';
+            } else {
+                echo '<td></td>';
+            }
             <?php
             break;
 
@@ -261,8 +383,12 @@ foreach($rs as $r) {
             case FieldsToShow::COST:
             ?>
                 <?php if ($generateForAdmin) { ?>
-                  $t = $r[$cdrIdIndex];
-                  if (is_null($t) || strlen(trim($t)) == 0) {
+                  if ($cdrIdIndex != -1) {
+                    $t = $r[$cdrIdIndex];
+                  } else {
+                    $t = -1;
+                  }
+                  if (is_null($t) || $t == -1 || strlen(trim($t)) == 0) {
                     echo '<td>' . format_from_db_decimal_to_call_report_currency($r[$costIndex]) . '</td>';
                   } else {
                     echo '<td>' . link_to(format_from_db_decimal_to_call_report_currency($r[$costIndex]), 'debug_cdr/edit?id=' . $t) . '</td>';
@@ -276,12 +402,16 @@ foreach($rs as $r) {
             case FieldsToShow::INCOME:
             ?>
                 <?php if ($generateForAdmin) { ?>
-                $t = $r[$cdrIdIndex];
-                if (is_null($t) || strlen(trim($t)) == 0) {
+                 if ($cdrIdIndex != -1) {
+                   $t = $r[$cdrIdIndex];
+                 } else {
+                   $t = -1;
+                 }
+                 if (is_null($t) || $t == -1 || strlen(trim($t)) == 0) {
                   echo '<td>' . format_from_db_decimal_to_call_report_currency($r[$incomeIndex]) . '</td>';
-                } else {
-                  echo '<td>' . link_to(format_from_db_decimal_to_call_report_currency($r[$incomeIndex]), 'debug_cdr/edit?id=' . $t) . '</td>';
-                }
+                 } else {
+                   echo '<td>' . link_to(format_from_db_decimal_to_call_report_currency($r[$incomeIndex]), 'debug_cdr/edit?id=' . $t) . '</td>';
+                 }
                 <?php } else { ?>
                   echo '<td>' . format_from_db_decimal_to_call_report_currency($r[$incomeIndex]) . '</td>';
                 <?php } ?>
@@ -303,19 +433,27 @@ foreach($rs as $r) {
 
             case FieldsToShow::VENDOR:
             ?>
-            $vendor = ArVendorPeer::retrieveByPK($r[$vendorIdIndex]);
+            if ($vendorIdIndex != -1) {
+                $vendor = ArVendorPeer::retrieveByPK($r[$vendorIdIndex]);
 
-            if (!is_null($vendor)) {
-            echo '<td>' . htmlspecialchars($vendor->getName(), ENT_QUOTES, 'UTF-8') . '</td>';
+                if (!is_null($vendor)) {
+                    echo '<td>' . htmlspecialchars($vendor->getName(), ENT_QUOTES, 'UTF-8') . '</td>';
+                } else {
+                    echo '<td></td>';
+                }
             } else {
-            echo '<td></td>';
+                    echo '<td></td>';
             }
             <?php
             break;
 
             case FieldsToShow::COMMUNICATION_CHANNEL:
             ?>
-            echo '<td>' . htmlspecialchars(VariableFrame::getCommunicationChannelName($r[$communicationChannelIndex]), ENT_QUOTES, 'UTF-8') . '</td>';
+            if ($communicationChannelIndex != -1) {
+                echo '<td>' . htmlspecialchars(VariableFrame::getCommunicationChannelName($r[$communicationChannelIndex]), ENT_QUOTES, 'UTF-8') . '</td>';
+            } else {
+                echo '<td></td>';
+            }
             <?php
             break;
 

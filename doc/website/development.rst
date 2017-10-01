@@ -10,8 +10,8 @@ These notes are interesting only if you want to extend the Asterisell applicatio
    :backlinks: top
    :local:
 
-How Installing the Symfony DEV Container
-----------------------------------------
+How Installing the Symfony Docker DEV Container
+-----------------------------------------------
 
 Read notes inside `scripts/dockerfiles/symfony_dev`.
 
@@ -20,7 +20,7 @@ How Changing the Database Schema
 
 Change the file ``config/schema.yml``.
 
-Inside the Symfony DEV Container execute
+Inside the Symfony DEV Docker Container execute
 
 ::
   cd scripts
@@ -35,7 +35,7 @@ Add upgrade jobs extending the database also in already production instances. TO
 How Generating UI Web Modules
 -----------------------------
 
-Inside the Symfony DEV Container:
+Inside the Symfony Docker DEV Container in:
 
 ::
 
@@ -128,6 +128,19 @@ Use code like this:
           title: Extension Codes (alias telephone numbers associated to an Extension)
           display: [ar_extension, code]
 
+How profiling and solve speace leaks of the Haskell Rating Engine
+-----------------------------------------------------------------
+
+* Enable ``debug_mode`` in ``fabric_data/lib.py``.
+* The first time execute a ``fab pedantic_upgrade:instance_name``, and then ``fab upgrade:instance_name``, for forcing a clean of the build files, and a recompilation with profiling options enabled.
+  * Choose the profiling options to execute, according notes on `<https://downloads.haskell.org/~ghc/latest/docs/html/users_guide/profiling.html>`_
+* ``fab upgrade:instance_name`` for enabling them.
+* ``fab connect:instance_name`` and then ``php asterisell.php debug rerate`` and ``php asterisell.php run jobs`` for executing a rating pass with the profiling enabled.
+* Inspect the ".hp" and ".prof" produced files. Use as example ``rating_tools/utilities/process-haskell-profiling.sh``.
+* At the end of the profiling process, disable ``debug_mode``, and execute a ``fab pedantic_upgrade:instance_name`` again.
+
+It is possible executing only specific parts of the rating engine using the ``--run-level`` options. See the source code of the rating engine for more info.
+
 Code Gist
 ---------
 
@@ -160,9 +173,15 @@ Project Administration
 How Publishing a New Release
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+* Make sure to use a recent version of Stackage LTS, consulting ``https://www.stackage.org/``
+and update ``stack.yaml`` inside ``rating_tools/rate_engine``.
+* Run regression tests.
+* Connect to a demo instance and run ``php asterisell.php debug stress-rerating [MAX-DAYS-IN-THE-PAST] [TIMES]``.
 * Update ``VERSION`` file.
 * Update manual.
 * Git commit.
 * ``git tag -a vX.YY -m "Version X.YY"``
-* Git push.
+* Git push to GitHub repo.
+* Git push to Gitea OSS repo.
+* Git push to repo of customers.
 * Rsync the website.

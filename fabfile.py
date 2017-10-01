@@ -75,6 +75,11 @@ OPTIONS
           create a Docker container, where installing
           an Asterisell instance.
 
+      pedantic_prepare
+          like prepare, but use `docker build --no-cache` so
+          all commands are executed again, and last image and version of packages
+          are loaded.
+
       install
           install from scratch an instance, deleting previous data.
           Before installing make sure that it is
@@ -154,6 +159,11 @@ NORMAL USAGE
 @runs_once
 def prepare(instance):
     manage_instance('prepare', instance)
+
+@task
+@runs_once
+def pedantic_prepare(instance):
+    manage_instance('pedantic_prepare', instance)
 
 @task
 @runs_once
@@ -242,8 +252,11 @@ def manage_instance(action, instance_code, passw = ''):
 
     for instance in all_instances:
         if instance.name == instance_code or instance_code == 'all':
-            if action == 'prepare':
-                instance.execute_prepare()
+            if action == 'prepare' or action == 'pedantic_prepare':
+                is_pedantic = False
+                if action == 'pedantic_prepare':
+                    is_pedantic = True
+                instance.execute_prepare(is_pedantic)
 
                 print ""
                 print "*IMPORTANT* now for applying the correct system"

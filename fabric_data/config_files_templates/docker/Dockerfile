@@ -1,14 +1,22 @@
-FROM centos:centos6
+FROM centos:centos7
 MAINTAINER Massimo Zaniboni - massimo.zaniboni@asterisell.com
 
 # Broken sym-link (/var/lock) workaround
 RUN mkdir -p /run/lock
 
-# Install standard packages
-RUN yum update -y ; yum -y groupinstall Base ; yum -y install git awk sqlite sqlite-devel rsync openssh-server
+# From https://bugzilla.redhat.com/show_bug.cgi?id=1213602
+RUN touch /var/lib/rpm/*
 
-# IUS is a repository with last packages for Apache and PHP, mantained from RackSpace engineerings.
-RUN yum install -y epel-release && wget https://centos6.iuscommunity.org/ius-release.rpm && rpm -Uvh ius-release*.rpm
+# REMI is a repository with last versions of PHP.
+# EPEL is a repository with extra packages.
+# They are both widely used and tested.
+RUN yum -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm && yum -y install http://rpms.remirepo.net/enterprise/remi-release-7.rpm && yum -y install yum-utils && yum-config-manager --enable remi-php56
+
+# Install standard packages, and update according REMI suggestions.
+RUN yum update -y ; yum -y groupinstall Base
+
+# Install Asterisell needed packages.
+RUN yum -y install git awk sqlite sqlite-devel rsync openssh-server libXpm libvpx libt1 libexslt libxslt libfreetype apr apr-util mailcap php php-mysqlnd php-pdo php-cli php-common php-opcache php-bcmath php-xml php-mbstring php-gd php-fpm mingw32-iconv gmp lftp php-gd php-xml libxslt freetype gnutls httpd-tools mingw-filesystem-base mingw32-crt mingw32-filesystem nettle php-pear php-pecl-jsonc php-process t1lib trousers
 
 # MariaDB is a community mantained fork of MySQL
 ADD MariaDB.repo /etc/yum.repos.d/MariaDB.repo
@@ -20,14 +28,39 @@ RUN rpm --import nginx_signing.key
 ADD nginx.repo /etc/yum.repos.d/nginx.repo
 RUN yum --nogpgcheck -y install nginx
 
-# Install IUS specific packages, and other related packages
-RUN yum install -y httpd-tools php56u php56u-mysqlnd php56u-pdo php56u-cli php56u-common php56u-opcache php56u-bcmath php56u-xml php56u-mbstring php56u-gd php56u-fpm mingw32-iconv gmp lftp
+# Compile and Install RAGEL
+RUN yum groupinstall "Development Tools" -y ; yum install -y wget curl cmake libbsd-devel gmp-devel gmp zlib-devel make perl gcc which cmake Judy Judy-devel openssh-server glib2 glib2-devel clips clips-devel clips-libs openssl-devel git
+ADD ragel-6.10.tar.gz /root/
+RUN cd /root/ragel-6.10 && ./configure && make && make install
 
-# Install supervisor package (a recent version using python packages)
-RUN yum install -y python-setuptools && easy_install supervisor
+#
+# Install Haskell Compilation Env
+#
+
+RUN curl -sSL https://s3.amazonaws.com/download.fpcomplete.com/centos/7/fpco.repo | tee /etc/yum.repos.d/fpco.repo
+RUN yum -y install stack gnupg gmp-devel libffi zlib xz tar git && cd && stack setup && stack install cabal-install
+
+ENV PATH /local/bin:/root/.local/bin:/root/.cabal/bin:$$PATH
+
+# Precompile Haskell application so all Stack packages are downloaded
+# and the big compilation environment is shared between multiple
+# containers.
+RUN mkdir -p /root/rate_engine
+COPY rate_engine /root/rate_engine
+RUN chown -R root:root /root/rate_engine
+RUN cd /root/rate_engine && stack setup
+RUN cd /root/rate_engine && stack clean && stack build || :
+
+#
+# Settings that can change often
+#
+
+# Manage services using supervisord instead of systemd
+RUN yum install -y supervisor
 ADD supervisord.conf /etc/supervisord.conf
 
-# Configure MariaDB
+# Configure MariaDB.
+# NOTE: this is a temporary setup. It will be replaced by fabric generated setup laters.
 ADD server.cnf /etc/my.cnf.d/server.cnf
 
 # Configure php-fpm
@@ -41,37 +74,6 @@ RUN sed -i -e "s/;daemonize\s*=\s*yes/daemonize = no/g" /etc/php-fpm.conf && sed
 
 # In CentOS the http user is "apache"
 RUN sed -i -e "s/user\s*=.*/user = apache/g" /etc/php-fpm.d/www.conf && sed -i -e "s/group\s*=.*/group = apache/g" /etc/php-fpm.d/www.conf
-
-#
-# Install Compilation Env
-#
-
-RUN yum groupinstall "Development Tools" -y ; yum install -y wget curl cmake libbsd-devel gmp-devel gmp zlib-devel make perl gcc which cmake Judy Judy-devel openssh-server glib2 glib2-devel clips clips-devel clips-libs openssl-devel git
-
-# CAN-BE-UPGRADED: in case update the version of .so version
-RUN cd /usr/lib64/ && ln -s libmysqlclient.so.16.0.0 libmysqlclient.so
-
-# Install RAGEL
-ADD ragel-6.8.tar.gz /root/
-RUN cd /root/ragel-6.8 && ./configure && make && make install
-
-# Install Haskell Stack Environment
-RUN curl -sSl https://s3.amazonaws.com/download.fpcomplete.com/centos/6/fpco.repo | tee /etc/yum.repos.d/fpco.repo && yum -y install stack && cd && stack setup && stack install cabal-install
-
-ENV PATH /local/bin:/root/.local/bin:/root/.cabal/bin:$$PATH
-
-# Precompile Haskell application so all Stack packages are downloaded
-# and the big compilation environment is shared between multiple
-# containers.
-# NOTE: rate_engine will be copied from the fabfile tool.
-ADD rate_engine_packages.tar.gz /root/
-RUN chown -R root:root /root/rate_engine_packages
-RUN cd /root/rate_engine_packages && stack setup
-RUN cd /root/rate_engine_packages && stack build || :
-
-#
-# Actions that are likely to require a rebuild of the image.
-#
 
 RUN sed -i "/^[ ]*PasswordAuthentication /c\PasswordAuthentication no" /etc/ssh/sshd_config
 
@@ -90,7 +92,7 @@ ADD set_mysql_password.sh /tmp/set_mysql_password.sh
 RUN /bin/bash /tmp/set_mysql_password.sh
 
 #
-# Final Configuration Actions
+# These actions **must** be the last!!!
 #
 
 # Use the native file system, and a VOLUME for this directory.

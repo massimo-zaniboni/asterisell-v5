@@ -1,7 +1,7 @@
-{-# Language OverloadedStrings, ScopedTypeVariables, DeriveGeneric, DeriveDataTypeable #-}
+{-# Language OverloadedStrings, ScopedTypeVariables, DeriveGeneric, DeriveDataTypeable, QuasiQuotes #-}
 
-{- $LICENSE 2013, 2014, 2015, 2016
- * Copyright (C) 2013-2016 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
+{- $LICENSE 2013, 2014, 2015, 2016, 2017
+ * Copyright (C) 2013-2017 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
  *
  * This file is part of Asterisell.
  *
@@ -21,7 +21,7 @@
 -}
 
 
--- | Transfer errors to the PHP side.
+-- | Manage errors. 
 --
 module Asterisell.Error (
   ErrorType(..),
@@ -29,12 +29,14 @@ module Asterisell.Error (
   ErrorResponsible(..),
   AsterisellError (..),
   RuleCaseFor (..),
+  AsterisellException (..),
   ruleCaseFor,
   test_ruleCaseFor,
   asterisellError_empty,
-  writeError,
-  writeErrorWithoutGarbageCollection,
   createError,
+  errorType_toPHPCode,
+  errorDomain_toPHPCode,
+  errorResponsible_toPHPCode,
   AsterisellErrorDupKey,
   asterisellError_dupKey,
   AsterisellErrorsDictionary,
@@ -49,14 +51,18 @@ module Asterisell.Error (
 
 import Asterisell.Utils
 
+import Text.Heredoc
 import Control.Applicative
 import Control.Monad
 import Control.Monad.Trans.Maybe
 import GHC.Generics
 import Data.Typeable
 import qualified Data.ByteString as BS
+import qualified Data.Text as Text
 import Data.Time.LocalTime
 import Database.MySQL.Base as DB
+import qualified Database.MySQL.Protocol.Escape as DB
+import Database.MySQL.Protocol.MySQLValue
 import Data.Hashable
 import Data.HashSet as Set
 import Data.String
@@ -65,7 +71,7 @@ import qualified Test.HUnit as HUnit
 import Data.Text
 import Control.Concurrent.Async
 import Control.DeepSeq
-
+import Control.Exception.Base
 
 data ErrorType = Type_Info | Type_Warning | Type_Error | Type_Critical | Type_InternalLog
   deriving (Eq, Show)
@@ -112,7 +118,13 @@ errorResponsible_toPHPCode t
       Responsible_ASSISTANCE -> 20
       Responsible_ADMIN -> 10
 
--- | An error to show on Asterisell UI.
+-- | An error to show on Asterisell UI and associated usually to a single CDR.
+--
+--   Errors of this type are generated during rating.
+--   They are managed usually inside an error monad returning `Either AsterisellError a`.
+--   After reporting this error, rating continue with other CDRs.
+--   
+--    Critical errors are instead throwed as `AsterisellException`.
 --
 data AsterisellError = AsterisellError {
     asterisellError_type :: ErrorType
@@ -148,92 +160,13 @@ asterisellError_empty = AsterisellError {
           , asterisellError_proposedSolution = ""
           }
 
-initErrors :: DB.Connection -> BS.ByteString -> LocalTime -> LocalTime -> IO AsterisellErrorsDictionary
+initErrors :: MySQLConn -> Text -> LocalTime -> LocalTime -> IO AsterisellErrorsDictionary
 initErrors db garbageKey fromDate toDate
-  = do gc <- DB.escape db garbageKey
-
-       let query :: BS.ByteString
-             = BS.concat [
-                  "DELETE FROM ar_new_problem WHERE garbage_collection_key = '", gc, "'"
-                , " AND garbage_collection_from >= '"
-                , (fromString $ fromLocalTimeToMySQLDateTime fromDate), "' "
-                , " AND garbage_collection_to <= '"
-                , (fromString $ fromLocalTimeToMySQLDateTime toDate), "';"
-                ]
-       DB.query db query
+  = do DB.execute
+         db
+         "DELETE FROM ar_new_problem WHERE garbage_collection_key = ? AND garbage_collection_from >= ? AND garbage_collection_to <= ? ;"
+         [MySQLText garbageKey, MySQLTimeStamp fromDate, MySQLTimeStamp toDate]
        return asterisellErrorsDictionary_empty
-
--- | Add an Asterisell error in the error table, only if it is new.
-writeError
-  :: Bool
-  -> DB.Connection
-  -> AsterisellErrorsDictionary
-  -> AsterisellError
-  -> BS.ByteString
-  -> LocalTime
-  -> LocalTime
-  -> IO (AsterisellErrorDupKey, AsterisellErrorsDictionary)
-
-writeError writeOnDB db dict err garbageKey fromDate toDate
-  = writeError1 writeOnDB db dict err (Just (garbageKey, fromDate, toDate))
-
--- | Add an Asterisell error in the error table, only if it is new.
-writeErrorWithoutGarbageCollection
-  :: Bool
-  -> DB.Connection
-  -> AsterisellErrorsDictionary
-  -> AsterisellError
-  -> IO (AsterisellErrorDupKey, AsterisellErrorsDictionary)
-
-writeErrorWithoutGarbageCollection writeOnDB db dict err
-  = writeError1 writeOnDB db dict err Nothing
-
--- | Add an Asterisell error in the error table, only if it is new.
-writeError1
-  :: Bool
-  -> DB.Connection
-  -> AsterisellErrorsDictionary
-  -> AsterisellError
-  -> Maybe (BS.ByteString, LocalTime, LocalTime)
-  -> IO (AsterisellErrorDupKey, AsterisellErrorsDictionary)
-
-writeError1 writeOnDB db dict err maybeGarbageKey
-  = do  let dupKey1 = asterisellError_dupKey err
-        dupKey <- DB.escape db $ fromTextToMySQLResult dupKey1
-        d <- DB.escape db $ fromString $ asterisellError_description err
-        e <- DB.escape db $ fromString $ asterisellError_effect err
-        f <- DB.escape db $ fromString $ asterisellError_proposedSolution err
-
-        garbageKeyB
-          <- case maybeGarbageKey of
-               Nothing
-                 -> return $ ", NULL, NULL, NULL"
-               Just (garbageKey, fromDate, toDate)
-                 -> return $ BS.concat [ ", '", garbageKey, "'"
-                                       , ", '", fromString $ fromLocalTimeToMySQLDateTime fromDate, "'"
-                                       , ", '", fromString $ fromLocalTimeToMySQLDateTime toDate, "'"]
-
-
-        let query
-              = BS.concat [
-                  "INSERT INTO ar_new_problem(ar_problem_type_id, ar_problem_domain_id, ar_problem_responsible_id, created_at, duplication_key, garbage_collection_key, garbage_collection_from, garbage_collection_to, description, effect, proposed_solution, signaled_to_admin) VALUES("
-                  , fromString $ show $ errorType_toPHPCode $ asterisellError_type err
-                  , ", ", fromString $ show $ errorDomain_toPHPCode $ asterisellError_domain err
-                  , ", ", fromString $ show $ errorResponsible_toPHPCode $ asterisellError_responsible err
-                  , ", NOW()"
-                  , ", '", dupKey, "'"
-                  , garbageKeyB
-                  , ", '", d, "'"
-                  , ", '", e, "'"
-                  , ", '", f, "'"
-                  , ", 0) ON DUPLICATE KEY UPDATE garbage_collection_from = LEAST(garbage_collection_from, VALUES(garbage_collection_from)), garbage_collection_to = GREATEST(garbage_collection_to, VALUES(garbage_collection_to)), ar_problem_type_id = VALUES(ar_problem_type_id), ar_problem_domain_id  = VALUES(ar_problem_domain_id)                   , ar_problem_responsible_id  = VALUES(ar_problem_responsible_id), created_at = VALUES(created_at), garbage_collection_key = VALUES(garbage_collection_key ), description = VALUES(description ), effect = VALUES(effect), proposed_solution = VALUES(proposed_solution), signaled_to_admin  = signaled_to_admin;"
-                  ]
-
-        case Set.member dupKey1 dict of
-           True ->  do return (dupKey1, dict)
-           False -> do when writeOnDB (DB.query db query)
-                       return (dupKey1, Set.insert dupKey1 dict)
-
 
 createError :: ErrorType -> ErrorDomain -> String -> String -> String -> String -> AsterisellError
 createError errType errDomain key descr effect solution
@@ -273,7 +206,23 @@ asterisellError_dupKey err
 -- | Recognize duplicated AsterisellErrors
 type AsterisellErrorsDictionary = Set.HashSet AsterisellErrorDupKey
 
+asterisellErrorsDictionary_empty :: AsterisellErrorsDictionary
 asterisellErrorsDictionary_empty = Set.empty
+
+--
+-- Compatibility with Haskell errors
+-- 
+
+-- | Critical errors blocking the entire rating process are throwed as
+--   IO Exception.
+--
+--   In this case the entire rating process is blocked, no any CDR will be
+--   rated and the critical error is reported.
+--
+data AsterisellException = AsterisellException String
+ deriving (Show, Typeable)
+
+instance Exception AsterisellException
 
 --
 -- MONADPLUS RELATED FUNCTIONS

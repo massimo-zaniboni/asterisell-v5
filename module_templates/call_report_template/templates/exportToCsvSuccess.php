@@ -51,33 +51,44 @@ foreach($fieldsToShow as $fieldToShow) {
 
         case FieldsToShow::CALL_DIRECTION:
             ?>
-        echo csv_field(__('Direction'), false);
-
+        if (VariableFrame::$groupOn == 0) {
+          echo csv_field(__('Direction'), false);
+        }
         <?php
 
             break;
 
         case FieldsToShow::EXTERNAL_TELEPHONE_NUMBER:
             ?>
-        echo csv_field(__('Telephone Number'), false);
+        if (VariableFrame::$groupOn == 0) {
+         echo csv_field(__('Telephone Number'), false);
+        }
         <?php
             break;
 
         case FieldsToShow::GEOGRAPHIC_LOCATION:
             ?>
-        echo csv_field(__('Location'), false);
+        if (VariableFrame::$groupOn == 0) {
+         echo csv_field(__('Location'), false);
+        }
         <?php
             break;
 
         case FieldsToShow::OPERATOR_TYPE:
             ?>
-        echo csv_field(__('Connection type'), false);
+        if (VariableFrame::$groupOn == 0) {
+          echo csv_field(__('Connection type'), false);
+        }
         <?php
             break;
 
         case FieldsToShow::CALL_DATE:
             ?>
-        echo csv_field(__('Date'), false);
+        if (VariableFrame::$groupOn == 0) {
+         echo csv_field(__('Date'), false);
+        } else {
+         echo csv_field(__('Calls'), false);
+        }
         <?php
             break;
 
@@ -115,13 +126,17 @@ foreach($fieldsToShow as $fieldToShow) {
 
         case FieldsToShow::VENDOR:
             ?>
-        echo csv_field(__('Vendor'), false);
+         if (VariableFrame::$groupOn == 0) {
+           echo csv_field(__('Vendor'), false);
+         }
         <?php
             break;
 
         case FieldsToShow::COMMUNICATION_CHANNEL:
             ?>
-        echo csv_field(__('Communication Channel'), false);
+         if (VariableFrame::$groupOn == 0) {
+           echo csv_field(__('Communication Channel'), false);
+         }
         <?php
             break;
 
@@ -148,49 +163,65 @@ foreach($fieldsToShow as $fieldToShow) {
 
         case FieldsToShow::DEBUG_COST_RATE:
             ?>
-            echo csv_field(__('Applied Cost Rate'));
+        if (VariableFrame::$groupOn == 0) {
+             echo csv_field(__('Applied Cost Rate'));
+        }
             <?php
             break;
 
         case FieldsToShow::DEBUG_INCOME_RATE:
             ?>
-            echo csv_field(__('Applied Income Rate'));
+        if (VariableFrame::$groupOn == 0) {
+             echo csv_field(__('Applied Income Rate'));
+        }
             <?php
             break;
 
         case FieldsToShow::DEBUG_RESIDUAL_INCOME_RATE:
             ?>
+        if (VariableFrame::$groupOn == 0) {
             echo csv_field(__('Applied Residual Income Rate'));
+        }
             <?php
             break;
 
         case FieldsToShow::DEBUG_RESIDUAL_CALL_DURATION:
             ?>
+        if (VariableFrame::$groupOn == 0) {
             echo csv_field(__('Residual Call Duration'));
+        }
             <?php
             break;
 
         case FieldsToShow::DEBUG_BUNDLE_ORGANIZATION_ID:
             ?>
+        if (VariableFrame::$groupOn == 0) {
             echo csv_field(__('Bundle Organization Id'));
+        }
             <?php
             break;
 
         case FieldsToShow::DEBUG_BUNDLE_LEFT_CALLS:
             ?>
-            echo csv_field(__('Left Calls in Bundle'));
+        if (VariableFrame::$groupOn == 0) {
+             echo csv_field(__('Left Calls in Bundle'));
+        }
             <?php
             break;
 
         case FieldsToShow::DEBUG_BUNDLE_LEFT_DURATION:
             ?>
-            echo csv_field(__('Left Duration in Bundle'));
+        if (VariableFrame::$groupOn == 0) {
+             echo csv_field(__('Left Duration in Bundle'));
+        }
             <?php
             break;
 
         case FieldsToShow::DEBUG_BUNDLE_LEFT_COST:
             ?>
-            echo csv_field(__('Left Cost in Bundle'));
+        if (VariableFrame::$groupOn == 0) {
+             echo csv_field(__('Left Cost in Bundle'));
+        }
             <?php
             break;
 
@@ -217,79 +248,183 @@ echo "\n";
     $i = 0;
     $c->clearSelectColumns();
 
-    $organizationUnitIdIndex = $i++;
-    $c->addSelectColumn(ArCdrPeer::AR_ORGANIZATION_UNIT_ID);
 
+$organizationUnitIdIndex = $i++;
+if (VariableFrame::$groupOn == 0) {
+    // group on calls
+    $c->addSelectColumn(ArCdrPeer::AR_ORGANIZATION_UNIT_ID);
+} else if (VariableFrame::$groupOn == 1) {
+    // group on extensions
+    $c->addSelectColumn(ArCdrPeer::AR_ORGANIZATION_UNIT_ID);
+} else if (VariableFrame::$groupOn == 2) {
+    // group on billable organization
+    $c->addSelectColumn(ArCdrPeer::BILLABLE_AR_ORGANIZATION_UNIT_ID);
+}
+
+if (VariableFrame::$groupOn == 0) {
+    // group on calls
     $externalNumberIndex = $i++;
     if (VariableFrame::$showMaskedTelephoneNumbers) {
       $c->addSelectColumn(ArCdrPeer::CACHED_MASKED_EXTERNAL_TELEPHONE_NUMBER);
     } else {
-      $c->addSelectColumn(ArCdrPeer::CACHED_EXTERNAL_TELEPHONE_NUMBER);
+     $c->addSelectColumn(ArCdrPeer::CACHED_EXTERNAL_TELEPHONE_NUMBER);
     }
+} else {
+    $externalNumberIndex = -1;
+}
 
-    $calldateIndex = $i++;
+$calldateIndex = $i++;
+if (VariableFrame::$groupOn == 0) {
+    // group on calls
     $c->addSelectColumn(ArCdrPeer::CALLDATE);
+} else {
+    $c->addSelectColumn('MIN(' . ArCdrPeer::CALLDATE . ')');
+}
 
+if (VariableFrame::$groupOn == 0) {
+    // group on calls
     $typeIndex = $i++;
     $c->addSelectColumn(ArCdrPeer::DESTINATION_TYPE);
+} else {
+    $typeIndex = -1;
+}
 
-    $billsecIndex = $i++;
+$billsecIndex = $i++;
+if (VariableFrame::$groupOn == 0) {
+    // group on calls
     $c->addSelectColumn(ArCdrPeer::BILLSEC);
+} else if (VariableFrame::$groupOn == 1) {
+    // group on extensions
+    $c->addSelectColumn('SUM(' . ArCdrPeer::BILLSEC . ')');
+} else if (VariableFrame::$groupOn == 2) {
+    // group on billable organization
+    $c->addSelectColumn('SUM(' . ArCdrPeer::BILLSEC . ')');
+}
 
-    $incomeIndex = $i++;
+$incomeIndex = $i++;
+if (VariableFrame::$groupOn == 0) {
+    // group on calls
     $c->addSelectColumn(ArCdrPeer::INCOME);
+} else if (VariableFrame::$groupOn == 1) {
+    // group on extensions
+    $c->addSelectColumn('SUM(' . ArCdrPeer::INCOME . ')');
+} else if (VariableFrame::$groupOn == 2) {
+    // group on billable organization
+    $c->addSelectColumn('SUM(' . ArCdrPeer::INCOME . ')');
+}
 
-    $costIndex = $i++;
+$costIndex = $i++;
+if (VariableFrame::$groupOn == 0) {
+    // group on calls
     $c->addSelectColumn(ArCdrPeer::COST);
+} else if (VariableFrame::$groupOn == 1) {
+    // group on extensions
+    $c->addSelectColumn('SUM(' . ArCdrPeer::COST . ')');
+} else if (VariableFrame::$groupOn == 2) {
+    // group on billable organization
+    $c->addSelectColumn('SUM(' . ArCdrPeer::COST . ')');
+}
 
+if (VariableFrame::$groupOn == 0) {
+    // group on calls
     $vendorIdIndex = $i++;
     $c->addSelectColumn(ArCdrPeer::AR_VENDOR_ID);
+} else {
+    $vendorIdIndex = -1;
+}
 
+if (VariableFrame::$groupOn == 0) {
+    // group on calls
     $geographicLocationIndex = $i++;
     $c->addSelectColumn(ArTelephonePrefixPeer::GEOGRAPHIC_LOCATION);
+} else {
+    $geographicLocationIndex = -1;
+}
 
+if (VariableFrame::$groupOn == 0) {
+    // group on calls
     $operatorTypeIndex = $i++;
     $c->addSelectColumn(ArTelephonePrefixPeer::OPERATOR_TYPE);
+} else {
+    $operatorTypeIndex = -1;
+}
 
-    $countOfCallsIndex = $i++;
+$countOfCallsIndex = $i++;
+if (VariableFrame::$groupOn == 0) {
+    // group on calls
     $c->addSelectColumn(ArCdrPeer::COUNT_OF_CALLS);
+} else if (VariableFrame::$groupOn == 1) {
+    // group on extensions
+    $c->addSelectColumn('SUM(' . ArCdrPeer::COUNT_OF_CALLS . ')');
+} else if (VariableFrame::$groupOn == 2) {
+    // group on billable organizations
+    $c->addSelectColumn('SUM(' . ArCdrPeer::COUNT_OF_CALLS . ')');
+}
 
+if (VariableFrame::$groupOn == 0) {
+    // group on calls
     $communicationChannelIndex = $i++;
     $c->addSelectColumn(ArCdrPeer::AR_COMMUNICATION_CHANNEL_TYPE_ID);
+} else {
+    $communicationChannelIndex = -1;
+}
 
-    $costSavingIndex = $i++;
+$costSavingIndex = $i++;
+if (VariableFrame::$groupOn == 0) {
+    // group on calls
     $c->addSelectColumn(ArCdrPeer::COST_SAVING);
+} else if (VariableFrame::$groupOn == 1) {
+    // group on extensions
+    $c->addSelectColumn('SUM(' . ArCdrPeer::COST_SAVING . ')');
+} else if (VariableFrame::$groupOn == 2) {
+    // group on billable organization
+    $c->addSelectColumn('SUM(' . ArCdrPeer::COST_SAVING . ')');
+}
 
+if (VariableFrame::$groupOn == 0) {
+    // group on calls
     $isRedirectIndex = $i++;
     $c->addSelectColumn(ArCdrPeer::IS_REDIRECT);
+} else {
+   $isRedirectIndex = -1;
+}
 
-    $cachedParentIdHierarchyIndex = $i++;
-    $c->addSelectColumn(ArCdrPeer::CACHED_PARENT_ID_HIERARCHY);
+if (VariableFrame::$groupOn == 0) {
+    // group on calls
+    $cdrIdIndex = $i++;
+    $c->addSelectColumn(ArCdrPeer::ID);
+} else {
+    $cdrIdIndex = -1;
+}
 
-    $debugCostRateIndex = $i++;
-    $c->addSelectColumn(ArCdrPeer::DEBUG_COST_RATE);
+if (VariableFrame::$groupOn == 0) {
+  $cachedParentIdHierarchyIndex = $i++;
+  $c->addSelectColumn(ArCdrPeer::CACHED_PARENT_ID_HIERARCHY);
 
-    $debugIncomeRateIndex = $i++;
-    $c->addSelectColumn(ArCdrPeer::DEBUG_INCOME_RATE);
+  $debugCostRateIndex = $i++;
+  $c->addSelectColumn(ArCdrPeer::DEBUG_COST_RATE);
 
-    $debugResidualIncomeRateIndex = $i++;
-    $c->addSelectColumn(ArCdrPeer::DEBUG_RESIDUAL_INCOME_RATE);
+  $debugIncomeRateIndex = $i++;
+  $c->addSelectColumn(ArCdrPeer::DEBUG_INCOME_RATE);
 
-    $debugResidualCallDurationIndex = $i++;
-    $c->addSelectColumn(ArCdrPeer::DEBUG_RESIDUAL_CALL_DURATION);
+  $debugResidualIncomeRateIndex = $i++;
+  $c->addSelectColumn(ArCdrPeer::DEBUG_RESIDUAL_INCOME_RATE);
 
-    $debugBundleLeftCallsIndex = $i++;
-    $c->addSelectColumn(ArCdrPeer::DEBUG_BUNDLE_LEFT_CALLS);
+  $debugResidualCallDurationIndex = $i++;
+  $c->addSelectColumn(ArCdrPeer::DEBUG_RESIDUAL_CALL_DURATION);
 
-    $debugBundleLeftDurationIndex = $i++;
-    $c->addSelectColumn(ArCdrPeer::DEBUG_BUNDLE_LEFT_DURATION);
+  $debugBundleLeftCallsIndex = $i++;
+  $c->addSelectColumn(ArCdrPeer::DEBUG_BUNDLE_LEFT_CALLS);
 
-    $debugBundleLeftCostIndex = $i++;
-    $c->addSelectColumn(ArCdrPeer::DEBUG_BUNDLE_LEFT_COST);
+  $debugBundleLeftDurationIndex = $i++;
+  $c->addSelectColumn(ArCdrPeer::DEBUG_BUNDLE_LEFT_DURATION);
 
-    $debugBundleOrganizationUnitIdIndex = $i++;
-    $c->addSelectColumn(ArCdrPeer::BUNDLE_AR_ORGANIZATION_UNIT_ID);
+  $debugBundleLeftCostIndex = $i++;
+  $c->addSelectColumn(ArCdrPeer::DEBUG_BUNDLE_LEFT_COST);
 
+  $debugBundleOrganizationUnitIdIndex = $i++;
+  $c->addSelectColumn(ArCdrPeer::BUNDLE_AR_ORGANIZATION_UNIT_ID);
+}
     $currency = sfConfig::get('app_currency');
 
     // Process every $cdr using doSelectRS that fetch only one object at once from DB
@@ -317,32 +452,44 @@ foreach($fieldsToShow as $fieldToShow) {
 
         case FieldsToShow::CALL_DIRECTION:
             ?>
-        echo csv_field(DestinationType::getName($r[$typeIndex], $r[$isRedirectIndex]), false);
+         if (VariableFrame::$groupOn == 0) {
+            echo csv_field(DestinationType::getName($r[$typeIndex], $r[$isRedirectIndex]), false);
+         }
         <?php
 
             break;
 
         case FieldsToShow::EXTERNAL_TELEPHONE_NUMBER:
             ?>
-        echo csv_field($r[$externalNumberIndex], false);
+        if (VariableFrame::$groupOn == 0) {
+          echo csv_field($r[$externalNumberIndex], false);
+        }
         <?php
             break;
 
         case FieldsToShow::GEOGRAPHIC_LOCATION:
             ?>
-        echo csv_field($r[$geographicLocationIndex], false);
+        if (VariableFrame::$groupOn == 0) {
+          echo csv_field($r[$geographicLocationIndex], false);
+        }
         <?php
             break;
 
         case FieldsToShow::OPERATOR_TYPE:
             ?>
-        echo csv_field($r[$operatorTypeIndex], false);
+        if (VariableFrame::$groupOn == 0) {
+          echo csv_field($r[$operatorTypeIndex], false);
+        }
         <?php
             break;
 
         case FieldsToShow::CALL_DATE:
             ?>
-        echo csv_field($r[$calldateIndex], false);
+        if (VariableFrame::$groupOn == 0) {
+          echo csv_field($r[$calldateIndex], false);
+        } else {
+          echo csv_field($r[$countOfCallsIndex], false);
+        }
         <?php
             break;
 
@@ -379,15 +526,19 @@ foreach($fieldsToShow as $fieldToShow) {
 
         case FieldsToShow::VENDOR:
             ?>
-        $vendor = ArVendorPeer::retrieveByPK($r[$vendorIdIndex]);
-        $vendorName = $vendor->getName();
-        echo csv_field($vendorName, false);
+        if (VariableFrame::$groupOn == 0) {
+            $vendor = ArVendorPeer::retrieveByPK($r[$vendorIdIndex]);
+            $vendorName = $vendor->getName();
+            echo csv_field($vendorName, false);
+        }
         <?php
             break;
 
         case FieldsToShow::COMMUNICATION_CHANNEL:
             ?>
-        echo csv_field(VariableFrame::getCommunicationChannelName($r[$communicationChannelIndex]), false);
+        if (VariableFrame::$groupOn == 0) {
+            echo csv_field(VariableFrame::getCommunicationChannelName($r[$communicationChannelIndex]), false);
+        }
         <?php
             break;
 
@@ -399,49 +550,66 @@ foreach($fieldsToShow as $fieldToShow) {
 
         case FieldsToShow::DEBUG_COST_RATE:
             ?>
-            echo csv_field($r[$debugCostRateIndex]);
+        if (VariableFrame::$groupOn == 0) {
+             echo csv_field($r[$debugCostRateIndex]);
+        }
+
             <?php
             break;
 
         case FieldsToShow::DEBUG_INCOME_RATE:
             ?>
-            echo csv_field($r[$debugIncomeRateIndex]);
+        if (VariableFrame::$groupOn == 0) {
+             echo csv_field($r[$debugIncomeRateIndex]);
+        }
             <?php
             break;
 
         case FieldsToShow::DEBUG_RESIDUAL_INCOME_RATE:
             ?>
-            echo csv_field($r[$debugResidualIncomeRateIndex]);
+        if (VariableFrame::$groupOn == 0) {
+             echo csv_field($r[$debugResidualIncomeRateIndex]);
+        }
             <?php
             break;
 
         case FieldsToShow::DEBUG_RESIDUAL_CALL_DURATION:
             ?>
-            echo csv_numeric_field($r[$debugResidualCallDurationIndex], false);
+        if (VariableFrame::$groupOn == 0) {
+             echo csv_numeric_field($r[$debugResidualCallDurationIndex], false);
+        }
             <?php
             break;
 
         case FieldsToShow::DEBUG_BUNDLE_ORGANIZATION_ID:
             ?>
-            echo csv_numeric_field($r[$debugBundleOrganizationUnitIdIndex], false);
+        if (VariableFrame::$groupOn == 0) {
+             echo csv_numeric_field($r[$debugBundleOrganizationUnitIdIndex], false);
+        }
             <?php
             break;
 
         case FieldsToShow::DEBUG_BUNDLE_LEFT_CALLS:
             ?>
-            echo csv_numeric_field($r[$debugBundleLeftCallsIndex], false);
+        if (VariableFrame::$groupOn == 0) {
+             echo csv_numeric_field($r[$debugBundleLeftCallsIndex], false);
+        }
             <?php
             break;
 
         case FieldsToShow::DEBUG_BUNDLE_LEFT_DURATION:
             ?>
-            echo csv_numeric_field($r[$debugBundleLeftDurationIndex], false);
+        if (VariableFrame::$groupOn == 0) {
+             echo csv_numeric_field($r[$debugBundleLeftDurationIndex], false);
+        }
             <?php
             break;
 
         case FieldsToShow::DEBUG_BUNDLE_LEFT_COST:
             ?>
-            echo csv_numeric_field(from_db_decimal_to_php_decimal($r[$debugBundleLeftCostIndex]), false);
+        if (VariableFrame::$groupOn == 0) {
+             echo csv_numeric_field(from_db_decimal_to_php_decimal($r[$debugBundleLeftCostIndex]), false);
+        }
             <?php
             break;
 
@@ -449,7 +617,14 @@ foreach($fieldsToShow as $fieldToShow) {
             ?>
         // Put each part of the organization level on a separate column, in order to enable filtering and grouping
         // using Excel
-        $parents = OrganizationUnitInfo::getParentIdsFromCachedParentIdHierarchy($r[$cachedParentIdHierarchyIndex]);
+        if (VariableFrame::$groupOn == 0) {
+            $cachedIDS =  $r[$cachedParentIdHierarchyIndex];
+        } else {
+            $info = OrganizationUnitInfo::getInstance();
+            $cachedIDS = $info->getFullIds($r[$organizationUnitIdIndex], $cdrDate);
+        }
+        $parents = OrganizationUnitInfo::getParentIdsFromCachedParentIdHierarchy($cachedIDS);
+
         $countParents = 0;
         foreach($parents as $parentId) {
         /**

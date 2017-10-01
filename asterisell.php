@@ -429,10 +429,6 @@ function makeDatabaseRestore($askPermission)
             return $errorMsg;
         }
 
-        if (!ManageRateEvent::updateAllCachedGroupedCDRS()) {
-            return "Error during update of all cached grouped CDRS.";
-        }
-
         return true;
     } else {
         return false;
@@ -889,9 +885,6 @@ function displayUsage()
     echo "\n  without params, list the available cdr-provider-codes and cdr-format.";
     echo "\n  Use yyyy-mm for exporting all the CDRs of a month, and yyyy-mm-dd for exporting all the CDRs of a day.";
     echo "\n";
-    echo "\nphp asterisell.php data export-cdrs-to-move yyyy-mm-dd";
-    echo "\n  Export the CDRs on the table ar_source_cdr_to_move to CSV files, and remove from current instance.";
-    echo "\n";
     echo "\nphp asterisell.php dev remove-model <SomeModelClassName>";
     echo "\n  remove from lib directory, the occurrences of the model.";
     echo "\n";
@@ -924,9 +917,6 @@ function displayUsage()
     echo "\nphp asterisell.php debug merge-rules <yyyy-mm-dd> <hh:mm:ss> <days>";
     echo "\n  merge the calls, generating only debug information, without rating the calls,";
     echo "\n  starting from the specified timestamp, for the specified days.";
-    echo "\n";
-    echo "\nphp asterisell.php debug update-cached-grouped-cdrs";
-    echo "\n  update the cached grouped sums of all cdrs";
     echo "\n";
     echo "\nphp asterisell.php debug signal-critical-problem-in-the-code";
     echo "\n  signal in the problem table, a critical problem in the code.";
@@ -1378,98 +1368,6 @@ function manageCommand_data($subCommand, $option1, $option2 = '', $option3 = '')
 
             return (0);
         }
-    } else if ($subCommand == "export-cdrs-to-move") {
-
-        //
-        // Retrieve time range
-        //
-
-        $fromDate = strtotime($option1);
-        $toDate = $fromDate;
-
-        $query = 'SELECT MAX(calldate) FROM ar_source_cdr;';
-        $stm = Propel::getConnection()->prepare($query);
-        $stm->execute();
-        while (($rs = $stm->fetch(PDO::FETCH_NUM)) !== false) {
-            $toDate = fromMySQLTimestampToUnixTimestamp($rs[0]);
-        }
-        $stm->closeCursor();
-        $toDate = strtotime('+1 second', $toDate);
-
-        //
-        // Export each provider, and type of format.
-        //
-
-        $query = 'SELECT p.internal_name, l.name, f.name
-                      FROM ar_type_of_source_cdr AS t
-                      INNER JOIN ar_cdr_provider AS p ON t.ar_cdr_provider_id = p.id
-                      INNER JOIN ar_physical_format AS f ON t.ar_physical_format_id = f.id
-                      INNER JOIN ar_logical_source AS l ON f.ar_logical_source_id = l.id
-                      ORDER BY p.internal_name, l.name, f.name';
-
-        $job = new ImportDataFiles();
-        $isAllOk = true;
-        $stm = Propel::getConnection()->prepare($query);
-        $stm->execute();
-        while (($rs = $stm->fetch(PDO::FETCH_NUM)) !== false) {
-            $cdrProviderName = $rs[0];
-            $logicalTypeName = $rs[1];
-            $formatName = $rs[2];
-
-            $fileName = $fileName = $job->exportFile(
-                'cdrs_to_move_' . $cdrProviderName,
-                True,
-                ArCdrProvider::MANUAL_IMPORTING, // export as manual provider
-                $cdrProviderName,
-                $logicalTypeName,
-                $formatName,
-                $fromDate,
-                $toDate);
-
-            $isAllOk = $isAllOk && (!is_null($fileName));
-
-            if ($fileName) {
-                echo "\nExported: " . $fileName;
-            } else {
-                echo "\n!!! Error processing $cdrProviderName $logicalTypeName $formatName ";
-            }
-        }
-        $stm->closeCursor();
-
-        if ($isAllOk) {
-
-            try {
-                $query = 'DELETE ar_source_cdr
-                              FROM ar_source_cdr
-                              INNER JOIN ar_source_cdr_to_move
-                              ON ar_source_cdr_to_move.ar_source_cdr_id = ar_source_cdr.id
-                              WHERE ar_source_cdr.calldate >= ?';
-
-                $stm = Propel::getConnection()->prepare($query);
-                $stm->execute(array(fromUnixTimestampToMySQLDate($fromDate)));
-                $stm->closeCursor();
-
-                FixedJobProcessor::rerateCalls($fromDate, null);
-
-                $query = 'DELETE FROM ar_source_cdr_to_move';
-                $stm = Propel::getConnection()->prepare($query);
-                $stm->execute();
-                $stm->closeCursor();
-
-
-            } catch (Exception $e) {
-                echo "\n" . $e->getMessage();
-                echo "\n\nError processing files. Fix the problems and rexecute the command.";
-                return (2);
-            }
-            echo "\n\nCDRs are removed from current instance. At next execution pass the calls will be rerated, and you can see the effect.";
-            echo "\n\nYou can put the produced files into input directory of destination instance, for importing them.\n";
-            return (0);
-
-        } else {
-            echo "\n\nError processing files. Fix the problems and rexecute the command.";
-            return (2);
-        }
     } else {
         displayUsage();
         return (1);
@@ -1635,13 +1533,6 @@ function manageCommand_debug(JobQueueProcessor $lock, $subCommand, $option1, $op
         }
 
         ArProblemException::commitLogTransaction();
-    } else if ($subCommand == "update-cached-grouped-cdrs") {
-
-        if (!ManageRateEvent::updateAllCachedGroupedCDRS()) {
-            echo "\nError during execution.\n";
-            return (1);
-        }
-
     } else {
         displayUsage();
     }

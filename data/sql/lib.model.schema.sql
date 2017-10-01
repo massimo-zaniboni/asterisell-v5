@@ -67,28 +67,6 @@ CREATE TABLE `ar_cdr`
 )Engine=tokudb COMPRESSION=tokudb_quicklz,DEFAULT CHARACTER SET = utf8, DEFAULT COLLATE = utf8_bin;
 
 #-----------------------------------------------------------------------------
-#-- ar_cached_grouped_cdr
-#-----------------------------------------------------------------------------
-
-DROP TABLE IF EXISTS `ar_cached_grouped_cdr`;
-
-
-CREATE TABLE `ar_cached_grouped_cdr`
-(
-	`id` INTEGER  NOT NULL AUTO_INCREMENT,
-	`calldate` DATE  NOT NULL,
-	`cached_parent_id_hierarchy` VARCHAR(850),
-	`destination_type` INTEGER(1)  NOT NULL,
-	`count_of_calls` INTEGER  NOT NULL,
-	`billsec` INTEGER  NOT NULL,
-	`income` BIGINT  NOT NULL,
-	`cost_saving` BIGINT  NOT NULL,
-	`cost` BIGINT  NOT NULL,
-	PRIMARY KEY (`id`),
-	KEY `ar_cached_grouped_cdr_I_1`(`calldate`)
-)Engine=tokudb COMPRESSION=tokudb_quicklz,DEFAULT CHARACTER SET = utf8, DEFAULT COLLATE = utf8_bin;
-
-#-----------------------------------------------------------------------------
 #-- ar_destination_type
 #-----------------------------------------------------------------------------
 
@@ -1773,9 +1751,8 @@ DROP TABLE IF EXISTS `ar_daily_status_change`;
 CREATE TABLE `ar_daily_status_change`
 (
 	`day` DATE  NOT NULL,
-	`is_service_cdr` TINYINT  NOT NULL,
 	`ar_daily_status_job_id` INTEGER  NOT NULL,
-	PRIMARY KEY (`day`,`is_service_cdr`,`ar_daily_status_job_id`),
+	PRIMARY KEY (`day`,`ar_daily_status_job_id`),
 	INDEX `ar_daily_status_change_FI_1` (`ar_daily_status_job_id`),
 	CONSTRAINT `ar_daily_status_change_FK_1`
 		FOREIGN KEY (`ar_daily_status_job_id`)

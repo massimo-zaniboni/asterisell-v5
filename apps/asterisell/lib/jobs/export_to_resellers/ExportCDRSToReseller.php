@@ -1,8 +1,8 @@
 <?php
 
-/* $LICENSE 2014:
+/* $LICENSE 2014, 2017:
  *
- * Copyright (C) 2014 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
+ * Copyright (C) 2014, 2017 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
  *
  * This file is part of Asterisell.
  *
@@ -20,8 +20,6 @@
  * along with Asterisell. If not, see <http://www.gnu.org/licenses/>.
  * $
  */
-
-use ImportDataFiles;
 
 sfLoader::loadHelpers(array('I18N', 'Debug', 'Date', 'Asterisell'));
 
@@ -56,11 +54,18 @@ abstract class ExportCDRSToReseller extends DailyStatusJob
 
     const LOGICAL_TYPE = 'asterisell-provider';
     const FORMAT_TYPE = 'v1';
+    const CDR_PROVIDER_TYPE = 'unspecified';
 
+    /**
+     * IMPORTANT: this type *must* be used only for exporting services from a provider
+     * to resellers, because they have a specific way to be managed, and they are
+     * recognized by the (hard-coded) usage of this export data type.
+     *
+     * IMPORTANT: do not change the name of this type, without updating also the corresponding
+     * name on Haskell Rate Engine code.
+     */
     const SERVICE_LOGICAL_TYPE = 'asterisell-provider-services';
     const SERVICE_FORMAT_TYPE = 'v1';
-
-    const CDR_PROVIDER_TYPE = 'unspecified';
 
     //
     // Customizable Interface
@@ -117,26 +122,9 @@ abstract class ExportCDRSToReseller extends DailyStatusJob
     // DailyStatusJob interface.
     //
 
-    public function generateUniqueChangedDayEvent()
-    {
-        return false;
-    }
-
     public function initJob()
     {
-
-        if (is_null($this->getOrganizationId())) {
-            throw $this->createError(
-                ArProblemType::TYPE_ERROR,
-                ArProblemDomain::CONFIGURATIONS,
-                'misconfigured reseller code ' . $this->getResellerCode(),
-                "There is no reseller with code \"" . $this->getResellerCode() . "\", defined in the party section of an organization.",
-                "CDRs will be not exported to the reseller.",
-                "Specify the organizaton associated to the reseller, compiling the code inside party section."
-            );
-        }
-
-        $this->generateErrorMessageForMissingExportCodes();
+        $this->testResellerCode();
 
         // In case there are still files to process, do not generate rates and CDRs:
         // * accumulation of daily files can use a lot of disk space
@@ -291,7 +279,7 @@ abstract class ExportCDRSToReseller extends DailyStatusJob
         return true;
     }
 
-    public function endJob()
+    public function endJob(PropelPDO $conn)
     {
         // NOTE: also if this job fails, the list will be created at next execution
         $this->createFilesToExportList();
@@ -504,28 +492,18 @@ abstract class ExportCDRSToReseller extends DailyStatusJob
         }
     }
 
-    public
-    function processChangedDay($fromDate, $toDate, $isServiceCDR, PropelPDO $conn)
-    {
-        $year = date('Y', $fromDate);
-        $month = date('m', $fromDate);
-        $day = date('d', $fromDate);
-
-
-        if ($isServiceCDR) {
-            $logicalType = self::SERVICE_LOGICAL_TYPE;
-            $formatType = self::SERVICE_FORMAT_TYPE;
-            $filterOnService = ' AND to_calldate IS NOT NULL ';
-        } else {
-            $logicalType = self::LOGICAL_TYPE;
-            $formatType = self::FORMAT_TYPE;
-            $filterOnService = ' AND to_calldate IS NULL ';
-        }
-
-        $fileName = get_ordered_timeprefix_with_unique_id() . ".$year-$month-$day." . self::CDR_PROVIDER_TYPE . '__' . $logicalType . '__' . $formatType;
-
-        $tmpFileName = normalizeFileNamePath(ImportDataFiles::getMySQLAccessibleTmpDirectory($this->getGarbageKey()) . '/' . $fileName);
-        @unlink($tmpFileName);
+    /**
+     * @param bool $isServiceCDRS true for exporting only service CDRS,
+     * false for exporting only normal CDRS
+     * @param string $tmpFileName where writing the result
+     *
+     * @return string the SQL exporting code, accepting these params:
+     * - starting rate frame (inclusive)
+     * - the activation date of this job
+     * - ending rate farme (not inclusive)
+     * - filter on ar_cdr.cached_parent_id_hierarchy
+     */
+    protected function getExportCDRSQuery($isServiceCDRS, $tmpFileName) {
 
         // NOTE: this form is used because:
         // * only with this form the strings are CSV escaped into double " and recognized on the Haskell side
@@ -561,15 +539,38 @@ NOWDOC;
         ON ar_cdr.ar_organization_unit_id = ar_organization_unit.id
         INNER JOIN ar_communication_channel_type
         ON ar_cdr.ar_communication_channel_type_id = ar_communication_channel_type.id
-        WHERE calldate >= ? AND calldate >= ? AND calldate < ?
+        WHERE is_imported_service_cdr = 0
+        AND calldate >= ? AND calldate >= ? AND calldate < ?
         AND ar_cdr.cached_parent_id_hierarchy LIKE ?
         AND NOT destination_type = 5
         AND NOT destination_type = 4
         AND ar_organization_unit.export_code IS NOT NULL
 NOWDOC;
 
-        $query .= $filterOnService;
+        if ($isServiceCDRS) {
+            $query .= ' AND to_calldate IS NOT NULL ';
+        } else {
+            $query .= ' AND to_calldate IS NULL ';
+        }
 
+        return $query;
+    }
+
+    public
+    function processChangedDay($fromDate, $toDate, PropelPDO $conn)
+    {
+        $year = date('Y', $fromDate);
+        $month = date('m', $fromDate);
+        $day = date('d', $fromDate);
+
+        $logicalType = self::LOGICAL_TYPE;
+        $formatType = self::FORMAT_TYPE;
+
+        $tmpFileName = ImportDataFiles::createAbsoluteInputStatusDataFileName($this->getResellerCode(), self::CDR_PROVIDER_TYPE, $logicalType, $formatType, $year, $month, $day, true);
+        $fileName = basename($tmpFileName);
+        @unlink($tmpFileName);
+
+        $query = $this->getExportCDRSQuery(false, $tmpFileName);
         $stmt = $conn->prepare($query);
 
         $resellerCallFilter = '%/' . $this->getOrganizationId() . '/%';
@@ -721,4 +722,21 @@ NOWDOC;
             return false;
         }
     }
+
+    protected function testResellerCode() {
+        if (is_null($this->getOrganizationId())) {
+            throw $this->createError(
+                ArProblemType::TYPE_ERROR,
+                ArProblemDomain::CONFIGURATIONS,
+                'misconfigured reseller code ' . $this->getResellerCode(),
+                "There is no reseller with code \"" . $this->getResellerCode() . "\", defined in the party section of an organization.",
+                "CDRs will be not exported to the reseller.",
+                "Specify the organizaton associated to the reseller, compiling the code inside party section."
+            );
+        }
+
+        $this->generateErrorMessageForMissingExportCodes();
+    }
+
+
 }

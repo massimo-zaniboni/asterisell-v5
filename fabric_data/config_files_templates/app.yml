@@ -24,6 +24,8 @@ all:
 
   send_emails_to_these_users_instead_of_original_receiver: $send_emails_to_these_users_instead_of_original_receiver
 
+  cpu_cores: $cpu_cores
+
   smtp:
     host: $conf_smtp_host
     port: $conf_smtp_port

@@ -11,7 +11,7 @@ data-dir: ""
 copyright: Massimo Zaniboni <massimo.zaniboni@asterisell.com>
 
 executable RateEngine
-  ghc-options:  -threaded -O -rtsopts  "-with-rtsopts=-N " 
+  ghc-options: -O2 -threaded -rtsopts
   build-depends: 
              QuickCheck -any
            , base -any
@@ -29,16 +29,7 @@ executable RateEngine
            , old-time -any
            , old-locale -any
            , time -any
-           , regex-tdfa -any 
            , MissingH -any
-           , monad-loops -any
-           , unix -any
-           , pipes -any
-           , pipes-bytestring -any
-           , pipes-attoparsec -any
-           , pipes-safe -any
-           , pipes-csv -any
-           , pipes-group -any
            , lens-family-core -any
            , vector -any
            , cassava -any
@@ -46,17 +37,26 @@ executable RateEngine
            , hashable -any
            , heredoc -any
            , cereal -any
+           -- TODO see if it is needed
            , cereal-text -any
            , directory -any
-           , process -any
-           , mysql -any
+           , safe-exceptions -any
            , deepseq -any
+           , deepseq-generics -any
            , exceptions -any
            , async -any
            , yaml -any
            , quicklz -any
            , base64-bytestring -any
+           , mysql-haskell -any
+           , io-streams -any
+           , streaming -any
+           , streaming-utils -any
+           , streaming-bytestring -any
            , BoundedChan -any
+           , zlib -any
+           , unagi-chan -any
+           , parallel -any
 
   main-is: Main.hs
   buildable: True
@@ -65,7 +65,6 @@ executable RateEngine
                  Asterisell.Error
                  Asterisell.RatePlan
                  Asterisell.MainRatePlan
-                 Asterisell.CSVFileRatePlan
                  Asterisell.RateEngine
                  Asterisell.Utils
                  Asterisell.Trie
@@ -73,7 +72,7 @@ executable RateEngine
                  Asterisell.VoIPChannelAndVendor
                  Asterisell.RateCategories
                  Asterisell.OrganizationHierarchy
-                 Asterisell.CdrsToRate
                  Asterisell.CustomerSpecificImporters
                  Asterisell.CustomerSpecificRates
-                 Asterisell.Services
+                 Asterisell.Process
+                 Asterisell.DB

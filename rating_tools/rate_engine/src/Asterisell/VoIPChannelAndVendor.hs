@@ -1,7 +1,8 @@
-{-# Language BangPatterns, OverloadedStrings, ScopedTypeVariables #-}
+{-# Language BangPatterns, OverloadedStrings, ScopedTypeVariables  #-}
+{-# LANGUAGE QuasiQuotes, TypeSynonymInstances, FlexibleInstances, DeriveGeneric, DeriveAnyClass #-}
 
-{- $LICENSE 2013, 2014, 2015, 2016
- * Copyright (C) 2013-2016 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
+{- $LICENSE 2013, 2014, 2015, 2016, 2017
+ * Copyright (C) 2013-2017 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
  *
  * This file is part of Asterisell.
  *
@@ -31,40 +32,48 @@ module Asterisell.VoIPChannelAndVendor(
   ChannelTypeCode,
   ChannelTypes,
   ChannelDomains,
-  IsSuffixChannel, 
+  IsSuffixChannel,
   IsPrefixChannel,
-  FromTime, 
-  ToTime, 
+  FromTime,
+  ToTime,
   channelDomains_match,
-  parseFileWithVendors,
-  parseFileWithChannelDomains,
-  parseFileWithChannelTypes
+  vendors_load,
+  channelDomains_load,
+  channelTypes_load
 ) where
 
 import Asterisell.Trie
 import Asterisell.Utils
+import Asterisell.DB
+import Asterisell.Error
 
-import Prelude hiding (concat, takeWhile)
 import Control.Applicative ((<$>), (<|>), (<*>), (<*), (*>), many)
 import Control.Monad (void)
-import Data.Attoparsec.Text.Lazy
-import Data.Attoparsec.Combinator
-import qualified Data.Text as T
-import qualified Data.Text.Lazy as TL
-import qualified Data.Text.Lazy.IO as IO
+import qualified Data.Text as Text
 import Data.Map.Strict as Map
 import Data.Maybe
 import Data.List as List
 import Data.Time.LocalTime
-import qualified System.IO as SIO
 
+import GHC.Generics
+import Control.DeepSeq
+import Database.MySQL.Base as DB
+import qualified Database.MySQL.Protocol.Escape as DB
+import Database.MySQL.Protocol.MySQLValue
+import qualified System.IO.Streams as S
+import qualified System.IO.Streams.Text as S
+import qualified System.IO.Streams.Combinators as S
+import Text.Heredoc
+import Control.Exception.Safe (catch, catchAny, onException, finally, handleAny, bracket
+                              , SomeException, throwIO, throw, Exception, MonadMask
+                              , withException, displayException)
 type VendorId = Int
-type VendorCode = String
+type VendorCode = Text.Text
 
 type Vendors = Map.Map VendorCode VendorId
 
 type ChannelTypeId = Int
-type ChannelTypeCode = String
+type ChannelTypeCode = Text.Text
 
 type ChannelTypes = Map.Map ChannelTypeCode ChannelTypeId
 
@@ -73,111 +82,140 @@ type IsPrefixChannel = Bool
 type FromTime = LocalTime
 type ToTime = Maybe LocalTime
 
-type ChannelDomainEntry 
-  = (VendorId, ChannelTypeId, IsSuffixChannel, IsPrefixChannel, FromTime, ToTime)
+type ChannelDomainEntry
+  = (VendorId, ChannelTypeId, IsPrefixChannel, FromTime, ToTime)
 
--- | Map a channel domain name, to a list of entries.
---   The suffixes are stored as keys in reverse order.
 type ChannelDomains = Trie [ChannelDomainEntry]
 
-parseFileWithInfo :: Bool -> String -> ((s,a) -> Parser (s,a)) -> (s,a) -> IO (Either String s)
-parseFileWithInfo isDebugMode fileName p s
-  = SIO.withFile fileName SIO.ReadMode $ \handle -> do
-       SIO.hSetEncoding handle SIO.utf8_bom
-       fileContent <- IO.hGetContents handle   
+vendors_load :: DB.MySQLConn -> Bool -> IO Vendors
+vendors_load conn isDebugMode = do
+  let q1 = [str| SELECT
+               |   id
+               | , internal_name
+               | FROM ar_vendor
+               | WHERE internal_name IS NOT NULL
+               |]
 
-       let !r = parse (parseMany p s <* endOfInput) fileContent
-       case r of
-         Fail rst _ msg -> return $ Left ("Unprocessed data is: " ++ (TL.unpack rst) ++ "\nError message: " ++ msg)
-         Done rst rs
-           -> return $ Right $ fst rs
+  (_, inS) <- DB.query_ conn q1
+  S.foldM importVendor Map.empty inS
 
-parseFileWithVendors isDebugMode fileName = parseFileWithInfo isDebugMode fileName addVendorRecord (Map.empty, 1)
+ where
 
-parseFileWithChannelTypes = parseFileWithVendors
+  importVendor
+    map1
+    [ id'
+    , internal_name'
+    ] = do
 
-parseFileWithChannelDomains isDebugMode fileName = parseFileWithInfo isDebugMode fileName addChannelDomainRecord (trie_empty, 1)
+        let id = fromDBInt id'
+        internal_name <- nn "vendor" id fromDBText internal_name'
+        return $ Map.insert internal_name id map1
 
-parseMany :: (s -> Parser s) -> s -> Parser s
-parseMany p state1 
-  = (do state2 <- p state1
-        parseMany p state2) <|> (return state1)
+  importVendor _ _ = throw $ AsterisellException "err 1602 in code: unexpected DB format for ar_vendor table"
 
-addVendorRecord :: (Vendors, Int) -> Parser (Vendors, Int)
-addVendorRecord (vendors1, ln)
-  = (do id <- parseInt
-        char ','
-        maybeInternalName <- parseCSVMaybeString ','
-        (endOfLine <|> endOfInput)
-        
-        let vendors2 
-              = case maybeInternalName of
-                  Nothing
-                    -> vendors1
-                       -- do not store vendors without a symbolic name,
-                       -- because they are not referenced in rates
-                  Just n
-                    -> Map.insert (T.unpack n) id vendors1
-        
-        return (vendors2, ln + 1)) <?> ("Error at line: " ++ show ln)
+channelTypes_load :: DB.MySQLConn -> Bool -> IO ChannelTypes
+channelTypes_load conn isDebugMode = do
+  let q1 = [str| SELECT
+               |   id
+               | , internal_name
+               | FROM ar_communication_channel_type
+               | WHERE internal_name IS NOT NULL
+               |]
 
-addChannelDomainRecord :: (ChannelDomains, LineNumber) -> Parser (ChannelDomains, LineNumber)
-addChannelDomainRecord (channels1, ln)
-  = (do id <- parseInt
-        char ','
-        internalName <- parseCSVMaybeString ','
-        char ','
-        vendorId <- parseInt
-        char ','
-        channelTypeId <- parseInt
-        char ','
-        domainName <- parseCSVString ','
-        char ','
-        isPrefix <- parse01AsBool
-        char ','
-        isSuffix <- parse01AsBool
-        char ','
-        fromTimeValue <- parseMySQLDateTimeToLocalTime ','
-        char ','
-        toTimeValue <- parseMySQLDateTimeToMaybeLocalTime ','
-        (endOfLine <|> endOfInput)
+  (_, inS) <- DB.query_ conn q1
+  S.foldM importChannel Map.empty inS
 
-        let domainNameS1 = T.unpack domainName
+ where
 
-        let domainNameS2 = case isPrefix of
-                             True -> domainNameS1 ++ "*"
-                             False -> domainNameS1
+  importChannel
+    map1
+    [ id'
+    , internal_name'
+    ] = do
 
-        case isSuffix of
-          False -> return ()
-          True ->  fail "Suffix Vendor Domains are not any more supported."
+        let id = fromDBInt id'
+        internal_name <- nn "ar_communication_channel_type" id fromDBText internal_name'
+        return $ Map.insert internal_name id map1
 
-        let value = (vendorId, channelTypeId, isSuffix, isPrefix, fromTimeValue, toTimeValue)
-        
-        let channels2
-              = trie_addExtensionCodeWith channels1 domainNameS2 [value] (++)
+  importChannel _ _ = throw $ AsterisellException "err 1602 in code: unexpected DB format for ar_channel_type table"
 
-        return (channels2, ln + 1)) <?> ("Error at line: " ++ show ln)
-  
-  
-channelDomains_match :: ChannelDomains -> T.Text -> LocalTime -> [(VendorId, ChannelTypeId)]
-channelDomains_match trie domain date 
+channelDomains_load :: DB.MySQLConn -> Bool -> IO ChannelDomains
+channelDomains_load conn isDebugMode = do
+  let q1 = [str| SELECT
+               |   id
+               | , internal_name
+               | , ar_vendor_id
+               | , ar_communication_channel_type_id
+               | , domain
+               | , is_prefix
+               | , is_suffix
+               | , `from`
+               | , `to`
+               | FROM ar_vendor_domain
+               |]
+
+  (_, inS) <- DB.query_ conn q1
+  S.foldM importVendorDomain trie_empty inS
+
+ where
+
+  importVendorDomain
+    map1
+    [ id'
+    , internal_name'
+    , ar_vendor_id'
+    , ar_communication_channel_type_id'
+    , domain'
+    , is_prefix'
+    , is_suffix'
+    , from_d'
+    , to_d'
+    ] = do
+           let id = fromDBInt id'
+           let internal_name
+                 = case fromMaybeDBValue fromDBText internal_name' of
+                     Nothing -> ""
+                     Just n -> n
+           ar_vendor_id <- nn "vendor_domain" id fromDBInt ar_vendor_id'
+           ar_communication_channel_type_id <- nn "vendor_domain" id fromDBInt ar_communication_channel_type_id'
+           domain'' <- nn "vendor_domain" id fromDBText domain'
+           is_prefix <- nn "vendor_domain" id fromDBBool is_prefix'
+           is_suffix <- nn "vendor_domain" id fromDBBool is_suffix'
+           from_d <- nn "vendor_domain" id fromDBLocalTime from_d'
+           let to_d = fromMaybeDBValue fromDBLocalTime to_d'
+
+           let domain
+                 = case is_prefix of
+                     True -> Text.append domain'' "*"
+                     False -> domain''
+
+           case is_suffix of
+             True -> (throw $ AsterisellException $ "Suffix Vendor Domains are not any more supported, in table ar_vendor_domain, in id " ++ show id)
+             False -> return ()
+
+           let value = (ar_vendor_id, ar_communication_channel_type_id, is_prefix, from_d, to_d)
+
+           return $ trie_addExtensionCodeWith map1 (Text.unpack domain) [value] (++)
+
+  importVendorDomain _ _ = throw $ AsterisellException "err 1608 in code: unexpected DB format for ar_vendor_domain"
+
+channelDomains_match :: ChannelDomains -> Text.Text -> LocalTime -> [(VendorId, ChannelTypeId)]
+channelDomains_match trie domain date
   = candidateResults
  where
- 
-  domain1 = T.unpack domain
-   
+
+  domain1 = Text.unpack domain
+
   mySearch d
     = case trie_getMatch trie_getMatch_initial trie d of
         Nothing -> []
-        Just (_, r) -> r  
+        Just (_, r) -> r
 
-  insideDate (_, _, _, _, fromTime, maybeToTime)
+  insideDate (_, _, _, fromTime, maybeToTime)
     = (date >= fromTime) && (isNothing maybeToTime || date < (fromJust maybeToTime))
-   
-  toResult (vendorId, channelTypeId, _, _, _, _)
+
+  toResult (vendorId, channelTypeId, _, _, _)
     = (vendorId, channelTypeId)
-   
+
   candidateResults
     =  List.map toResult $ List.filter insideDate (mySearch domain1)
-

@@ -1,8 +1,8 @@
 <?php
 
-/* $LICENSE 2009, 2010, 2012, 2015:
+/* $LICENSE 2009, 2010, 2012, 2015, 2017:
  *
- * Copyright (C) 2009, 2010, 2012, 2015 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
+ * Copyright (C) 2009, 2010, 2012, 2015, 2017 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
  *
  * This file is part of Asterisell.
  *
@@ -243,6 +243,32 @@ abstract class FixedJobProcessor
                   SET scheduled_rerate_from_specific_calldate = ?,
                       scheduled_rerate_to_specific_calldate = ?,
                       wait_for_scheduled_rerate = 0
+                  WHERE is_default = 1';
+
+        $stm = $conn->prepare($query);
+        $stm->execute(array(fromUnixTimestampToMySQLTimestamp($fromDate), fromUnixTimestampToMySQLTimestamp($toDate)));
+        $stm->closeCursor();
+    }
+
+    /**
+     * Schedule a user request for rerating imported service calls.
+     * NOTE: use an explicit SQL command, for avoinding caching.
+     * NOTE: usually this command is not needed, because service CDRS are automatically scheduled from
+     * the rating engine during importing of service CDRS. So it is used usually in debug sessions,
+     * and for maintanance jobs.
+     * @param int $fromDate
+     * @param int $toDate
+     * @param PDO|null $conn
+     */
+    static public function rerateImportedServicesCalls($fromDate, $toDate, $conn = null)
+    {
+        if (is_null($conn)) {
+            $conn = Propel::getConnection();
+        }
+
+        $query = 'UPDATE ar_params
+                  SET scheduled_imported_services_rerate_from_specific_calldate = ?,
+                      scheduled_imported_services_rerate_to_specific_calldate = ?
                   WHERE is_default = 1';
 
         $stm = $conn->prepare($query);

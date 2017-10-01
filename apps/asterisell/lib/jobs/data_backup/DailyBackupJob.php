@@ -56,10 +56,6 @@ abstract class DailyBackupJob extends DailyStatusJob
     // Implement DailyJob interface
     //
 
-    public function generateUniqueChangedDayEvent() {
-        return true;
-    }
-
     public function getActivationDate() {
         return $this->getGlobalStartingDate();
     }

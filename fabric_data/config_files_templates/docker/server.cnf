@@ -1,32 +1,19 @@
+# NOTE: this file is used only in initial Docker container bootstra.
+# Then the template version in parent directory will be used.
+
 [server]
 
-# Set to a low value,
-# because Asterisell uses only TokeDB tables,
-# but not a too much low value, because otherwise there is too much CPU utilization
 innodb_buffer_pool_size = 50M
-
-# needed because MySQL can receive big BLOB files from the application,
-# in case of complex rate plans
 max_allowed_packet = 30M
 
 [mysqld]
 
 [embedded]
 
-# This group is only read by MariaDB servers, not by MySQL.
-# If you use the same .cnf file for MySQL and MariaDB,
-# you can put MariaDB-only options here
 [mariadb]
 
 plugin-load-add=ha_tokudb.so
+tokudb_cache_size = 50M
 
-# Set this near 50% of free RAM
-# NOTE: this value will be overwritten during application upgrade,
-# so never change the value in this file.
-tokudb_cache_size = 100M
-
-# This group is only read by MariaDB-10.0 servers.
-# If you use the same .cnf file for MariaDB of different versions,
-# use this group for options that older servers don't understand
 [mariadb-10.0]
 

@@ -1,8 +1,8 @@
 <?php
 
-/* $LICENSE 2013, 2014:
+/* $LICENSE 2013, 2014, 2017:
  *
- * Copyright (C) 2013, 2014 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
+ * Copyright (C) 2013, 2014, 2017 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
  *
  * This file is part of Asterisell.
  *
@@ -36,7 +36,11 @@ class RateEngineService
 
     static public function getToolExecutable()
     {
-        return normalizeFileNamePath(getAsterisellCompleteRootDirectory() . '/' . self::TOOL_EXECUTABLE);
+
+        $cpu_cores = sfConfig::get('app_cpu_cores');
+        $opts = " +RTS -N" . $cpu_cores . " -RTS ";
+
+        return normalizeFileNamePath(getAsterisellCompleteRootDirectory() . '/' . self::TOOL_EXECUTABLE) . $opts;
     }
 
     /**
@@ -67,150 +71,6 @@ class RateEngineService
     }
 
     /**
-     * BundleRate produce service-cdrs. Generate the corresponding telephone prefix entries.
-     *
-     * @param string $rateFileName the file with the list of CDR files to import
-     * @param string $resultFileName
-     * @return bool true if the resulting file can be imported
-     * @param string $garbageKey
-     * @param int|null $garbageFrom
-     * @param int|null $garbageTo
-     * @throws ArProblemException
-     */
-    static public function compileRate($rateFileName, $resultFileName, $garbageKey, $garbageFrom, $garbageTo)
-    {
-
-        // Create command
-
-        $cmd = self::getToolExecutable()
-            . ' --compile-rate ' . $rateFileName
-            . ' --load-rate-categories ' . ManageRateEvent::getParamsFileCompleteName(ManageRateEvent::RATE_CATEGORY_FILE_NAME)
-            . ' --load-vendors ' . ManageRateEvent::getParamsFileCompleteName(ManageRateEvent::VENDORS_FILE_NAME)
-            . ' --load-channels-types ' . ManageRateEvent::getParamsFileCompleteName(ManageRateEvent::CHANNEL_TYPES_FILE_NAME)
-            . ' --load-channel-domains ' . ManageRateEvent::getParamsFileCompleteName(ManageRateEvent::CHANNEL_DOMAINS)
-            . ' --load-telephone-prefixes ' . ManageRateEvent::getParamsFileCompleteName(ManageRateEvent::TELEPHONE_PREFIXES_FILE_NAME)
-            . ' --load-services ' .  ManageRateEvent::getParamsFileCompleteName(ManageRateEvent::SERVICE_FILE_NAME)
-            . ' --load-service-price-list ' .  ManageRateEvent::getParamsFileCompleteName(ManageRateEvent::SERVICE_PRICE_LIST_FILE_NAME)
-            . ' --load-assigned-services ' .  ManageRateEvent::getParamsFileCompleteName(ManageRateEvent::ASSIGNED_SERVICE_FILE_NAME);
-
-        $mask = sfConfig::get('app_mask_for_external_telephone_number');
-        if (isEmptyOrNull($mask)) {
-            $mask = 0;
-        }
-
-
-        $defaultTelephonePrefix = sfConfig::get('app_not_displayed_telephone_prefix');
-        if (isEmptyOrNull($defaultTelephonePrefix) || $defaultTelephonePrefix == '-') {
-            $defaultTelephonePrefix = '""';
-        }
-
-        $currencyPrecision = sfConfig::get('app_currency_decimal_places');
-
-        $cmd .= ' --digits-to-mask ' . $mask
-            . ' --default-telephone-prefix ' . $defaultTelephonePrefix
-            . ' --currency-precision ' . $currencyPrecision
-            . ' --load-extensions ' . ManageRateEvent::getParamsFileCompleteName(ManageRateEvent::EXTENSIONS_FILE_NAME);
-
-        $cmd .= ' --result-file ' . $resultFileName;
-
-        // Execute the command
-
-        if (JobQueueProcessor::$IS_INTERACTIVE) {
-            echo "\nExecuted:\n" . $cmd;
-        }
-
-        $output = array();
-        $exitStatus = 0;
-        exec($cmd, $output, $exitStatus);
-
-        if ($exitStatus != 0) {
-            throw(ArProblemException::createWithGarbageCollection(
-                ArProblemType::TYPE_CRITICAL,
-                ArProblemDomain::APPLICATION,
-                null,
-                'compile rate - ' . md5($cmd),
-                $garbageKey,
-                $garbageFrom,
-                $garbageTo,
-                "Error executing command \"$cmd\": \n" . implode("\n", $output),
-                "CDRs rating will produce errors.",
-                "This is an error in the application code. Contact the assistance."
-            ));
-        }
-    }
-
-    /**
-     * Generate the corresponding telephone prefix entries.
-     *
-     * @param string $resultFileName
-     * @return bool true if the resulting file can be imported
-     * @param string $garbageKey
-     * @param int|null $garbageFrom
-     * @param int|null $garbageTo
-     * @throws ArProblemException
-     */
-    static public function compileServices($resultFileName, $garbageKey, $garbageFrom, $garbageTo)
-    {
-
-        // Create command
-
-        $cmd = self::getToolExecutable()
-            . ' --compile-services '
-            . ' --load-rate-categories ' . ManageRateEvent::getParamsFileCompleteName(ManageRateEvent::RATE_CATEGORY_FILE_NAME)
-            . ' --load-vendors ' . ManageRateEvent::getParamsFileCompleteName(ManageRateEvent::VENDORS_FILE_NAME)
-            . ' --load-channels-types ' . ManageRateEvent::getParamsFileCompleteName(ManageRateEvent::CHANNEL_TYPES_FILE_NAME)
-            . ' --load-channel-domains ' . ManageRateEvent::getParamsFileCompleteName(ManageRateEvent::CHANNEL_DOMAINS)
-            . ' --load-telephone-prefixes ' . ManageRateEvent::getParamsFileCompleteName(ManageRateEvent::TELEPHONE_PREFIXES_FILE_NAME)
-            . ' --load-services ' .  ManageRateEvent::getParamsFileCompleteName(ManageRateEvent::SERVICE_FILE_NAME)
-            . ' --load-service-price-list ' .  ManageRateEvent::getParamsFileCompleteName(ManageRateEvent::SERVICE_PRICE_LIST_FILE_NAME)
-            . ' --load-assigned-services ' .  ManageRateEvent::getParamsFileCompleteName(ManageRateEvent::ASSIGNED_SERVICE_FILE_NAME);
-
-        $mask = sfConfig::get('app_mask_for_external_telephone_number');
-        if (isEmptyOrNull($mask)) {
-            $mask = 0;
-        }
-
-        $defaultTelephonePrefix = sfConfig::get('app_not_displayed_telephone_prefix');
-        if (isEmptyOrNull($defaultTelephonePrefix) || $defaultTelephonePrefix == '-') {
-            $defaultTelephonePrefix = '""';
-        }
-
-        $currencyPrecision = sfConfig::get('app_currency_decimal_places');
-
-        $cmd .= ' --digits-to-mask ' . $mask
-            . ' --default-telephone-prefix ' . $defaultTelephonePrefix
-            . ' --currency-precision ' . $currencyPrecision
-            . ' --load-extensions ' . ManageRateEvent::getParamsFileCompleteName(ManageRateEvent::EXTENSIONS_FILE_NAME);
-
-        $cmd .= ' --result-file ' . $resultFileName;
-
-        // Execute the command
-
-        if (JobQueueProcessor::$IS_INTERACTIVE) {
-            echo "\nExecuted:\n" . $cmd;
-        }
-
-        $output = array();
-        $exitStatus = 0;
-        exec($cmd, $output, $exitStatus);
-
-        if ($exitStatus != 0) {
-            throw(ArProblemException::createWithGarbageCollection(
-                ArProblemType::TYPE_CRITICAL,
-                ArProblemDomain::APPLICATION,
-                null,
-                'compile rate - ' . md5($cmd),
-                $garbageKey,
-                $garbageFrom,
-                $garbageTo,
-                "Error executing command \"$cmd\": \n" . implode("\n", $output),
-                "CDRs rating will produce errors.",
-                "This is an error in the application code. Contact the assistance."
-            ));
-        }
-    }
-
-    /**
      * Execute regression tests on the rating engine.
      *
      * @param int $referenceTime
@@ -224,32 +84,8 @@ class RateEngineService
 
         $cmd = self::getToolExecutable()
             . ' --test-organizations ' . $pass
-            . ' --from-date "' . fromUnixTimestampToMySQLTimestamp($referenceTime) . '" '
-            . ' --load-rate-categories ' . ManageRateEvent::getParamsFileCompleteName(ManageRateEvent::RATE_CATEGORY_FILE_NAME)
-            . ' --load-vendors ' . ManageRateEvent::getParamsFileCompleteName(ManageRateEvent::VENDORS_FILE_NAME)
-            . ' --load-channels-types ' . ManageRateEvent::getParamsFileCompleteName(ManageRateEvent::CHANNEL_TYPES_FILE_NAME)
-            . ' --load-channel-domains ' . ManageRateEvent::getParamsFileCompleteName(ManageRateEvent::CHANNEL_DOMAINS)
-            . ' --load-telephone-prefixes ' . ManageRateEvent::getParamsFileCompleteName(ManageRateEvent::TELEPHONE_PREFIXES_FILE_NAME);
-
-        $mask = sfConfig::get('app_mask_for_external_telephone_number');
-        if (isEmptyOrNull($mask)) {
-            $mask = 0;
-        }
-
-        $defaultTelephonePrefix = sfConfig::get('app_not_displayed_telephone_prefix');
-        if (isEmptyOrNull($defaultTelephonePrefix) || $defaultTelephonePrefix == '-') {
-            $defaultTelephonePrefix = '""';
-        }
-
-        $currencyPrecision = sfConfig::get('app_currency_decimal_places');
-
-        $cmd .= ' --digits-to-mask ' . $mask
-            . ' --default-telephone-prefix ' . $defaultTelephonePrefix
-            . ' --currency-precision ' . $currencyPrecision
+             . ' --from-date "' . fromUnixTimestampToMySQLTimestamp($referenceTime) . '" '
             . ' --load-extensions ' . ManageRateEvent::getParamsFileCompleteName(ManageRateEvent::EXTENSIONS_FILE_NAME);
-
-        $cmd .= ' --load-rate-plan-changes ' . ManageRateEvent::getParamsFileCompleteName(ManageRateEvent::RATE_PLAN_FILE_NAME)
-            . ' --load-rate-plan ' . ManageRateEvent::getParamsFileCompleteName(ManageRateEvent::RATE_PLAN_ID_FILE_NAME);
 
         // Execute the command
         $discard = array();

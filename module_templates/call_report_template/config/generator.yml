@@ -43,7 +43,7 @@ generator:
         office:                  { name: Office, help: "The office where resides the called / calling internal VoIP account." }
         calldate:                { name: Date, sort_on_column: calldate }
         mycalldate:              { name: Date, sort_on_column: calldate, help: "The starting timestamp of the call." }  
-        external_telephone_number: { name: Tel. Nr., sort_on_column: dst, help: "Called / calling external telephone number." }
+        external_telephone_number: { name: Tel. Nr., sort_on_column: cached_masked_external_telephone_number, help: "Called / calling external telephone number." }
         billmin:                 { name: Duration, sort_on_column: billsec, help: "Call duration." }
         direction:               { name: Dir., help: "The direction of the call: incoming, outcomig or internal." }
         my_income_from_customer: { name: <?php if (FieldsToShow::isFieldToShow($generateForAdmin, FieldsToShow::EARN)) { echo "Income"; } else { echo "Cost"; } ?>, sort_on_column: income, help: "<?php if ($generateForAdmin) { echo "The amount payed from the customer in order to make / receive the call."; } else { echo "The cost of the call."; } ?>"  }
@@ -51,6 +51,7 @@ generator:
         ar_vendor:               { name: Vendor, help: "The telephone vendor that routed / managed the call." }
         ar_vendor_id:            { name: Vendor, help: "The telephone vendor that routed / managed the call." }
         earn:                    { name: Earn, help: "The difference between the income and the cost of the call." }
+        filter_grouping:         { name: Group by, help: "Show totals grouping by some criteria"}
         filter_on_party:         { name: Customer, filter_criteria_disabled: true }
         filter_on_office:        { name: Office, filter_criteria_disabled: true }
         filter_on_account:       { name: "VoIP account", filter_criteria_disabled: true }
@@ -83,7 +84,7 @@ generator:
     $fieldsToShow = FieldsToShow::getFieldsToShowInCallReport($generateForAdmin);
 
     $display = '_internal_telephone_number';
-    $filter = '_filter_on_proper_organization, _filter_on_voip_account';
+    $filter = '_filter_grouping, _filter_on_proper_organization, _filter_on_voip_account';
 
     if (sfConfig::get('app_show_extension_code')) {
       $filter .= ',_filter_on_voip_account_short_code';

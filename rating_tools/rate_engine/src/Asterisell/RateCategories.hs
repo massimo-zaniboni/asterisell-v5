@@ -1,7 +1,8 @@
 {-# Language OverloadedStrings, ScopedTypeVariables #-}
+{-# LANGUAGE QuasiQuotes, TypeSynonymInstances, FlexibleInstances, DeriveGeneric, DeriveAnyClass #-}
 
-{- $LICENSE 2013, 2014, 2015, 2016
- * Copyright (C) 2013-2016 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
+{- $LICENSE 2013, 2014, 2015, 2016, 2017
+ * Copyright (C) 2013-2017 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
  *
  * This file is part of Asterisell.
  *
@@ -33,6 +34,8 @@ module Asterisell.RateCategories(
   , rateCategories_create
 ) where
 
+import Asterisell.Error
+import Asterisell.DB
 import Asterisell.Trie
 import Asterisell.Utils
 
@@ -45,20 +48,25 @@ import Data.Map.Strict as Map
 import Data.Maybe
 import Data.List as List
 import Data.Time.LocalTime
-
 import Data.Vector as V (length)
 
-import Pipes
-import Pipes.ByteString as PB
-import qualified Pipes.Prelude as PP
-import Pipes.Safe as PS
-import qualified Pipes.Safe.Prelude  as PS
-import qualified Pipes.Csv as PC
-import Pipes.Csv ((.!))
+import GHC.Generics
+import Control.DeepSeq
+
+import Database.MySQL.Base as DB
+import qualified Database.MySQL.Protocol.Escape as DB
+import Database.MySQL.Protocol.MySQLValue
+import qualified System.IO.Streams as S
+import qualified System.IO.Streams.Text as S
+import qualified System.IO.Streams.Combinators as S
+import Text.Heredoc
+import Control.Exception.Safe (catch, catchAny, onException, finally, handleAny, bracket
+                              , SomeException, throwIO, throw, Exception, MonadMask
+                              , withException, displayException)
 
 type RateCategoryId = Int
 
-type RateCategoryCode = String
+type RateCategoryCode = Text.Text
 
 type RateCategories 
   = (Map.Map RateCategoryCode RateCategoryId
@@ -76,58 +84,36 @@ rateCategories_code :: RateCategories -> RateCategoryId -> RateCategoryCode
 rateCategories_code (_, map2) id
   = fromJust $ Map.lookup id map2
 
-data CSVFormat_RateCategories 
-  = CSVFormat_RateCategories {
-       rc1_id :: !RateCategoryId
-     , rc1_name :: !Text.Text
-     , rc1_internalName :: !Text.Text
-    } deriving (Show)
-
-instance PC.FromRecord CSVFormat_RateCategories where
-     parseRecord v
-       = case V.length v == 3 of
-           True 
-             -> CSVFormat_RateCategories <$>
-                  v .! 0 <*>
-                  v .! 1 <*>
-                  v .! 2
-           False
-             -> fail $ "There are " ++ show (V.length v) ++ " fields, instead of expected number of fields."
-
 rateCategories_load 
-  :: Bool
-  -> FilePath 
-  -> (PS.SafeT IO) (Either String RateCategories)
+  :: DB.MySQLConn
+  -> Bool
+  -> IO RateCategories
 
-rateCategories_load isDebugMode fileName
-  = do PS.withFile fileName ReadMode (\handle -> do
-         
-         -- this is a pipe that convert a file to a stream of bytes
-         let sourceFile = PB.fromHandle handle
+rateCategories_load conn isDebugMode = do
+  let q1 = [str| SELECT
+               |   id
+               | , internal_name
+               | FROM ar_rate_category
+               | WHERE internal_name IS NOT NULL
+               |]
+        
+  (_, inS) <- DB.query_ conn q1
+  categories <- S.foldM importCategory Map.empty inS
 
-         -- this is a pipe that convert the stream of bytes to a stream of records.
-         let sourceRecords :: Producer (Either String CSVFormat_RateCategories) (PS.SafeT IO) ()
-             sourceRecords = PC.decodeWith csvOptions PC.NoHeader sourceFile
-    
-         PP.fold importRecords (Right Map.empty, 1) makeResult sourceRecords 
-                                     )
-  
+  return $ rateCategories_create categories
+
  where
 
-   csvOptions = PC.defaultDecodeOptions
+   importCategory
+     map1
+     [ id'
+     , internal_name'
+     ] = do 
+       let id = fromDBInt id'
+       internal_name <- nn "rate_category" id fromDBText internal_name'
 
-   importRecords (Left err, i) _ 
-     = (Left err, i)
+       return $ Map.insert internal_name id map1
 
-   importRecords (Right map1, i) maybeRecord 
-     = case maybeRecord of 
-         Left err 
-           -> (Left $ "Error during parsing of file " ++ fileName ++ ", at line " ++ show i ++ ": " ++ err, i + 1)
-         Right record
-           -> (Right $ Map.insert (Text.unpack $ rc1_internalName record) (rc1_id record) map1, i + 1)
+   importCategory _ _ = throw $ AsterisellException "err 1600 in code: unexpected DB format for ar_rate_category"
 
-   makeResult (Left err, _) 
-     = Left err
 
-   makeResult (Right map1, _)
-     = Right $ rateCategories_create map1

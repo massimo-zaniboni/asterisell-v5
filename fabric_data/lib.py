@@ -39,6 +39,11 @@ import random
 import string
 import shutil
 
+# Set to True for enabling debug and profiling.
+# See also the notes in the DEVELOPMENT section of the manual.
+debug_mode = False
+debug_ghc_options = "-O -threaded -fprof-auto -rtsopts "
+debug_rate_engine_runtime = " +RTS -p -s -hc -i1 -L200 -RTS "
 
 class ConnectionParams(object):
     """Connection params used for connecting to external databases and servers."""
@@ -258,7 +263,9 @@ class AsterisellInstance(object):
     custom_upgrade_jobs = []  # type: List[str]
 
     # Upgrade jobs that must be applied to all instances
-    default_upgrade_jobs = []  # type: List[str]
+    default_upgrade_jobs = [
+      'Upgrade_2017_07_18'
+    ]
 
     # Some instance related, custom CDR services.
     # It must be a subclass of CustomCDRServices.
@@ -318,6 +325,19 @@ class AsterisellInstance(object):
     conf_smtp_seconds_of_pause_after_reconnection = 0
     conf_smtp_sender_email_address = ''
     conf_instance_voip_domain = ''
+
+    # Copy customer specific files inside `customizations` directory,
+    # inside the admin instance.
+    #
+    # If they are jobs remember to add the jobs also in the scheduler,
+    # in their proper position.
+    #
+    # Use something like
+    # > custom_files = {
+    # >     'source_file.php': 'some/dest_directory',
+    # >     'another_file.php': 'another/dest_directory'
+    # > }
+    custom_files = {}
 
     def module_directory(self):
         """The directory of the current module.
@@ -516,8 +536,8 @@ class AsterisellInstance(object):
                 r = r + indent1 + 'user: ' + c.user
                 r = r + indent1 + 'password: ' + c.password
                 r = r + indent1 + 'host: ' + c.host
-                if (len(c.httpd_port)) > 0:
-                    r = r + indent1 + 'port: ' + c.httpd_port
+                if (len(c.port)) > 0:
+                    r = r + indent1 + 'port: ' + c.port
 
         r = r + '\n'
         return r
@@ -527,9 +547,9 @@ class AsterisellInstance(object):
     #
 
     def get_docker_image_name(self):
-        return "asterisell/centos6"
+        return "asterisell/centos7"
 
-    def execute_prepare(self):
+    def execute_prepare(self, is_pedantic):
         """Prepare the HOST for Asterisell instances installations."""  #
         local('mkdir -p ' + os.path.join(self.local_packages_directory(), 'docker'))
 
@@ -540,8 +560,13 @@ class AsterisellInstance(object):
         self.copy_from_docker_template_to_tmp_directory('nginx.repo')
         self.copy_from_docker_template_to_tmp_directory('set_mysql_password.sh')
         self.copy_from_docker_template_to_tmp_directory('supervisord.conf')
-        self.copy_from_docker_template_to_tmp_directory('ragel-6.8.tar.gz')
-        self.copy_from_docker_template_to_tmp_directory('rate_engine_packages.tar.gz')
+        self.copy_from_docker_template_to_tmp_directory('ragel-6.10.tar.gz')
+
+        # NOTE: use a copy instead of a symbolic link because Docker does not follow them.
+        local('cp -f -r '
+              + os.path.join(self.local_source_repo_directory(), 'rating_tools', 'rate_engine')
+              + ' '
+              + os.path.join(self.local_packages_directory(), 'docker'))
 
         # Copy the SSH authorization files of the user
         local(
@@ -549,7 +574,10 @@ class AsterisellInstance(object):
                                                                                  'id_rsa.pub'))
         # Create the image and run the container.
         with lcd(os.path.join(self.local_packages_directory(), 'docker')):
-            local("docker build -t " + self.get_docker_image_name() + " .")
+            maybe_pedantic_flag = ''
+            if is_pedantic:
+                maybe_pedantic_flag = '--no-cache '
+            local("docker build " + maybe_pedantic_flag + "-t " + self.get_docker_image_name() + " .")
             local("docker run --restart=always -d -P --name " + self.get_docker_container_name()
                   + self.docker_port_forwading_options()
                   + " -v /dev/log:/dev/log "
@@ -589,8 +617,6 @@ class AsterisellInstance(object):
             run('mkdir -p ' + remote_dir)
             fabric.contrib.project.rsync_project(delete=True, remote_dir=remote_dir, local_dir='rate_engine/',
                                                  extra_opts=' --exclude=\'.stack-work\'')
-            run('cp ' + os.path.join(self.haskell_rate_engine_dir(), 'stack-deploy.yaml') + ' ' + os.path.join(
-                self.haskell_rate_engine_dir(), 'stack.yaml'))
 
         # Call Flow Merge Engine
         if self.there_is_call_flow_merge:
@@ -610,7 +636,12 @@ class AsterisellInstance(object):
         with cd(self.haskell_rate_engine_dir()):
             if not use_fast_compile:
                 run('stack setup && stack clean')
-            run('stack setup && stack build')
+
+            if debug_mode:
+               run('stack setup && stack build --profile --executable-profiling --ghc-options=\'' + debug_ghc_options + '\'')
+            else:
+                run('stack setup && stack build')
+
             if install:
                 run('cp `stack path --local-install-root`/bin/RateEngine ' + os.path.join(instance_directory, 'scripts',
                                                                                           'RateEngine'))
@@ -744,7 +775,20 @@ class AsterisellInstance(object):
             conf_max_calls_in_pdf_report_section=self.yaml_string(self.conf_max_calls_in_pdf_report_section),
             conf_connectionParams=self.convert_connection_params(),
             custom_export_cdrs_jobs=self.yaml_list_of_str_values('      - ', self.get_custom_export_cdrs_jobs()),
-            expand_extensions_job = self.yaml_string(self.expand_extensions_job)
+            expand_extensions_job = self.yaml_string(self.expand_extensions_job),
+            cpu_cores = self.yaml_string(self.cpu_cores)
+        )
+
+        return s
+
+
+    def get_config_file_mariadb_server(self):
+        """Generate MariaDB server.cnf config file, and return the content"""
+
+        t = Template(open('fabric_data/config_files_templates/server.cnf').read())
+        s = t.substitute(
+            # Set near 50% of free RAM, according TokuDB suggestions.
+            tokudb_cache_size_in_mb=str(int(self.container_ram_in_mb / 2)) + 'M'
         )
 
         return s
@@ -821,10 +865,10 @@ class AsterisellInstance(object):
         After this the container must be restarted."""
 
         with cd('/'):
-            cache_size = str(int(self.container_ram_in_mb / 2)) + 'm'
-            run("sed -i \"/tokudb_cache_size/c\\tokudb_cache_size=" + cache_size + "\" /etc/my.cnf.d/server.cnf")
             run("sed -i \"/memory_limit/c\\memory_limit = " + str(self.get_php_opcache_in_mb()) + "M  \" /etc/php.ini")
             run("sed -i \"/date.timezone/c\\date.timezone=" + self.date_timezone.replace("/", "\\/") + "\" /etc/php.ini")
+
+        self.send_server_file_to_proper_location('server.cnf', self.get_config_file_mariadb_server(), '/etc/my.cnf.d/')
 
     def execute_upgrade_task(self,
                              fast_upgrade=False,
@@ -837,6 +881,11 @@ class AsterisellInstance(object):
         # First execute operations that can be done without acquiring any lock on the production application
 
         self.compile_and_install_development_tools(self.get_admin_deploy_directory(), False, fast_upgrade)
+
+        # Restore a correct version of the database access file,
+        # otherwise next passages can halt. #2053
+        if not is_install:
+            self.generate_config_file__databases(True)
 
         # Acquire lock, waiting for the termination of running jobs.
         # An error is issued if the lock can not be obtained after a reasonable amount of time.
@@ -866,6 +915,11 @@ class AsterisellInstance(object):
 
         self.generate_config_file__app()
         self.generate_config_file__databases(True)
+        self.send_custom_files()
+
+        if debug_mode:
+            rate_event_file = os.path.join(self.get_admin_deploy_directory(), 'apps','asterisell','lib','jobs','data_file_processing','ManageRateEvent.php')
+            run("sed -i \"/^.*const .*DONT_TOUCH_DEBUG_MODE_GHC_PARAMS/c\\   const DONT_TOUCH_DEBUG_MODE_GHC_PARAMS = '" +  debug_rate_engine_runtime + "';\" " + rate_event_file)
 
         if execute_silently_activate:
             with cd(self.get_admin_deploy_directory()):
@@ -935,6 +989,14 @@ class AsterisellInstance(object):
                 run(self.get_run_command())
 
 
+    def send_custom_files(self):
+        """Send self.custom_files to the instance admin directory."""
+        for file_name, dest_dir in self.custom_files.iteritems():
+            source_file = os.path.join('customizations', file_name)
+            dest = os.path.join(self.get_admin_deploy_directory(), dest_dir)
+            run('mkdir -p ' + dest)
+            fabric.operations.put(source_file, dest)
+
     def send_config_file_to_proper_location(self, is_admin, file_name, file_content,
                                             relative_out_directory):
         # write a temporary file
@@ -950,6 +1012,16 @@ class AsterisellInstance(object):
         else:
             dest = os.path.join(self.get_user_deploy_directory(), relative_out_directory)
         fabric.operations.put(local_file_name, dest)
+
+    def send_server_file_to_proper_location(self, file_name, file_content, out_directory):
+        # write a temporary file
+        local(' mkdir -p ' + os.path.join(self.local_packages_directory(), 'tmp'))
+        local_file_name = os.path.join(self.local_packages_directory(), 'tmp', file_name)
+        f = open(local_file_name, 'w+')
+        f.write(file_content)
+        f.close()
+
+        fabric.operations.put(local_file_name, out_directory)
 
     def create_user_instance(self):
         with cd('/'):
@@ -986,8 +1058,8 @@ class AsterisellInstance(object):
         """Generate and reload HTTP configurations."""
 
         run('mkdir -p /etc/nginx/')
-        run('chown -R apache:apache /var/lib/php-fpm/')
-        run('chmod 0777 /var/lib/php/session/')
+        run('if [ -d /var/lib/php-fpm ]; then chown -R apache:apache /var/lib/php-fpm/ ; fi')
+        run('if [ -d /var/lib/php/session ]; then chmod 0777 /var/lib/php/session/ ; fi')
 
         self.create_remote_file('/etc/nginx', 'nginx.conf', self.create_complete_nginx_conf())
 
@@ -1130,17 +1202,30 @@ class AsterisellInstance(object):
         )
 
         w = ''
-        if not self.webdav_users is None:
+        if is_admin and (not self.webdav_users is None):
             template_webdav = self.get_httpd_template('webdav_fragment.conf')
 
             for webdav_user in self.webdav_users:
                 (webdav_instance, webdav_password) = webdav_user
+
+                webdav_dir = os.path.join('/', 'var', 'opt', 'asterisell', self.name, webdav_instance)
+                webdav_dir_tmp = os.path.join(webdav_dir, 'tmp')
+                webdav_passwd_file = os.path.join('/', 'etc', 'nginx', self.name + '-' + webdav_instance + '.passwd')
+
+                run('mkdir -p ' + webdav_dir_tmp)
+                run('htpasswd -bc ' + webdav_passwd_file + ' ' + webdav_instance + ' ' + webdav_password)
+                run('chown -R apache:apache ' + webdav_passwd_file )
+                run('chown -R apache:apache ' + webdav_dir)
+
                 t = template_webdav.substitute(
                     maybe_slash=maybe_slash,
                     base_url_path=base_path,
                     base_url_path_with_slash=base_path_with_slash,
                     instance_code = self.name,
-                    webdav_instance=webdav_instance
+                    webdav_instance=webdav_instance,
+                    webdav_dir = webdav_dir,
+                    webdav_dir_tmp = webdav_dir_tmp,
+                    webdav_passwd_file = webdav_passwd_file
                     )
                 w = w + t
 
@@ -1191,6 +1276,7 @@ class AsterisellInstance(object):
             '/fabric_data/*',
             '/web/uploads/assets/*',
             'provider_specific/*',
+            '/customizations',
             '/REMOVE_ME_FOR_ENABLING_ASTERISELL_APP',
             '*~',
             '*.pyc'

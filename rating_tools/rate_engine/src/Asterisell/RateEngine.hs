@@ -1,16 +1,13 @@
-{-# LANGUAGE ScopedTypeVariables, BangPatterns, OverloadedStrings, QuasiQuotes, DeriveGeneric #-}
+{-# LANGUAGE FlexibleInstances, ScopedTypeVariables, BangPatterns, OverloadedStrings, ExistentialQuantification, DeriveGeneric, DeriveAnyClass, RankNTypes, QuasiQuotes #-}
 
-{- $LICENSE 2013, 2014, 2015, 2016, 2017
+{- $LICENZE 2013, 2014, 2015, 2016, 2017
  * Copyright (C) 2013-2017 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
  *
  * This file is part of Asterisell.
  *
  * Asterisell is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 3 of the License, or
- * (at your option) any later version.
- *
- * Asterisell is distributed in the hope that it will be useful,
+ * the Free Software Foundation; either version 3 ofstributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
@@ -20,58 +17,46 @@
  * $
 -}
 
-
 -- | Rate CDRs.
 --
---   See Cdr module, for extending the support for new CDRs source data files.
---   This file use the services of Cdr module, and of the Rates, for reading and rating the CDRs.
---
---   The MySQL interaction code is based on notes of https://ro-che.info/articles/2015-04-17-safe-concurrent-mysql-haskell
 module Asterisell.RateEngine (
   rateEngine_rate,
-  rateEngine_incrementalRate,
   SourceDataSummaryInfo,
   DBConf(..),
-  MaybeTimeFrame,
-  extractLinesFromCSVFile,
-  importSourceCDRFromCSVLine,
+  RunLevel(..),
   rateEngine_importDataFile,
-  rateEngine_testImportDataFile,
   rateEngine_exportDataFile,
-  rateEngine_updateCachedGroupedCDRS,
-  rateEngine_openDBAndUpdateCachedGroupedCDRS,
   tt_rateSpecificationsTests,
   tt_mainRateCalcTets
 ) where
 
+import Asterisell.Process
+import Asterisell.DB
 import Asterisell.Cdr
 import Asterisell.Error
 import Asterisell.RatePlan
 import Asterisell.MainRatePlan
-import Asterisell.CSVFileRatePlan
 import Asterisell.Utils
 import Asterisell.Trie
 import Asterisell.TelephonePrefixes
 import Asterisell.VoIPChannelAndVendor
 import Asterisell.RateCategories
 import Asterisell.OrganizationHierarchy
-import Asterisell.CdrsToRate
 import Asterisell.CustomerSpecificImporters
-import Asterisell.Services
 
 import GHC.Generics (Generic)
-import Data.List as List
+import Data.List as L
 import Control.Monad.State.Strict
 import qualified Data.ByteString.Lazy as LBS
 import qualified Data.ByteString as BS
-import Data.ByteString.Unsafe
+import Data.ByteString.Builder
 import Control.Monad as M
 import Control.Monad.IO.Class       (liftIO)
 import Data.Word
 import qualified Data.Vector as V
-import System.FilePath.Posix
 import Data.Time.LocalTime
 import Data.Time.Calendar
+import Data.Int
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text
 import qualified Data.Text.Encoding as Text
@@ -81,399 +66,624 @@ import qualified Data.Text.Lazy as LText
 import qualified Data.Text.Lazy.IO as LText
 import qualified Test.HUnit as HUnit
 import qualified Data.Csv as CSV
-import System.IO
+import System.IO as IO
 import System.Directory as IO
-import System.Posix.Files (fileExist, setFileMode)
 import Debug.Trace
 import Data.Maybe
 import Data.Set as Set
 import Data.IntMap as IMap
+import Data.IORef
 import qualified Data.Serialize as DBS
 import qualified Data.Serialize.Text as DBS
 import Data.String
-import qualified System.Posix as Posix
-import Control.Concurrent (forkIO)
-import Control.Concurrent.MVar
-import Control.Concurrent.BoundedChan
-import Database.MySQL.Base as DB
-import System.Posix.Files as Posix
-import System.Directory
+
 import qualified Codec.Compression.QuickLZ as LZ
-import Control.Monad.Except
-import Control.Monad.Catch (bracket, bracketOnError, handleAll)
+import Control.Monad.Except as M
 import Data.Text.Encoding
-import qualified Pipes.Safe as PS
-import Control.Concurrent.Async
-import Control.Exception (throwIO, ErrorCall(..), SomeException)
-import GHC.IO.Handle.FD (openFileBlocking)
-import System.Posix.Process
-import System.Posix.Signals
 import qualified Data.Serialize as Serialize
-import Data.ByteString.Lazy.Builder.ASCII
-import Data.ByteString.Lazy.Builder
 import Data.Monoid
-import Control.DeepSeq
-import qualified Data.Fixed as Fixed
 import qualified Data.Text.Read as T
 import Data.Text.Encoding
-import Data.Attoparsec.ByteString as P
 import qualified Data.ByteString.Internal as BS (c2w, w2c)
-import qualified Data.Yaml as Y
 import qualified Data.HashMap.Strict as H
-import qualified Data.HashSet as S
+import qualified Data.HashSet as HS
 import Data.Hashable
 
---
--- Common Params
---
+import System.IO.Streams as S
+import qualified System.IO.Streams.Text as S
+import qualified System.IO.Streams.Combinators as S
+import qualified System.IO.Streams.List as S
+import qualified System.IO.Streams.File as S
+import qualified System.IO.Streams.Vector as S
+import qualified Data.Vector as V
 
--- | DB access configurations.
-data DBConf
-   = DBConf {
-       dbConf_dbName :: String
-     , dbConf_user :: String
-     , dbConf_password :: String
-     } deriving (Eq, Show)
+import Control.Concurrent.MVar
+import Control.Concurrent.Async
+import Control.Exception.Safe (catch, catchAny, onException, finally, handleAny, bracket
+                              , SomeException, throwIO, throw, Exception, MonadMask
+                              , withException, displayException)
+import Control.DeepSeq
+import Control.DeepSeq.Generics
+import Control.Parallel
+import Control.Parallel.Strategies
 
--- | An Extension like "123" that is matched by "12X" or "12*"
---   but not by an explicit "123".
-data ExpandedExtension
-  = ExpandedExtension {
-      ee_organizationId :: !Int
-    , ee_specificExtensionCode :: !BS.ByteString
-    } deriving (Eq, Show, Generic)
+import Database.MySQL.Base as DB
+import qualified Database.MySQL.Protocol.Escape as DB
+import Database.MySQL.Protocol.MySQLValue
+import Text.Heredoc
 
-instance Hashable ExpandedExtension
+-- ---------------------------------
+-- Params
 
--- | Used internally for managing in a cached way the search of rates,
---   and the status of the rating process.
-data RatingStatus
-  = RatingStatus {
-      rs_incomeRate :: Maybe (CheckedMainRatePlan, Maybe LocalTime)
-      -- ^ the cached result, and until when it is valid (exclusive)
-    , rs_costRate :: Maybe (CheckedMainRatePlan, Maybe LocalTime)
-      -- ^ the cached result, and until when it is valid (exclusive)
-    , rs_incomeBundleState :: Maybe BundleState
-    -- ^ Nothing if the rating process is starting from an empty/not initializated database
-    , rs_expandedExtensions :: S.HashSet ExpandedExtension
-    -- ^ the found expanded extensions that are not matched by an explicit expanded extension,
-    --   but that are matched from a generic extension.
-    , rs_errors :: AsterisellErrorsDictionary
-    -- ^ prevent the generation of new errrors, if there are similar errors already generated
-    , rs_criticalError :: Maybe (AsterisellError, AsterisellErrorDupKey)
-    -- ^ Nothing if the rating process can continue, a critical error with the problem key otherwise
-    }
+-- | Number of CDRs to process in each phase: parse, rate, write to DB.
+--   A bigger chunk reduces the number of DB round-trips, because more CDRs are sent to the DB.
+param_chunkSize :: Int
+param_chunkSize = 512
 
-instance NFData RatingStatus where
-  rnf r = seq (r { rs_incomeBundleState = force (rs_incomeBundleState r) }) ()
+-- | The number of source CDRs to fetch from the DB, before splitting the rating event.
+--   Up to date the Haskell MySQL driver does not support the forward-only cursor mode,
+--   and it stores all the CDRS of the rating query in RAM.
+--   So the query is splitted (efficiently) in smaller queries, and they are rated separately.
+--   NOTE: 30K CDRs requires approximately 100M - 200M of RAM (according the number of rates to load)
+--   NOTE: the cost of splitting the query is rather neglible.
+param_chunkSize2 :: Int
+param_chunkSize2 = 1024 * 30
 
-ratingStatus_empty :: RatingStatus
-ratingStatus_empty
-  = RatingStatus {
-       rs_incomeRate = Nothing
-     , rs_costRate = Nothing
-     , rs_incomeBundleState = Nothing
-     , rs_expandedExtensions = S.empty
-     , rs_errors = asterisellErrorsDictionary_empty
-     , rs_criticalError = Nothing
-    }
-
--- | A monad returning an error, or returning some result, inside IO
-type RatingMonad = ExceptT (CDR, AsterisellError) IO
-
-type YearAndMonth = (Integer, Int)
-
--- | A CDR with strings replaced with MySQL escaped strings.
-data EscapedCDR
-  = EscapedCDR {
-      ecdr_internalTelephoneNumber :: !BS.ByteString
-    , ecdr_externalTelephoneNumber :: !BS.ByteString
-    , ecdr_channel :: !(Maybe BS.ByteString)
-    , ecdr_externalTelephoneNumberWithAppliedPortability :: !(Maybe BS.ByteString)
-    , ecdr_displayedExternalTelephoneNumber :: !(Maybe BS.ByteString)
-    , ecdr_displayedMaskedExternalTelephoneNumber :: !(Maybe BS.ByteString)
-    , ecdr_problemDuplicationKey  :: ! (Maybe BS.ByteString)
-    , ecdr_debug_cost_rate :: ! (Maybe BS.ByteString)
-    , ecdr_debug_income_rate :: ! (Maybe BS.ByteString)
-    , ecdr_debug_residual_income_rate :: ! (Maybe BS.ByteString)
-    , ecdr_debug_rating_details :: ! (Maybe BS.ByteString)
-    }
-
-instance NFData EscapedCDR where
-  rnf c = seq c ()
-
-type RawSourceCDR
-       = (BS.ByteString
-         -- ^id
-         , BS.ByteString
-         -- ^ call date
-         , BS.ByteString
-         -- ^ format name
-         , BS.ByteString
-         -- ^ version name
-         , BS.ByteString
-         -- ^ version id
-         , BS.ByteString
-         -- ^ provider name
-         , BS.ByteString
-         -- ^ provider id
-         , BS.ByteString
-         -- ^ source CDR content
-         )
-
--- | A CDR to rate, with associated debug info.
-type CDRToRate =
-       ( CDR
-       , BS.ByteString
-         -- ^ the ar_rource_cdr.id field
-       , BS.ByteString
-         -- ^ logical type name
-       , BS.ByteString
-         -- ^ version type name
-       , BS.ByteString
-         -- ^ versionId
-       , BS.ByteString
-         -- ^ provider name
-       , BS.ByteString
-         -- ^ providerId
-       , BS.ByteString
-         -- ^ CDR source line
-       , Either AsterisellError SourceCDRDescription
-         -- ^ the critical error or the human readable description of the parsed CDR
-       )
-
-data RateCmd
-  = RateCmd_close
-  | RateCmd_rate CDRToRate
-  | RateCmd_rateService ServiceCDR
- deriving(Show)
-
-type CmdWait = MVar ()
-
-cmdWait_wait :: CmdWait -> IO ()
-cmdWait_wait w = takeMVar w
-
-cmdWait_wake :: CmdWait -> IO ()
-cmdWait_wake w = putMVar w ()
-
--- | A command to execute on the write transaction of the database.
-data WriteCmd
-  = WriteCmd_close !CallDate
-  | WriteCmd_insert !CDR !BundleState
-    -- ^ write a CDR. The BundleState is passed, only for forcing the the strict computation of the state, during rating, but it is not written.
-  | WriteCmd_exec (Maybe CmdWait) !BS.ByteString
-  | WriteCmd_saveBundleState !LocalTime !BundleState
-  | WriteCmd_insertSourceCDRToExport !BS.ByteString
-    -- ^ accept the ar_source_cdr.id to export
-  | WriteCmd_insertExpandedExtension !ExpandedExtension
-
-instance Show WriteCmd where
-  show (WriteCmd_close d) = "WriteCmd_close " ++ show d
-  show (WriteCmd_insert c s) = "WriteCmd_insert " ++ cdr_showDebug c
-  show (WriteCmd_exec w c) = "WriteCmd_exec " ++ show c
-  show (WriteCmd_saveBundleState t s) = "WriteCmd_saveBundleState " ++ show t
-  show (WriteCmd_insertSourceCDRToExport i) = "WriteCmd_insertSourceCDRToExport " ++ show i
-
-instance NFData WriteCmd where
-  rnf (WriteCmd_insert cdr bundleState) = deepseq (cdr, bundleState) ()
-  rnf w = seq w ()
-
--- | Command to send to the error process, for registering new errors.
-data ErrorCmd
-  = ErrorCmd_insert
-      Bool -- ^ True for writing the error on DB
-      AsterisellError
-      (Maybe ( BS.ByteString -- ^ garbage key
-             , CallDate -- ^ from date
-             , CallDate -- ^ to date
-             )) -- ^ Nothing for an error withou garbage collection
-  | ErrorCmd_close
-
---
--- Initial Import of CDRS
---
-
--- | Extract each line of the CSV file in a more robust way respect a pure Cassava based parser.
---   From a theorical point of view the Cassava approach is the correct approach:
---   * new lines inside ".." are correctly recognized
---   * new lines not inside ".." generate an error
---   But I can not use Cassava in this way because in case of a new-line in some bad position, the remaining content of the file is ignored.
---   This approach of parsing line by line is in practice more robust, and fit better with the usual type of content of CDRs files.
---
---   I need this approach also because the ar_source_cdr table need an entry for each CDR, and so splitting a big file in lines
---   is the best approach.
-extractLinesFromCSVFile
-  :: SourceCDRParams
-  -> SourceCDRImporter
-
-extractLinesFromCSVFile params handle cdrsChan
-  = do case localeConversion of
-            UseUTF8
-              -> hSetEncoding handle utf8_bom
-
-       emitLines maybeDropFirstLine handle
-
- where
-
-   localeConversion
-     = case params of
-              SourceCDRParamsCSVFile _ _ r -> r
-
-   maybeDropFirstLine
-     = case params of
-         SourceCDRParamsCSVFile mh _ _
-           -> isJust mh
-
-   emitLines skipFirst h
-     = do
-         eof <- hIsEOF h
-         case eof of
-           True
-             -> writeChan cdrsChan Nothing
-           False
-             -> do str <- LText.hGetLine h
-                   -- NOTE: divide in lines taking in account the UTF8 format
-                   when (not skipFirst) (writeChan cdrsChan (Just $ LText.encodeUtf8 str))
-                   emitLines False h
-
--- | Return a CDR, assuming it is a CSV line in UTF8 format.
-importSourceCDRFromCSVLine
-  :: forall a . (CDRFormat a)
-  => Maybe a    -- ^ used only for forcing the type constraints on the pipe, the value is ignored, so you can pass Nothing
-  -> CurrencyPrecisionDigits
-  -> SourceCDRParams
-  -> CDRImporter
-
-importSourceCDRFromCSVLine notUsed precision params !content !provider
-  = let fieldDelimiter = case params of
-                           SourceCDRParamsCSVFile _ r _ -> r
-
-        csvOptions = CSV.defaultDecodeOptions {
-                           CSV.decDelimiter = fromIntegral (Char.ord fieldDelimiter)
-                     }
-
-        d :: Either String (V.Vector a)
-        !d = CSV.decodeWith csvOptions CSV.NoHeader content
-    in case d of
-      Left !err
-        -> (Nothing, Left $ (createError
-                                Type_Error
-                                Domain_RATES
-                                ("parsing error" ++ err)
-                                ("Parsing error. " ++ err)
-                                ("")
-                                ("")))
-      Right !vs
-        -> case V.length vs of
-             1 -> let !v = V.head vs
-                  in case getCallDate v of
-                       Left !err
-                         -> (Nothing, Left err)
-                       Right !Nothing
-                         -> (Nothing, Right [])
-                       Right (Just !callDate)
-                         -> case toCDR precision provider v of
-                              Left !err
-                                -> (Just callDate, Left err)
-                              Right !cdrs
-                                -> let cdrsWithDescription = List.map (\cdr -> (cdr, show cdr)) cdrs
-                                   in (Just callDate, Right cdrsWithDescription)
-             n -> (Nothing, Left $ (createError
-                                Type_Error
-                                Domain_RATES
-                                ("parsing error, unexpected len " ++ show n)
-                                ("Parsing error. Unexpexted decode with " ++ show n ++ " records.")
-                                ("")
-                                ("")))
-
--- | Export a CDR to a file.
-exportSourceCDRToCSVLine
-  :: Handle
-     -- ^ where to wirte
-  -> SourceCDRParams
-     -- ^ the format of the line
-  -> Text.Text
-     -- ^ the CSV line in UTF8 format
-  -> IO ()
-     -- ^ write the result to the file, converting to the right format.
-
-exportSourceCDRToCSVLine h params@(SourceCDRParamsCSVFile _ _ UseUTF8) line
-  = do Text.hPutStr h line
-       Text.hPutStr h "\r\n"
-       return ()
-
--- | Update in the database, the rating time frame.
-db_updateRatingTimeFrame :: DB.Connection -> Bool -> LocalTime -> LocalTime -> IO ()
-db_updateRatingTimeFrame db importedServiceCDRS  rateFromDate1 rateToDate1
-  = do
-       let query1
-             = case importedServiceCDRS of
-                 True
-                   -> "SELECT scheduled_imported_services_rerate_from_specific_calldate, scheduled_imported_services_rerate_to_specific_calldate FROM ar_params WHERE is_default = 1 LIMIT 1"
-                 False
-                   -> "SELECT new_imported_cdrs_from_calldate, new_imported_cdrs_to_calldate FROM ar_params WHERE is_default = 1 LIMIT 1"
-
-       DB.query db $ fromString query1
-       r <- DB.storeResult db
-       maybeRow <- DB.fetchRow r
-       when (not $ List.null maybeRow) $ do
-         let [maybeOldFromDate1, maybeOldToDate1] = maybeRow
-         let rateFromDate2 = fromString $ fromLocalTimeToMySQLDateTime rateFromDate1
-         let rateToDate2 = fromString $ fromLocalTimeToMySQLDateTime rateToDate1
-
-         let rateFromDate3 :: BS.ByteString
-               = case maybeOldFromDate1 of
-                   Nothing
-                     -> rateFromDate2
-                   Just oldFromDate1
-                     -> min oldFromDate1 rateFromDate2
-
-         let rateToDate3 :: BS.ByteString
-               = case maybeOldToDate1 of
-                   Nothing
-                     -> rateToDate2
-                   Just oldToDate1
-                     -> max oldToDate1 rateToDate2
-
-         DB.freeResult r
-
-         let (query2_1, query2_2)
-               = case importedServiceCDRS of
-                   True
-                     -> ("UPDATE ar_params SET scheduled_imported_services_rerate_from_specific_calldate = '", "', scheduled_imported_services_rerate_to_specific_calldate = '")
-                   False
-                     -> ("UPDATE ar_params SET new_imported_cdrs_from_calldate = '", "', new_imported_cdrs_to_calldate = '")
-
-         DB.query db $ BS.concat [query2_1, rateFromDate3, query2_2, rateToDate3, "'"]
-         return ()
+-- | Used for testing the application in reduced running contexts
+data RunLevel
+  = RunLevelFull
+  | RunLevelUntilRating
+  | RunLevelUntilPortedTelephoneNumberConversion
+  | RunLevelUntilSourceCDRParsing
+  | RunLevelUntilReadingFromDB
+ deriving (Eq, Ord, Show, Generic, NFData)
 
 -- | Meta info about a SourceDataFile.
 --   At this stage only the calldate is imported and processed.
 type SourceDataSummaryInfo
   = ( Maybe (LocalTime, LocalTime)
-      -- ^ max and minimum found call date, for normal CDRs
-    , Maybe (LocalTime, LocalTime)
-      -- ^ max and minimm found call date, for imported service CDRS
+      -- ^ max and minimum found call date
     , Int
       -- ^ total number of lines
     , Int
       -- ^ lines with errors
     )
 
-data SourceCDRToImport = SourceCDRToImport !LocalTime !Int !Int !Int !Bool !BS.ByteString
+-- -------------------------------------------------------------------
+-- DB Process
 
-instance NFData SourceCDRToImport where
-  rnf c = seq c ()
+-- | Give a unique human readable name to a prepared statement.
+data StmtName
+  = Stmt_insertExpandedExtension
+  | Stmt_insertCDRWithError
+ deriving (Eq, Ord, Generic)
 
--- | Import CDRs into the database.
-data ImportCmd
-       = ImportCmd_close
-       | ImportCmd_exec (Maybe (MVar ())) BS.ByteString
-       | ImportCmd_updateRatingTimeFrame Bool LocalTime LocalTime
-       | ImportCmd_insert !SourceCDRToImport
+instance Hashable StmtName
 
-instance NFData ImportCmd where
-  rnf c = seq c ()
+-- | Store prepared statements.
+type PreparedStms = H.HashMap StmtName StmtID
+
+preparedStmts_empty :: PreparedStms
+preparedStmts_empty = H.empty
+
+data DBProcessState
+       = DBProcessState {
+           dbps_preparedStatements :: PreparedStms
+         , dbps_errorsDictionary :: AsterisellErrorsDictionary
+         }
+
+dbProcessState_empty :: DBProcessState
+dbProcessState_empty
+    = DBProcessState {
+        dbps_preparedStatements = preparedStmts_empty
+      , dbps_errorsDictionary = asterisellErrorsDictionary_empty
+      }
+
+dbProcess_getPreparedStmt
+  :: DB.MySQLConn
+  -> IORef DBProcessState
+  -> StmtName
+  -> IO StmtID
+
+dbProcess_getPreparedStmt conn pStateR stmtName = do
+  pState <- readIORef pStateR
+  let map1 = dbps_preparedStatements pState
+  case H.lookup stmtName map1 of
+    Just id
+      -> return id
+    Nothing
+      -> do id <- DB.prepareStmt conn getQuery
+            let map2 = H.insert stmtName id map1
+            writeIORef pStateR (pState { dbps_preparedStatements = map2 })
+            return id
+
+ where
+
+  getQuery
+    = case stmtName of
+        Stmt_insertExpandedExtension
+          -> [str|INSERT INTO ar_expanded_extensions
+                 |SET ar_organization_unit_id = ?
+                 |,   extension_code = ?
+                 |]
+
+        Stmt_insertCDRWithError
+          -> [str|INSERT INTO ar_new_problem(
+                 |   ar_problem_type_id, ar_problem_domain_id, ar_problem_responsible_id, created_at
+                 | , duplication_key, garbage_collection_key, garbage_collection_from
+                 | , garbage_collection_to
+                 | , description, effect, proposed_solution
+                 | , signaled_to_admin)
+                 |VALUES(?,?,?, NOW(), ?, ?, ?, ?, ?, ?, ?, 0)
+                 |ON DUPLICATE KEY UPDATE
+                 |  garbage_collection_from = LEAST(garbage_collection_from, VALUES(garbage_collection_from))
+                 |, garbage_collection_to = GREATEST(garbage_collection_to, VALUES(garbage_collection_to))
+                 |, ar_problem_type_id = VALUES(ar_problem_type_id)
+                 |, ar_problem_domain_id  = VALUES(ar_problem_domain_id)
+                 |, ar_problem_responsible_id  = VALUES(ar_problem_responsible_id)
+                 |, created_at = VALUES(created_at)
+                 |, garbage_collection_key = VALUES(garbage_collection_key )
+                 |, description = VALUES(description )
+                 |, effect = VALUES(effect)
+                 |, proposed_solution = VALUES(proposed_solution)
+                 |, signaled_to_admin  = signaled_to_admin ;
+                 |]
+
+
+data Cmd
+  = Cmd_wait (MVar ())
+    -- ^ wait the process is ready for accepting new commands.
+    --   Useful in few computation phases where it is important starting a reading query,
+    --   when the writing process is ready to write values.
+
+  | Cmd_deleteFromArSource PhysicalFormatId ProviderId (Maybe (LocalTime, LocalTime))
+    -- ^ Remove old status CDRs with the same cdr provider, and logical-type,
+    -- in a timeframe that is the same of this file, because this new piece of information
+    -- is a status replacing completely old values.
+    -- Pass Nothing as time-frame for deleting all the CDRs of the provider.
+
+  | Cmd_insertSourceCDR
+      [(  LocalTime     -- ^ the call date
+        , Int           -- ^ providerId
+        , Int           -- ^ logicalTypeId
+        , Int           -- ^ formatTypeId
+        , Bool          -- ^ areImportedServiceCDRS
+        , BS.ByteString -- ^ source CDR content in native format
+       )]
+
+  | Cmd_insertCDR [CDR]
+
+  | Cmd_insertExpandedExtension ExpandedExtension
+
+  | Cmd_updateRatingTimeFrame
+      -- ^ inform the application that there are new calls to rate in the specified time-frame
+      Bool
+      -- ^ True for imported service CDR, False for normal CDRs
+      LocalTime
+      -- ^ from call time
+      LocalTime
+      -- ^ to call time
+
+  | Cmd_deleteCDRS
+    -- ^ delete old calculated CDRs (but not imported service CDRS) before calculating new ones.
+      LocalTime -- ^ bundle state from call date
+      LocalTime -- ^ normal calls from call date
+      LocalTime -- ^ normal calls to call date
+      LocalTime -- ^ bundle state can be saved from call date
+      LocalTime -- ^ bundle state to call date
+
+  | Cmd_deleteOnlyImportedServiceCDRS LocalTime LocalTime
+
+  | Cmd_saveBundleState LocalTime BundleState
+
+  | Cmd_insertCDRWithError
+      AsterisellError
+      (Maybe (BS.ByteString, CallDate, CallDate))
+      -- ^ the garbage-key and the timeframe in which the error is present
+      (Maybe CDR)
+    -- NOTE: it is safe using the same transaction both for CDR and errors here, because if CDRs are not saved, errors are not generated.
+    -- Critical errors aborting the rating process are not signaled here,
+    -- but from other PHP code.
+
+  | Cmd_close
+      Bool
+      -- ^ True for closing a onlyImportedServiceCDRS event
+      LocalTime
+      -- ^ the fromCallDate
+      LocalTime
+      -- ^ the bundleStateToCallDate
+      RatingStatus
+      -- ^ additional info to write
+    -- @requires: this is the last called command
+    -- close the rating process, writing the rating status.
+
+ deriving (Show, Generic, NFData)
+
+instance Show (MVar ()) where
+  show _ = "MVar ()"
+
+-- | Receive commands and execute them on the DB, inside a transaction.
+--   Throw an exception in case of error, and rollback the transaction.
+--   Commit the transaction when the stream is closed.
+--
+process_db
+  :: Bool
+  -- ^ True for debug mode
+  -> DBConf
+  -- ^ connection parameters
+  -> CurrencyPrecisionDigits
+  -> Maybe FilePath
+  -- ^ the file to delete in case the info is successfully committed to the database
+  -> Chan Cmd
+  -> IO ()
+
+process_db isDebugMode dbConf pd maybeFileName inChan
+  = safeBracket
+      (openDBConnection dbConf True)
+      (\maybeExc conn -> do
+          case maybeExc of
+            Just exc
+              -> do hPutStrLn IO.stderr $! "process_db: exception " ++ displayException exc
+                    DB.execute_ conn "ROLLBACK"
+                    return ()
+            Nothing
+              -> do return ()
+          DB.close conn)
+      (\conn -> do
+          initialState <- newIORef dbProcessState_empty
+          processCmds conn initialState
+          DB.execute_ conn "COMMIT"
+
+          -- Bet/hope that after the commit the delete operation always suceedee,
+          -- otherwise in case it is not a status file then repeated info will be added.
+          case maybeFileName of
+            Nothing
+              -> do return ()
+            Just fileName
+              -> do removeFile fileName
+                    return ())
+
+ where
+
+   processCmds conn stateR = do
+     cmds <- readChan inChan
+
+     case isEOFChan cmds of
+       True -> do return ()
+       False -> do V.mapM_ (processCmd conn stateR) cmds
+                   processCmds conn stateR
+
+   processCmd :: DB.MySQLConn -> IORef DBProcessState -> Cmd -> IO ()
+   processCmd conn pStateR cmd
+     = case cmd of
+         Cmd_wait v
+           -> do putMVar v ()
+
+         Cmd_deleteFromArSource formatId providerId Nothing
+           -> do let query = "DELETE FROM ar_source_cdr WHERE ar_physical_format_id = ? AND ar_cdr_provider_id  = ? "
+                 DB.execute conn query [toDBInt64 formatId, toDBInt64 providerId]
+                 return ()
+
+         Cmd_deleteFromArSource formatId providerId (Just (fromDate, toDate))
+           -> do let query = [str|DELETE FROM ar_source_cdr
+                                 |WHERE ar_physical_format_id = ?
+                                 |AND ar_cdr_provider_id  = ?
+                                 |AND calldate >= ?
+                                 |AND calldate < ?
+                                 |]
+
+                 DB.execute conn query [ toDBInt64 formatId
+                                       , toDBInt64 providerId
+                                       , toDBLocalTime fromDate
+                                       , toDBLocalTime toDate]
+                 return ()
+
+         Cmd_insertSourceCDR cdrs
+           -> let sqlStmt
+                     = [str|INSERT INTO ar_source_cdr(
+                           |  calldate
+                           |, ar_cdr_provider_id
+                           |, ar_physical_format_id
+                           |, is_imported_service_cdr
+                           |, content
+                           |) VALUES(?,?,?,?,?)
+                           |]
+                  toCdr (callDate, providerId, _, versionId, isImportedServiceCDR, source)
+                     = [ toDBLocalTime callDate
+                       , toDBInt64 providerId
+                       , toDBInt64 versionId
+                       , toDBBool isImportedServiceCDR
+                       , DB.MySQLBytes source]
+
+              in case L.null cdrs of
+                   True ->  do return ()
+                   False -> do DB.executeMany conn sqlStmt (L.map toCdr cdrs)
+                               return ()
+
+         Cmd_updateRatingTimeFrame importedServiceCDRS fromDate toDate
+           -> do let query
+                       = case importedServiceCDRS of
+                           True
+                             -> [str|UPDATE ar_params
+                                    |SET scheduled_imported_services_rerate_from_specific_calldate = IFNULL(LEAST(scheduled_imported_services_rerate_from_specific_calldate, ?), ?)
+                                    |,   scheduled_imported_services_rerate_to_specific_calldate = IFNULL(GREATEST(scheduled_imported_services_rerate_to_specific_calldate, ?), ?)
+                                    |WHERE is_default = 1
+                                    |]
+                           False
+                             -> [str|UPDATE ar_params
+                                    |SET new_imported_cdrs_from_calldate = IFNULL(LEAST(new_imported_cdrs_from_calldate, ?), ?)
+                                    |,   new_imported_cdrs_to_calldate = IFNULL(GREATEST(new_imported_cdrs_to_calldate, ?), ?)
+                                    |WHERE is_default = 1
+                                    |]
+
+                 DB.execute conn query [toDBLocalTime fromDate, toDBLocalTime fromDate, toDBLocalTime toDate, toDBLocalTime toDate]
+                 return ()
+
+         Cmd_deleteCDRS bundleStateFromCallDate fromCallDate toCallDate bundleStateCanBeSavedFromCallDate bundleStateToCallDate
+           -> do
+                  let d0 = toDBLocalTime bundleStateFromCallDate
+                  let d1 = toDBLocalTime fromCallDate
+                  let d2 = toDBLocalTime toCallDate
+                  let d4 = toDBLocalTime bundleStateToCallDate
+
+                  -- The temporal order is
+                  -- d0 <= d1 < d2 <= d4
+
+                  -- Remove all CDRS and services. They can be of these types:
+                  -- * normal CDRS
+                  -- * service CDRS associated to bundle rates
+                  -- * pure service CDRS
+                  -- * imported services
+                  --
+                  -- The contracts to respect are:
+                  -- 1. if a type of CDR is deleted, then it is also generated and saved in the rating phase
+                  -- 2. if a type of CDR is not deleted, then it is not saved in the rating phase
+                  -- 3. optionally a CDR can be generated/rated, for updating some state, but not saved
+                  -- 4. all source CDRS are rated and saved if all time frames are rerated 
+                  --
+                  -- Delete normal CDRS, from d1 (the start of rating period), to d4.
+                  -- Consider d4 instead of d2, because if initial CDRS changes, then the bundle state can change too, and CDRS after d2 can be not
+                  -- anymore in synchro/correctly-rated.
+                  --
+                  -- The service CDRS associated to bundle rates,
+                  -- with to_calldate > d0 and to_calldate <= d4, must be deleted, rerated, and saved, because:
+                  -- * there can not be service CDRS after `bundleStateCanBeSavedFromCallDate`
+                  --
+                  -- Pure services are deleted, generated and saved if their starting date is inside d1 and d2.
+                  -- The to_calldate of a pure service cdr is not taken in consideration because it can be larger than the bundle time frame.
+                  --
+                  -- Imported services are not deleted in any case.
+                  --
+                  -- NOTE: modification of a pure service (params, or customer assignation) or of a bundle rate, generate a rerate event of unbilled time-frame,
+                  -- so they are recomputed automatically.
+
+                  let q1 = [str| DELETE FROM ar_cdr
+                               | WHERE
+                               |    (to_calldate IS NULL AND calldate >= ? AND calldate < ? AND is_imported_service_cdr = 0)
+                               | OR (to_calldate IS NOT NULL AND debug_cost_rate IS NOT NULL AND debug_income_rate IS NOT NULL AND to_calldate > ? AND to_calldate <= ? AND is_imported_service_cdr = 0)
+                               | OR (to_calldate IS NOT NULL AND debug_cost_rate IS NULL AND debug_income_rate IS NULL AND calldate >= ? AND calldate < ? AND is_imported_service_cdr = 0)
+                               |]
+                  -- NOTE: delete in order:
+                  -- * normal calls having to_calldate IS NULL
+                  -- * bundle rate services having to_calldate IS NOT NULL, and debug_cost_rate and debug_income_rate IS NOT NULL
+                  -- * pure services having to_calldate IS NOT NULL, and debug_cost_rate and debug_income_rate IS NULL
+
+                  DB.execute
+                    conn
+                    (DB.Query q1)
+                    [ d1, d4
+                    , d0, d4
+                    , d1, d2]
+
+                  let qb = "DELETE FROM ar_bundle_state WHERE to_time >= ?"
+                  DB.execute conn qb [toDBLocalTime bundleStateCanBeSavedFromCallDate]
+
+                  return ()
+
+         Cmd_deleteOnlyImportedServiceCDRS fromCallDate toCallDate
+           -> do -- Delete imported service cdrs inside the rating period.
+                 -- They will be imported again from ar_source_cdr, according their calldate, so only their calldate is taken in consideartion, and not to_calldate.
+
+                 let q = [str|DELETE FROM ar_cdr
+                             |WHERE is_imported_service_cdr = 1
+                             |AND calldate >= ?
+                             |AND calldate < ?
+                             |]
+
+                 let v = [toDBLocalTime fromCallDate, toDBLocalTime toCallDate]
+
+                 DB.execute conn q v
+                 return ()
+
+         Cmd_insertCDR cdrs
+           -> do
+                 let q =  [str|INSERT INTO ar_cdr(
+                              |  calldate, to_calldate, count_of_calls, is_imported_service_cdr, destination_type
+                              |, is_redirect, duration, billsec, ar_organization_unit_id, cached_parent_id_hierarchy
+                              |, billable_ar_organization_unit_id, bundle_ar_organization_unit_id, income, cost_saving
+                              |, ar_vendor_id, ar_communication_channel_type_id, cost, expected_cost, ar_telephone_prefix_id
+                              |, cached_external_telephone_number, external_telephone_number_with_applied_portability
+                              |, cached_masked_external_telephone_number, error_destination_type, ar_problem_duplication_key
+                              |, debug_cost_rate, debug_income_rate, debug_residual_income_rate, debug_residual_call_duration
+                              |, debug_bundle_left_calls, debug_bundle_left_duration, debug_bundle_left_cost, debug_rating_details
+                              |) VALUES(?,?,?,?,?,?,?,?,?,?,
+                              |         ?,?,?,?,?,?,?,?,?,?,
+                              |         ?,?,?,?,?,?,?,?,?,?,
+                              |         ?,?)
+                              |]
+
+                 case L.null cdrs of
+                   True -> do return ()
+                   False -> do DB.executeMany
+                                 conn
+                                 q
+                                 (L.map (\cdr -> [ toDBMaybeLocalTime $ Just $ cdr_calldate cdr
+                                                 , toDBMaybeLocalTime $ cdr_toCalldate cdr
+                                                 , toDBInt64 $ cdr_countOfCalls cdr
+                                                 , toDBBool $ cdr_isImportedServiceCDR cdr
+                                                 , toDBInt64 $ cdrDirection_asterisellCode $ cdr_direction cdr
+                                                 , toDBBool $ cdr_isRedirect cdr
+                                                 , toMaybeInt64 $ cdr_duration cdr
+                                                 , toMaybeInt64 $ cdr_billsec cdr
+                                                 , toMaybeInt64 $ cdr_organizationUnitId cdr
+                                                 , toDBIds $ cdr_cachedParentIdHierarchy cdr
+                                                 , toMaybeInt64 $ cdr_billableOrganizationUnitId cdr
+                                                 , toMaybeInt64 $ cdr_bundleOrganizationUnitId cdr
+                                                 , toMaybeMoney pd $ Just $ cdr_income cdr
+                                                 , toMaybeMoney pd $ Just $ cdr_costSaving cdr
+                                                 , toMaybeInt64 $ cdr_vendorId cdr
+                                                 , toMaybeInt64 $ cdr_communicationChannelTypeId cdr
+                                                 , toMaybeMoney pd $ Just $ cdr_cost cdr
+                                                 , toMaybeMoney pd $ cdr_expectedCost cdr
+                                                 , toMaybeInt64 $ cdr_telephonePrefixId cdr
+                                                 , toDBText $ cdr_externalTelephoneNumber cdr
+                                                 , toDBMaybeText $ cdr_externalTelephoneNumberWithAppliedPortability cdr
+                                                 , toDBMaybeText $ cdr_displayedMaskedExternalTelephoneNumber cdr
+                                                 , toDBInt64 $ cdrDirection_asterisellCode $ cdr_errorDirection cdr
+                                                 , toDBMaybeText $   cdr_problemDuplicationKey cdr
+                                                 , toDBMaybeText $ cdr_debug_cost_rate cdr
+                                                 , toDBMaybeText $ cdr_debug_income_rate cdr
+                                                 , toDBMaybeText $ cdr_debug_residual_income_rate cdr
+                                                 , toMaybeInt64 $ cdr_debug_residual_call_duration cdr
+                                                 , toMaybeInt64 $ cdr_debug_bundle_left_calls cdr
+                                                 , toMaybeInt64 $ cdr_debug_bundle_left_duration cdr
+                                                 , toMaybeMoney pd $ cdr_debug_bundle_left_cost cdr
+                                                 , toDBMaybeText $ cdr_debug_rating_details cdr
+                                                 ]) cdrs)
+                               return ()
+
+         Cmd_saveBundleState toCallDate bundleState
+           -> do let serializatedBundleState = LZ.compress $ DBS.encode bundleState
+                 let q = "INSERT INTO ar_bundle_state(to_time, data_file) VALUES(?, ?)"
+                 let v = [toDBLocalTime toCallDate, toDBByteString serializatedBundleState]
+                 DB.execute conn q v
+                 return ()
+
+         Cmd_insertExpandedExtension ee
+           -> do
+                 (DBProcessState preparedStmts errors) <- readIORef pStateR
+                 !stmtId <- dbProcess_getPreparedStmt conn pStateR Stmt_insertExpandedExtension
+                 DB.executeStmt conn stmtId [toDBInt64 $ ee_organizationId ee, toDBByteString $ ee_specificExtensionCode ee]
+                 return ()
+
+         Cmd_insertCDRWithError err maybeGarbageKey maybeCDR
+           -> do
+                 (DBProcessState !preparedStmts1 !errors1) <- readIORef pStateR
+                 !stmtId <- dbProcess_getPreparedStmt conn pStateR Stmt_insertCDRWithError
+                 let garbageKeyParams
+                       = case maybeGarbageKey of
+                           Nothing
+                             -> [MySQLNull, MySQLNull, MySQLNull]
+                           Just (garbageKey, fromDate, toDate)
+                             -> [MySQLBytes garbageKey, toDBLocalTime fromDate, toDBLocalTime toDate]
+
+                 let dupKey = asterisellError_dupKey err
+
+                 let params = [ MySQLInt64 $ fromIntegral $ errorType_toPHPCode $ asterisellError_type err
+                              , MySQLInt64 $ fromIntegral $ errorDomain_toPHPCode $ asterisellError_domain err
+                              , MySQLInt64 $ fromIntegral $ errorResponsible_toPHPCode $ asterisellError_responsible err
+                              , MySQLText dupKey
+                              ]
+                              ++ garbageKeyParams
+                              ++ [ MySQLText $ Text.pack $ asterisellError_description err
+                                 , MySQLText $ Text.pack $ asterisellError_effect err
+                                 , MySQLText $ Text.pack $ asterisellError_proposedSolution err
+                                 ]
+
+                 let (insertInDB, errors2)
+                       = case HS.member dupKey errors1 of
+                           True ->  (False, errors1)
+                           False -> (True, HS.insert dupKey errors1)
+
+                 (DBProcessState !preparedStmts2 _) <- readIORef pStateR
+                 writeIORef pStateR (DBProcessState preparedStmts2 errors2)
+
+                 -- NOTE: insert the error in any case, because maybe the date with the error range is updated.
+                 DB.executeStmt conn stmtId params
+
+                 -- NOTE: insertt the CDR in any case because we must mantain stats abouts CDRS with errors.
+                 case maybeCDR of
+                   Nothing -> return ()
+                   Just cdr1
+                     -> let newErrorDirection
+                              = case cdr_direction cdr1 of
+                                  CDR_error -> cdr_errorDirection cdr1
+                                  _ -> cdr_direction cdr1
+
+                            cdr2 = cdr1 {
+                                     cdr_errorDirection = newErrorDirection
+                                   , cdr_direction = CDR_error
+                                   , cdr_problemDuplicationKey = Just dupKey
+                                   , cdr_duration = case cdr_duration cdr1 of
+                                                      Nothing -> Just 0
+                                                      Just r -> Just r
+                                   , cdr_billsec = case cdr_billsec cdr1 of
+                                                      Nothing -> Just 0
+                                                      Just r -> Just r
+                                   }
+
+                        in do processCmd conn pStateR (Cmd_insertCDR [cdr2])
+                              return ()
+
+         Cmd_close onlyImportedServiceCDRS fromCallDate bundleStateToCallDate state1
+           -> do
+                 case onlyImportedServiceCDRS of
+                   True -> return ()
+                   False -> do
+                     !stmtId <- DB.prepareStmt conn "CALL add_daily_status_change_event(?)"
+                     let (allDays, _) = timeFrame_getYearsAndMonth (fromCallDate, bundleStateToCallDate)
+
+                     let toCallDate' d = toDBLocalTime $ LocalTime { localDay = d, localTimeOfDay = midnight}
+                     M.mapM_ (\d -> DB.executeStmt conn stmtId [toCallDate' d]) (Set.toList allDays)
+
+-- | Receive commands but does not execute them.
+--   It is a fake process, for testing maximum speed of other processes.
+process_fakeDB
+  :: Bool
+  -> DBConf
+  -- ^ connection parameters
+  -> CurrencyPrecisionDigits
+  -> Maybe FilePath
+  -- ^ the file to delete in case the info is successfully committed to the database
+  -> Chan Cmd
+  -> IO ()
+
+process_fakeDB isDebugMode dbConf pd maybeFileName inS
+  = safeBracket
+     (return ())
+     (\maybeExc _ -> do
+       case maybeExc of
+         Just exc
+           -> do hPutStrLn IO.stderr $! "process_db exception: " ++ displayException exc
+                 return ()
+         _ -> do return ())
+     (\_ -> do hashR <- newIORef 0
+               processCmds hashR)
+ where
+
+   processCmds hashR = do
+     !cmds <- readChan inS
+     case isEOFChan cmds of
+       True -> do h <- readIORef hashR
+                  case h == 1753 of
+                    True -> error "unlucky event tested only for forcing evaluation"
+                    False -> return ()
+       False -> do V.mapM_ (process hashR) cmds
+                   processCmds hashR
+
+   process hashR cmd = do
+     -- putStrLn $ "!! DB CMD: " ++ show cmd
+     !h <- readIORef hashR
+     case cmd of
+       (Cmd_wait v)
+         -> do putMVar v ()
+       (Cmd_insertSourceCDR cdrs)
+         -> do let !h3 = L.foldl' (\h1 (_, _, _, _, _, s) -> h1 + (hash s)) h cdrs
+               writeIORef hashR h3
+       _ -> do return ()
+
+-- -------------------------------------------------------------------
+-- Initial Import of source/raw CDRS
 
 -- | Parse a file and import into database as ar_source_cdr records, returning summary info on its content.
 --   Report only serious errors, because all errors specific of CDRs will be reported during rating phase.
@@ -489,26 +699,31 @@ instance NFData ImportCmd where
 --
 rateEngine_importDataFile
   :: Maybe FilePath
-  -> ConfiguredCDRSImporters
   -> FilePath
   -> Bool
+  -- ^ True if the input file must be deleted at the end of the processing
+  -> Bool
+  -- ^ True if the file contains imported service CDRS
   -> CDRProviderName
   -> Int
-  -> BS.ByteString
+  -> Text.Text
   -> Int
-  -> BS.ByteString
+  -> Text.Text
   -> Int
   -> Bool
   -> Maybe (LocalTime, LocalTime)
   -> DBConf
   -> CurrencyPrecisionDigits
+  -> Bool
+  -- ^ True if it is a real importing, False if it is only a test of the code,
+  --   and no data must be written on the DB.
   -> IO SourceDataSummaryInfo
 
 rateEngine_importDataFile
   maybeDebugFile
-  defaultSourceDataImporter
   inputFile
   deleteInputFile
+  areImportedServiceCDRS
   providerName
   providerId
   logicalTypeName
@@ -518,279 +733,132 @@ rateEngine_importDataFile
   isStatusFile
   maybeStatusTimeFrame
   dbConf
-  precision = do
+  precision
+  loadRealData = do
 
-   DB.initLibrary
-   DB.initThread
+   let isDebugMode = isJust maybeDebugFile
 
-   (params, sourceImporter, importer)
-     <- case configuredCDRSImporters_get defaultSourceDataImporter logicalTypeName formatTypeName of
+   (CDRFormatSpec !sourceCDRParams !theType)
+     <- case getSupportedCDRSImporters logicalTypeName formatTypeName of
           Nothing
-            -> throwIO $ ErrorCall $ "There is no known/configured source data file importer."
+            -> throwIO $ AsterisellException ("There is no known/configured source data file importer for format " ++ (Text.unpack logicalTypeName) ++ ", and version " ++ (Text.unpack formatTypeName))
           Just r
             -> return r
 
-   sourceCDRSChan <- newBoundedChan (writeBuffSize * 2)
-   debugChan <- newBoundedChan writeBuffSize
+   cmdsChan <- newChan (Just 4)
+   -- NOTE: use a small bounded chan because the source-cdrs are already batched during parsing,
+   -- and they are sent in batched mode to the DB engine.
 
-   Control.Monad.Catch.handleAll handleImportErrors $ (do
-     withAsync (debugFileProcess maybeDebugFile debugChan) $ (\debugThread -> do
-       withAsyncBound (writeProcess debugChan sourceCDRSChan) (\writeThread -> do
+   handleAny handleImportErrors $
+     withAsync
+      (case loadRealData of
+         True -> process_db isDebugMode dbConf precision (if deleteInputFile then (Just inputFile) else Nothing) cmdsChan
+         False -> process_fakeDB isDebugMode dbConf precision (if deleteInputFile then (Just inputFile) else Nothing) cmdsChan)
+      (\dbThread -> do
+          when isStatusFile (writeChan cmdsChan (V.singleton $ Cmd_deleteFromArSource formatTypeId providerId maybeStatusTimeFrame))
+          case maybeStatusTimeFrame of
+            Just (d1, d2)
+              -> writeChan cmdsChan (V.singleton $ Cmd_updateRatingTimeFrame areImportedServiceCDRS d1 d2)
+            _ -> return ()
+            -- updated at the end of importing when imported calldates are known
 
-          when isStatusFile $ do
+          -- Process CDRs.
+          nowLocalTime1 <- getZonedTime
+          let nowLocalTime = zonedTimeToLocalTime nowLocalTime1
+          summaryInfo@(!maybeTimeFrame, !totLines, !linesWithErrors)
+            <- S.withFileAsInput inputFile (\fileContentStream -> do
+                 defaultCallDateRef <- newIORef nowLocalTime
+                 summaryInfoRef <- newIORef (Nothing, 0, 0)
+                 sourceCDRStream <- deriveSourceCDRImporter theType sourceCDRParams fileContentStream
+                 callDateStream <- S.mapM (extractCallDate defaultCallDateRef summaryInfoRef) sourceCDRStream
+                 callDateStream2 <- S.chunkVector param_chunkSize callDateStream
+                 cdrStream <- S.map insertCDRS callDateStream2
+                 writeStreamToChan cdrStream cmdsChan
+                 readIORef summaryInfoRef)
 
-            -- Remove old status CDRs with the same cdr provider, and logical-type,
-            -- in a timeframe that is the same of this file, because this new piece of information
-            -- is a status replacing completely old values.
-            let deleteQuery
-                  = BS.concat [
-                           "DELETE FROM ar_source_cdr WHERE ar_physical_format_id = ", fromString $ show formatTypeId
-                           , " AND ar_cdr_provider_id  = ", fromString $ show providerId
-                           , case maybeStatusTimeFrame of
-                               Nothing
-                                 -> ""
-                                    -- in this case the status file is on all the dates of the database, and replace completely the previous info
-                               Just (d1, d2)
-                                 -> BS.concat [
-                                      " AND calldate >= '", fromString $ fromLocalTimeToMySQLDateTime d1, "'"
-                                      , " AND calldate < '" , fromString $ fromLocalTimeToMySQLDateTime d2, "'"
-                                      ]
-                           ]
-
-            debugFile_append maybeDebugFile debugChan $ "Query: " ++ (Text.unpack $ fromMySQLResultToText $ Just deleteQuery)
-            w <- newEmptyMVar
-            writeChan sourceCDRSChan (ImportCmd_exec (Just w) deleteQuery)
-            cmdWait_wait w
-            debugFile_append maybeDebugFile debugChan "Pass 2"
-
-            -- Signal that che CDRs must be rerated later (deleted and replaced with the new version on source-cdrs)
-            -- DEV-NOTE: changing a DAY force a rerating of the day, but there can be days missing in a statuts file, and so an explicit rerate event is better.
-            case maybeStatusTimeFrame of
-              Just (d1, d2)
-                -> writeChan sourceCDRSChan (ImportCmd_updateRatingTimeFrame False d1 d2)
-              Nothing
-                -> return ()
-                   -- TODO not supported case.
-                   -- There will be a rerate event for each day, or the user must force a manual rerating.
-                   -- Up to date it is good enough.
-
-
-          summaryInfo@(maybeTimeFrame, maybeTimeFrame2, totLines, linesWithErrors)
-           <- withFile inputFile ReadMode $! \sourceH -> do
-                nowLocalTime1 <- liftIO getZonedTime
-                let nowLocalTime = zonedTimeToLocalTime nowLocalTime1
-                cdrsChan <- newBoundedChan (writeBuffSize * 2)
-                (_, r) <- concurrently (sourceImporter sourceH cdrsChan) (processSourceCDR importer cdrsChan sourceCDRSChan (nowLocalTime, (Nothing, Nothing, 0, 0)))
-                return r
-
+          -- Update the rating frame again.
           case totLines > 0 && linesWithErrors == totLines of
-           True -> throwIO $ ErrorCall $ "The code can not parse correctly the content. The code processing the file contains errors, or the file has not the specified format."
-           False -> do case maybeTimeFrame of
-                         Nothing
-                           -> return ()
-                         Just (rateFromCallDate, rateToCallDate)
-                           -> do writeChan sourceCDRSChan $ ImportCmd_updateRatingTimeFrame False rateFromCallDate rateToCallDate
-                                 return ()
+            True -> throw $ AsterisellException $ "The code can not parse correctly the content. The code processing the file contains errors, or the file has not the specified format."
+            False -> do case maybeTimeFrame of
+                          Nothing
+                            -> do return ()
+                          Just (rateFromCallDate, rateToCallDate)
+                            -> do writeChan cmdsChan (V.singleton $ Cmd_updateRatingTimeFrame areImportedServiceCDRS rateFromCallDate rateToCallDate)
+                                  return ()
 
-                       case maybeTimeFrame2 of
-                         Nothing
-                           -> return ()
-                         Just (rateFromCallDate, rateToCallDate)
-                           -> do writeChan sourceCDRSChan $ ImportCmd_updateRatingTimeFrame True rateFromCallDate rateToCallDate
-                                 return ()
+          -- Send the signal about the end of rating process, and close the db write thread.
+          -- If it is all ok also the input file is (in case) deleted from the input directory.
+          writeEOFChan cmdsChan
 
-          -- Send the signal about the end of rating process, and close the db write thread
-          writeChan sourceCDRSChan (ImportCmd_close)
-          wait writeThread
-
-          -- Bet/hope that after the commit the delete operation always suceedee, otherwise repeated info will be added.
-          when deleteInputFile (removeFile inputFile)
-
-          writeChan debugChan (Left ())
-          wait debugThread
-
-          return summaryInfo)))
+          wait dbThread
+          return summaryInfo)
 
  where
 
-   dbParams = DB.defaultConnectInfo {
-                     connectUser = dbConf_user dbConf
-                   , connectPassword = dbConf_password dbConf
-                   , connectDatabase = dbConf_dbName dbConf
-                   , connectOptions = [Reconnect False, CharsetName "utf8"]
-                   }
-
    handleImportErrors :: SomeException -> IO SourceDataSummaryInfo
    handleImportErrors e
-     = throwIO $ ErrorCall $ "There is an error during the importing of file \"" ++ inputFile ++ "\", with provider " ++ (Text.unpack providerName) ++ ", format " ++  (Text.unpack $ fromMySQLResultToText $ Just $ logicalTypeName) ++ "__" ++  (Text.unpack $ fromMySQLResultToText $ Just formatTypeName) ++ ". " ++ (show e) ++ ".\nAll the source data files with this format, and/or similar problems, will be not imported and rated. So there can be an high number of CDRs that are not rated. Note that there is only one error message for a file of this type, but this error message implies that all files of the same type are not rated.\nThis is probably an error in the application configuration. Contact the assistance."
+     = throw $ AsterisellException $ "There is an error during the importing of file \"" ++ inputFile ++ "\", with provider " ++ (Text.unpack providerName) ++ ", format " ++  (Text.unpack logicalTypeName) ++ "__" ++  (Text.unpack formatTypeName) ++ ". " ++ (show e) ++ ".\nAll the source data files with this format, and/or similar problems, will be not imported and rated. So there can be an high number of CDRs that are not rated. Note that there is only one error message for a file of this type, but this error message implies that all files of the same type are not rated.\nThis is probably an error in the application configuration. Contact the assistance."
 
-   -- | How many CDRS buffering before sending to the database.
-   writeBuffSize :: Int
-   writeBuffSize = 100
+   newMaxMinCallDate :: LocalTime -> Maybe (LocalTime, LocalTime) -> Maybe (LocalTime, LocalTime)
+   newMaxMinCallDate d Nothing = Just (d, d)
+   newMaxMinCallDate d (Just (minDD, maxDD)) = Just (min minDD d, max maxDD d)
 
-   -- | Write CDRs on the database.
-   --   Store some CDRS, before sending them in batch mode to the database, because this operation is faster than a single send.
-   writeProcess :: DebugChan -> BoundedChan ImportCmd -> IO ()
-   writeProcess debugChan sourceCDRSChan
-     = let
-           exportBool :: Bool -> Builder
-           exportBool True = charUtf8 '1'
-           exportBool False = charUtf8 '0'
+   extractCallDate
+     :: IORef LocalTime
+     -- ^ default call date to use in case of critical errors
+     -> IORef SourceDataSummaryInfo
+     -> (BS.ByteString, Either AsterisellError LocalTime)
+     -- ^ info about source CDR
+     -> IO (Bool -- ^ True if there are no errors
+           , LocalTime
+           , BS.ByteString)
 
-           exportCDR :: SourceCDRToImport -> [Builder]
-           exportCDR (SourceCDRToImport localTime providerId typeId versionId isImportedServiceCDR escapedContent)
-             =    [
-                    charUtf8 '('
-                  , exportLocalTime $ Just localTime
-                  , charUtf8 ','
-                  , intDec providerId
-                  , charUtf8 ','
-                  , intDec versionId
-                  , charUtf8 ','
-                  , exportBool isImportedServiceCDR
-                  , charUtf8 ','
-                  , charUtf8 '\''
-                  , byteString escapedContent
-                  , charUtf8 '\''
-                  , charUtf8 ')'
-                  ]
+   extractCallDate lastCallDateRef summaryInfoRef (!nativeCDR, !maybeLocalTime)
+       = do callDateInfo
+              <- case maybeLocalTime of
+                   Left !err
+                     -> do !lastCallDate <- readIORef lastCallDateRef
+                           return (False, lastCallDate, nativeCDR)
+                           -- NOTE: in case of error update only the count of lines with errors,
+                           -- and use a "current date".
+                           -- In this way the error will be reported in details when the user try to rate recent calls.
+                           -- This is an hack but 99% of the times it is the correct thing to do.
+                           -- Note that only very critical errors with CDRs without a calldate are reported here.
+                   Right !callDate
+                     -> do writeIORef lastCallDateRef callDate
+                           return (True, callDate, nativeCDR)
 
-           -- | Export the CDRS, in inverse order respect the specified list.
-           exportCDRS :: [SourceCDRToImport] -> Builder
-           exportCDRS cdrs
-             = let f r cdr = (exportCDR cdr):r
-               in  mconcat $ List.concat $ List.intersperse [charUtf8 ','] $ List.foldl' f [] cdrs
+            modifyIORef' summaryInfoRef (updateSummaryInfo callDateInfo)
+            return callDateInfo
 
-           -- | Write the CDRS in reverse order respect the specified list.
-           writeCachedCDRSOnDB :: DB.Connection -> [SourceCDRToImport] -> IO ()
-           writeCachedCDRSOnDB writeConn cdrs
-             = let cmd1 = stringUtf8 "INSERT INTO ar_source_cdr(calldate, ar_cdr_provider_id, ar_physical_format_id, is_imported_service_cdr, content) VALUES" `mappend` exportCDRS cdrs
-                   insertCmd = LBS.toStrict $ toLazyByteString cmd1
-               in when (not $ List.null cdrs) $ do
-                    DB.query writeConn insertCmd
+   updateSummaryInfo :: (Bool, LocalTime, BS.ByteString) -> SourceDataSummaryInfo -> SourceDataSummaryInfo
+   updateSummaryInfo (isOK, callDate, _) (maybeMaxMinCallDate, totLines, linesWithErrors)
+     = ( newMaxMinCallDate callDate maybeMaxMinCallDate
+       , if isOK then (totLines + 1) else totLines
+       , if isOK then linesWithErrors else (linesWithErrors + 1))
 
-           processRequests :: DB.Connection -> ([SourceCDRToImport], Int) -> IO ()
-           processRequests writeConn (!cachedCDRS, !buffSize) = do
-             !maybeInput <- readChan sourceCDRSChan
-             case maybeInput of
-               ImportCmd_close
-                 -> writeCachedCDRSOnDB writeConn $!! cachedCDRS
+   insertCDRS :: V.Vector (Bool, LocalTime, BS.ByteString) -> Cmd
+   insertCDRS v
+     = let f (_, callDate, nativeCDR) = (callDate, providerId, logicalTypeId, formatTypeId, areImportedServiceCDRS, nativeCDR)
+       in  Cmd_insertSourceCDR (V.toList $!! fmap f v)
 
-               ImportCmd_exec (maybeWait) cmd
-                 -> do DB.query writeConn cmd
-                       case maybeWait of
-                         Just w -> cmdWait_wake w
-                         Nothing -> return ()
-                       processRequests writeConn (cachedCDRS, buffSize)
-
-               ImportCmd_updateRatingTimeFrame importedServiceCDRS fromDate toDate
-                 -> do db_updateRatingTimeFrame writeConn importedServiceCDRS fromDate toDate
-                       processRequests writeConn (cachedCDRS, buffSize)
-
-               ImportCmd_insert (SourceCDRToImport !localTime !providerId !formatId !versionId !isImportedServiceCDR !source)
-                 -> do !escapedSource <- DB.escape writeConn source
-                       let !cachedCDRS2 = ((SourceCDRToImport localTime providerId formatId versionId isImportedServiceCDR escapedSource):cachedCDRS)
-                       case buffSize >= writeBuffSize of
-                          False
-                            -> processRequests writeConn $!! (cachedCDRS2, buffSize + 1)
-                          True
-                            -> do writeCachedCDRSOnDB writeConn $!! cachedCDRS2
-                                  processRequests writeConn ([], 0)
-
-       in bracketOnError
-            (do DB.initThread
-                openConnection dbParams True)
-            (\writeConn -> -- sometime these transactions can not be closed, but I want to report the original error message.
-                           Control.Monad.Catch.handleAll (\ _ -> return ()) $ do
-                             DB.rollback writeConn
-                             DB.close writeConn)
-
-            (\writeConn -> do processRequests writeConn ([], 0)
-                              DB.commit writeConn
-                              DB.close writeConn)
-
-   newMaxMinCallDate :: LocalTime -> Bool -> Maybe (LocalTime, LocalTime) -> Maybe (LocalTime, LocalTime)
-   newMaxMinCallDate d False v = v
-   newMaxMinCallDate d True Nothing = Just (d, d)
-   newMaxMinCallDate d True (Just (minDD, maxDD)) = Just (min minDD d, max maxDD d)
-
-   processSourceCDR :: CDRImporter -> BoundedChan (Maybe LBS.ByteString) -> BoundedChan ImportCmd -> (LocalTime, SourceDataSummaryInfo) -> IO (SourceDataSummaryInfo)
-   processSourceCDR importer sourceChan destChan (!lastCallDate, (!maybeMaxMinCallDate, !maybeImportedServiceeMaxMinCallDate, !totLines, !linesWithErrors))
-     = do !maybeCdrContent <- readChan sourceChan
-          case maybeCdrContent of
-            Nothing
-              -> -- end of pipe
-                 return (maybeMaxMinCallDate, maybeImportedServiceeMaxMinCallDate, totLines, linesWithErrors)
-
-            Just !cdrContent
-              -> do let imported@(maybeCDRDate, errorOrCDRS) = importer cdrContent providerName
-
-                    let !thereIsNormalCDR
-                          = case errorOrCDRS of
-                              Right cdrs
-                                -> List.any (\(cdr, _) -> cdr_isNormalCDR cdr) cdrs
-                              _ -> True
-
-                    let !thereIsImportedServiceCDR
-                          = case errorOrCDRS of
-                              Right cdrs
-                                -> List.any (\(cdr, _) -> cdr_isServiceCDR cdr) cdrs
-                                   -- NOTE: by default an imported CDR that is a service, is an imported service CDR.
-                                   -- The field cdr_isImportedServiceCDR is not yet explicitely set in this phase.
-                              _ -> False
-                                   -- it is already signaled as normal CDR
-
-                    let (!reallyImportCDR, !callDate, !newMaybeMaxMinCallDate, !newMaybeImportedServiceeMaxMinCallDate)
-                          = case imported of
-                              (Just !d, _)
-                                -> force (True
-                                         , d
-                                         , newMaxMinCallDate d thereIsNormalCDR maybeMaxMinCallDate
-                                         , newMaxMinCallDate d thereIsImportedServiceCDR maybeImportedServiceeMaxMinCallDate)
-
-                              (Nothing, Right [])
-                                -> force (False, lastCallDate, maybeMaxMinCallDate, maybeImportedServiceeMaxMinCallDate)
-                                   -- skip CDRS with a recognize NULL parsing
-
-                              (Nothing, _)
-                                -> force (True, lastCallDate, maybeMaxMinCallDate, maybeImportedServiceeMaxMinCallDate)
-
-                    let !nextLinesWithErrors
-                          = case imported of
-                              (_, Left err)
-                                -> linesWithErrors + 1
-                              (_, Right _)
-                                -> linesWithErrors
-
-                    let !isImportedServiceCDR = thereIsImportedServiceCDR && (not thereIsNormalCDR)
-
-                    (when reallyImportCDR) (writeChan destChan $!! ImportCmd_insert $!! SourceCDRToImport callDate providerId logicalTypeId formatTypeId isImportedServiceCDR (LBS.toStrict cdrContent))
-                    -- NOTE: in case of parsing errors use the call date of previously parsed CDR, that is a good aproximation.
-
-                    -- process the rest of the pipe using a recursive call, and passing the new processing "state"
-                    processSourceCDR importer sourceChan destChan $!! (callDate, (newMaybeMaxMinCallDate, newMaybeImportedServiceeMaxMinCallDate, totLines + 1, nextLinesWithErrors))
-
-
---
--- Export CDRS
---
-
+-- | Export the CDRs in a human processable format.
+--   Usually the export is done for fixing errors in the original source CDRs.
 rateEngine_exportDataFile
-  :: ConfiguredCDRSImporters
-  -> FilePath
+  :: FilePath
   -> CDRProviderName
   -> Int
-  -> BS.ByteString
+  -> Text.Text
   -> Int
-  -> BS.ByteString
+  -> Text.Text
   -> Int
   -> (LocalTime, LocalTime)
-  -> Bool -- ^ True for using only source cdrs in ar_source_cdr_to_move
+  -> Bool
+  -- ^ True for using only source cdrs in ar_source_cdr_to_move
   -> DBConf
   -> IO Int
 
 rateEngine_exportDataFile
-  defaultSourceDataImporter
   outFile
   providerName
   providerId
@@ -802,78 +870,135 @@ rateEngine_exportDataFile
   useOnlySourceCdrsToMove
   dbConf = do
 
-      DB.initLibrary
-      DB.initThread
-
-      (params, sourceImporter, importer)
-        <- case configuredCDRSImporters_get defaultSourceDataImporter logicalTypeName formatTypeName of
+      (CDRFormatSpec !sourceCDRParams !theType)
+        <- case getSupportedCDRSImporters logicalTypeName formatTypeName of
              Nothing
-               -> throwIO $ ErrorCall $ "There is no known/configured source data file importer."
+               -> throwIO $ AsterisellException $ "There is no known/configured source data file importer for format " ++ (Text.unpack logicalTypeName) ++ ",  and version " ++ (Text.unpack formatTypeName)
              Just r
                -> return r
 
-      bracketOnError
-        (openConnection dbParams False)
-        (\readConn -> do DB.commit readConn
-                         DB.close readConn)
+      case sourceCDRParams of
+        SourceCDRParamsCSVFile _ _ _ UseUTF8
+          -> return ()
+        -- SourceCDRParamsCSVFile _ _ _ locale
+        --  -> throwIO $ AsterisellException $ "(err 573) The code can not manage character locale conversions " ++ show locale
+        -- NOTE: code disabled because up to date only UseUTF8 is implemented
+
+      safeBracket
+        (openDBConnection dbConf False)
+        (\maybeExc readConn -> do DB.close readConn)
         (\readConn -> do
 
-           let queryIn1 = "SELECT content FROM ar_source_cdr USE INDEX(ar_source_cdr_I_1) "
+           let queryIn1 = "SELECT content FROM ar_source_cdr FORCE INDEX(ar_source_cdr_I_1)"
 
            let queryIn2 = if useOnlySourceCdrsToMove
                           then " INNER JOIN ar_source_cdr_to_move ON ar_source_cdr.id = ar_source_cdr_to_move.ar_source_cdr_id "
                           else ""
 
-           let queryIn3 = [" WHERE ar_physical_format_id = ", fromString $ show formatTypeId
-                          , " AND ar_cdr_provider_id  = ", fromString $ show providerId
-                          , " AND calldate >= '", fromString $ fromLocalTimeToMySQLDateTime fromCallDate, "'"
-                          , " AND calldate < '" , fromString $ fromLocalTimeToMySQLDateTime toCallDate, "'"
-                          , " ORDER BY calldate "]
+           let queryIn3 = [str| WHERE ar_physical_format_id = ?
+                              | AND ar_cdr_provider_id  = ?
+                              | AND calldate >= ?
+                              | AND calldate < ?
+                              | ORDER BY calldate
+                              | LIMIT ? OFFSET ?
+                              |]
 
-           let query = BS.concat $ queryIn1:queryIn2:queryIn3
+           let query = LBS.concat $ [queryIn1, queryIn2, queryIn3]
+           stmtId <- DB.prepareStmt readConn (DB.Query query)
 
-           DB.query readConn query
-           r <- DB.useResult readConn
+           S.withFileAsOutput outFile $ \outS -> do
+             case sourceCDRParams of
+               SourceCDRParamsCSVFile (Just header) _ _ UseUTF8
+                 -> do S.write (Just $ fromTextToByteString header) outS
+                       S.write (Just "\r\n") outS
 
-           writtenCDRS
-             <- withFile outFile WriteMode $! \outH -> do
-                  case params of
-                    SourceCDRParamsCSVFile (Just header) _ UseUTF8 -> do Text.hPutStr outH header
-                                                                         Text.hPutStr outH "\r\n"
-                    SourceCDRParamsCSVFile Nothing _ UseUTF8 -> do return ()
+               SourceCDRParamsCSVFile Nothing _ _ UseUTF8
+                 -> do return ()
 
-                  case params of
-                    SourceCDRParamsCSVFile _ _ UseUTF8 -> return ()
-                    SourceCDRParamsCSVFile _ _ locale -> throwIO $ ErrorCall $ "(err 573) The code can not manage character locale conversions " ++ show locale
-
-                  readAllCDRS params outH readConn r 0
-
-           DB.freeResult r
-           DB.commit readConn
-           DB.close readConn
-           return writtenCDRS)
+             processAllSplits readConn stmtId outS param_chunkSize2 0)
 
  where
 
-   dbParams = DB.defaultConnectInfo {
-                     connectUser = dbConf_user dbConf
-                   , connectPassword = dbConf_password dbConf
-                   , connectDatabase = dbConf_dbName dbConf
-                   , connectOptions = [Reconnect False, CharsetName "utf8"]
-                   }
+   processAllSplits
+       :: DB.MySQLConn
+       -> StmtID
+       -- ^ the statement to use for retrieving the CDRs
+       -> S.OutputStream BS.ByteString
+       -> Int
+       -- ^ the limit (chunk size) to use
+       -> Int
+       -- ^ the current offeset
+       -> IO Int
+       -- ^ the wrote CDRS
+   processAllSplits conn stmtId outS splitSize currentOffset = do
+     let queryParams
+           = [toDBInt64 formatTypeId
+             ,toDBInt64 providerId
+             ,toDBLocalTime fromCallDate
+             ,toDBLocalTime toCallDate
+             ,toDBInt64 splitSize
+             ,toDBInt64 currentOffset]
 
-   readAllCDRS :: SourceCDRParams -> Handle -> DB.Connection -> DB.Result -> Int -> IO Int
-   readAllCDRS params outH readConn r countCDRS
-     = do maybeRow <- DB.fetchRow r
-          case maybeRow of
-            [] -> return countCDRS
-            [Just lineB] -> let lineT = fromMySQLResultToText $ Just lineB
-                            in do exportSourceCDRToCSVLine outH params lineT
-                                  readAllCDRS params outH readConn r (countCDRS + 1)
+     (_, inS) <- DB.queryStmt conn stmtId queryParams
+     count <- stream_connectWithMapAndFoldM
+                (\c1 [sourceCDR] -> return (c1 + 1, [fromDBByteString sourceCDR, "\r\n"]))
+                0
+                inS
+                outS
+                False
+     case count < splitSize of
+       True -> return $ currentOffset + count
+       False -> processAllSplits conn stmtId outS splitSize (currentOffset + count)
 
---
+-- -------------------------------------------------------------
 -- Rating of CDRs
 --
+
+-- | Used internally for managing in a cached way the search of rates,
+--   and the status of the rating process.
+data RatingStatus
+  = RatingStatus {
+      rs_incomeRate :: Maybe (CheckedMainRatePlan, Maybe LocalTime)
+      -- ^ the cached result, and until when it is valid (exclusive)
+    , rs_costRate :: Maybe (CheckedMainRatePlan, Maybe LocalTime)
+      -- ^ the cached result, and until when it is valid (exclusive)
+    , rs_incomeBundleState :: Maybe BundleState
+    -- ^ Nothing if the rating process is starting from an empty/not initializated database
+    , rs_expandedExtensions :: HS.HashSet ExpandedExtension
+    -- ^ the found expanded extensions that are not matched by an explicit expanded extension,
+    --   but that are matched from a generic extension.
+    , rs_errors :: AsterisellErrorsDictionary
+    -- ^ prevent the generation of new errrors, if there are similar errors already generated
+    , rs_criticalError :: Maybe (AsterisellError, AsterisellErrorDupKey)
+    -- ^ Nothing if the rating process can continue, a critical error with the problem key otherwise
+    }
+
+instance NFData RatingStatus where
+  rnf r = seq (r { rs_incomeBundleState = force (rs_incomeBundleState r) }) ()
+
+instance Show RatingStatus where
+  show rs = "<RatingStatus>"
+
+ratingStatus_empty :: RatingStatus
+ratingStatus_empty
+  = RatingStatus {
+       rs_incomeRate = Nothing
+     , rs_costRate = Nothing
+     , rs_incomeBundleState = Nothing
+     , rs_expandedExtensions = HS.empty
+     , rs_errors = asterisellErrorsDictionary_empty
+     , rs_criticalError = Nothing
+    }
+
+-- | A monad returning an error, or returning some result, inside IO.
+--   The returned type is an implicit parameter of the type.
+--   The error must always of type (CDR, AsterisellError).
+--   If the CDR is specified, then the error is related to it.
+--   Otherwise if the CDR is Nothing, then it is a critical error, affecting all the rating process,
+--   that will be aborted.
+type RatingMonad = ExceptT (Maybe CDR, AsterisellError) IO
+
+type YearAndMonth = (Integer, Int)
 
 -- | Rate from (inclusive) to (exclusive)
 type MaybeTimeFrame = Maybe (LocalTime, LocalTime)
@@ -883,1017 +1008,558 @@ maybeTimeFrame_larger Nothing Nothing = Nothing
 maybeTimeFrame_larger (Just r1) Nothing = (Just r1)
 maybeTimeFrame_larger Nothing (Just r2) = (Just r2)
 maybeTimeFrame_larger (Just (x1, y1)) (Just (x2, y2)) = Just (min x1 x2, max y1 y2)
-
-
--- | Rate the CDRs some days at a time, for preventing space leak problems in the code.
---   Up to date seems there are no big problems, but use a time-frame split in any case.
-rateEngine_incrementalRate
-  :: Bool                    -- ^ True for billing, False for call reporting
-  -> ConfiguredCDRSImporters -- ^ the importers to use
-  -> DBConf           -- ^ the connection params to use
-  -> Maybe FilePath   -- ^ debug file name
-  -> MaybeTimeFrame   -- ^ rate normal calls
-  -> MaybeTimeFrame   -- ^ rate imported service cdrs
-  -> Bool             -- ^ True if it must delete also the rating event about official call-date
-  -> ConfiguredRatePlanParsers
-  -> FilePath
-  -> FilePath
-  -> EnvParams
-  -> ServiceParams
-  -> IO Int
-  -- ^ return the number of processed CDRs.
-  --   Throw an exception in case of critical errors during rating.
-  --   Signal normal errors on the error table.
-
-rateEngine_incrementalRate isVoipReseller configuredCDRSImporters dbConf maybeDebugFile maybeNormalCalls maybeImportedServices isOfficialRatingEnv configuredRateParsers ratePlanChanges ratePlanBaseFileName params serviceParams
-  = do
-       let isDebugMode = isJust maybeDebugFile
-
-       let maybeRatingTimeFrame = maybeTimeFrame_larger maybeNormalCalls maybeImportedServices
-
-       -- First rate imported service-cdrs, using a unique pass, because usually they are very few.
-       r1 <- case maybeImportedServices of
-               Nothing
-                 -> return 0
-               Just (d1, d2)
-                 -> do r <- rateTimeFrame True (d1, 0) d2
-                       return $ snd r
-
-       -- Then rate normal CDRS, using incremental pass (if enabled)
-       -- Note that in case of an isOfficialRatingEnv then also imported services are deleted and regenerated.
-       r2 <- case maybeNormalCalls of
-               Nothing
-                 -> return r1
-               Just (d1, d2)
-                 -> do  r <- foldM (rateTimeFrame False) (d1, r1) (splittedTimeFrames d1 d2)
-                        return $ snd r
-
-       return r2
-
- where
-
-   splitDays = 31 * 12
-
-   dbParams = DB.defaultConnectInfo {
-                     connectUser = dbConf_user dbConf
-                   , connectPassword = dbConf_password dbConf
-                   , connectDatabase = dbConf_dbName dbConf
-                   , connectOptions = [Reconnect False, CharsetName "utf8"]
-                   }
-
-   rateTimeFrame importedServices (s1, c1) s2
-     = do c2 <- rateEngine_rate isVoipReseller configuredCDRSImporters dbConf maybeDebugFile s1 s2 importedServices isOfficialRatingEnv configuredRateParsers ratePlanChanges ratePlanBaseFileName params serviceParams
-          return (s2, c1 + c2)
-
-   splittedTimeFrames :: LocalTime -> LocalTime -> [LocalTime]
-   splittedTimeFrames s1 e2
-     = case isOfficialRatingEnv of
-         True
-           -> [e2]
-              -- ^ an official rating env can not be splitted in smaller time-frames, otherwise the algo does not work correctly
-         False
-           -> case s1 < e2 of
-                True
-                  -> let d1 = localDay s1
-                         d2 = addDays splitDays d1
-                         s2 = LocalTime {
-                                localTimeOfDay = localTimeOfDay s1
-                              , localDay = d2
-                              }
-                         s2' = if s2 > e2 then e2 else s2
-                     in [s2'] ++ (splittedTimeFrames s2' e2)
-                False
-                  -> []
+{-# INLINABLE maybeTimeFrame_larger #-}
 
 -- | Rate the CDRs on the source data file.
 --   This is the entry point of the rating process, and it coordinates all the rest:
 --   * signal the changed days for other maintanance jobs
 --   * recalculate cached sum of days
 --
---   Normal calls are re-rated specifying the from and to calldate.
---   Pure service CDRS are re-rated only specifying a re-rerating on all the pending/unbilled time-frame.
---   Imported service CDRs are re-rated if:
---   * there is an explicit rerate event about service CDRs
---   * there is a official rerate event on call-date, and in this case there can be changes of rating params
+--   The rating-time frame event is reset on the PHP side.
 --
 --   The main paradigm is this:
---   * CDRs with errors are reported as CDR with the error field set, so the header in call report can report them
+--   * CDRs with errors are reported as CDR with the error field set, so the online call report can report them
 --   * CDRs with errors generates an error message/description
---   * CDRs rated are saved as correct CSV lines
 --   * errors of type Type_Error are associated to the single CDR, and rating process continue
 --   * errors of type Type_Critical interrupt the rating process, signaling as unrated all next CDRS.
 --   * the rating process must be conservative: in doubt an error message is raised, and rating is blocked.
 --
---   The BundleState start date (BS1), the Rate start date (R1) and Rate end (R2) date, and the last bundle-state can be closed (logically) at (BS2) calldate.
---   It is important rating all the CDRS in R2 .. BS2 because they are used for calculating the new version of the BundleState,
---   otherwise the rerating can left an inconsistent state.
---   These are the relation:
---   * normal CDRS inside R1 and BS2 are deleted, before generating again
---   * service CDRS partially inside BS1 and R2 are deleted, before generating again
---   * normal CDRs from BS1 to R1 are only rated, for updating the BundleState but:
---   ** they are not saved, because they are not deleted from the CDR table before re-rating (they are not rerated)
---   ** errors are not generated, because they are not deleted from the error table, before re-rating (they are not under garbage collection)
---   * normal CDRs from R1 to BS2 are saved, because they are deleted for regenaration
---   * errors from R1 to BS2 are saved, because they are garbage collected for regeneration
---   * ServiceCDRs (related to BundleState or pure Services) are:
---   ** generated if they are partially inside the BS1 and R2, because they are in this case deleted, before the rerating process
+--   DBMS guidelines:
+--   * a DB connection is opened when there is yet ready data to process, and not before, for avoiding lock-timeout problems
+--   * DB connections are released when there is no more activity, for avoiding lock-timeouts problems
 --
---   In case of rating of Imported Service CDRS:
---   * they do not affect the bundle-state and bundle-rates
---   * they are deleted and rerated only according their initial CDR calldate and not the CDR to_calldate, because they are managed like normal calls
---   * because they are CDRs associated to service imported from a provider, their direction is changed automaticall to "service"
+--   See also comments on Cmd_deleteCDRS about the logic of (re)rating of calls.
+--
+-- Service CDRS imported from provider
+-- ===================================
+--
+-- Service CDRS can derive from bundle rates, or from pure services.
+--
+-- In this case they are imported from provider.
+--
+-- Requirements
+-- ------------
+--
+-- * services generated on the provider side are sent to the reseller side
+-- * services influence a big rating time-frame, but they are usually stable (also if generated often) and does not influence other calls, so they should not force a rerating of all calls on the reseller side, but only an update of previously imported services
+-- * imported services are only costs, and should not start an export of rates from the reseller to the reseller of the reseller
+-- * change of services generate a full-rerate-event, and they must be sent to the reseller
+-- * the starting of a new time-frame, generate new services and they must be sent to the reseller
+-- * support the fact that pure services can have different time-frames respect services associated to bundle rates
+--
+-- Design
+-- ------
+--
+-- * they are only a cost from a provider
+-- * they are rated without affecting the day change status event because:
+-- ** if they change, a global rerate event is generated in any case
+-- ** I assume (hack) that there is at least one call for day, and not only imported costs
+-- ** they are generated often (in a repeated mode) and we will have a lot of wasted resources processing them
+-- * export services to resellers grouped by month status file, because
+-- ** also if it is not the correct time-frame it is good enough
+-- ** there are few services for month, proportional to customers, and they can be exported every time there is a rating event
+-- ** the drawbacks are that cost of services in already billed time-frame can change, but it is acceptable
+-- * imported services are explicitely known from the reseller, because they are read from files with the appropiate status file, and they have then a special flag in ar_cdr table
+-- * imported services are rated easily importing the cost indicated by the provider
+-- * there is no double check of the imported cost, so there must be some trust. Also because services are not configurable as costs
+-- * the CDR importer signal apart when there is an event for processing imported CDRS
 --
 --   @require bundleStateFromCallDate <= fromCallDate
 --   @ensure write in debugFileName (debugHandle) only if isDebugMode
+--
 rateEngine_rate
-  :: Bool                    -- ^ True for billing, False for call reporting
-  -> ConfiguredCDRSImporters -- ^ the importers to use
-  -> DBConf           -- ^ the connection params to use
-  -> Maybe FilePath   -- ^ debug file name
-  -> LocalTime        -- ^ rate all CDRs from this calltime, inclusive
-  -> LocalTime        -- ^ rate all CDRs to this calltime, exclusive
-  -> Bool             -- ^ True if it must rate Imported Service CDRS, False for importing Normal CDRS
-  -> Bool
-  -- ^ True if it must delete also the rating event about official call-date
-  -- @require if True, then the caller is not splitting the time-frame to rate,
-  -- because splitted time-frames generate too much pure services CDRs.
-  -> ConfiguredRatePlanParsers
-  -> FilePath
-  -> FilePath
-  -> EnvParams
-  -> ServiceParams
+  :: RunLevel
+  -> InitialRatingParams
   -> IO Int
-  -- ^ return the number of processed CDRs.
-  --   Normal errors are added directly to the error table.
-  --   Critical errors are signaled using an exception.
+  -- ^ the number of processed CDRs.
+  --   Normal errors are added directly to the error table, and associated to rated CDRs.
+  --   Critical errors are signaled using an exception, because they are critical and they block the entire rating process.
 
-rateEngine_rate isVoipReseller configuredCDRSImporters dbConf maybeDebugFile fromCallDate toCallDate onlyImportedServiceCDRS isOfficialRatingEnv configuredRateParsers ratePlanChanges ratePlanBaseFileName params serviceParams
+rateEngine_rate runLevel initialParams = do
+
+  env <- ratePlan_loadRatingParams initialParams
+
+  let ratingStatus1
+        = ratingStatus_empty { rs_incomeBundleState = params_initialBundleState env }
+
+  let isDebugMode = iparams_isDebugMode initialParams
+  let precisionDigits = iparams_currencyPrecision initialParams
+  let dbConf = iparams_dbConf initialParams
+  let onlyImportedServiceCDRS = iparams_onlyImportedServices initialParams
+  let isOfficialRatingEvent = iparams_isRateUnbilledCallsEvent initialParams
+
+  parsedCDRSChan <- newChan (Just 8)
+  cdrsToRateChan <- newChan (Just 8)
+  cmdsChan <- newChan (Just 8)
+  -- NOTE: the DB is by far the slowest process, so use a short channel because:
+  -- * this stop sooner other producer processes, and give priority to the DB process
+  -- * write operations are already batched in `param_chunkSize`, so a large channel is not so much important
+  -- * the uagi channels use a x2 burst of the channel bound sometime
+
+  tot1 <- withAsync
+    (case runLevel of
+       RunLevelFull -> process_db isDebugMode dbConf precisionDigits Nothing cmdsChan
+       _ -> process_fakeDB isDebugMode dbConf precisionDigits Nothing cmdsChan
+    )
+    (\dbThread -> do
+
+      case onlyImportedServiceCDRS of
+        False -> writeChan
+                   cmdsChan
+                   (V.singleton $ Cmd_deleteCDRS
+                      (params_bundleStateFromCallDate env)
+                      (params_fromDate env)
+                      (params_toDate env)
+                      (params_bundleStateCanBeSavedFromCallDate env)
+                      (params_bundleStateToCallDate env))
+
+        True -> writeChan
+                  cmdsChan
+                  (V.singleton $ Cmd_deleteOnlyImportedServiceCDRS
+                     (params_fromDate env)
+                     (params_toDate env))
+
+      -- Before starting the CDR read process, wait the DB process is ready to accept commands.
+      -- Do this because:
+      -- * the previous write commands affect many CDRs and they can suspend the DB work for a lot of time
+      -- * if we start a read query, there can be a timeout
+      waitV <- newEmptyMVar
+      writeChan cmdsChan (V.singleton $ Cmd_wait waitV)
+      _ <- takeMVar waitV
+
+      finalStateOrError
+        <- withAsync
+             (process_parseSourceCDRS runLevel env parsedCDRSChan)
+             (\parseThread -> do
+               (_, r) <- concurrently
+                           (case runLevel <= RunLevelUntilPortedTelephoneNumberConversion of
+                              True -> process_completePortedTelephoneNumbers env parsedCDRSChan cdrsToRateChan
+                              False -> process_fakeCompletePortedTelephoneNumbers env parsedCDRSChan cdrsToRateChan
+                           )
+                           (case runLevel <= RunLevelUntilRating of
+                              True -> process_rate env cdrsToRateChan cmdsChan (0, ratingStatus1, params_bundleStateFromCallDate env)
+                              False -> process_fakeRate env cdrsToRateChan cmdsChan (0, ratingStatus1, params_bundleStateFromCallDate env)
+                           )
+
+               wait parseThread
+               return r)
+
+      case finalStateOrError of
+         Left err
+           -> do
+                 hPutStrLn IO.stderr $! "rateEngine: received rating error " ++ asterisellError_userShow err
+                 throwIO $ AsterisellException $ asterisellError_userShow err
+
+         Right (totCDRS, ratingStatus2, lastProcessedCallDate)
+           -> do
+                 -- Write ExpandedExtensions.
+                 -- NOTE: internal extensions are few, and so they can be store all in RAM, and processed as a list.
+                 M.mapM_ (writeChan cmdsChan) $ (L.map (\e -> V.singleton $ Cmd_insertExpandedExtension e) (HS.toList $ rs_expandedExtensions ratingStatus2))
+
+                 -- NOTE: this is the last command to call, and it writes the rating status and other info to the DB
+                 writeChan
+                   cmdsChan
+                   (V.singleton $ Cmd_close
+                      onlyImportedServiceCDRS
+                      (params_fromDate env)
+                      (params_bundleStateToCallDate env)
+                      ratingStatus2)
+
+                 writeEOFChan cmdsChan
+
+                 wait dbThread
+                 return totCDRS)
+
+  case (params_isShorterSafeTimeFrame env) of
+    False
+      -> return tot1
+    True
+      -> do -- TODO delete later
+            putStrLn $ "Rating event was splitted: " ++ show (fromLocalTimeToMySQLDateTime $ params_fromDate env) ++ " - " ++ show (fromLocalTimeToMySQLDateTime $ params_toDate env) ++ " - " ++ show (fromLocalTimeToMySQLDateTime $ iparams_toDate initialParams)
+            let params2 = initialParams { iparams_fromDate = params_toDate env }
+            tot2 <- rateEngine_rate runLevel params2
+            return $ tot1 + tot2
+
+-- | Read source CDRS from the DB, and parse them.
+process_parseSourceCDRS :: RunLevel -> RatingParams -> Chan ParsedCDR -> IO ()
+process_parseSourceCDRS runLevel env outChan
   = do
+      safeBracket
+        (openDBConnection (params_dbConf env) False)
+        (\maybeExc inConn
+         -> do
+               case maybeExc of
+                 Just exc
+                   -> do hPutStrLn IO.stderr $! "process_parseSourceCDRS exception: " ++ displayException exc
+                         return ()
+                 _ -> do return ()
+               DB.close inConn)
+        (\inConn -> do
+          -- Send an init CDR to the chain of rating processes. In this way at least one CDR is generated,
+          -- and other process can start their initialization work.
+          let cdrForProcessInit
+                = (cdr_empty bundleStateFromCallDate precisionDigits) {
+                     cdr_direction = CDR_ignored
+                   , cdr_billsec = Just 0
+                   , cdr_duration = Just 0 }
+          writeChan outChan (V.singleton $ ParsedCDR ("", bundleStateFromCallDate, 0, "", Right cdrForProcessInit))
 
-     DB.initLibrary
-     -- this must be done only at the beginning at for all threads
+          -- Prepare the query
+          let inQ1 = [str| SELECT p.internal_name, s.calldate, s.ar_physical_format_id, s.content
+                         | FROM ar_source_cdr AS s
+                         | INNER JOIN ar_cdr_provider AS p
+                         | ON s.ar_cdr_provider_id = p.id
+                         | WHERE calldate >= ?
+                         | AND calldate < ?
+                         |]
 
-     DB.initThread
+          let inQ2 = case onlyImportedServiceCDRS of
+                       True
+                         -> " AND is_imported_service_cdr = 1 "
+                       False
+                         ->  " "
 
-     debugChan <- newBoundedChan writeBuffSize
-     errorChan <- newBoundedChan writeBuffSize
-     deserializedCDRSChan <- newBoundedChan (writeBuffSize * 2)
-     ratedCDRSChan <- newBoundedChan (writeBuffSize * 2)
-
-     withAsync (debugFileProcess maybeDebugFile debugChan) $ (\debugThread -> do
-      withAsyncBound (errorProcess errorChan) $ (\errorThread -> do
-
-       ((!env) :: RatingEnv,
-        (!bundleStateFromCallDate) :: CallDate,
-        (!bundleStateCanBeSavedFromCallDate) :: CallDate,
-        (!bundleStateToCallDate) :: CallDate,
-        (!initialBundleState) :: Maybe BundleState)
-           <- bracket
-                (openConnection dbParams False)
-                (\selectConn -> do DB.commit selectConn
-                                   DB.close selectConn)
-                (\selectConn -> do
-
-                       -- Load only the income rate, and use it for determining the time-frame that must be rated.
-                       -- NOTE: in theory the income-rate can change over time, and so it can change in the bundleInitStart1 calldate,
-                       -- and a new version should be read, until a fix-point is not reached. But in practice this is ignored.
-                       initialEnv1 <- PS.runSafeT $! ratingEnv_load ratePlanChanges ratePlanBaseFileName fromCallDate (Just toCallDate) configuredRateParsers params (Just "main-income-rate")
-
-                       (bundleInitStart1, bundleCanBeSaved1, bundleToCallDate1)
-                          <- case initialEnv1 of
-                                 Left err
-                                   -> throwIO  $ ErrorCall $ asterisellError_description err
-                                 Right env
-                                   -> case env_getRate env "main-income-rate" fromCallDate of
-                                        Nothing
-                                          -> throwIO $ ErrorCall $ "missing \"main-income-rate\" plan. Without this plan it is not possible start rating."
-                                        Just (ratePlan, _)
-                                          -> let (d1, d2) = mainRatePlan_getBundleRateStartCallDate ratePlan fromCallDate
-                                                 d3 = mainRatePlan_getBundleRateEndCallDate ratePlan toCallDate
-                                             in  return (d1, d2, d3)
-
-                       -- Load the Rating Params from disk.
-                       -- DEV-NOTE: now that I have the MySQL driver with direct access, I can read them directly from the database in case
-                       maybeEnv :: (Either AsterisellError RatingEnv)
-                            <- PS.runSafeT $! ratingEnv_load ratePlanChanges ratePlanBaseFileName bundleInitStart1 (Just bundleToCallDate1) configuredRateParsers params Nothing
-
-                       !env
-                            <- case maybeEnv of
-                                 Left err
-                                   -> throwIO  $ ErrorCall $ asterisellError_description err
-                                 Right env
-                                   -> ratingEnv_loadExtensionsToExport env selectConn
-
-                       (when isDebugMode) (case env_respectCodeContracts env of
-                                                   Right _
-                                                     -> return ()
-                                                   Left err
-                                                     -> throwIO $ ErrorCall ("Error in application code. Internal code code contracts are not respected. " ++ err))
-
-                       -- Return the Init Values
-
-                       case onlyImportedServiceCDRS of
-                         True
-                           -> return (env, fromCallDate, fromCallDate, toCallDate, Nothing)
-                         False
-                            -> do let bquery1
-                                        = BS.concat [
-                                              "SELECT id, to_time, data_file FROM ar_bundle_state WHERE to_time <= '"
-                                            , fromString $ fromLocalTimeToMySQLDateTime fromCallDate
-                                            , "' ORDER BY to_time DESC LIMIT 1"
-                                            ]
-                                       -- NOTE: consider <= because the date is exclusive, so all the new CDRS from this date (inclusive)
-                                       -- to next dates can be added to the old bundle-state. In other word, it contains all CDRS before to_time.
-
-                                  DB.query selectConn bquery1
-                                  r <- DB.storeResult selectConn
-                                  maybeRow <- DB.fetchRow r
-                                  case maybeRow of
-                                   [_, callDate, maybeContent]
-                                     -> do DB.freeResult r
-                                           let savedBundleCallDate = fromJust1 "err 737" $ fromMySQLDateTimeAsTextToLocalTime $ fromMySQLResultToText callDate
-                                           case savedBundleCallDate >= bundleInitStart1 of
-                                             True
-                                               -> case  DBS.decode $ LZ.decompress $ fromJust1 "re-537" maybeContent of
-                                                    Left err
-                                                      -> do debugFile_append maybeDebugFile debugChan $ "The bundle state at date " ++ (Text.unpack $ fromMySQLResultToText callDate) ++ " is corrupted. Error message: " ++ err
-                                                            return $ (env, bundleInitStart1, bundleCanBeSaved1, bundleToCallDate1, Nothing)
-
-                                                    Right (b :: BundleState)
-                                                      -> do debugFile_append maybeDebugFile debugChan $ "Loaded bundle state from date " ++ (Text.unpack $ fromMySQLResultToText callDate)
-
-                                                            return (env, savedBundleCallDate, savedBundleCallDate, bundleToCallDate1, Just b)
-                                             False
-                                               -> do debugFile_append maybeDebugFile debugChan  $ "process CDRS from calldate " ++ showLocalTime bundleInitStart1 ++ ", starting with an empty bundle state."
-                                                     return $ (env, bundleInitStart1, bundleCanBeSaved1, bundleToCallDate1, Nothing)
-                                                     -- instead of using a very old bundle state, use a recent bundle state that can be initializated to empty
-                                   []
-                                     -> do DB.freeResult r
-                                           debugFile_append maybeDebugFile debugChan $ "*not loaded* bundle state"
-                                           -- DEV-NOTE: use Nothing as BundleState because in this case it will be initializated at the starting of rating process.
-                                           return $ (env, bundleInitStart1, bundleCanBeSaved1, bundleToCallDate1, Nothing))
-
-       debugFile_append maybeDebugFile debugChan $ "bundleStateFromCallDate = " ++ showLocalTime bundleStateFromCallDate ++ ", bundleStateCanBeSavedFromCallDate = " ++ showLocalTime bundleStateCanBeSavedFromCallDate ++ ", bundleStateToCallDate = " ++ showLocalTime bundleStateToCallDate
-
-       totCDRS2 <- withAsyncBound (writeProcess env debugChan errorChan ratedCDRSChan) (\writeThread -> do
-
-           let ratingStatus1
-                  = ratingStatus_empty { rs_incomeBundleState = initialBundleState }
-
-
-           let d0 = fromString $ "'" ++ fromLocalTimeToMySQLDateTime bundleStateFromCallDate ++ "'"
-           let d1 = fromString $ "'" ++ fromLocalTimeToMySQLDateTime fromCallDate ++ "'"
-           let d2 = fromString $ "'" ++ fromLocalTimeToMySQLDateTime toCallDate ++ "'"
-           let d3 = fromString $ "'" ++ fromLocalTimeToMySQLDateTime bundleStateCanBeSavedFromCallDate ++ "'"
-           let d4 = fromString $ "'" ++ fromLocalTimeToMySQLDateTime bundleStateToCallDate ++ "'"
-
-           -- The temporal order is
-           -- d0 <= d3 <= d1 < d2 <= d4
-
-           -- Remove old CDRs, and BundleState CDRs and pure Service CDRS
-           -- The contract to respect is:
-           -- 1. if a type of CDR is deleted, then it is also generated and saved
-           -- 2. if a type of CDR is not deleted, then it is not saved
-           -- 3. optionally a CDR can be rated, for updating some state, but not saved
-           -- 4. all CDRS of all time-frames are generated in case continuous rating event are processed
-
-           let importedServicesCondition
-                 = ["(is_imported_service_cdr = 1 AND calldate >= ", d1, " AND calldate < " , d4, ")"]
-
-           case onlyImportedServiceCDRS of
-             False
-               -> do -- Delete normal CDRS inside the rating period. Consider the end of the bundle as final rating period
-                     -- because these CDRs can have different cost/income, if the previous CDRs are changed, according the BundleRate specifications.
-                     -- These CDRs respect the contracts, because:
-                     -- 1. the stream of CDRS are all the CDRS between d0 and d4
-                     -- 2. only CDRS within d1 and d4 are deletede, and then saved
-                     --
-                     -- The BundleRate derived serviceCDRS works if "cdr.calldate < cdr.to_calldate", and it does not work if "cdr.calldate = cdr.to_calldate"
-                     -- that is not the case service cdrs. The service CDRS with cdr.to_calldate > d1 and cdr.to_calldate <= d4, are the correct
-                     -- CDRS to re-process because:
-                     -- * there can not be (by construction of bundleStateToCallDate) CDRS after d3. In case they are related to other bundle state time-frame
-                     --   starting from d3
-                     -- * the normal CDRS before d1 are not saved, so also the bundle-state related service CDRS can not be saved
-                     --
-                     -- For the pure serviceCDRS use a trick:
-                     -- * the d4 date can be not a good enough limit for services, that can be rated with different time-frames,
-                     --   respect pure service-cdrs
-                     -- * services need recalculation only if there is a change in services assignations/definitions
-                     -- * this type of event generate a rerate all unbilled calls event
-                     -- * so services are deleted and generate only in this situation
-                     -- * this simple algo work, because the rating event of all unrated calls, is never split
-                     -- So the code for complex incremental rerating is done only for bundle state services, that have a state are complex
-                     -- to manage. Services are re-generated from scratch, with an easier algo only when it is needed.
-                     -- Generating service-cdrs also in next dates, requires the generation of many changed days, it is not clear when stop,
-                     -- and so it is too much heavy, and in the end not necessary because for sure there were no changes in calculated values.
-                     --
-                     -- Delete and generate imported services, when global params of rating are changed.
-                     let deleteQuery1 = [
-                                          "DELETE FROM ar_cdr WHERE (is_imported_service_cdr = 0 AND ((to_calldate IS NULL AND calldate >= ", d1
-                                        , " AND calldate < " , d4
-                                        , ") OR (to_calldate IS NOT NULL AND debug_cost_rate IS NOT NULL AND debug_income_rate IS NOT NULL AND "
-                                        , " to_calldate > ", d0, " AND to_calldate <= ", d4, ") "
-                                        ]
-
-                     let deleteQuery2
-                           = case isOfficialRatingEnv of
-                               True
-                                 -> [  " OR (to_calldate IS NOT NULL AND debug_cost_rate IS NULL AND debug_income_rate IS NULL AND "
-                                    ,  " calldate >= ", d1, "))) OR "] ++ importedServicesCondition
-                               False
-                                 -> [ "))" ]
-
-                     let deleteQuery = BS.concat $ deleteQuery1 ++ deleteQuery2
-
-                     -- wait the end of this transaction, because next transactions will retrieve data from the database,
-                     -- and they must start when the writer is ready to process them, otherwise the DB process can stall
-                     -- and return an error.
-                     debugFile_append maybeDebugFile debugChan  $ "rate main pass2: execute query: " ++ (Text.unpack $ fromMySQLResultToText $ Just deleteQuery)
-                     w <- newEmptyMVar
-                     writeChan ratedCDRSChan (WriteCmd_exec (Just w) deleteQuery)
-                     cmdWait_wait w
-
-                     writeChan ratedCDRSChan (WriteCmd_exec (Just w) $ BS.concat [ "DELETE FROM ar_bundle_state WHERE to_time >= ", d3])
-                     cmdWait_wait w
-
-             True
-               -> do -- Delete imported service cdrs inside the rating period.
-                     -- They will be imported again from ar_source_cdr, according their calldate, so only their calldate is taken in consideartion, and not to_calldate.
-                     -- Imported service cdrs does not affect bundle-state, so the toCallDate is used.
-                     let deleteQuery1
-                           = BS.concat $ ["DELETE FROM ar_cdr WHERE "] ++ importedServicesCondition
-                     w <- newEmptyMVar
-                     writeChan ratedCDRSChan (WriteCmd_exec (Just w) deleteQuery1)
-                     cmdWait_wait w
-
-           -- Start the rating process, using a chain of threads passing information on channels.
-           -- Every thread perform a distinct pass of the CDR rating process.
-           -- The idea it is that each thread can work at full speed exploiting the CPU cache, processing a constant flow of data.
-           -- IMPORTANT: stream queries of MySQL requires that they are processed reasonably fast, at level of each single record,
-           -- otherwise the connection will be discarded, or something of similar.
-           -- Up to date this is the case, because the speed of reading, is comparable with the speed of rating and writing to the database.
-           (!totCDRS, !ratingStatus2, !lastProcessedCallDate) <-
-             withAsyncBound (readProcess debugChan deserializedCDRSChan bundleStateFromCallDate bundleStateToCallDate) $ \thread1 ->
-                 withAsyncBound (rateProcess debugChan errorChan deserializedCDRSChan env ratingStatus1 bundleStateFromCallDate bundleStateCanBeSavedFromCallDate bundleStateToCallDate ratedCDRSChan) $ \thread3 -> do
-                     (r2, d) <- wait thread3
-                     r1 <- wait thread1
-                     return (r1, r2, d)
-
-           -- Write ExpandedExtensions.
-           -- NOTE: in case expanded extensions are managed, then only new extensions will be written because
-           -- they are not recognized with extension to expand any more.
-           -- Otherwise any time all the used extensions will be written in this table, but it is not a big cost.
-           mapM_ (\ee -> writeChan ratedCDRSChan (WriteCmd_insertExpandedExtension ee)) (S.toList $ rs_expandedExtensions ratingStatus2)
-
-           -- Send the signal about the end of rating process, and close the db write thread.
-           -- The WriteCmd_close take care of completing all the derived info, about changed days, and grouped sums.
-           writeChan ratedCDRSChan (WriteCmd_close bundleStateToCallDate)
-           wait writeThread
-           return totCDRS)
-
-       writeChan errorChan ErrorCmd_close
-       writeChan debugChan (Left ())
-       wait errorThread
-       wait debugThread
-
-       return totCDRS2))
+          let inQ = LBS.concat [inQ1, inQ2, " ORDER BY s.calldate LIMIT ? OFFSET ?"]
+          stmtId <- DB.prepareStmt inConn (DB.Query inQ)
+          processAllSplits inConn stmtId param_chunkSize2 0
+          writeEOFChan outChan
+          return ())
 
  where
 
-   dbParams = DB.defaultConnectInfo {
-                     connectUser = dbConf_user dbConf
-                   , connectPassword = dbConf_password dbConf
-                   , connectDatabase = dbConf_dbName dbConf
-                   , connectOptions = [Reconnect False, CharsetName "utf8"]
-                   }
+   precisionDigits = params_currencyPrecision env
+   bundleStateFromCallDate = params_bundleStateFromCallDate env
+   bundleStateToCallDate = params_bundleStateToCallDate env
+   onlyImportedServiceCDRS = iparams_onlyImportedServices $ params_initial env
+   isOfficialRatingEvent = iparams_isRateUnbilledCallsEvent $ params_initial env
+   fastLookupCDRImporters = params_fastLookupCDRImporters env
+
+   processAllSplits
+       :: DB.MySQLConn
+       -> StmtID
+       -- ^ the statement to use for retrieving the CDRs
+       -> Int
+       -- ^ the limit (chunk size) to use
+       -> Int
+       -- ^ current offset (start with 0)
+       -> IO ()
+   processAllSplits conn stmtId splitSize currentOffset = do
+          (_, inS1) <- DB.queryStmt conn stmtId [toDBLocalTime bundleStateFromCallDate, toDBLocalTime bundleStateToCallDate, toDBInt64 splitSize, toDBInt64 currentOffset]
 
 
-   isDebugMode = isJust maybeDebugFile
+          inS2 <- S.map (\[ providerName
+                          , callDate
+                          , formatId
+                          , content]
+                            -> ( fromDBText providerName
+                               , fromDBLocalTime callDate
+                               , fromDBInt formatId
+                               , fromDBByteString content))
+                        inS1
+
+          inS3 <- S.chunkVector param_chunkSize inS2
+
+          countR <- newIORef 0
+          parseChunksAndSend inS3 countR 0 []
+
+          count <- readIORef countR
+          case count < splitSize of
+            True -> return ()
+            False -> processAllSplits conn stmtId splitSize (currentOffset + count)
+
+   parseChunksAndSend :: S.InputStream (V.Vector (CDRProviderName, LocalTime, FormatId, BS.ByteString)) -> IORef Int -> Int -> [ParsedCDR] -> IO ()
+   parseChunksAndSend sIn countR bufferedCDRSCount bufferedCDRS = do
+     maybeSourceCDRS <- S.read sIn
+     case maybeSourceCDRS of
+       Nothing
+         -> case bufferedCDRSCount > 0 of
+              True  -> writeChan outChan (V.fromList $! bufferedCDRS)
+              False -> return ()
+
+       Just sourceCDRS
+         -> do modifyIORef' countR (\i -> i + (V.length sourceCDRS))
+               let cdrs1 = case runLevel <= RunLevelUntilSourceCDRParsing of
+                             True -> L.concatMap (parseSourceCDR precisionDigits fastLookupCDRImporters) (V.toList sourceCDRS)
+                             -- MAYBE True -> parMap rseq (parseSourceCDR precisionDigits fastLookupCDRImporters) sourceCDRS
+                             -- very minimal gain using parallel decoding (probably bigger in case of complex data formats)
+                             -- so mantain traditional/safer map based code
+                             False -> []
+
+               let cdrs1Count = L.length cdrs1
+
+               case (cdrs1Count + bufferedCDRSCount) > (div param_chunkSize 2) of
+                 True
+                   -> do writeChan outChan (V.fromList $ bufferedCDRS ++ cdrs1)
+                         parseChunksAndSend sIn countR 0 []
+                      -- NOTE: the length of the results is not known in advance because cdrs to ignore are removed,
+                      -- and other source CDRs can produce more than a final CDR.
+                      -- But it is aproximately `param_chunkSize`
+                 False
+                   -> parseChunksAndSend sIn countR (bufferedCDRSCount + cdrs1Count) (bufferedCDRS ++ cdrs1)
+
+-- | Complete the info about ported telephone numbers.
+--   It is useful separating this passage here, in a distinct process, because
+--   other rating calculations are instead pure, and so they can be parallilized
+--   using pure parallel instructions, and queries to the DB can be chunked.
+process_completePortedTelephoneNumbers
+    :: RatingParams
+    -> Chan ParsedCDR
+    -> Chan ParsedCDR
+    -> IO ()
+
+process_completePortedTelephoneNumbers env inChan outChan
+ = safeBracket
+    (openDBConnection (params_dbConf env) True)
+    (\maybeExc conn
+         -> do
+               case maybeExc of
+                 Just exc
+                   -> do hPutStrLn IO.stderr $! "process_completePortedTelephoneNumbers exception: " ++ displayException exc
+                         return ()
+                 _ -> do return ()
+               _ <- DB.execute_ conn "COMMIT"
+               DB.close conn)
+    (\conn -> do
+       _ <- DB.execute_ conn "DROP TABLE IF EXISTS ar_tmp_request_exported_tn"
+       _ <- DB.execute_ conn [str|CREATE TEMPORARY TABLE ar_tmp_request_exported_tn(
+                                 |  id INTEGER NOT NULL,
+                                 |  telephone_number VARCHAR(255) NULL,
+                                 |  from_date DATETIME NOT NULL,
+                                 |  PRIMARY KEY (`id`)
+                                 |) ENGINE=memory
+                                 |]
+
+       stmtTruncate <- DB.prepareStmt conn "TRUNCATE ar_tmp_request_exported_tn"
+       let stmtInsertQ = "INSERT INTO ar_tmp_request_exported_tn(id, telephone_number, from_date) VALUES(?, ?,?)"
+       stmtGetPortedTelephoneNumbers
+         <- DB.prepareStmt
+              conn
+              [str| SELECT
+                  |   t.id
+                  | , SUBSTRING_INDEX(
+                  |     GROUP_CONCAT(
+                  |       p.ported_telephone_number
+                  |       ORDER BY p.from_date DESC
+                  |       SEPARATOR ',~~~'), ',~~~', 1)
+                  | FROM ar_tmp_request_exported_tn AS t
+                  | JOIN ar_number_portability AS p
+                  | ON t.telephone_number = p.telephone_number
+                  | WHERE p.from_date <= t.from_date
+                  | AND t.telephone_number IS NOT NULL
+                  | GROUP BY t.id, t.telephone_number
+                  | ORDER BY t.id
+                  |]
+
+       processChan
+         inChan
+         (\cdrs -> do
+              let valuesToPort
+                    = L.concatMap
+                        (\(i, ParsedCDR (_, localTime, _, _, errOrCDR))
+                               -> case errOrCDR of
+                                   Left err
+                                     -> []
+                                   Right cdr
+                                     -> case cdr_externalTelephoneNumberWithAppliedPortability cdr of
+                                          Just _
+                                            -> []
+                                               -- NOTE: nothing to port because the portability was already applied by the importer
+                                          Nothing
+                                            -> [[toDBInt64 i, toDBText $ cdr_externalTelephoneNumber cdr, toDBLocalTime localTime]]
+                        ) (L.zip [0 ..] (V.toList cdrs))
+
+              _ <- DB.executeStmt conn stmtTruncate []
+              _ <- DB.executeMany conn stmtInsertQ valuesToPort
+
+              (_, portedRS) <- DB.queryStmt conn stmtGetPortedTelephoneNumbers []
+              portedNumbers1 <- S.map (\[dbId, dbN] -> (fromDBInt dbId, fromDBText dbN)) portedRS
+              portedNumbers2 <- S.toList portedNumbers1
+              let portedCDRS1
+                    = L.map (\(id, portedNumber)
+                                 -> let ParsedCDR (n, lt, fid, cdrc, Right cdr1) = ((V.!) cdrs id)
+                                        cdr2 = cdr1 { cdr_externalTelephoneNumberWithAppliedPortability = Just portedNumber }
+                                    in  (id, ParsedCDR (n, lt, fid, cdrc, Right cdr2))) portedNumbers2
+
+
+              let cdrs2 = (V.//) cdrs portedCDRS1
+
+              -- assign default telephone numbers for numbers that are not ported
+              let cdrs3 = V.map (\unchanged@(ParsedCDR (n, lt, fid, cdrc, mcdr))
+                                  -> case mcdr of
+                                       Left err
+                                         -> unchanged
+                                       Right cdr1
+                                         -> case cdr_externalTelephoneNumberWithAppliedPortability cdr1 of
+                                              Just _
+                                                -> unchanged
+                                              Nothing
+                                                -> let cdr2 = cdr1 { cdr_externalTelephoneNumberWithAppliedPortability = Just $ cdr_externalTelephoneNumber cdr1 }
+                                                   in ParsedCDR (n, lt, fid, cdrc, Right cdr2)
+                                ) cdrs2
+
+              writeChan outChan cdrs3
+         )
+
+       writeEOFChan outChan)
+
+-- | Does nothing: used for testing the speed of process before this.
+process_fakeCompletePortedTelephoneNumbers
+    :: RatingParams
+    -> Chan ParsedCDR
+    -> Chan ParsedCDR
+    -> IO ()
+
+process_fakeCompletePortedTelephoneNumbers env inChan outChan = do
+  processChan inChan (\_ -> return ())
+  writeEOFChan outChan
+  return ()
+
+type CountOfCDRS = Int
+
+-- | Does nothing: for testing the speed of process before this.
+process_fakeRate
+    :: RatingParams
+    -> Chan ParsedCDR
+    -> Chan Cmd
+    -> (CountOfCDRS, RatingStatus, CallDate)
+        -- ^ Initial state: number of rated CDRS, the last rating status and processed call date
+    -> IO (Either AsterisellError (CountOfCDRS, RatingStatus, CallDate))
+       -- ^ return an error only in case of critical errors compromizing the entire rating process,
+       --   otherwise signal errors on the DB in the usual way.
+       --   Return stats terminating the process when a Nothing value is received on the input channel.
+
+process_fakeRate env inChan outChan (c, s, d) = do
+  processChan inChan (\_ -> return ())
+  writeEOFChan outChan
+  return (Right (c, s, d))
+
+-- | Rate CDRS.
+process_rate
+    :: RatingParams
+    -> Chan ParsedCDR
+    -- @require number portability is already applied
+    -> Chan Cmd
+    -> (CountOfCDRS, RatingStatus, CallDate)
+        -- ^ Initial state: number of rated CDRS, the last rating status and processed call date
+    -> IO (Either AsterisellError (CountOfCDRS, RatingStatus, CallDate))
+       -- ^ return an error only in case of critical errors compromizing the entire rating process,
+       --   otherwise signal errors on the DB in the usual way.
+       --   Return stats terminating the process when a Nothing value is received on the input channel.
+
+process_rate env inChan outChan initialState = do
+   r <- runExceptT $ ratePass initialState
+   case r of
+     Left (_, err) -> return $!! Left $ err { asterisellError_type = Type_Critical }
+     -- every error escaping normal processing is critical
+
+     Right rr -> return $ Right $ force rr
+     -- return the final computation state
+
+ where
+
+   ratePass :: (CountOfCDRS, RatingStatus, CallDate) -> RatingMonad (CountOfCDRS, RatingStatus, CallDate)
+   ratePass (countCDRS, state1, lastCallDate) = do
+     cdrsToRate <- liftIO $ readChan inChan
+     case isEOFChan cdrsToRate  of
+       True
+         -> do (count1, state2) <- processCloseRequest (state1, lastCallDate)
+               return (countCDRS + count1, state2, lastCallDate)
+       False
+         -> do
+               (!newCountCDRS, !newRatingStatus, !newLastCallDate, !newRatedCDRS)
+                 <- V.foldM
+                      (\(count2, state2, lastCallDate2, ratedCDRS2) cdrToRate@(ParsedCDR (_, lastCallDate3, _, _, _)) -> do
+                          (!count3, !state3, !maybeRatedCDR) <- rateCDR state2 cdrToRate
+                          let ratedCDRS3 = case maybeRatedCDR of
+                                             Nothing -> ratedCDRS2
+                                             Just c -> ratedCDRS2 ++ [c]
+                          return (count2 + count3, state3, lastCallDate3, ratedCDRS3))
+                      (countCDRS, state1, lastCallDate, [])
+                      cdrsToRate
+
+               lift $ writeChan outChan (V.singleton $ Cmd_insertCDR (force $ newRatedCDRS))
+               -- the CDRS are insert now, and not on the `rateCDR` side, so they are inserted in one pass in batches.
+
+               ratePass (newCountCDRS, newRatingStatus, newLastCallDate)
+               -- continue processing the next part of the input stream
 
    rateGarbageKey = fromString $ "rating-process"
 
-   currencyPrecision = params_currencyPrecision params
+   currencyPrecision = params_currencyPrecision env
+   fromCallDate = params_fromDate env
+   toCallDate = params_toDate env
+   bundleFromCallDate = params_bundleStateFromCallDate env
+   bundleToCallDate = params_bundleStateToCallDate env
+   onlyImportedServiceCDRS = params_onlyImportedServices env
+   cdrImporters = params_fastLookupCDRImporters env
+   isOfficialRatingEvent = params_isRateUnbilledCallsEvent env
 
    insideRateCallTime' bundleToCallDate cdr = insideRateCallTime'' bundleToCallDate (cdr_calldate cdr)
 
    insideRateCallTime'' bundleToCallDate callDate = validCallTime False callDate fromCallDate (Just bundleToCallDate)
 
-   -- | A wrap function sending the error to the error process
-   sendError
-     :: BoundedChan ErrorCmd
-     -> Bool
-     -- ^ True for writing the error in the database
-     -> AsterisellError
-     -- ^ the error to write
-     -> Maybe ( BS.ByteString
-                -- ^ the garbage key
-              , LocalTime
-                -- ^ error from date
-              , LocalTime
-                -- ^ error to date
-              )
-        -- ^ Nothing for no garbage key
-     -> IO AsterisellErrorDupKey
-
-   sendError errorChan writeToDB err1 maybeGarbageKey
-     = let dupKey1 = asterisellError_dupKey err1
-       in  do writeChan errorChan (ErrorCmd_insert writeToDB err1 maybeGarbageKey)
-              return dupKey1
-
-   -- | Send errors to the database.
-   errorProcess :: BoundedChan ErrorCmd -> IO ()
-   errorProcess errorChan
-     = let processRequests :: DB.Connection -> AsterisellErrorsDictionary -> IO ()
-           processRequests errorConn errorDict1 = do
-             !c <- readChan errorChan
-             case c of
-               ErrorCmd_close
-                 -> return ()
-               ErrorCmd_insert writeToDB !asterisellError !maybeGarbageKeyInfo
-                 -> do (_, errorDict2)
-                          <- case maybeGarbageKeyInfo of
-                               Just (garbageKey, errorFromDate, errorToDate)
-                                 -> writeError writeToDB errorConn errorDict1 asterisellError garbageKey errorFromDate errorToDate
-                               Nothing
-                                 -> writeErrorWithoutGarbageCollection writeToDB errorConn errorDict1 asterisellError
-                       processRequests errorConn errorDict2
-
-       in bracketOnError
-            (do DB.initThread
-                openConnection dbParams True)
-            (\errorConn -> -- sometime these transactions can not be closed, but I want to report the original error message.
-                           Control.Monad.Catch.handleAll (\ _ -> return ()) $ do
-                             DB.commit errorConn
-                             -- I want save errors in any case
-                             DB.close errorConn)
-
-            (\errorConn -> do processRequests errorConn asterisellErrorsDictionary_empty
-                              DB.commit errorConn
-                              DB.close errorConn)
-
-   -- | Read source CDRS from database, deserialize them,  and send to the rating process.
-   readProcess :: DebugChan -> BoundedChan RateCmd -> CallDate -> CallDate -> IO Int
-   readProcess debugChan chan1 bundleStateFromCallDate bundleStateToCallDate
-     = let readLoop :: DB.Connection -> DB.Result -> Int -> IO Int
-           readLoop streamConn r !c
-             = do !maybeR <- DB.fetchRow r
-                  case maybeR of
-                    [] -> do -- send the signal about the end of CDRs
-                             writeChan chan1 RateCmd_close
-                             return c
-                    [row_id, row_calldate, row_formatName, row_versionName, row_providerName, row_content, row_formatId, row_providerId]
-                      -> do !void <- deserializeSourceCDRAndSend (fromJust1 "c1333" $! row_id, fromJust1 "c1333" $! row_calldate, fromJust1 "c1333" $! row_formatName, fromJust1 "c1333" $! row_versionName, fromJust1 "c1777" $! row_formatId, fromJust1 "c1333" $! row_providerName, fromJust1 "c17537" $! row_providerId, fromJust1 "c1333" $! row_content)
-                            readLoop streamConn r (c + 1)
-                    _ -> throwIO $ ErrorCall "Unexpected query row format in code (ERR 125537)."
-
-           importedServiceQuery
-             = case onlyImportedServiceCDRS of
-                     True
-                       -> " AND is_imported_service_cdr = 1 "
-                     False
-                       -> case isOfficialRatingEnv of
-                            True
-                              -> ""
-                                 -- accept both imported services, and normal cdrs
-                            False
-                              -> " AND is_imported_service_cdr = 0 "
-                                 -- do not process importe service cdrs, because they are not deleted, and they are not changed
-
-
-           streamQuery
-                 = BS.concat ["SELECT s.id, s.calldate, l.name, p.name, pv.internal_name, s.content, p.id, pv.id FROM ar_source_cdr AS s USE INDEX(ar_source_cdr_I_1) INNER JOIN ar_physical_format AS p ON s.ar_physical_format_id = p.id INNER JOIN ar_logical_source AS l ON p.ar_logical_source_id = l.id INNER JOIN ar_cdr_provider AS pv ON s.ar_cdr_provider_id = pv.id WHERE calldate >= '", fromString $ fromLocalTimeToMySQLDateTime bundleStateFromCallDate, "' AND calldate < '", fromString $ fromLocalTimeToMySQLDateTime bundleStateToCallDate, "' ", importedServiceQuery, fromString "  ORDER BY calldate"]
-
-
-           deserializeSourceCDRAndSend :: RawSourceCDR -> IO ()
-           deserializeSourceCDRAndSend (!sourceCDRId, !callDateS, !formatName, !formatVersion, !formatId, !cdrProviderName, !cdrProviderId, !sourceCDR)
-             = let errMsg = "(ERR 1753) There is no known source data file importer, for CDR with provider name " ++ (Text.unpack $ fromMySQLResultToText $ Just cdrProviderName) ++ ", format " ++ (Text.unpack $ fromMySQLResultToText $ Just formatName) ++ ", version " ++ (Text.unpack $ fromMySQLResultToText $ Just formatVersion)
-                   callDate = fromJust1 "re-75375" $ fromMySQLDateTimeAsTextToLocalTime $ fromMySQLResultToText $ Just callDateS
-
-                   providerNameT = fromMySQLResultToText $ Just cdrProviderName
-
-               in do case configuredCDRSImporters_get configuredCDRSImporters formatName formatVersion of
-                       Nothing
-                         -> throwIO $! ErrorCall errMsg
-                       Just (_, _, !cdrImporter)
-                         -> case snd $! cdrImporter (LBS.fromStrict sourceCDR) providerNameT of
-                              Left !err
-                                -> writeChan chan1 $! (RateCmd_rate ((cdr_empty callDate currencyPrecision) { cdr_direction = CDR_outgoing }, sourceCDRId, formatName, formatVersion, formatId, cdrProviderName, cdrProviderId, sourceCDR, Left err))
-                                    -- the error will be raised from the receiving process
-
-                              Right !cdrs1
-                                -> let newDirection cdr = if (cdr_isServiceCDR cdr) then CDR_system else (cdr_direction cdr)
-                                       !cdrs2 = List.map (\(cdr, descr) -> (cdr { cdr_isImportedServiceCDR = (cdr_isServiceCDR cdr), cdr_direction = (newDirection cdr)}, descr)) cdrs1
-                                       -- By definition a service CDR imported from a ar_source_cdr is a imported service CDR.
-                                       -- An imported service, has direction CDR_system by default.
-
-                                   in  mapM_ (\(cdr, descr) -> writeChan chan1 $! (RateCmd_rate (cdr, sourceCDRId, formatName, formatVersion, formatId, cdrProviderName, cdrProviderId, sourceCDR, Right descr))) cdrs2
-
-
-       in bracket (do DB.initThread
-                      openConnection dbParams False)
-                  (\streamConn -> do DB.commit streamConn
-                                     DB.close streamConn) $ \streamConn -> do
-
-                    -- Send an init CDR to the chain of rating processes. In this way at least one CDR is generated,
-                    -- and other process can start their initialization work.
-                    let cdr = (cdr_empty bundleStateFromCallDate 4) { cdr_direction = CDR_ignored, cdr_billsec = Just 0, cdr_duration = Just 0 }
-                    writeChan chan1 $! (RateCmd_rate (cdr, "0", "", "", "0", "", "0", "", Right ""))
-
-                    -- Start processing the stream of source CDRS.
-                    DB.query streamConn streamQuery
-                    r <- DB.useResult streamConn
-                    result <- readLoop streamConn r 0
-                    DB.freeResult r
-                    return result
-
-   -- | Rate CDRS and send to the proper channel.
-   --   Do not send the end signal to the write channel.
-   rateProcess :: DebugChan -> BoundedChan ErrorCmd -> BoundedChan RateCmd -> RatingEnv -> RatingStatus -> CallDate -> CallDate -> CallDate -> BoundedChan WriteCmd -> IO (RatingStatus, CallDate)
-   rateProcess debugChan errorChan sourceCDRSChan env ratingStatus bundleStateFromCallDate bundleStateCanBeSavedFromCallDate bundleStateToCallDate destChan
-     = let
-
-           -- | Intercept an error, and generate the CDR with the error stats.
-           --   Throw an IO exception in case of critical error.
-           processError :: CDRToRate -> AsterisellError -> RatingMonad ()
-           processError (!cdr, !sourceCDRId, !logicalTypeName, !versionName, !versionId, !providerName, !providerId, sourceCDR, maybeCdrDebugDescription) err
-             = let
-                   date1 = cdr_calldate cdr
-                   date2  = case cdr_toCalldate cdr of
-                              Nothing
-                                -> date1
-                              Just d
-                                -> d
-
-                   cdrDebugDescription
-                     = case maybeCdrDebugDescription of
-                           Left e -> "<cdr high level view not available>"
-                           Right d -> d
-
-                   errDescription
-                     = asterisellError_description err ++ "\n\nImported CDR:\n\n" ++ cdr_showDebug cdr ++ "\n\nSource CDR of type " ++ (Text.unpack $ fromMySQLResultToText $ Just logicalTypeName) ++ "__" ++ (Text.unpack $ fromMySQLResultToText $ Just versionName) ++ ":\n\n" ++ cdrDebugDescription ++ "\n\nOriginal source content:\n\n" ++ (Text.unpack $ fromMySQLResultToText (Just sourceCDR)) ++ "\n\n"
-
-                   err2 = err { asterisellError_description = errDescription
-                              , asterisellError_effect = "This CDR will be not rated. " ++ asterisellError_effect err
-                              , asterisellError_proposedSolution = asterisellError_proposedSolution err ++ "If there are many errors of this type, there can be a problem in the input format specification or in the application code. In case contact the assistance. "
-                              }
-
-               in case asterisellError_type err of
-                    Type_Critical
-                      -> liftIO $ throwIO $ ErrorCall errDescription
-                    _ -> case insideRateCallTime' bundleStateToCallDate cdr of
-                          False
-                             -> do return ()
-                          True
-                             -> do
-                                   dupKey <- liftIO $! sendError errorChan True err2 (Just (rateGarbageKey, date1, date2))
-                                   let errorCDR = cdr_convertToError cdr (Just dupKey)
-                                   liftIO $! writeChan destChan (WriteCmd_insert errorCDR bundleState_empty)
-                                   return ()
-
-           rateProcessPass :: DB.Connection -> CDRToRate -> RatingStatus -> RatingMonad (RatingStatus, CallDate)
-           rateProcessPass selectConn cdrToRate@(cdr, sourceCdrId, logicalTypeName, versionName, versionIdS, providerName, providerIdS, sourceCDR, errorOrCdrDebugDescription) state1
-             = case errorOrCdrDebugDescription of
-                 Left !err -> do processError cdrToRate err
-                                 return $!! (state1, cdr_calldate cdr)
-
-                 Right !cdrDebugDescription -> (do
-                    let cdrTime = cdr_calldate cdr
-
-                    -- if the bundle-time-frame is closed, then generated related services CDRS.
-                    (!state2, !serviceCDRS1) <- updateRatingStatusAndReturnServiceCDRS env destChan state1 bundleStateFromCallDate bundleStateCanBeSavedFromCallDate CostRate cdrTime cdr
-                    (!state3, !serviceCDRS2) <- updateRatingStatusAndReturnServiceCDRS env destChan state2 bundleStateFromCallDate bundleStateCanBeSavedFromCallDate IncomeRate cdrTime cdr
-
-                    let providerId = fromJust1 ("p555: providerId " ++ fromByteStringToString providerIdS) $ fromByteStringToInt providerIdS
-                    let versionId = fromJust1 "p556" $ fromByteStringToInt versionIdS
-
-                    (!ratedCDR, !state4) <- rateCDR selectConn cdrTime env state3 providerId versionId cdr
-
-                    when (insideRateCallTime' bundleStateToCallDate ratedCDR && cdr_direction ratedCDR /= CDR_ignored)
-                         (liftIO $! (writeChan destChan $!! (WriteCmd_insert ratedCDR (bundleStateOrEmpty $!! rs_incomeBundleState $!! state4))))
-
-                    processServiceCDRS selectConn $!! (serviceCDRS1 ++ serviceCDRS2)
-                    return $!! (state4, cdrTime)) `catchError` (\(errCDR, err) -> do processError (errCDR, sourceCdrId, logicalTypeName, versionName, versionIdS, providerName, providerIdS, sourceCDR, Right cdrDebugDescription) err
-                                                                                     return $!! (state1, cdr_calldate cdr))
-
-
-           bundleStateOrEmpty :: Maybe BundleState -> BundleState
-           bundleStateOrEmpty Nothing = bundleState_empty
-           bundleStateOrEmpty (Just b) = b
-
-           processServiceCDR :: DB.Connection -> ServiceCDR -> RatingMonad ServiceCDR
-           processServiceCDR !selectConn !serviceCDR
-             = do (serviceCDR', _) <- cdr_initialClassification (env_params env) selectConn serviceCDR
-                  liftIO $! writeChan destChan $!! (WriteCmd_insert serviceCDR' bundleState_empty)
-                  return serviceCDR'
-
-           processServiceCDRS :: DB.Connection -> [ServiceCDR] -> RatingMonad ()
-           processServiceCDRS !selectConn !serviceCDRS
-             = do mapM_ (processServiceCDR selectConn) serviceCDRS
-
-           processCloseRequest :: DB.Connection -> (RatingStatus, CallDate) -> RatingMonad ()
-           processCloseRequest selectConn (!state1, !lastCallDate)
-             = do      -- Save the incremental BundleState. This value is associated to the last processed CDR, so there are no new CDRS in the DB
-                       -- after this date (according the logical time-frame). If new CDRS will be added, they will have (probably) a bigger calldate,
-                       -- and so the rating can start from this saved BundleState.
-                       -- I can not use for this porpouse bundleStateToCallDate because it is date far in future. In reality I'm not interested to it.
-                       when (not onlyImportedServiceCDRS)
-                            (case rs_incomeBundleState state1 of
-                                Nothing
-                                  -> return ()
-                                Just bundleState1
-                                  -> liftIO $ writeChan destChan $!! (WriteCmd_saveBundleState lastCallDate bundleState1))
-
-                       -- Generate BundleRate serviceCDRS at bundleStateToCallDate.
-                       -- I can generate always these CDRs, because they are deleted before rating them.
-                       -- Doing so I'm generating pending service-cdrs for not already closed time-frame,
-                       -- or if I'm rerating an already closed time-frame, I'm updating with new values.
-                       when (not onlyImportedServiceCDRS)
-                            (do case (rs_incomeBundleState state1, rs_incomeRate state1) of
-                                     (Just bundleState2, Just (mainRatePlan2, _))
-                                       -> let (_, _, pendingServiceCDRS1) = bundleState_serviceCdrs env mainRatePlan2 bundleState2 bundleStateToCallDate
-                                              pendingServiceCDRS2 = List.filter (\cdr -> (fromJust1 "175377" $ cdr_toCalldate cdr) > fromCallDate) pendingServiceCDRS1
-                                          in  processServiceCDRS selectConn pendingServiceCDRS2
-                                     _ -> return ())
-
-                       -- Generate serviceCDRS for pure services, in the rating time frame.
-                       when ((not onlyImportedServiceCDRS) && isOfficialRatingEnv)
-                            (do case service_generate isDebugMode env serviceParams fromCallDate bundleStateToCallDate True of
-                                     Left errMsg
-                                       -> throwError $ (cdr_empty fromCallDate 4
-                                                       ,createError
-                                                          Type_Critical
-                                                          Domain_RATES
-                                                          errMsg
-                                                          ("Error in specification of Services. " ++ errMsg)
-                                                          ("Corresponding ServiceCDRs will be not produced, and inserted in call report. The call report does not contain stats about these missing service CDRs.")
-                                                          ("Correct the error in Service specification, and rerate them."))
-
-                                     Right cdrs
-                                       -> processServiceCDRS selectConn cdrs)
-
-                       return ()
-
-           -- | Some extensions and related CDRs must be exported to other instances.
-           processExtensionToExport :: RatingEnv -> CDRToRate -> IO ()
-           processExtensionToExport state1 (cdr, sourceId, _, _, _, _, _, _, _)
-             = case trie_getMatch trie_getMatch_initial (env_extensionsToExport state1) (Text.unpack $ cdr_internalTelephoneNumber cdr) of
-                 Nothing
-                   -> return ()
-                 Just _
-                   -> liftIO $ writeChan destChan $!! (WriteCmd_insertSourceCDRToExport sourceId)
-
-           processRequests :: DB.Connection -> (RatingStatus, CallDate) -> IO (RatingStatus, CallDate)
-           processRequests selectConn (!state1, !lastCallDate) = do
-             !maybeInput <- readChan sourceCDRSChan
-             case maybeInput of
-               RateCmd_close
-                 -> do !state2OrError <- runExceptT $! processCloseRequest selectConn (state1, lastCallDate)
-                       case force state2OrError of
-                         Right ()
-                           -> return (state1, lastCallDate)
-                         Left (errCdr, err)
-                           -> throwIO $ ErrorCall $ "(err 75375) " ++ asterisellError_userShow err
-
-               RateCmd_rate !cdrToRate
-                 -> do processExtensionToExport env cdrToRate
-                       !state2OrError <- runExceptT $! rateProcessPass selectConn cdrToRate state1
-                       case force state2OrError of
-                         Right (!state2, !lastCallDate2)
-                           -> processRequests selectConn (force state2, force lastCallDate2)
-                         Left (!errCdr, !err)
-                           -> throwIO $ ErrorCall $ "(err 75377) Error in code. The application raised an unexpected error, that should instead managed internally in CDR code processing. " ++ asterisellError_userShow err
-
-               RateCmd_rateService !serviceCDR
-                 -> do !cdrOrError <- runExceptT $! processServiceCDR selectConn serviceCDR
-                       case force cdrOrError of
-                         Right !cdr2
-                           -> processRequests selectConn (force state1, force lastCallDate)
-                         Left (!errCdr, !err)
-                           -> throwIO $ ErrorCall $ "(err 755) Error during rating of service CDR.\n\n" ++ cdr_showDebug serviceCDR ++ "\n\n" ++ asterisellError_userShow err
-
-       in bracketOnError
-            (do DB.initThread
-                openConnection dbParams False)
-            (\selectConn -> -- sometime these transactions can not be closed, but I want to report the original error message.
-                            Control.Monad.Catch.handleAll (\ _ -> return ()) (do DB.commit selectConn
-                                                                                 DB.close selectConn))
-            (\selectConn -> do r <- processRequests selectConn (ratingStatus, bundleStateFromCallDate)
-                               DB.commit selectConn
-                               DB.close selectConn
-                               return r)
-
-   -- | How many CDRS buffering before sending to the database.
-   writeBuffSize :: Int
-   writeBuffSize = 200
-
-   -- | Write CDRs on the database.
-   --   Store some CDRS, before sending them in batch mode to the database, because this operation is faster than a single send.
-   writeProcess :: RatingEnv -> BoundedChan (Either () String) -> BoundedChan ErrorCmd -> BoundedChan WriteCmd -> IO ()
-   writeProcess env debugChan errorChan ratedCDRSChan
-     = let currencyPrecision = params_currencyPrecision $ env_params env
-
-           escapeCDRMaybeText :: DB.Connection -> (CDR -> Maybe Text.Text) -> CDR -> IO (Maybe BS.ByteString)
-           escapeCDRMaybeText writeConn f cdr
-             = case f cdr of
-                 Nothing -> return Nothing
-                 Just t -> do s <- DB.escape writeConn $ fromTextToMySQLResult t
-                              return $ Just s
-
-           escapeCDRText :: DB.Connection -> (CDR -> Text.Text) -> CDR -> IO BS.ByteString
-           escapeCDRText writeConn f cdr
-             = DB.escape writeConn $ fromTextToMySQLResult $ f cdr
-
-           escapeCDR :: DB.Connection -> CDR -> IO EscapedCDR
-           escapeCDR writeConn cdr
-             = do s1 <- escapeCDRText writeConn cdr_internalTelephoneNumber cdr
-                  s2 <- escapeCDRText writeConn cdr_externalTelephoneNumber cdr
-                  s3 <- escapeCDRMaybeText writeConn cdr_channel cdr
-                  s4 <- escapeCDRMaybeText writeConn cdr_externalTelephoneNumberWithAppliedPortability cdr
-                  s5 <- escapeCDRMaybeText writeConn cdr_displayedExternalTelephoneNumber cdr
-                  s10 <- escapeCDRMaybeText writeConn cdr_displayedMaskedExternalTelephoneNumber cdr
-                  s6 <- escapeCDRMaybeText writeConn cdr_problemDuplicationKey cdr
-                  s7 <- escapeCDRMaybeText writeConn cdr_debug_cost_rate cdr
-                  s8 <- escapeCDRMaybeText writeConn cdr_debug_income_rate cdr
-                  s9 <- escapeCDRMaybeText writeConn cdr_debug_residual_income_rate cdr
-                  s11 <- escapeCDRMaybeText writeConn cdr_debug_rating_details cdr
-                  return EscapedCDR {
-                           ecdr_internalTelephoneNumber = s1
-                         , ecdr_externalTelephoneNumber = s2
-                         , ecdr_channel = s3
-                         , ecdr_externalTelephoneNumberWithAppliedPortability = s4
-                         , ecdr_displayedExternalTelephoneNumber = s5
-                         , ecdr_displayedMaskedExternalTelephoneNumber = s10
-                         , ecdr_problemDuplicationKey = s6
-                         , ecdr_debug_cost_rate = s7
-                         , ecdr_debug_income_rate = s8
-                         , ecdr_debug_residual_income_rate = s9
-                         , ecdr_debug_rating_details = s11
-                         }
-
-           exportBool :: Bool -> Builder
-           exportBool True = charUtf8 '1'
-           exportBool False = charUtf8 '0'
-
-           exportInt :: Maybe Int -> Builder
-           exportInt Nothing = stringUtf8 "NULL"
-           exportInt (Just i) = intDec i
-
-           -- | Export something similar to info_getParentHiearchyIds
-           exportIds :: Maybe ParentIdHierarchy -> Builder
-           exportIds Nothing = stringUtf8 "NULL"
-           exportIds (Just ids)
-             = let convertedIds = mconcat $ List.map (\i -> intDec i `mappend` charUtf8 '/') ids
-               in  charUtf8 '\'' `mappend` charUtf8 '/' `mappend` convertedIds `mappend` charUtf8 '\''
-
-           exportBS :: Maybe BS.ByteString -> Builder
-           exportBS Nothing = stringUtf8 "NULL"
-           exportBS (Just v) = charUtf8 '\'' `mappend` byteString v `mappend` charUtf8 '\''
-
-           exportMoney :: Maybe MonetaryValue -> Builder
-           exportMoney Nothing = stringUtf8 "NULL"
-           exportMoney (Just m) = intDec $ toMonetaryValueWithFixedPrecisionInt currencyPrecision m
-
-           exportCDR :: (CDR, EscapedCDR) -> [Builder]
-           exportCDR (cdr, ecdr)
-             =    [
-                    charUtf8 '('
-                  , exportLocalTime $ Just $ cdr_calldate cdr
-                  , charUtf8 ','
-                  , exportLocalTime $ cdr_toCalldate cdr
-                  , charUtf8 ','
-                  , intDec $ cdr_countOfCalls cdr
-                  , charUtf8 ','
-                  , exportBool $ cdr_isImportedServiceCDR cdr
-                  , charUtf8 ','
-                  , intDec $ cdrDirection_asterisellCode $ cdr_direction cdr
-                  , charUtf8 ','
-                  , exportBool $ cdr_isRedirect cdr
-                  , charUtf8 ','
-                  , exportInt $ cdr_duration cdr
-                  , charUtf8 ','
-                  , exportInt $ cdr_billsec cdr
-                  , charUtf8 ','
-                  , exportInt $ cdr_organizationUnitId cdr
-                  , charUtf8 ','
-                  , exportIds $ cdr_cachedParentIdHierarchy cdr
-                  , charUtf8 ','
-                  , exportInt $ cdr_billableOrganizationUnitId cdr
-                  , charUtf8 ','
-                  , exportInt $ cdr_bundleOrganizationUnitId cdr
-                  , charUtf8 ','
-                  , exportMoney $ Just $ cdr_income cdr
-                  , charUtf8 ','
-                  , exportMoney $ Just $ cdr_costSaving cdr
-                  , charUtf8 ','
-                  , exportInt $ cdr_vendorId cdr
-                  , charUtf8 ','
-                  , exportInt $ cdr_communicationChannelTypeId cdr
-                  , charUtf8 ','
-                  , exportMoney $ Just $ cdr_cost cdr
-                  , charUtf8 ','
-                  , exportMoney $ cdr_expectedCost cdr
-                  , charUtf8 ','
-                  , exportInt $ cdr_telephonePrefixId cdr
-                  , charUtf8 ','
-                  , exportBS $ Just $ ecdr_externalTelephoneNumber ecdr
-                  , charUtf8 ','
-                  , exportBS $ ecdr_externalTelephoneNumberWithAppliedPortability ecdr
-                  , charUtf8 ','
-                  , exportBS $ ecdr_displayedMaskedExternalTelephoneNumber ecdr
-                  , charUtf8 ','
-                  , exportInt $ Just $ cdrDirection_asterisellCode $ cdr_errorDirection cdr
-                  , charUtf8 ','
-                  , exportBS $ ecdr_problemDuplicationKey ecdr
-                  , charUtf8 ','
-                  , exportBS $ ecdr_debug_cost_rate ecdr
-                  , charUtf8 ','
-                  , exportBS $ ecdr_debug_income_rate ecdr
-                  , charUtf8 ','
-                  , exportBS $ ecdr_debug_residual_income_rate ecdr
-                  , charUtf8 ','
-                  , exportInt $ cdr_debug_residual_call_duration cdr
-                  , charUtf8 ','
-                  , exportInt $ cdr_debug_bundle_left_calls cdr
-                  , charUtf8 ','
-                  , exportInt $ cdr_debug_bundle_left_duration cdr
-                  , charUtf8 ','
-                  , exportMoney $ cdr_debug_bundle_left_cost cdr
-                  , charUtf8 ','
-                  , exportBS $ ecdr_debug_rating_details ecdr
-                  , charUtf8 ')'
-                  ]
-
-           -- | Export the CDRS, in inverse order respect the specified list.
-           exportCDRS :: [(CDR, EscapedCDR)] -> Builder
-           exportCDRS cdrs
-             = let f r (cdr, escapedCDR) = (exportCDR (cdr, escapedCDR)):r
-               in  mconcat $ List.concat $ List.intersperse [charUtf8 ','] $ List.foldl' f [] cdrs
-
-           -- | Write the CDRS in reverse order respect the specified list.
-           writeCachedCDRSOnDB :: DB.Connection -> [(CDR, EscapedCDR)] -> IO ()
-           writeCachedCDRSOnDB writeConn cdrs
-             = let cmd1 = stringUtf8 "INSERT INTO ar_cdr(calldate,to_calldate, count_of_calls, is_imported_service_cdr, destination_type, is_redirect, duration, billsec, ar_organization_unit_id, cached_parent_id_hierarchy, billable_ar_organization_unit_id, bundle_ar_organization_unit_id, income, cost_saving, ar_vendor_id, ar_communication_channel_type_id, cost, expected_cost, ar_telephone_prefix_id, cached_external_telephone_number, external_telephone_number_with_applied_portability, cached_masked_external_telephone_number, error_destination_type, ar_problem_duplication_key, debug_cost_rate, debug_income_rate, debug_residual_income_rate, debug_residual_call_duration, debug_bundle_left_calls, debug_bundle_left_duration, debug_bundle_left_cost, debug_rating_details) VALUES" `mappend` exportCDRS cdrs
-
-                   insertCmd = LBS.toStrict $ toLazyByteString cmd1
-
-               in when (not $ List.null cdrs) $ do
-                    DB.query writeConn insertCmd
-
-           processRequests :: DB.Connection -> Set.Set Day -> ([(CDR, EscapedCDR)], Int) -> IO ()
-           processRequests writeConn daysWithServiceCDRS (cachedCDRS, buffSize) = do
-             maybeInput <- readChan ratedCDRSChan
-             case maybeInput of
-               WriteCmd_close bundleStateToCallDate
-                 -> do -- write buffered CDRS
-                       writeCachedCDRSOnDB writeConn cachedCDRS
-
-                       let (normalDays, yearsAndMonths) = timeFrame_getYearsAndMonth (fromCallDate, bundleStateToCallDate)
-                       rateEngine_updateCachedGroupedCDRS writeConn (Just (fromCallDate, bundleStateToCallDate))
-
-                       -- Signal to external jobs the changed days.
-                       -- For nomal CDRS they can be only the days in the rating time-frame. This because all the CDRS in this range are deleted and regenerated.
-                       -- For serviceCDRS there are few days that are signaled apart. They are signaled apart, also because the external jobs want know when there are normal days and special days
-                       let addChangeEvent d s
-                             = let d1 = LocalTime { localDay = d, localTimeOfDay = midnight }
-                               in  fromStringToByteString $ List.concat ["CALL add_daily_status_change_event('", fromLocalTimeToMySQLDateWith00Time d1,"', ", if s then "1" else "0", ")"]
-
-                       mapM_ (\d -> do DB.query writeConn (addChangeEvent d False)) (Set.toList normalDays)
-                       mapM_ (\d -> do DB.query writeConn (addChangeEvent d True)) (Set.toList daysWithServiceCDRS)
-
-                       -- end of recursions/loops, so the processing of commands is terminating
-
-               WriteCmd_exec (maybeWait) cmd
-                 -> do DB.query writeConn cmd
-                       case maybeWait of
-                         Just w -> cmdWait_wake w
-                         Nothing -> return ()
-                       processRequests writeConn  daysWithServiceCDRS (cachedCDRS, buffSize)
-
-               WriteCmd_saveBundleState !toCallDate !bundleState
-                 -> do
-                       serializatedBundleState <- DB.escape writeConn $ LZ.compress $ DBS.encode bundleState
-                       let q = BS.concat [
-                                 "INSERT INTO ar_bundle_state(to_time, data_file) VALUES('"
-                               , fromString $ fromLocalTimeToMySQLDateTime toCallDate, "', '"
-                               , serializatedBundleState, "')"
-                               ]
-                       DB.query writeConn q
-                       processRequests writeConn daysWithServiceCDRS (cachedCDRS, buffSize)
-
-               WriteCmd_insert !cdr1 !bundleStateToIgnore
-                 -> do let !daysWithServiceCDRS2
-                             = if cdr_isServiceCDR cdr1
-                               then Set.insert (localDay $ cdr_calldate cdr1) daysWithServiceCDRS
-                               else daysWithServiceCDRS
-
-                       !escapedCdr1 <- escapeCDR writeConn cdr1
-                       let !cachedCDRS2 = ((cdr1, escapedCdr1):cachedCDRS)
-                       case buffSize >= writeBuffSize of
-                          False
-                            -> processRequests writeConn daysWithServiceCDRS2 $!! (cachedCDRS2, buffSize + 1)
-                          True
-                            -> do writeCachedCDRSOnDB writeConn $!! cachedCDRS2
-                                  processRequests writeConn daysWithServiceCDRS2 ([], 0)
-
-               WriteCmd_insertSourceCDRToExport !i
-                 -> do let query1 = ["INSERT IGNORE INTO ar_source_cdr_to_move VALUES(", i, ")"]
-                       DB.query writeConn (BS.concat query1)
-                       processRequests writeConn daysWithServiceCDRS (cachedCDRS, buffSize)
-
-               WriteCmd_insertExpandedExtension !ee
-                 -> do extensionCode <- DB.escape writeConn (ee_specificExtensionCode ee)
-                       let query1 = "INSERT INTO ar_expanded_extensions SET ar_organization_unit_id=" <> intDec (ee_organizationId ee) <> ", extension_code=\"" <> byteString extensionCode <> "\""
-                       DB.query writeConn (fromLazyToStrictByteString $ toLazyByteString query1)
-                       processRequests writeConn daysWithServiceCDRS (cachedCDRS, buffSize)
-
-       in bracketOnError
-            (do DB.initThread
-                openConnection dbParams True)
-            (\writeConn -> -- sometime these transactions can not be closed, but I want to report the original error message.
-                           Control.Monad.Catch.handleAll (\ _ -> return ()) $ do
-                             DB.rollback writeConn
-                             DB.close writeConn)
-
-            (\writeConn -> do processRequests writeConn Set.empty ([], 0)
-                              DB.commit writeConn
-                              DB.close writeConn)
-
-   cdr_convertToError :: CDR -> Maybe AsterisellErrorDupKey -> CDR
-   cdr_convertToError cdr0 dupKey
-     = let cdr1 = case dupKey of
-                    Nothing -> cdr0
-                    Just k -> cdr0 { cdr_problemDuplicationKey = Just k }
-       in case cdr_direction cdr1 of
-         CDR_error
-           -> cdr1
-         _ -> cdr1 {
-                cdr_errorDirection = cdr_direction cdr1
-              , cdr_direction = CDR_error
-              }
-
-   -- | Rate a CDR or return an error.
-   rateCDR :: DB.Connection -> LocalTime -> RatingEnv -> RatingStatus -> Int -> Int -> CDR -> RatingMonad (CDR, RatingStatus)
-   rateCDR selectConn callDateToVerify env !state1 !providerId !formatId !cdr
-     = do (!cdr1, isExtensionalMatch) <- cdr_initialClassification params selectConn cdr
-          when (cdr_direction cdr1 == CDR_error)
-               (throwError (cdr1, createError
-                                    Type_Critical
-                                    Domain_RATES
-                                    "unexpected error code 1075375"
-                                    "Unexpected error in the code. Contact the assistance signaling ERR CODE 17253"
-                                    ""
-                                    ""))
-          when (not (cdr_calldate cdr1 == callDateToVerify))
-               (let err = (createError
-                             Type_Error
-                             Domain_RATES
-                             ("changed rating classification code")
-                             ("This CDR was first imported, using the call date " ++ fromLocalTimeToMySQLDateTime callDateToVerify ++ ", but now during rating phase, the parsed calldate is " ++ fromLocalTimeToMySQLDateTime (cdr_calldate cdr1) ++ ". Probably the code interpreting the CDR format was changed in the past, and now during rerating there is some mismatch.")
-                             ("All CDRs of this type will be not rated, because the database content is potentially corrupted.")
-                             ("Extract calls at the specified calldate (the first one of the list), and of the same provider/type/version, and resubmit them. They will be deleted from the database, and resubmitted with the correct call date (the second one of the list).")
-                          )
-
-                in throwError (cdr1, err))
-
-          let cdrTime = cdr_calldate cdr1
-
-          (!state3, !cdr2)
-            <- case cdr_direction cdr1 == CDR_ignored || (isNothing $ cdr_organizationUnitId cdr1) of
-                 True ->  return $!! (state1, cdr1)
-                 False -> let
-                              -- manage ExpandedExtensions
-                              state2
-                                = case isExtensionalMatch of
-                                    True -> state1
-                                    False -> let ee = ExpandedExtension {
-                                                        ee_organizationId = fromJust1 "p557" $ cdr_organizationUnitId cdr1
-                                                      , ee_specificExtensionCode = fromTextToMySQLResult $ cdr_internalTelephoneNumber cdr1
-                                                      }
-                                             in state1 { rs_expandedExtensions = S.insert ee (rs_expandedExtensions state1) }
-
-                          in do r <- mainRate_apply env state2 cdr1
-                                return $!! r
-
-          return $!! (cdr2, state3)
-
-   -- | Update the rating status, and return the corresponding bundle rates service CDRS.
-   --   NOTE: these are two distinct operations, done in one pass because during status update, in case also
-   --   service CDRS are returned. But in any case also if there are no serviceCDRS, the status must be updated in any case.
+   -- | Rate a CDR.
+   --   Manage errors internally, and return an error only in case of critical errors.
+   --   Write directly all updates to rating status, and errors, but postpone the writing of correctly rated CDRs,
+   --   because they are collected and updated in chunk from the caller.
+   rateCDR
+     :: RatingStatus
+     -> ParsedCDR
+     -> RatingMonad (CountOfCDRS, RatingStatus, Maybe CDR)
+
+   rateCDR state1 (ParsedCDR (providerName, callDate, formatId, sourceCDR, Left err)) = do
+     lift $ processError (providerName, callDate, formatId, sourceCDR) (Just $ cdr_empty callDate 4, err)
+     -- signal the error, generating a fake CDR to insert in the database for the online stats.
+     -- These are the best info we have, because there were some error during parsing of the CDR.
+     return (1, state1, Nothing)
+
+   rateCDR state1 (ParsedCDR (providerName, callDateToVerify, formatId, sourceCDR, Right cdr1)) = do
+     let cdr2
+           = if cdr_isServiceCDR cdr1
+             -- NOTE: by definition a service CDR imported from a ar_source_cdr is a imported service CDR,
+             -- and it has a direction CDR_system by default.
+              then if onlyImportedServiceCDRS
+                   then (cdr1 { cdr_isImportedServiceCDR = True, cdr_direction = CDR_system})
+                   else (cdr1 { cdr_isImportedServiceCDR = True, cdr_direction = CDR_ignored })
+                        -- ignore the CDR because it will be managed during the onlyImportedServiceCDRS phase
+             else cdr1
+
+     let cdrTime = cdr_calldate cdr2
+
+     -- Before rating the CDR update the bundle state.
+     -- NOTE: a rating error in this phase will be considered a critical error, and it will be returned immediately.
+     (countOfCDRS2, state2) <- updateRatingStatusAndRateServiceCDRS state1 CostRate cdr2
+
+     (countOfCDRS3, state3) <- updateRatingStatusAndRateServiceCDRS state2 IncomeRate cdr2
+
+     -- NOTE: an error generated during CDR rating is not propagated as a critical error, but considered a normal error
+     (state5, maybeRatedCDR)
+       <- catchError (do
+            (ratedCDR, state4) <- cdr_rate callDateToVerify env state3 formatId cdr2
+            let r = if (insideRateCallTime' bundleToCallDate ratedCDR && cdr_direction ratedCDR /= CDR_ignored)
+                    then (Just ratedCDR)
+                    else Nothing
+            return (state4, r))
+            (\err -> do lift $ processError (providerName, callDateToVerify, formatId, sourceCDR) err
+                        return (state3, Nothing))
+
+     return $ (countOfCDRS2 + countOfCDRS3 + 1, state5, maybeRatedCDR)
+
+   -- | Update the rating status, and rate the corresponding bundle rates service CDRS.
+   --   These are two distinct logical operations, done in one pass because the same input data must be processed.
+   --   NOTE: all service-cdrs can be saved on the db without checking their call date, because they were for sure deleted from the db
+   --   Return an error if the service CDR can not be initializated correctly.
    --   @require rs_criticalError is not set
-   updateRatingStatusAndReturnServiceCDRS
-     :: RatingEnv
-     -> BoundedChan WriteCmd
-     -> RatingStatus
-     -> CallDate
-     -> CallDate
+   updateRatingStatusAndRateServiceCDRS
+     :: RatingStatus
      -> RateRole
-     -> LocalTime
      -> CDR
         -- ^ an initializated (but not rated) CDR, used for preparing the rating info
-     -> RatingMonad (RatingStatus, [ServiceCDR])
+     -> RatingMonad (CountOfCDRS, RatingStatus)
 
-   updateRatingStatusAndReturnServiceCDRS env ratedCDRSChan cachedState1 bundleStateFromCallDate bundleStateCanBeSavedFromCallDate rateRole cdrTime cdr
-     = do
+   updateRatingStatusAndRateServiceCDRS cachedState1 rateRole cdr
+     = do    let cdrTime = cdr_calldate cdr
+
              let rateRefName
                   = case rateRole of
                       IncomeRate -> "main-income-rate"
@@ -1926,12 +1592,12 @@ rateEngine_rate isVoipReseller configuredCDRSImporters dbConf maybeDebugFile fro
                        -> case env_getRate env rateRefName cdrTime of
                                Nothing
                                  -> throwError
-                                      ( cdr
+                                      (Nothing
                                       , createError
                                                    Type_Critical
                                                    Domain_RATES
-                                                   ("unknown referenced rate - " ++ rateRefName)
-                                                   ("Unknown rate with name \"" ++ rateRefName ++ "\", of type " ++ show rateRole ++ ", at date " ++ showLocalTime cdrTime)
+                                                   ("unknown referenced rate - " ++ Text.unpack rateRefName)
+                                                   ("Unknown rate with name \"" ++ Text.unpack rateRefName ++ "\", of type " ++ show rateRole ++ ", at date " ++ showLocalTime cdrTime)
                                                    ("All CDRs from the specified calldate, will be not rated. The call report stats will signal the unrated calls.")
                                                    ("Add a rate specification, or change the starting/ending dates of current rate specifications.")
                                       )
@@ -1945,12 +1611,12 @@ rateEngine_rate isVoipReseller configuredCDRSImporters dbConf maybeDebugFile fro
                                     in case mainRatePlan_assignSharedUniqueSystemId ratePlan tempBundleStateOnlyForInit of
                                          Left err
                                            -> throwError
-                                                ( cdr
+                                                ( Nothing
                                                 , createError
                                                              Type_Critical
                                                              Domain_RATES
                                                              ("error in redefinition of rates - " ++ show rateRole ++ " at date " ++ showLocalTime cdrTime)
-                                                             ("The " ++ show rateRole ++ " rate, with name \"" ++ rateRefName ++ "\", defined for a CDR at date " ++ showLocalTime cdrTime ++ ", can not replace correctly pending bundle rates, defined previously. " ++ err)
+                                                             ("The " ++ show rateRole ++ " rate, with name \"" ++ Text.unpack rateRefName ++ "\", defined for a CDR at date " ++ showLocalTime cdrTime ++ ", can not replace correctly pending bundle rates, defined previously. " ++ err)
                                                              ("All the CDRs from this date, will be not rated. The call report stats will contain the correct totals of all CDRs with errors/not-rated.")
                                                              ("Correct the rate specification.")
                                                 )
@@ -1959,219 +1625,203 @@ rateEngine_rate isVoipReseller configuredCDRSImporters dbConf maybeDebugFile fro
                                            -> return (checkedRatePlan, validDate)
 
              case rateRole of
-              IncomeRate
+               IncomeRate
                 -> do let bundleState1 :: BundleState
                             = case maybeBundleState of
                                 Just r
                                   -> r
                                 Nothing
-                                  -> case onlyImportedServiceCDRS of
+                                  -> case (params_onlyImportedServices env) of
                                        True
                                          -> bundleState_empty
                                        False
-                                         -> bundleState_initAccordingRatingEnv env ratePlan (Left bundleStateFromCallDate) bundleState_empty
+                                         -> bundleState_initAccordingRatingParams env ratePlan (Left bundleFromCallDate) bundleState_empty
                                             -- initialize for the first time the bundle state according the rate plan.
                                             -- NOTE: I'm using bundleStateFromCallDate because it will be updated later, according the CDRs before the strict rate from date
 
                       let (maybePreviousBundleStateCallDate, bundleState2 :: BundleState, serviceCDRS1 :: [ServiceCDR])
                              = case onlyImportedServiceCDRS of
                                  True  -> (Nothing, bundleState1, [])
-                                 False -> bundleState_serviceCdrs env ratePlan bundleState1 cdrTime
+                                 False -> (bundleState_serviceCdrs env ratePlan bundleState1 cdrTime)
 
-                      let serviceCDRS2
-                            = case onlyImportedServiceCDRS of
-                                 True -> []
-                                 False -> List.filter (\cdr -> (fromJust1 "753744" $ cdr_toCalldate cdr) > fromCallDate) serviceCDRS1
+                      let serviceCDRS2 = L.filter (\cdr -> let td = (fromJust1 "753744" $ cdr_toCalldate cdr)
+                                                           in  td > bundleFromCallDate && td <= bundleToCallDate
+                                                               -- NOTE: this time-frame is kept in synchro with the time-frame of deleted bundle-rate services
+                                                               -- for Cmd_deleteCDRS
+                                                  ) serviceCDRS1 
 
                       let cachedState2
                             = cachedState1 { rs_incomeRate = Just (ratePlan, validUntil)
                                            , rs_incomeBundleState = Just bundleState2 }
 
+                      (serviceCount, cachedState3) <- rateAndSendServiceCDRS (0, cachedState2) serviceCDRS2
+
+                      -- Write bundle state
                       case maybePreviousBundleStateCallDate of
                                Nothing
                                  -> return ()
                                Just previousBundleStateCallDate
-                                 -> case previousBundleStateCallDate >= bundleStateCanBeSavedFromCallDate of
+                                 -> case previousBundleStateCallDate >= bundleFromCallDate of
                                       True
-                                        -> lift $ writeChan ratedCDRSChan $!! WriteCmd_saveBundleState previousBundleStateCallDate bundleState2
+                                        -> lift $ writeChan outChan (V.singleton $ Cmd_saveBundleState previousBundleStateCallDate bundleState2)
                                            -- in this case the bundle state time frame were closed, and so we are saving it on disk,
                                            -- because the changes of time-frames can be important, and they are not soo much.
                                       False
                                         -> return ()
 
-                      return (cachedState2, serviceCDRS2)
+                      return (serviceCount, cachedState3)
 
-              CostRate
-                -> return $ (cachedState1 { rs_costRate = Just (ratePlan, validUntil) }, [])
+               CostRate
+                 -> return (0, cachedState1 { rs_costRate = Just (ratePlan, validUntil) })
 
-   -- | Use the main rate plan for rating a CDR: cost and income.
-   mainRate_apply :: RatingEnv -> RatingStatus -> CDR -> RatingMonad (RatingStatus, CDR)
-   mainRate_apply !env !state1 !cdr1
-     = case isVoipReseller of
-         True -> do (!state2, !cdr2) <- searchRateAndApply state1 CostRate cdr1
-                    state2 `deepseq` (searchRateAndApply state2 IncomeRate cdr2)
-         False -> do (!state2, !cdr2) <- searchRateAndApply state1 IncomeRate cdr1
-                     -- in case of call reporting the cost and income are the same
-                     let !cdr3 = cdr2 { cdr_cost = cdr_income cdr2
-                                      , cdr_debug_cost_rate = cdr_debug_income_rate cdr2
-                                      }
-                     return (state2, cdr3)
+   -- | Complete error information and send to the database.
+   processError
+     :: (CDRProviderName, LocalTime, FormatId, BS.ByteString)
+     -> (Maybe CDR, AsterisellError)
+     -> IO ()
 
-    where
+   processError (providerName, callDate, formatId, sourceCDR) (maybeCDR, err)
+     = let
+           cdrDetails
+             = describeSourceCDRForErrorReporting cdrImporters (providerName, formatId, sourceCDR)
 
-     cdrTime = cdr_calldate cdr1
+           errDescription
+             = asterisellError_description err ++ cdrDetails
 
-     -- | Rate the CDR calculating cost or income.
-     --   @require RatingStatus is correctly initializated.
-     --   @require RatingStatus has no critical error.
-     searchRateAndApply :: RatingStatus -> RateRole -> CDR -> RatingMonad (RatingStatus, CDR)
-     searchRateAndApply !cachedState1 !rateRole !cdr
-       = do let (ratePlan :: CheckedMainRatePlan, bundleState1 :: BundleState)
-                  = case rateRole of
-                      IncomeRate
-                        -> (fst $ fromJust1 "c1" $ rs_incomeRate cachedState1, fromJust1 "c2" $ rs_incomeBundleState cachedState1)
-                      CostRate
-                        -> (fst $ fromJust1 ("c3: on CDR " ++ cdr_showDebug cdr) $ rs_costRate cachedState1, bundleState_empty)
+           err2
+             = err { asterisellError_description = errDescription
+                   , asterisellError_effect = "This CDR will be not rated. " ++ asterisellError_effect err
+                   , asterisellError_proposedSolution = asterisellError_proposedSolution err ++ "If there are many errors of this type, there can be a problem in the input format specification or in the application code. In case contact the assistance. "
+                   }
 
-            (!value, !bundleRateUnitId, !bundleState2, !debugInfo)
-               <- case mainRatePlan_calcCost isDebugMode rateRole env bundleState1 ratePlan cdr of
-                    Right !r
-                      -> return r
-                    Left !err
-                      -> throwError (cdr, err)
+           toCallDate
+             = case maybeCDR of
+                 Nothing -> callDate
+                 Just cdr -> case cdr_toCalldate cdr of
+                               Nothing -> callDate
+                               Just r -> r
 
-            let debugRatingDetails1
-                  = case info_ratingDetails debugInfo of
-                      Nothing -> Nothing
-                      Just s -> let rateRoleName
-                                      = case rateRole of
-                                          IncomeRate -> "\nDetails during calculation of Income:\n"
-                                          CostRate -> "\nDetails during calculation of Cost:\n"
-                                in Just $ Text.pack $ rateRoleName ++ s
+       in case (asterisellError_type err == Type_Critical) || insideRateCallTime'' bundleToCallDate callDate of
+                   False
+                     -> do return ()
+                   True
+                     -> do writeChan outChan (V.singleton $ Cmd_insertCDRWithError err2 (Just (rateGarbageKey, callDate, toCallDate)) maybeCDR)
+                           return ()
 
-            let debugRatingDetails2
-                  = case cdr_debug_rating_details cdr of
-                      Nothing
-                        -> debugRatingDetails1
-                      Just s1
-                        -> case debugRatingDetails1 of
-                             Nothing
-                               -> Nothing
-                             Just s2
-                               -> Just $ Text.concat [s1, Text.pack "\n", s2]
+   bundleStateOrEmpty :: Maybe BundleState -> BundleState
+   bundleStateOrEmpty Nothing = bundleState_empty
+   bundleStateOrEmpty (Just b) = b
 
-            appliedRateName
-              <- case IMap.lookup (info_appliedRate debugInfo) (mainRatePlan_systemIdToUserIdPath ratePlan) of
-                      Just r -> return r
-                      Nothing -> let err = createError
-                                             Type_Error
-                                             Domain_APPLICATION
-                                             ("unknown rate with name " ++ (show $ info_appliedRate debugInfo))
-                                             ("Unexpected error: the rate with code " ++ show (info_appliedRate debugInfo) ++ " is unknown on rate plan " ++ show ratePlan ++ " during rating of \n\n" ++ cdr_showDebug cdr ++ "\n\n")
-                                             "This and similar CDRs will be not rated."
-                                             "Contact the assistance because this is an error in the code."
-                                 in throwError (cdr, err)
-                                    -- DEV-NOTE: before in this point I were using an "error ..." instruction, but it generates a not clear message about conflicts between threads, and not the real message.
+   processCloseRequest :: (RatingStatus, CallDate) -> RatingMonad (CountOfCDRS, RatingStatus)
+   processCloseRequest (state1, lastCallDate)
+     = do -- Save the incremental BundleState. This value is associated to the last processed CDR, so there are no new CDRS in the DB
+          -- after this date (according the logical time-frame). If new CDRS will be added, they will have (probably) a bigger calldate,
+          -- and so the rating can start from this saved BundleState.
+          -- I can not use for this porpouse bundleStateToCallDate because it is date far in future. In reality I'm not interested to it.
+          when (not onlyImportedServiceCDRS)
+               (case rs_incomeBundleState state1 of
+                   Nothing
+                     -> return ()
+                   Just bundleState1
+                     -> lift $ writeChan outChan (V.singleton $ Cmd_saveBundleState lastCallDate bundleState1))
 
-            let residualAppliedRate
-                  = case info_residualAppliedRate debugInfo of
-                      Nothing
-                        -> Nothing
-                      Just i
-                        -> IMap.lookup i (mainRatePlan_systemIdToUserIdPath ratePlan)
+          -- Generate BundleRate serviceCDRS at bundleStateToCallDate.
+          -- I can generate always these CDRs, because they are deleted before rating them.
+          -- Doing so I'm generating pending service-cdrs for not already closed time-frame,
+          -- or if I'm rerating an already closed time-frame, I'm updating with new values.
+          (count1, state2)
+            <- case onlyImportedServiceCDRS of
+                 True -> return (0, state1)
+                 False -> do case (rs_incomeBundleState state1, rs_incomeRate state1) of
+                               (Just bundleState2, Just (mainRatePlan2, _))
+                                 -> let (_, _, pendingServiceCDRS1) = bundleState_serviceCdrs env mainRatePlan2 bundleState2 bundleToCallDate
+                                        pendingServiceCDRS2 = L.filter (\cdr -> let td = (fromJust1 "175377" $ cdr_toCalldate cdr)
+                                                                                in  td > bundleFromCallDate && td <= bundleToCallDate
+                                                              -- NOTE: this condition must be kept in synchro with Cmd_deleteCDRS deleted CDRS
+                                                                       ) pendingServiceCDRS1
+                                    in  rateAndSendServiceCDRS (0, state1) pendingServiceCDRS2
+                               _ -> return (0, state1)
 
-            case rateRole of
-              IncomeRate
-                -> let (leftCalls, leftDuration, leftCost)
-                         = bundleDebugInfo bundleState2 (info_bundleRateSystemId debugInfo) bundleRateUnitId
+          -- Generate serviceCDRS for pure services (not relate to bundle rates), in the rating time frame.
+          (count2, state3)
+            <- case (onlyImportedServiceCDRS) of
+                 True  -> do return (0, state2)
+                 False -> do case service_generate env fromCallDate toCallDate True of
+                              Left errMsg
+                                -> throwError $ (Just $ cdr_empty fromCallDate 4
+                                                ,createError
+                                                   Type_Critical
+                                                   Domain_RATES
+                                                   errMsg
+                                                   ("Error in specification of Services. " ++ errMsg)
+                                                   ("Corresponding ServiceCDRs will be not produced, and inserted in call report. The call report does not contain stats about these missing service CDRs.")
+                                                   ("Correct the error in Service specification, and rerate them."))
 
+                              Right pureServices
+                                -> rateAndSendServiceCDRS (0, state2) pureServices
+          return (count1 + count2, state3)
 
+   rateAndSendServiceCDRS :: (CountOfCDRS, RatingStatus) -> [ServiceCDR] -> RatingMonad (CountOfCDRS, RatingStatus)
+   rateAndSendServiceCDRS (count0, state0) services = do
+     ((!lastCount, !lastStatus), !lastRatedServices)
+         <- M.foldM
+              (\((count1, state1), ss) s1
+                  -> do (s2, _) <- cdr_initialClassification env s1
+                        return ((count1 + 1, state1), ss ++ [s2]))
+              ((count0, state0), [])
+              services
 
-                   in return $!!  ( cachedState1 { rs_incomeBundleState = Just bundleState2 }
-                                  , cdr { cdr_income = value
-                                        , cdr_bundleOrganizationUnitId = bundleRateUnitId
-                                        , cdr_debug_income_rate = Just appliedRateName
-                                        , cdr_debug_residual_income_rate = residualAppliedRate
-                                        , cdr_debug_residual_call_duration = info_residualCallDuration debugInfo
-                                        , cdr_debug_bundle_left_calls = leftCalls
-                                        , cdr_debug_bundle_left_duration = leftDuration
-                                        , cdr_debug_bundle_left_cost = leftCost
-                                        , cdr_debug_rating_details = debugRatingDetails2
-                                        }
-                                  )
+     when (not (L.null lastRatedServices)) (lift $ writeChan outChan (V.singleton $! Cmd_insertCDR lastRatedServices))
+     return (lastCount, lastStatus)
 
-              CostRate
-                -> return $!! ( cachedState1
-                              , cdr { cdr_cost = value
-                                    , cdr_debug_cost_rate = Just appliedRateName
-                                    , cdr_debug_rating_details = debugRatingDetails2
-                                    }
-                              )
+-- | Rate a CDR or return an error.
+cdr_rate :: LocalTime -> RatingParams -> RatingStatus -> Int -> CDR -> RatingMonad (CDR, RatingStatus)
+cdr_rate callDateToVerify env state1 formatId cdr
+  = do let isDebugMode = params_isDebugMode env
+       let isVoipReseller = iparams_isVoipReseller $ params_initial env
+       (cdr1, isExtensionalMatch) <- cdr_initialClassification env cdr
+       when (cdr_direction cdr1 == CDR_error)
+            (throwError (Just cdr1
+                        , createError
+                                 Type_Critical
+                                 Domain_RATES
+                                 "unexpected error code 1075375"
+                                 "Unexpected error in the code. Contact the assistance signaling ERR CODE 17253"
+                                 ""
+                                 ""))
+       when (not (cdr_calldate cdr1 == callDateToVerify))
+            (let err = (createError
+                          Type_Error
+                          Domain_RATES
+                          ("changed rating classification code")
+                          ("This CDR was first imported, using the call date " ++ fromLocalTimeToMySQLDateTime callDateToVerify ++ ", but now during rating phase, the parsed calldate is " ++ fromLocalTimeToMySQLDateTime (cdr_calldate cdr1) ++ ". Probably the code interpreting the CDR format was changed in the past, and now during rerating there is some mismatch.")
+                          ("All CDRs of this type will be not rated, because the database content is potentially corrupted.")
+                          ("Extract calls at the specified calldate (the first one of the list), and of the same provider/type/version, and resubmit them. They will be deleted from the database, and resubmitted with the correct call date (the second one of the list).")
+                       )
 
-   bundleDebugInfo
-     :: BundleState
-     -> Maybe BundleRateSystemId
-     -> Maybe BundleRateUnitId
-     -> ( Maybe Int
-          -- ^ left calls
-        , Maybe Int
-          -- ^ left duration
-        , Maybe MonetaryValue
-          -- ^ left cost
-        )
+             in throwError (Just $ cdr1 { cdr_calldate = min callDateToVerify (cdr_calldate cdr1)}, err))
 
-   bundleDebugInfo state1 Nothing _ = (Nothing, Nothing, Nothing)
+       let cdrTime = cdr_calldate cdr1
 
-   bundleDebugInfo state1 _ Nothing = (Nothing, Nothing, Nothing)
+       (state3, cdr2)
+         <- case cdr_direction cdr1 == CDR_ignored || (isNothing $ cdr_organizationUnitId cdr1) of
+              True ->  return $ (state1, cdr1)
+              False -> let
+                           -- manage ExpandedExtensions
+                           state2
+                             = case isExtensionalMatch of
+                                 True -> state1
+                                 False -> let ee = ExpandedExtension {
+                                                     ee_organizationId = fromJust1 "p557" $ cdr_organizationUnitId cdr1
+                                                   , ee_specificExtensionCode = fromTextToMySQLResult $ cdr_internalTelephoneNumber cdr1
+                                                   }
+                                          in state1 { rs_expandedExtensions = HS.insert ee (rs_expandedExtensions state1) }
 
-   bundleDebugInfo state1 (Just rateId) (Just unitId)
-     = case IMap.lookup rateId state1 of
-         Nothing
-           -> (Nothing, Nothing, Nothing)
-         Just state2@(_, _, map2)
-           -> case IMap.lookup unitId map2 of
-                Nothing
-                  -> (Nothing, Nothing, Nothing)
-                Just [(params, _)]
-                  -> (  bundle_leftCalls params
-                      , bundle_leftDuration params
-                      , Just $ max 0 ((bundle_minCost params) - (bundle_appliedCost params))
-                     )
+                       in do r <- mainRate_apply isDebugMode isVoipReseller env state2 cdr1
+                             return $ r
 
-   -- | Complete pending fields, and send to the DB the service CDRS.
-   writeServiceCDRS :: BoundedChan RateCmd -> [ServiceCDR] -> IO ()
-   writeServiceCDRS ratedCDRSChan serviceCDRS
-     = mapM_ (\cdr -> writeChan ratedCDRSChan (RateCmd_rateService cdr)) serviceCDRS
+       return $ (cdr2, state3)
 
-rateEngine_updateCachedGroupedCDRS :: DB.Connection -> Maybe (CallDate, CallDate) -> IO ()
-rateEngine_updateCachedGroupedCDRS writeConn maybeD1D2
-  = let nextDay d = d { localDay = addDays 1 (localDay d) }
-        prevDay d = d { localDay = addDays (-1) (localDay d) }
-
-        (d1S, d2S) = case maybeD1D2 of
-                       Just (d1, d2) -> (fromStringToByteString $ fromLocalTimeToMySQLDateWith00Time (prevDay d1), fromStringToByteString $ fromLocalTimeToMySQLDateWith00Time (nextDay d2))
-                       _ -> error "(err 53207753) unexpected error in the code."
-
-    in do DB.query writeConn $ BS.concat $ ["DELETE FROM ar_cached_grouped_cdr "] ++ (if (isJust maybeD1D2) then [" WHERE calldate >= DATE('", d1S, "') AND calldate < DATE('", d2S, "')"] else [])
-
-          DB.query writeConn $ BS.concat ["INSERT INTO ar_cached_grouped_cdr(`calldate`,`cached_parent_id_hierarchy`,`destination_type`,`count_of_calls`,`billsec`,`income`,`cost_saving`,`cost`) SELECT MAKEDATE(YEAR(calldate), DAYOFYEAR(calldate)), cached_parent_id_hierarchy, destination_type, SUM(count_of_calls), SUM(billsec), SUM(income), SUM(cost_saving), SUM(cost) FROM ar_cdr WHERE ", if (isJust maybeD1D2) then BS.concat [" ar_cdr.calldate >= '", d1S, "' AND ar_cdr.calldate < '", d2S, "' AND "] else "", " destination_type <> ", fromStringToByteString $ show $ cdrDirection_asterisellCode CDR_error, " AND destination_type <> ", fromStringToByteString $ show $ cdrDirection_asterisellCode CDR_ignored, " AND destination_type <> ", fromStringToByteString $ show $ cdrDirection_asterisellCode CDR_none, " GROUP BY YEAR(calldate), DAYOFYEAR(calldate), destination_type, cached_parent_id_hierarchy "]
-
-          return ()
-
-rateEngine_openDBAndUpdateCachedGroupedCDRS :: DBConf -> IO ()
-rateEngine_openDBAndUpdateCachedGroupedCDRS dbConf
-  = do let dbParams = DB.defaultConnectInfo {
-                       connectUser = dbConf_user dbConf
-                     , connectPassword = dbConf_password dbConf
-                     , connectDatabase = dbConf_dbName dbConf
-                     , connectOptions = [Reconnect False, CharsetName "utf8"]
-                     }
-
-       writeConn <- openConnection dbParams True
-       rateEngine_updateCachedGroupedCDRS writeConn Nothing
-       DB.commit writeConn
-       DB.close writeConn
-       return ()
 
 -- | Apply initial classification to the CDR, completing the fields that are not completed from
 --   the initial custom CDR importer, or complete fields of ServiceCDR.
@@ -2180,8 +1830,8 @@ rateEngine_openDBAndUpdateCachedGroupedCDRS dbConf
 --   because they are done in a next phase requiring access to the main Asterisell database.
 --
 --   The CDR error fields are setted from the caller, in case of errors.
-cdr_initialClassification :: EnvParams -> DB.Connection -> CDR -> RatingMonad (CDR, IsExtensionalMatch)
-cdr_initialClassification params selectConn !cdr1
+cdr_initialClassification :: RatingParams -> CDR -> RatingMonad (CDR, IsExtensionalMatch)
+cdr_initialClassification env cdr1
   =
       case (cdr_direction cdr1 == CDR_error || cdr_direction cdr1 == CDR_ignored) of
         True
@@ -2191,25 +1841,21 @@ cdr_initialClassification params selectConn !cdr1
         False
           -> case runStateT pass1 cdr1 of
                Left err
-                 -> throwError (cdr1, err)
+                 -> throwError err
                Right (isExtensionalMatch, cdr2)
-                 -> do cdr3 <- liftIO $ passTestPortedTelephoneNumbers cdr2
-                       case execStateT pass2 cdr3 of
-                         Left err
-                           -> throwError (cdr3, err)
-                         Right cdr4
-                           -> return (cdr4, isExtensionalMatch)
+                 -> case execStateT pass2 cdr2 of
+                      Left err -> throwError err
+                      Right cdr4 -> return (cdr4, isExtensionalMatch)
 
  where
 
   pass1
-    = do  let channelDomains = params_channelDomains params
-
-          let organizationsInfo = params_organizations params
+    = do  let channelDomains = params_channelDomains env
+          let organizationsInfo = params_organizations env
 
           let cdrTime = cdr_calldate cdr1
 
-          modify (\cdr -> cdr { cdr_precision = (params_currencyPrecision params) })
+          modify (\cdr -> cdr { cdr_precision = (params_currencyPrecision env) })
 
           -- complete billsec and duration, if only one of the two fields is specified.
           cdr1 <- get
@@ -2277,7 +1923,7 @@ cdr_initialClassification params selectConn !cdr1
 
                      Nothing
                        -> do let accountCode = Text.unpack $ cdr_internalTelephoneNumber cdr1
-                             when (List.length accountCode == 0)
+                             when (L.length accountCode == 0)
                                   (throwError $ createRateError cdr1 ("unknown ArAsteriskAccount NULL")
                                                                      ("Asterisk VoIP code can not be empty.")
                                                                      ("All these CDRs with empty VoIP code will not be rated.")
@@ -2294,7 +1940,7 @@ cdr_initialClassification params selectConn !cdr1
                                                         ("All CDRs with this VoIP code will not rated.")
                                                         ("Complete the VoIP account codes.")
                                     Left err
-                                      -> throwError err
+                                      -> throwError (Just cdr1, err)
                                     Right (Just r)
                                       -> return r
 
@@ -2346,340 +1992,236 @@ cdr_initialClassification params selectConn !cdr1
           -- NOTE: the final transformed cdr is in the state
           return isExtensionalMatch
 
-  passTestPortedTelephoneNumbers cdr1
-    = case cdr_externalTelephoneNumberWithAppliedPortability cdr1 of
-        Just _
-          -> return cdr1
-             -- noting to do, the portability was already applied
-        Nothing
-          -> do
-                str1 <- DB.escape selectConn $ fromTextToMySQLResult $ cdr_externalTelephoneNumber cdr1
-
-                let queryB = mconcat [ stringUtf8 "SELECT ported_telephone_number FROM ar_number_portability WHERE telephone_number = '"
-                                     , byteString str1
-                                     , stringUtf8 "' AND from_date <= "
-                                     , exportLocalTime $ Just $ cdr_calldate cdr1
-                                     , stringUtf8 " ORDER BY from_date DESC LIMIT 1"
-                                     ]
-
-                let query = LBS.toStrict $ toLazyByteString queryB
-
-                DB.query selectConn query
-                r <- DB.storeResult selectConn
-                maybeRow <- DB.fetchRow r
-
-                ported
-                  <- case (List.null maybeRow) of
-                       False -> do let [portedTelephoneNumeber] = maybeRow
-                                   return $ Just $ fromMySQLResultToText portedTelephoneNumeber
-                       True -> return $ Just $ cdr_externalTelephoneNumber cdr1
-
-                DB.freeResult r
-
-                return $ cdr1 { cdr_externalTelephoneNumberWithAppliedPortability = ported }
-
   pass2
-    = do      cdr1 <- get
-              let telephonePrefixes = params_telephonePrefixes params
+    = do cdr1 <- get
+         let telephonePrefixes = params_telephonePrefixes env
+         let numberOfDigitsToMask = params_digitsToMask env
 
-              let numberOfDigitsToMask = params_numberOfDigitsToMask params
+         -- Manage telephone prefix only in case there is an already specified ported telephone number:
+         -- * in this way if there is an error in the logic, it will be displayed with full details
+         -- * other matches will be done in the rating phase, after the ported number is matched with this CDR.
 
-              -- Manage telephone prefix only in case there is an already specified ported telephone number:
-              -- * in this way if there is an error in the logic, it will be displayed with full details
-              -- * other matches will be done in the rating phase, after the ported number is matched with this CDR.
+         when ((isNothing $ cdr_telephonePrefixId cdr1) && (isJust $ cdr_externalTelephoneNumberWithAppliedPortability cdr1))
+              (do -- Associate telephone operator prefix, using the ported telephone number,
+                  -- because it identify the real type of telephone number.
+                  let ported1 = fromJust1 "d1" $ cdr_externalTelephoneNumberWithAppliedPortability cdr1
+                  let ported = Text.unpack ported1
+                  case trie_getMatch trie_getMatch_initial telephonePrefixes ported of
+                    Just (_, prefixId)
+                      -> do modify (\c -> c { cdr_telephonePrefixId = Just $ prefixId })
+                            return ()
+                    Nothing
+                      -> let key = L.take (min 4 (L.length ported)) ported
+                             -- prepare a missing prefix key:
+                             -- it is a balance between displaying many errors for missing number prefix,
+                             -- and avoid displaying all missing telephone numbers.
 
-              when ((isNothing $ cdr_telephonePrefixId cdr1) && (isJust $ cdr_externalTelephoneNumberWithAppliedPortability cdr1))
-                   (do -- Associate telephone operator prefix, using the ported telephone number,
-                       -- because it identify the real type of telephone number.
-                       let ported1 = fromJust1 "d1" $ cdr_externalTelephoneNumberWithAppliedPortability cdr1
-                       let ported = Text.unpack ported1
-                       case trie_getMatch trie_getMatch_initial telephonePrefixes ported of
-                         Just (_, value)
-                           -> do modify (\c -> c { cdr_telephonePrefixId = Just $ telephonePrefix_id value })
-                                 return ()
-                         Nothing
-                           -> let key = List.take (min 4 (List.length ported)) ported
-                                  -- prepare a missing prefix key:
-                                  -- it is a balance between displaying many errors for missing number prefix,
-                                  -- and avoid displaying all missing telephone numbers.
-
-                              in throwError $ createRateError cdr1 ("no telephone operator prefix - " ++ key)
+                         in throwError $ createRateError cdr1 ("no telephone operator prefix - " ++ key)
                                                               ("There is no a telephone operator prefix entry associated to the destination number \"" ++ ported ++ "\"")
                                                               ("CDRs with destination number of the same type will not be rated.")
                                                               ("Complete the Telephone Prefixes Table.")
                    )
 
-              -- Displayed telephone numbers
-              cdr1 <- get
-              when (isNothing $ cdr_displayedExternalTelephoneNumber cdr1)
-                   (do let external = cdr_externalTelephoneNumber cdr1
-                       modify (\c -> c {  cdr_displayedExternalTelephoneNumber = Just external })
-                       return ()
-                   )
+         -- Displayed telephone numbers
+         cdr1 <- get
+         when (isNothing $ cdr_displayedExternalTelephoneNumber cdr1)
+              (do let external = cdr_externalTelephoneNumber cdr1
+                  modify (\c -> c {  cdr_displayedExternalTelephoneNumber = Just external })
+                  return ()
+              )
 
-              cdr1 <- get
-              when (isNothing $ cdr_displayedMaskedExternalTelephoneNumber cdr1)
-                   (do let external0 = fromJust1 "4" $ cdr_displayedExternalTelephoneNumber cdr1
+         cdr1 <- get
+         when (isNothing $ cdr_displayedMaskedExternalTelephoneNumber cdr1)
+              (do let external0 = fromJust1 "4" $ cdr_displayedExternalTelephoneNumber cdr1
 
-                       let result
-                             = case cdr_direction cdr1 of
-                                 CDR_internal
-                                   -> external0
-                                 _ -> let external1 = Text.unpack external0
+                  let result
+                        = case cdr_direction cdr1 of
+                            CDR_internal
+                              -> external0
+                            _ -> let external1 = Text.unpack external0
 
-                                          -- remove the default prefix, if it is part of the telephone number
-                                          maybeDefaultPrefix = params_defaultTelephonePrefixToNotDisplay params
+                                     -- remove the default prefix, if it is part of the telephone number
+                                     maybeDefaultPrefix
+                                       = case params_defaultTelephonePrefixToNotDisplay env of
+                                           Just r -> Just $ Text.unpack r
+                                           Nothing -> Nothing
 
-                                          external2
-                                                = case maybeDefaultPrefix of
-                                                    Nothing
-                                                      -> external1
-                                                    Just defaultPrefix
-                                                      -> case stripPrefix defaultPrefix external1 of
-                                                           Nothing -> external1
-                                                           Just r -> r
-                                          external3
-                                            = case numberOfDigitsToMask > 0 of
-                                                False
-                                                  -> external2
-                                                True
-                                                  -> case (List.length external2) <= numberOfDigitsToMask of
-                                                       True
-                                                         -> external2
-                                                            -- do not mask very short telephone numbers
-                                                       False
-                                                         -> let toRemove = min (List.length external2) numberOfDigitsToMask
-                                                                toTake = (List.length external2) - toRemove
-                                                            in  List.take toTake external2 ++ List.replicate numberOfDigitsToMask 'X'
+                                     external2
+                                           = case maybeDefaultPrefix of
+                                               Nothing
+                                                 -> external1
+                                               Just defaultPrefix
+                                                 -> case stripPrefix defaultPrefix external1 of
+                                                      Nothing -> external1
+                                                      Just r -> r
+                                     external3
+                                       = case numberOfDigitsToMask > 0 of
+                                           False
+                                             -> external2
+                                           True
+                                             -> case (L.length external2) <= numberOfDigitsToMask of
+                                                  True
+                                                    -> external2
+                                                       -- do not mask very short telephone numbers
+                                                  False
+                                                    -> let toRemove = min (L.length external2) numberOfDigitsToMask
+                                                           toTake = (L.length external2) - toRemove
+                                                       in  L.take toTake external2 ++ L.replicate numberOfDigitsToMask 'X'
 
-                                      in fromString external3
+                                 in fromString external3
 
-                       modify (\c -> c {  cdr_displayedMaskedExternalTelephoneNumber = Just result })
-                       return ()
-                   )
+                  modify (\c -> c {  cdr_displayedMaskedExternalTelephoneNumber = Just result })
+                  return ()
+              )
 
-              -- return nothing, but the state contain the transformed cdr2
-              return ()
+         -- NOTE: the real result is the CDR saved/modified in the state
+         return ()
 
   createRateError cdr key descr effect solution
-    = createError
-        Type_Error
-        Domain_RATES
-        key
-        (descr ++ "\n\n" ++ cdr_showDebug cdr ++ "\n\n")
-        effect
-        solution
+    = (Just cdr
+      , createError Type_Error Domain_RATES key descr effect solution)
 
--- | Add to the RatingEnv the ExtensionsToExport.
-ratingEnv_loadExtensionsToExport :: RatingEnv -> DB.Connection -> IO RatingEnv
-ratingEnv_loadExtensionsToExport env selectConn
-  = let streamQuery = "SELECT extension FROM ar_voip_extension_to_move"
-
-        readLoop :: DB.Result -> ExtensionsToExport -> IO ExtensionsToExport
-        readLoop streamConn r
-             = do !maybeR <- DB.fetchRow streamConn
-                  case maybeR of
-                    [] -> return r
-                    [Just extensionCode]
-                      -> do let r2 = trie_addExtensionCode r (fromByteStringToString extensionCode) ()
-                            readLoop streamConn r2
-                    _ -> throwIO $ ErrorCall "Unexpected query row format in code (ERR 125537)."
-
-    in do DB.query selectConn streamQuery
-          dbResult <- DB.useResult selectConn
-          r <- readLoop dbResult trie_empty
-          DB.freeResult dbResult
-          return $ env { env_extensionsToExport = r }
-
---
--- Test Import Data File
---
-
--- | Test the initial importing and rating of a format of source-cdr.
-rateEngine_testImportDataFile
-  :: ConfiguredCDRSImporters
-  -> FilePath
-  -> CDRProviderName
-  -> BS.ByteString
-  -> BS.ByteString
-  -> CurrencyPrecisionDigits
-  -> IO SourceDataSummaryInfo
-
-rateEngine_testImportDataFile
-  defaultSourceDataImporter
-  inputFile
-  providerName
-  logicalTypeName
-  formatTypeName
-  precision = do
-
-   (params, sourceImporter, importer)
-     <- case configuredCDRSImporters_get defaultSourceDataImporter logicalTypeName formatTypeName of
-          Nothing
-            -> throwIO $ ErrorCall $ "There is no known/configured source data file importer."
-          Just r
-            -> return r
-
-   Control.Monad.Catch.handleAll handleImportErrors $ (do
-          summaryInfo@(maybeTimeFrame, maybeTimeFrame2, totLines, linesWithErrors)
-           <- withFile inputFile ReadMode $! \sourceH -> do
-                nowLocalTime1 <- liftIO getZonedTime
-                let nowLocalTime = zonedTimeToLocalTime nowLocalTime1
-                cdrsChan <- newBoundedChan 50
-                (_, r) <- concurrently (sourceImporter sourceH cdrsChan) (processSourceCDR importer cdrsChan (nowLocalTime, (Nothing, Nothing, 0, 0)))
-                return r
-
-          putStrLn $ "\n\nParsed " ++ show totLines ++ " lines. Lines with errors: " ++ show linesWithErrors ++ "\nCDRs with errors are prefixed by " ++ errorPrefix ++ "CDRs ignored with " ++ ignorePrefix ++ "CDRs imported with " ++ okPrefix
-
-          return summaryInfo)
+-- | Use the main rate plan for rating a CDR: cost and income.
+mainRate_apply :: Bool -> Bool -> RatingParams -> RatingStatus -> CDR -> RatingMonad (RatingStatus, CDR)
+mainRate_apply isDebugMode isVoipReseller env state1 cdr1
+  = case isVoipReseller of
+      True -> do (state2, cdr2) <- searchRateAndApply state1 CostRate cdr1
+                 state2 `deepseq` (searchRateAndApply state2 IncomeRate cdr2)
+      False -> do (state2, cdr2) <- searchRateAndApply state1 IncomeRate cdr1
+                  -- in case of call reporting the cost and income are the same
+                  let cdr3 = cdr2 { cdr_cost = cdr_income cdr2
+                                   , cdr_debug_cost_rate = cdr_debug_income_rate cdr2
+                                   }
+                  return (state2, cdr3)
 
  where
 
-   errorPrefix = "!!!ERROR!!!\n"
+  bundleDebugInfo
+     :: BundleState
+     -> Maybe BundleRateSystemId
+     -> Maybe BundleRateUnitId
+     -> ( Maybe Int
+          -- ^ left calls
+        , Maybe Int
+          -- ^ left duration
+        , Maybe MonetaryValue
+          -- ^ left cost
+        )
 
-   ignorePrefix = "???IGNORED???\n"
+  bundleDebugInfo state1 Nothing _ = (Nothing, Nothing, Nothing)
 
-   okPrefix = "...IMPORTED...\n"
+  bundleDebugInfo state1 _ Nothing = (Nothing, Nothing, Nothing)
 
-   handleImportErrors :: SomeException -> IO SourceDataSummaryInfo
-   handleImportErrors e
-     = throwIO $ ErrorCall $ "There is an error during the importing of file \"" ++ inputFile ++ "\", with provider " ++ (Text.unpack providerName) ++ ", format " ++  (Text.unpack $ fromMySQLResultToText $ Just $ logicalTypeName) ++ "__" ++  (Text.unpack $ fromMySQLResultToText $ Just formatTypeName) ++ ". " ++ (show e) ++ ".\nAll the source data files with this format, and/or similar problems, will be not imported and rated. So there can be an high number of CDRs that are not rated. Note that there is only one error message for a file of this type, but this error message implies that all files of the same type are not rated.\nThis is probably an error in the application configuration. Contact the assistance."
+  bundleDebugInfo state1 (Just rateId) (Just unitId)
+     = case IMap.lookup rateId state1 of
+         Nothing
+           -> (Nothing, Nothing, Nothing)
+         Just state2@(_, _, map2)
+           -> case IMap.lookup unitId map2 of
+                Nothing
+                  -> (Nothing, Nothing, Nothing)
+                Just [(params, _)]
+                  -> (  bundle_leftCalls params
+                      , bundle_leftDuration params
+                      , Just $ max 0 ((bundle_minCost params) - (bundle_appliedCost params))
+                     )
 
-   newMaxMinCallDate :: LocalTime -> Bool -> Maybe (LocalTime, LocalTime) -> Maybe (LocalTime, LocalTime)
-   newMaxMinCallDate d False v = v
-   newMaxMinCallDate d True Nothing = Just (d, d)
-   newMaxMinCallDate d True (Just (minDD, maxDD)) = Just (min minDD d, max maxDD d)
 
-   processSourceCDR :: CDRImporter -> BoundedChan (Maybe LBS.ByteString) -> (LocalTime, SourceDataSummaryInfo) -> IO (SourceDataSummaryInfo)
-   processSourceCDR importer sourceChan (!lastCallDate, (!maybeMaxMinCallDate, !maybeImportedServiceeMaxMinCallDate, !totLines, !linesWithErrors))
-     = do !maybeCdrContent <- readChan sourceChan
-          case maybeCdrContent of
-            Nothing
-              -> -- end of pipe
-                 return (maybeMaxMinCallDate, maybeImportedServiceeMaxMinCallDate, totLines, linesWithErrors)
+  cdrTime = cdr_calldate cdr1
 
-            Just !cdrContent
-              -> do let imported@(_, errorOrCDRS) = importer cdrContent providerName
-                    case errorOrCDRS of
-                      Left err
-                        -> putStrLn $ errorPrefix ++ (fromLazyByteStringToString cdrContent) ++ "\n" ++ asterisellError_userShow err
-                      Right []
-                        -> putStrLn $ ignorePrefix ++ (fromLazyByteStringToString cdrContent)
-                      Right cdrsWithDescription
-                        -> mapM_ (\(c, s) -> putStrLn $ okPrefix ++ (fromLazyByteStringToString cdrContent) ++ "\n" ++ s ++ "\n" ++ cdr_showDebug c) cdrsWithDescription
+  -- | Rate the CDR calculating cost or income.
+  --   @require RatingStatus is correctly initializated.
+  --   @require RatingStatus has no critical error.
+  searchRateAndApply :: RatingStatus -> RateRole -> CDR -> RatingMonad (RatingStatus, CDR)
+  searchRateAndApply cachedState1 rateRole cdr
+    = do let (ratePlan :: CheckedMainRatePlan, bundleState1 :: BundleState)
+               = case rateRole of
+                   IncomeRate
+                     -> (fst $ fromJust1 "c1" $ rs_incomeRate cachedState1, fromJust1 "c2" $ rs_incomeBundleState cachedState1)
+                   CostRate
+                     -> (fst $ fromJust1 ("c3: on CDR " ++ cdr_showDebug cdr) $ rs_costRate cachedState1, bundleState_empty)
 
-                    let (!callDate, !newMaybeMaxMinCallDate, !newMaybeImportedServiceeMaxMinCallDate)
-                          = case imported of
-                              (Just !d, _)
-                                -> force ( d
-                                         , newMaxMinCallDate d True maybeMaxMinCallDate
-                                         , newMaxMinCallDate d False maybeImportedServiceeMaxMinCallDate)
+         (value, bundleRateUnitId, bundleState2, debugInfo)
+            <- case mainRatePlan_calcCost isDebugMode rateRole env bundleState1 ratePlan cdr of
+                 Right r
+                   -> return r
+                 Left err
+                   -> throwError (Just cdr, err)
 
-                              (Nothing, Right [])
-                                -> force (lastCallDate, maybeMaxMinCallDate, maybeImportedServiceeMaxMinCallDate)
-                                   -- skip CDRS with a recognize NULL parsing
+         let debugRatingDetails1
+               = case info_ratingDetails debugInfo of
+                   Nothing -> Nothing
+                   Just s -> let rateRoleName
+                                   = case rateRole of
+                                       IncomeRate -> "\nDetails during calculation of Income:\n"
+                                       CostRate -> "\nDetails during calculation of Cost:\n"
+                             in Just $ Text.append rateRoleName s
 
-                              (Nothing, _)
-                                -> force (lastCallDate, maybeMaxMinCallDate, maybeImportedServiceeMaxMinCallDate)
+         let debugRatingDetails2
+               = case cdr_debug_rating_details cdr of
+                   Nothing
+                     -> debugRatingDetails1
+                   Just s1
+                     -> case debugRatingDetails1 of
+                          Nothing
+                            -> Nothing
+                          Just s2
+                            -> Just $ Text.concat [s1, Text.pack "\n", s2]
 
-                    let !nextLinesWithErrors
-                          = case imported of
-                              (_, Left err)
-                                -> linesWithErrors + 1
-                              (_, Right _)
-                                -> linesWithErrors
+         appliedRateName
+           <- case IMap.lookup (info_appliedRate debugInfo) (mainRatePlan_systemIdToUserIdPath ratePlan) of
+                   Just r -> return r
+                   Nothing -> let err = createError
+                                          Type_Error
+                                          Domain_APPLICATION
+                                          ("unknown rate with name " ++ (show $ info_appliedRate debugInfo))
+                                          ("Unexpected error: the rate with code " ++ show (info_appliedRate debugInfo) ++ " is unknown on rate plan " ++ show ratePlan ++ " during rating of \n\n" ++ cdr_showDebug cdr ++ "\n\n")
+                                          "This and similar CDRs will be not rated."
+                                          "Contact the assistance because this is an error in the code."
+                              in throwError (Just cdr, err)
+                                 -- DEV-NOTE: before in this point I were using an "error ..." instruction, but it generates a not clear message about conflicts between threads, and not the real message.
 
-                    let !isImportedServiceCDR = False
+         let residualAppliedRate
+               = case info_residualAppliedRate debugInfo of
+                   Nothing
+                     -> Nothing
+                   Just i
+                     -> IMap.lookup i (mainRatePlan_systemIdToUserIdPath ratePlan)
 
-                    -- process the rest of the pipe using a recursive call, and passing the new processing "state"
-                    processSourceCDR importer sourceChan $!! (callDate, (newMaybeMaxMinCallDate, newMaybeImportedServiceeMaxMinCallDate, totLines + 1, nextLinesWithErrors))
+         case rateRole of
+           IncomeRate
+             -> let (leftCalls, leftDuration, leftCost)
+                      = bundleDebugInfo bundleState2 (info_bundleRateSystemId debugInfo) bundleRateUnitId
 
---
+
+
+                in return $  (   cachedState1 { rs_incomeBundleState = Just bundleState2 }
+                               , cdr { cdr_income = value
+                                     , cdr_bundleOrganizationUnitId = bundleRateUnitId
+                                     , cdr_debug_income_rate = Just appliedRateName
+                                     , cdr_debug_residual_income_rate = residualAppliedRate
+                                     , cdr_debug_residual_call_duration = info_residualCallDuration debugInfo
+                                     , cdr_debug_bundle_left_calls = leftCalls
+                                     , cdr_debug_bundle_left_duration = leftDuration
+                                     , cdr_debug_bundle_left_cost = leftCost
+                                     , cdr_debug_rating_details = debugRatingDetails2
+                                     }
+                               )
+
+           CostRate
+             -> return $ (   cachedState1
+                           , cdr { cdr_cost = value
+                                 , cdr_debug_cost_rate = Just appliedRateName
+                                 , cdr_debug_rating_details = debugRatingDetails2
+                                 }
+                           )
+
+-- ---------------------------------------------------------------
 -- Utils
 --
 
-fromByteStringToString :: BS.ByteString -> String
-fromByteStringToString s = Text.unpack $ Text.decodeUtf8 s
-
 fromLazyByteStringToString :: LBS.ByteString -> String
 fromLazyByteStringToString s = LText.unpack $ LText.decodeUtf8 s
-
-openConnection :: DB.ConnectInfo -> Bool -> IO DB.Connection
-openConnection dbParams writeTransaction
-     = do db <- DB.connect dbParams
-          DB.autocommit db False
-          DB.query db "SET NAMES 'utf8' COLLATE 'utf8_bin'"
-          case writeTransaction of
-            True -> (do DB.query db "SET TRANSACTION ISOLATION LEVEL SERIALIZABLE"
-                        DB.query db "START TRANSACTION")
-            False -> (do DB.query db "SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED"
-                         -- set this level because in TokuDB it is the only level for SELECT, not involving LOCKS and SNAPSHOOTS
-                         DB.query db "START TRANSACTION READ ONLY")
-          return db
-
-type DebugChan = BoundedChan (Either () String)
-
-debugFile_append :: Maybe FilePath -> DebugChan -> String -> IO ()
-debugFile_append !maybeDebugFile !chan1 ~msg
-     = case maybeDebugFile of
-         !Nothing
-           -> return ()
-         Just !f
-           -> do writeChan chan1 (Right msg)
-                 return ()
-
-debugFileProcess :: Maybe FilePath -> DebugChan -> IO ()
-debugFileProcess maybeDebugFile chan1
-     = do msg <- readChan chan1
-          case msg of
-            Left ()
-              -> return ()
-            Right msg1
-              -> do case maybeDebugFile of
-                      Just f
-                        -> appendFile f ("\n" ++ msg1 ++ "\n")
-                      Nothing -> return ()
-
-                    debugFileProcess maybeDebugFile chan1
-
--- | Export a LocalTime to a MySQL date time stamp.
-exportLocalTime :: Maybe LocalTime -> Builder
-exportLocalTime Nothing = stringUtf8  "NULL"
-exportLocalTime (Just t)
-  = mconcat [ charUtf8 '\''
-            , intDec0000 $ fromInteger year
-            , charUtf8 '-'
-            , intDec00 month
-            , charUtf8 '-'
-            , intDec00 day
-            , charUtf8 ' '
-            , intDec00 (todHour tod)
-            , charUtf8 ':'
-            , intDec00 (todMin tod)
-            , charUtf8 ':'
-            , intDec00 (truncate $ todSec tod)
-            , charUtf8 '\''
-            ]
-
- where
-
-   tod = localTimeOfDay t
-
-   (year, month, day) = toGregorian $ localDay t
-
-   intDec0000 i
-     = case i < 10 of
-         True -> mappend (stringUtf8 "000") (intDec i)
-         False -> case i < 100 of
-                True -> mappend (stringUtf8 "00") (intDec i)
-                False -> case i < 1000 of
-                           True -> mappend (charUtf8 '0') (intDec i)
-                           False -> intDec i
-
-   intDec00 i
-     = case i < 10 of
-         True -> mappend (charUtf8 '0') (intDec i)
-         False -> intDec i
 
 -- | Extract Days, and YearAndMonth from a TimeFrame
 timeFrame_getYearsAndMonth :: TimeFrame -> (Set.Set Day, Set.Set YearAndMonth)
@@ -2697,11 +2239,9 @@ timeFrame_getYearsAndMonth tf
            -- NOTE: it is adding a day step by step. For normal intervals (few years) this is fast enough.
        in  if d0 > d2 then (setD1, setMY1) else f (setD2, setMY2) (d1, d2)
 
---
+-- ---------------------------------------------------
 -- Unit Tests
---
 
--- TODO test all type of params
 tt_mainRateCalcTets
   = [ HUnit.TestCase $ HUnit.assertEqual "convert date" True (isJust $ fromMySQLDateTimeToLocalTime "2014-01-01 00:00:00")
     , HUnit.TestCase $ HUnit.assertEqual "convert number" True (isJust $ fromTextToRational "110")

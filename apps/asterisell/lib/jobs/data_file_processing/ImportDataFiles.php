@@ -1,8 +1,8 @@
 <?php
 
-/* $LICENSE 2013, 2014:
+/* $LICENSE 2013, 2014, 2017:
  *
- * Copyright (C) 2013, 2014 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
+ * Copyright (C) 2013, 2014, 2017 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
  *
  * This file is part of Asterisell.
  *
@@ -520,6 +520,12 @@ class ImportDataFiles extends FixedJobProcessor
                 return 0;
             }
 
+            if ($logicalTypeId == ExportCDRSToReseller::SERVICE_LOGICAL_TYPE) {
+                $isImportedService = 1;
+            } else {
+                $isImportedService = 0;
+            }
+
             if ($isStatus) {
                 $isStatusF = 'true';
             } else {
@@ -567,6 +573,7 @@ class ImportDataFiles extends FixedJobProcessor
                 . ' --file-logical-type-id ' . $logicalTypeId
                 . ' --file-version-type ' . $versionType
                 . ' --file-version-type-id ' . $versionTypeId
+                . ' --is-imported-service ' . $isImportedService
                 . ' --is-status-file ' . $isStatusF
                 . ' --from-date ' . $minDateS
                 . ' --to-date ' . $maxDateS

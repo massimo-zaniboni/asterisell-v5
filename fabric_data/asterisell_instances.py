@@ -32,10 +32,11 @@ import os.path
 import datetime
 import lib
 
+
 class InstanceTemplate(lib.BillingInstance):
-# USE INSTEAD:
-# class InstanceTemplate(lib.CallReportingInstance)
-# if you want a CallReportingInstance
+    # USE INSTEAD:
+    # class InstanceTemplate(lib.CallReportingInstance)
+    # if you want a CallReportingInstance
 
     """This is a template used for defining *your* instances,
     so feel free to adapt it.
@@ -102,13 +103,13 @@ class InstanceTemplate(lib.BillingInstance):
 
     container_ram_in_mb = 1000
     """The RAM used (aproximately) from the container.
-       1GB is good. 2GB optimal.
+       1GB is good, 2GB optimal.
 
     IMPORTANT: `fab restart:INSTANCE` required if you change this value."""
 
-    cpu_cores = 1
+    cpu_cores = 2
     """"The cores of the HOST system, and that can be used from the container.
-        1 is good. 4 is optimal.
+        2 is good, 4 is optimal. 
 
     IMPORTANT: `fab restart:INSTANCE` required if you change this value."""
 
@@ -116,7 +117,6 @@ class InstanceTemplate(lib.BillingInstance):
     """ configure using values in http://php.net/manual/en/timezones.europe.php.
 
     IMPORTANT: `fab restart:INSTANCE` required if you change this value."""
-
 
     #
     # Httpd Params
@@ -128,7 +128,6 @@ class InstanceTemplate(lib.BillingInstance):
 
     IMPORTANT: `fab restart:INSTANCE` required if you change this value."""
 
-
     httpd_domain2 = ''
     """An optional alias domain, something like 'example.net'.
     If there are more than one alias, they can be separated from spaces.
@@ -136,7 +135,6 @@ class InstanceTemplate(lib.BillingInstance):
     You can also leave empty ('') if there are no aliases.
 
     IMPORTANT: `fab restart:INSTANCE` required if you change this value."""
-
 
     httpd_ssl_certificate = None
     """Set to a file name in case of SSL connection.
@@ -175,7 +173,6 @@ class InstanceTemplate(lib.BillingInstance):
 
     IMPORTANT: `fab restart:INSTANCE` is required if you change this value."""
 
-
     httpd_ssl_specific_ip = None
     """None if the http server, serves the requests inspecting only the domain.
     A reserved IP if the server accepts only http requests sent to a certain
@@ -183,7 +180,6 @@ class InstanceTemplate(lib.BillingInstance):
     Used only for supporting old style HTTPS/SSL connections.
 
     IMPORTANT: `fab restart:INSTANCE` required if you change this value."""
-
 
     http_bridged_port = '8000'
     """the port of the hosting server, bridged to the http 80 port of the container.
@@ -252,7 +248,6 @@ class InstanceTemplate(lib.BillingInstance):
     # for not sending emails to real users, but only to
     # application testers.
     send_emails_to_these_users_instead_of_original_receiver = []
-
 
     # The frequency of jobs execution in minutes.
     # Every few minutes new CDRs are imported and rated.
@@ -355,7 +350,7 @@ class InstanceTemplate(lib.BillingInstance):
     conf_generate_invoices_when_total_is_zero = False
 
     # The decimal separator symbol to use in CSV files exported to customers.
-    conf_decimal_separator_symbol_in_csv = '","'
+    conf_decimal_separator_symbol_in_csv = '"."'
 
     # true for exporting numbers like "1.234" in CSV files exported to customers.
     # false for exporting numbers like 1.234 (without \").
@@ -372,7 +367,7 @@ class InstanceTemplate(lib.BillingInstance):
     #
     # If you are using "," also as decimal separator,
     # and numbers are not surrounded between \", then use something like ";".
-    conf_csv_field_separator = '";"'
+    conf_csv_field_separator = '","'
 
     # decimal places to use for currency when stored in the database ar_cdr table
     #
@@ -469,7 +464,7 @@ class InstanceTemplate(lib.BillingInstance):
     # also to already rated calls.
     conf_not_displayed_telephone_prefix = '"-"'
 
-    expand_extensions_job = 'NullJob' # type: str
+    expand_extensions_job = 'NullJob'  # type: str
     # use 'ExpandExtensions' job for expanding extensions like "123*" into "123456" when
     # specific instances are found in CDRs.
     # Useful for customers having many virtual extensions/DIDS,
@@ -576,6 +571,19 @@ class InstanceTemplate(lib.BillingInstance):
     # This setting is not applied to CDRs sources as remote databases and so on.
     conf_check_new_external_files_to_import_after_minutes = 120
 
+    # Copy customer specific files inside `customizations` directory,
+    # inside the admin instance.
+    #
+    # If they are jobs remember to add the jobs also in the scheduler,
+    # in their proper position.
+    #
+    # Use something like
+    # > custom_files = {
+    # >     'source_file.php': 'some/dest_directory',
+    # >     'another_file.php': 'another/dest_directory'
+    # > }
+    custom_files = {}
+
     # jobs executed for retrieving CDRs to rate. They are executed before the rating related jobs.
     # These jobs are executed only for production instance, and not for DEV instance, that load the data from the archive,
     # and not directly from the source-data.
@@ -620,12 +628,12 @@ class InstanceTemplate(lib.BillingInstance):
         self.database_name = self.name
         self.database_username = self.name
 
+
 #
 # Classes used only for Demo Instances (do not touch)
 #
 
-
-class DemoInstance(lib.BillingInstance):
+class DemoInstance(InstanceTemplate):
     """An instance used only for producing DEMO CDRs to show initially.
     Do not use this class in production. """
 
@@ -663,8 +671,7 @@ class DemoInstance(lib.BillingInstance):
         d = datetime.date.today() - datetime.timedelta(days=30 * 6)
         return d.isoformat()
 
-
-class RegressionTestInstance(lib.BillingInstance):
+class RegressionTestInstance(InstanceTemplate):
     """Used only for regression tests."""
 
     name = 'regressiontests'
@@ -698,6 +705,7 @@ class RegressionTestInstance(lib.BillingInstance):
         with cd(self.get_admin_deploy_directory()):
             run('php asterisell.php debug regression-test')
 
+
 #
 # Installable Instances
 #
@@ -715,12 +723,13 @@ class Billing(InstanceTemplate):
     database_password = 'some_password'
     user_database_password = 'another_password'
 
+
 # You can add other instances here
 # ...
 
+
 # Specify here all the installable instances.
-all_instances = [
-                 Billing(),
-                 DemoInstance(),
-                 RegressionTestInstance()
+all_instances = [ DemoInstance(),
+                  RegressionTestInstance(),
+                  Billing()
                 ]

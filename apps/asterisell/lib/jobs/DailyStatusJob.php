@@ -1,8 +1,8 @@
 <?php
 
-/* $LICENSE 2013:
+/* $LICENSE 2013, 2017:
  *
- * Copyright (C) 2013 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
+ * Copyright (C) 2013, 2017 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
  *
  * This file is part of Asterisell.
  *
@@ -39,6 +39,16 @@ abstract class DailyStatusJob extends FixedJobProcessor
     abstract public function getActivationDate();
 
     /**
+     * @return bool true if transaction signaling that all the events are processed,
+     * must be committed only after `endJob` returned correctly.
+     * false for committing after each processed day.
+     */
+    public function commitAtEndOffAllProcessedDays()
+    {
+        return false;
+    }
+
+    /**
      * Called before starting processing.
      *
      * @return bool true if the job can process the events, false for not continuinig with the job.
@@ -49,24 +59,21 @@ abstract class DailyStatusJob extends FixedJobProcessor
     }
 
     /**
-     * Called at the end of processing of all the events.
+     * Called at the end of the processing of all the events.
+     * @param $conn the connection with the opened transaction to use.
+     * The connection will be automatically commited (or aborted)
+     * at the end of this method.
+     *
+     * Can throw an exception in case there are problems and the transaction
+     * must be aborted.
      */
-    public function endJob()
+    public function endJob(PropelPDO $conn)
     {
-
     }
-
-    /**
-     * @return bool true if it must be generated a unique change event without distinction between service and normal CDRS.
-     */
-    public abstract function generateUniqueChangedDayEvent();
 
     /**
      * @param int $fromDate the day where there is changed data,
      * @param int $toDate the last value to process not inclusive (the next day)
-     * @param bool|null $isServiceCDR true if this change event involves also service cdrs,
-     * false if this change event involve normal cdrs. An event is generated for both type of days in case.
-     * null if `generateUniqueChangedDayEvent()` is set to true and it is not made any distinction.
      * @param PropelPDO $conn the connection with the transaction to use
      *
      * @post the same instance of a job, is called for every processing day,
@@ -76,7 +83,7 @@ abstract class DailyStatusJob extends FixedJobProcessor
      * - all changes to database are retired
      * - the event will be tried again next time
      */
-    public abstract function processChangedDay($fromDate, $toDate, $isServiceCDR, PropelPDO $conn);
+    public abstract function processChangedDay($fromDate, $toDate, PropelPDO $conn);
 
     /**
      * return int the minutes to wait after each execution of the job.
@@ -219,62 +226,82 @@ abstract class DailyStatusJob extends FixedJobProcessor
 
             $continue = $this->initJob();
             if ($continue) {
+
+                // First extract all the days to process.
+                // NOTE: they are few (365 max in a year), and so we can free the $conn
+                // for other scopes.
                 $conn = Propel::getConnection();
-
-                // used for merging into a unique event the jobs requiring a unique run for both service-cdrs and normal-cdrs
-                $lastProcessedDay = null;
-
-                $queryOnDaysToProcess = 'SELECT day, is_service_cdr FROM ar_daily_status_change WHERE ar_daily_status_job_id = ? ORDER BY day, is_service_cdr';
+                $days = array();
+                $queryOnDaysToProcess = 'SELECT day FROM ar_daily_status_change WHERE ar_daily_status_job_id = ? ORDER BY day';
                 $stmt = $conn->prepare($queryOnDaysToProcess);
                 $stmt->execute(array($jobId));
                 while (($rs = $stmt->fetch(PDO::FETCH_NUM)) !== false) {
-                    $prof->incrementProcessedUnits();
-
                     $dayToProcessSQL = $rs[0];
-                    $dayToProcess = fromMySQLTimestampToUnixTimestamp($dayToProcessSQL);
+                    $days[] = fromMySQLTimestampToUnixTimestamp($dayToProcessSQL);
+                }
+                $stmt->closeCursor();
 
-                    $fromDate = startWith00Timestamp($dayToProcess);
-                    $toDate = strtotime('+1 day', $dayToProcess);
+                if ($this->commitAtEndOffAllProcessedDays()) {
+                    // Use a global transaction
+                    $conn->beginTransaction();
+                    try {
+                        foreach ($days as $dayToProcess) {
+                            $prof->incrementProcessedUnits();
 
-                    $isServiceCDRI = $rs[1];
-                    if ($isServiceCDRI) {
-                        // convert the 1 int to a boolean
-                        $isServiceCDR = true;
-                    } else {
-                        $isServiceCDR = false;
-                    }
+                            $fromDate = startWith00Timestamp($dayToProcess);
+                            $toDate = strtotime('+1 day', $dayToProcess);
 
-                    $this->garbageFrom = $fromDate;
-                    $this->garbageTo = $toDate;
+                            $this->garbageFrom = $fromDate;
+                            $this->garbageTo = $toDate;
 
-                    if ($this->generateUniqueChangedDayEvent()) {
-                        if ($lastProcessedDay == $fromDate) {
-                            $runJob = false;
-                        } else {
-                            $runJob = true;
+                            // clear the errors of the day
+                            ArProblemException::garbageCollect($this->getGarbageKey(), $fromDate, $toDate);
+
+                            $this->processChangedDay($fromDate, $toDate, $conn);
+                            $this->deleteEvent($jobId, $dayToProcess, $conn);
                         }
-                    } else {
-                        $runJob = true;
-                    }
-                    $lastProcessedDay = $fromDate;
+                        $this->endJob($conn);
+                        $this->commitTransactionOrSignalProblem($conn);
+                    } catch (ArProblemException $e) {
+                        $this->maybeRollbackTransaction($conn);
+                        throw($e);
+                    } catch (Exception $e) {
+                        $this->maybeRollbackTransaction($conn);
 
-                    if ($runJob) {
+                        $p = ArProblemException::createFromGenericExceptionWithGarbageCollection(
+                            $e,
+                            ArProblemType::TYPE_ERROR,
+                            get_class($this) . " - unexpected error - " . rand(),
+                            $this->getGarbageKey(),
+                            $this->garbageFrom,
+                            $this->garbageTo,
+                            ArProblemException::describeGenericException($e),
+                            'CDRs from ' . fromUnixTimestampToSymfonyStrTimestamp($fromDate) . ' to ' . fromUnixTimestampToSymfonyStrTimestamp($toDate) . ' will not be processed.',
+                            "Try to rerate the CDRs of the day again. If the problem persist contact the assistance."
+                        );
+
+                        throw($p);
+                    }
+                } else {
+                    // Use a transaction for each day
+                    foreach ($days as $dayToProcess) {
+                        $prof->incrementProcessedUnits();
+
+                        $fromDate = startWith00Timestamp($dayToProcess);
+                        $toDate = strtotime('+1 day', $dayToProcess);
+
+                        $this->garbageFrom = $fromDate;
+                        $this->garbageTo = $toDate;
 
                         $conn->beginTransaction();
-
                         try {
 
                             // clear the errors of the day
                             ArProblemException::garbageCollect($this->getGarbageKey(), $fromDate, $toDate);
 
-                            $this->processChangedDay($fromDate, $toDate, $isServiceCDR, $conn);
-                            $this->deleteEvent($jobId, $dayToProcess, $isServiceCDR, $conn);
-                            if ($this->generateUniqueChangedDayEvent()) {
-                                $this->deleteEvent($jobId, $dayToProcess, !$isServiceCDR, $conn);
-                            }
-
+                            $this->processChangedDay($fromDate, $toDate, $conn);
+                            $this->deleteEvent($jobId, $dayToProcess, $conn);
                             $this->commitTransactionOrSignalProblem($conn);
-
                         } catch (ArProblemException $e) {
                             $this->maybeRollbackTransaction($conn);
                             throw($e);
@@ -296,37 +323,27 @@ abstract class DailyStatusJob extends FixedJobProcessor
                             throw($p);
                         }
                     }
+                    $this->endJob($conn);
                 }
-                $stmt->closeCursor();
-                $this->endJob();
+
+                // Return final stats
+                return 'CDRs of ' . $prof->stop();
             }
-
-            return 'CDRs of ' . $prof->stop();
-
         } else {
             return "will be executed later, every $timeFrameInMinutes minutes.";
         }
-
     }
 
     /**
-     * Register the job in the table of jobs to process.
-     *
+     * Signal the event as already processed.
      * @param int $jobId
      * @param int $day
-     * @param bool $isServiceCDR
      * @param PDO $conn
      */
-    protected function deleteEvent($jobId, $day, $isServiceCDR, PDO $conn)
+    protected function deleteEvent($jobId, $day, PDO $conn)
     {
-        if ($isServiceCDR) {
-            $isServiceCDRI = 1;
-        } else {
-            $isServiceCDRI = 0;
-        }
-
-        $stmt = $conn->prepare('DELETE FROM ar_daily_status_change WHERE day = ? AND is_service_cdr = ? AND ar_daily_status_job_id = ?');
-        $stmt->execute(array(fromUnixTimestampToMySQLDate($day), $isServiceCDRI, $jobId));
+        $stmt = $conn->prepare('DELETE FROM ar_daily_status_change WHERE day = ? AND ar_daily_status_job_id = ?');
+        $stmt->execute(array(fromUnixTimestampToMySQLDate($day), $jobId));
         $stmt->closeCursor();
     }
 }

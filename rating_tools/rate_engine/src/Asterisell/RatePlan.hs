@@ -1,7 +1,7 @@
-{-# LANGUAGE ScopedTypeVariables, BangPatterns, OverloadedStrings, QuasiQuotes, TypeSynonymInstances, FlexibleInstances, DeriveGeneric, FlexibleContexts  #-}
+{-# LANGUAGE ScopedTypeVariables, BangPatterns, OverloadedStrings, QuasiQuotes, TypeSynonymInstances, FlexibleInstances, DeriveGeneric, DeriveAnyClass, FlexibleContexts  #-}
 
-{- $LICENSE 2013, 2014, 2015, 2016
- * Copyright (C) 2013-2016 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
+{- $LICENSE 2013, 2014, 2015, 2016, 2017
+ * Copyright (C) 2013-2017 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
  *
  * This file is part of Asterisell.
  *
@@ -20,19 +20,18 @@
  * $
 -}
 
-
--- | Manage rate plans, and rate CDRs.
---   Import also rates from PHP world, to Haskell world.
+-- | Manage rate plans, services, bundle rates, and rate CDRs.
 --
 module Asterisell.RatePlan (
-  RateRole(..)
+    RateRole(..)
   , ConfiguredRatePlanParsers
-  , EnvParams(..)
+  , RatePlanParser
+  , FieldSeparator
+  , DecimalSeparator
+  , RatingParams(..)
+  , InitialRatingParams(..)
   , ExtensionsToExport
-  , ratingEnv_load
-  , initialClassificationParams_empty
-  , parseRatePlanUsingParsecParser
-  , RatingEnv(..)
+  , UseHeader
   , MatchStrenght(..)
   , mainRatePlan_assignUniqueSystemId
   , matchStrenght_initial
@@ -52,6 +51,7 @@ module Asterisell.RatePlan (
   , CheckedMainRatePlan
   , fromCheckedMainRatePlan
   , mainRatePlan_empty
+  , ratingParamsForTest
   , RootBundleRatePlan(..)
   , BundleRatePlan(..)
   , BundleParams(..)
@@ -70,32 +70,57 @@ module Asterisell.RatePlan (
   , calcParams_overrideList
   , calcParams_calc
   , bundleState_pendingServiceCdrs
-  , env_empty
+  , ratingParams_empty
   , env_getRate
-  , parseRatePlanUsingAttoParsec
   , mainRatePlan_assignSharedUniqueSystemId
-  , bundleState_initAccordingRatingEnv
+  , bundleState_initAccordingRatingParams
   , bundleState_serviceCdrs
   , RatingDebugInfo(..)
+  , iparams_dbConf
+  , params_dbConf
   , BundleRateSystemId
   , BundleRateUnitId
   , CallDate
   , RatePlanIdMap
   , UnitIdMap
   , TimeFrame
-  , CSVFormat_TelephonePrefix1(..)
   , timeFrame_duration
-  , mainRatePlan_exportToCSVTheServiceCDRSTelephonePrefixes
-  , params_respectCodeContracts
+  , mainRatePlan_exportServiceCDRSTelephonePrefixes
   , tt_ratePlanTests
   , timeFrame_fromCallDate
   , timeFrame_fromCallDate1
-  , env_respectCodeContracts
+  , ratingParams_respectCodeContracts
   , timeFrames_allInsideRatingPeriod
-  , testParserUsingAttoParsec
-) where
+  , service_exportServiceCDRSTelephonePrefixes
+  , service_defaultExternalTelephoneNumber
+  , service_generate
+  , serviceParams_load
+  , ratePlan_loadRatingParams
+  , CalcService(..)
+  , ServiceId
+  , ServiceIdMap
+  , tt_servicesTests
+  , params_isDebugMode 
+  , params_isVoipReseller 
+  , params_digitsToMask 
+  , params_defaultTelephonePrefixToNotDisplay 
+  , params_currencyPrecision 
+  , params_extensionsFileName 
+  , params_debugFileName 
+  , params_fromDate 
+  , params_toDate 
+  , params_isRateUnbilledCallsEvent 
+  , params_dbName 
+  , params_dbUser 
+  , params_dbPasswd 
+  , params_configuredRatePlanParsers
+  , params_onlyImportedServices
+  ) where
 
+import Asterisell.Process
+import Asterisell.DB
 import Asterisell.Cdr
+import Asterisell.CustomerSpecificImporters
 import Asterisell.Error
 import Asterisell.Utils
 import Asterisell.Trie
@@ -113,7 +138,8 @@ import qualified Data.Map.Strict as SMap
 import qualified Data.Map as Map
 import Data.Vector as V (length)
 
-import qualified Data.ByteString.Lazy as BS
+import qualified Data.ByteString as BS
+import qualified Data.ByteString.Lazy as LBS
 import Data.Text.Encoding
 
 import Control.Monad as M
@@ -133,13 +159,6 @@ import qualified Data.Char as Char (ord)
 
 import qualified Test.HUnit as HUnit
 
-import Pipes
-import Pipes.ByteString as PB
-import qualified Pipes.Prelude as PP
-import Pipes.Safe as PS
-import qualified Pipes.Safe.Prelude  as PS
-import qualified Pipes.Csv as PC
-import Pipes.Csv ((.!))
 import qualified Data.Csv as CSV
 
 import qualified Text.Parsec as Parsec
@@ -152,26 +171,42 @@ import qualified Data.Attoparsec.Text.Lazy as LazyAttoParsec
 import qualified Data.Text.Lazy.IO as LazyIO
 import qualified Data.Text.Lazy as LazyText
 
+import qualified Data.ByteString.Base64 as B64
+import qualified Codec.Compression.QuickLZ as LZ
+
 import System.IO as IO
 
 import Debug.Trace
 
 import Data.Maybe
 import Data.Set as Set
+import Data.HashSet as HSet
 import Data.IntMap as IMap
 import Data.Hashable
 import qualified Data.Serialize as DBS
 import qualified Data.Serialize.Text as DBS
-import GHC.Generics
 
+import qualified System.IO.Streams as S
+import qualified System.IO.Streams.Text as S
+import qualified System.IO.Streams.Combinators as S
+import qualified System.IO.Streams.List as S
+import qualified System.IO.Streams.File as S
+import qualified System.IO.Streams.Vector as S
+import qualified Data.Vector as V
+
+import Database.MySQL.Base as DB
+import qualified Database.MySQL.Protocol.Escape as DB
+import Database.MySQL.Protocol.MySQLValue
 import Text.Heredoc
+
+import GHC.Generics
 import Control.DeepSeq
+import Control.Exception.Safe (catch, catchAny, onException, finally, handleAny, bracket
+                              , SomeException, throwIO, throw, Exception, MonadMask
+                              , withException, displayException)
 
---------------------
--- MATCH STRENGHT --
---------------------
-
-
+-- -------------------
+-- MATCH STRENGHT
 
 -- | The strenght of a Match.
 --   NOTE: now I'm comparing only the telephone number, so the code could be simpler,
@@ -235,9 +270,7 @@ instance Show RateRole where
 type CompleteUserRateRefName = Text.Text
 
 -- | Decide if a rate can be applied to a CDR.
-type FilterFun = RatingEnv -> CDR -> Maybe MatchStrenght
-
-
+type FilterFun = RatingParams -> CDR -> Maybe MatchStrenght
 
 -- | Combine in "and" the matching functions.
 filterFun_and :: [FilterFun] -> FilterFun
@@ -269,7 +302,7 @@ filterFun_matchOneOfIds ids funId env cdr
 
 -- | Decide if a rate can be applied to a CDR,
 --   returning also the corresponding CalcParams.
-type MatchFun = RatingEnv -> CDR -> Maybe (MatchStrenght, CalcParams)
+type MatchFun = RatingParams -> CDR -> Maybe (MatchStrenght, CalcParams)
 
 instance Show MatchFun where
   show f = "Env -> CDR -> Maybe (MatchStrenght, CalcParams)"
@@ -291,7 +324,7 @@ type ReverseRatePath = [RateSystemId]
 -- | A list of RateSystemId, from child to parent, following
 --   the reversed order used usually during rating, with
 --   the applied CalcParams.
-type ReverseRatePathAndCalcParams = [(RateSystemId, String, CalcParams)]
+type ReverseRatePathAndCalcParams = [(RateSystemId, Text.Text, CalcParams)]
 
 -- | The most specific RateSystemId
 reverseRatePath_specificId :: ReverseRatePath -> RateSystemId
@@ -304,7 +337,7 @@ reverseRatePathAndCalcParams_specificId x
     in r
 
 -- | A reference to an internal rate.
-type InternalRateReference = String
+type InternalRateReference = Text.Text
 
 -- | A compact and efficient, system generated reference to a parto of a RatePlan.
 type RateSystemId = Int
@@ -322,7 +355,7 @@ data MainRatePlan
     , mainRatePlan_systemIdToRootBundleRate :: MapToRootBundleRate
     , mainRatePlan_systemIdToUserIdPath :: RatePlanIdMap Text.Text
     , mainRatePlan_maxSystemId :: RateSystemId
-    } deriving (Show)
+    } deriving (Show, Generic, NFData)
 
 -- | Return the calldate from which you can start with a empty BundleState, because it is the init of bundle timeframe.
 --   There can be different BundleState with different time frame.
@@ -341,6 +374,7 @@ mainRatePlan_getBundleRateStartCallDate plan rateFromDate
     in case List.null allDates of
          True -> (rateFromDate, rateFromDate)
          False -> (List.minimum allDates, List.maximum allDates)
+                  -- NOTE: due to `timeFrame_fromCallDate` behaviour, the time frame returned here contains always `rateFromDate`
 
 -- | Return the calldate from which you can save a BundleState, because it is the end of bundle timeframe.
 --   There can be different BundleState with different time frame.
@@ -356,6 +390,7 @@ mainRatePlan_getBundleRateEndCallDate plan rateToDate
     in case List.null allDates of
          True -> rateToDate
          False -> List.maximum allDates
+         -- NOTE: it contains always `rateToDate`, due to `timeFrame_fromCallDate` behaviour
 
 -- | A MainRatePlan that was checked during initialization, and for which there can not be errors during processing.
 type CheckedMainRatePlan = MainRatePlan
@@ -392,7 +427,7 @@ data RootBundleRatePlan
     , bundle_onlyForCallsWithACost :: Bool
     -- ^ true for applying the bundle only to calls with a cost. Other calls will not change the bundle limits.
     , bundle_plan :: BundleRatePlan
-  } deriving(Show)
+  } deriving(Show, Generic, NFData)
 
 -- | A bundle rate plan, with children.
 data BundleRatePlan
@@ -401,7 +436,7 @@ data BundleRatePlan
     , bundle_rateParams :: RateParams
     , bundle_bundleParams :: BundleParams
     , bundle_children :: Either ExternalRateReference [BundleRatePlan]
-    } deriving(Show)
+    } deriving(Show, Generic, NFData)
 
 -- | BundleParams that can be changed from any root and children bundle-rate.
 data BundleParams
@@ -416,13 +451,7 @@ data BundleParams
       --   Nothing if this is not a limit.
     , bundle_appliedCost :: !MonetaryValue
       -- ^ the cost of calls associated to the BundleRate.
-  } deriving(Show, Generic)
-
-instance NFData RatingEnv where
-    rnf b = seq b ()
-
-instance NFData BundleParams where
-     rnf b = seq b ()
+  } deriving(Show, Generic, NFData)
 
 -- | RatePlan specification.
 data RatePlan
@@ -431,15 +460,15 @@ data RatePlan
     , rate_params :: RateParams
     , rate_elsePart :: [RatePlan]
     , rate_children :: Either ExternalRateReference [RatePlan]
-    } deriving(Show)
+    } deriving(Show, Generic, NFData)
 
 -- | The params of a normal rate-plan.
 data RateParams
   = RateParams {
-      rate_userId :: String
+      rate_userId :: Text.Text
     -- ^ user assigned human readable short name/id
     , rate_match :: MatchFun
-  } deriving(Show)
+  } deriving(Show, Generic, NFData)
 
 -- | The params are the initial limits of the BundleRatePlan, at the beginning of the time-frame.
 --   A BundleRate can process all the calls in the TimeFrame.
@@ -452,9 +481,9 @@ data BundleRateTimeFrame
   -- ^ start scheduling from the specified day of the month
   | EveryDaysTimeFrame Int CallDate
   -- ^ schedule every specified days, starting from the calldate
- deriving(Eq, Show)
+ deriving(Eq, Show, Generic, NFData)
 
-type CountOfCalls = Int
+type CountOfCDRS = Int
 
 -- | A timeframe
 type TimeFrame
@@ -463,8 +492,6 @@ type TimeFrame
     , CallDate
     -- ^ ending time frame (exclusive).
     )
-
-type CallDate = LocalTime
 
 -- | The part of the call that can be rated using the bundle rate.
 type BundleCallDuration = Int
@@ -483,8 +510,8 @@ type UnitIdMap a = IMap.IntMap a
 type BundleRateUnitId = UnitId
 
 -- | A rate that was not applied to a CDR, with the reason.
-type DiscardedRate = (String -- ^ the name of the rate
-                     , String  -- ^ the reason of discard
+type DiscardedRate = ( Text.Text -- ^ the name of the rate
+                     , Text.Text -- ^ the reason of discard
                      )
 
 -- | Used internally in the code for selecting the current best normal rate.
@@ -503,13 +530,13 @@ type IsNormalCdr = Bool
 
 instance DBS.Serialize BundleParams
 
-rootBundleRatePlan_userId :: RootBundleRatePlan -> String
+rootBundleRatePlan_userId :: RootBundleRatePlan -> Text.Text
 rootBundleRatePlan_userId p = rate_userId $ bundle_rateParams $ bundle_plan p
 
 -- | Add support for binary serialization to LocalTime.
 --   TODO use a faster method in future, using directly the fields.
 --   TODO try generic approach
-instance DBS.Serialize LocalTime where
+instance DBS.Serialize CallDate where
   put l
     = do DBS.put $ show l
 
@@ -541,12 +568,11 @@ timeFrames_allInsideRatingPeriod serviceSchedule rateFromDate rateToDate include
    nextTimeFrame (start1, end1)
      = timeFrame_fromCallDate1 serviceSchedule end1
 
+   -- NOTE: this condition takes in consideration also services activated after rateFromDate.
    isValidTimeFrame (serviceFromCallDate, serviceToCallDate)
      = case includeOpenTimeFrames of
-         True
-           -> serviceFromCallDate < rateToDate
-         False
-           -> serviceToCallDate <= rateToDate
+         True -> serviceFromCallDate < rateToDate
+         False -> serviceToCallDate <= rateToDate
 
 -- | Associate a unique or shared RateSystemId to each part of a MainRatePlan.
 --   Share the same RateSystemId with previous defined rates, in order to support
@@ -736,7 +762,7 @@ mainRatePlan_mapSystemIdToUserIdPath mainPlan
     = do processBundleRatePlan n (bundle_plan p)
 
   processBundleRatePlan n p
-    = do let name = Text.concat [n, (Text.pack "/"), Text.pack $ rate_userId $ bundle_rateParams p]
+    = do let name = Text.concat [n, "/", rate_userId $ bundle_rateParams p]
          insertUniqueValue (bundle_systemId p) name
          case bundle_children p of
            Left _
@@ -745,7 +771,7 @@ mainRatePlan_mapSystemIdToUserIdPath mainPlan
              -> mapM_ (processBundleRatePlan name) children
 
   processNormalRate n p
-    = do let name = Text.concat [n, (Text.pack "/"), Text.pack $ rate_userId $ rate_params p]
+    = do let name = Text.concat [n, "/", rate_userId $ rate_params p]
          insertUniqueValue (rate_systemId p) name
          case rate_children p of
            Left _
@@ -777,7 +803,7 @@ data RatingDebugInfo
     , info_residualCallDuration :: Maybe ResidualCallDuration
     -- ^ residual call duration
     , info_bundleRateSystemId :: Maybe RateSystemId
-    , info_ratingDetails :: Maybe String
+    , info_ratingDetails :: Maybe Text.Text
     -- ^ detailed info on the rating method used, generated only in case of debug-jobs processing, because it uses many resources
     } deriving(Show)
 
@@ -792,9 +818,9 @@ ratingDebugInfo_empty appliedRate bundleRateId
     }
 
 -- | Describe the discarded rates
-discardedRates_toDetails :: [DiscardedRate] -> String
+discardedRates_toDetails :: [DiscardedRate] -> Text.Text
 discardedRates_toDetails drs
-  = List.concatMap (\(n, reason) -> "\nThe rate " ++ n ++ " was not applied because " ++ reason) drs
+  = Text.concat $ List.concatMap (\(n, reason) -> ["\nThe rate ", n, " was not applied because ", reason]) drs
 
 -- | Calculate the cost of the rate, updating the BundleState.
 --   The algo is composed of two phases:
@@ -809,7 +835,7 @@ mainRatePlan_calcCost
   :: Bool
      -- ^ True if it must generate detailed debug info
   -> RateRole
-  -> RatingEnv
+  -> RatingParams
   -> BundleState
   -> CheckedMainRatePlan
   -> CDR
@@ -862,7 +888,7 @@ mainRatePlan_calcCost isDebug rateRole env bundleState1 mainRatePlan cdr
 
   callBillsec = fromJust1 "rp1" $ cdr_billsec cdr
 
-  organizationsInfo = params_organizations $ env_params env
+  organizationsInfo = params_organizations env
 
   cdrOrganizationUnitId = fromJust1 "rp1" $ cdr_organizationUnitId cdr
 
@@ -893,7 +919,7 @@ mainRatePlan_calcCost isDebug rateRole env bundleState1 mainRatePlan cdr
         Left _ -> False
         Right (m, _, _, _) -> m > 0
 
-  createRateDetails :: [DiscardedRate] -> Maybe String
+  createRateDetails :: [DiscardedRate] -> Maybe Text.Text
   createRateDetails dsr
     = if isDebug then (Just $ discardedRates_toDetails dsr) else Nothing
 
@@ -908,7 +934,7 @@ mainRatePlan_calcCost isDebug rateRole env bundleState1 mainRatePlan cdr
           details3 = case (details1, details2) of
                        (Nothing, Nothing) -> Nothing
                        (Just s1, Nothing) -> Just s1
-                       (Just s1, Just s2) -> Just (s1 ++ s2)
+                       (Just s1, Just s2) -> Just (Text.append s1 s2)
                        (Nothing, Just s2) -> Just s2
 
       in  info { info_ratingDetails = details3 }
@@ -919,9 +945,9 @@ mainRatePlan_calcCost isDebug rateRole env bundleState1 mainRatePlan cdr
   appendIfDebug a b = if isDebug then (a ++ b) else []
 
   -- | The rate name to use for debug info.
-  ratePathName :: ReverseRatePathAndCalcParams -> String
+  ratePathName :: ReverseRatePathAndCalcParams -> Text.Text
   ratePathName rs
-    = List.concatMap (\(_,n, _) -> "/" ++ n) (List.reverse rs)
+    = Text.concat $ List.concatMap (\(_,n, _) -> ["/", n]) (List.reverse rs)
 
   -- | Return the first RateSystemId that is not 0.
   --   There can be RateSystemId at 0 because they are the referenced external rates.
@@ -985,11 +1011,11 @@ mainRatePlan_calcCost isDebug rateRole env bundleState1 mainRatePlan cdr
   selectBundleRateForUnitId bundleRateUnitId
     = case info_getDirectPriceCategory organizationsInfo bundleRateUnitId callDate of
         Nothing
-          -> Right (Nothing, [("all bundle rates", "the organization " ++ show bundleRateUnitId ++ " has no direct price category assignation.")])
+          -> Right (Nothing, [("all bundle rates", Text.concat ["the organization ", Text.pack $ show bundleRateUnitId, " has no direct price category assignation."])])
         Just priceCategoryId
           -> case findBundle priceCategoryId of
               Right Nothing
-                -> Right (Nothing, [("all bundle rates", "there is no bundle rate with price category " ++ show priceCategoryId)])
+                -> Right (Nothing, [("all bundle rates", Text.append "there is no bundle rate with price category " (Text.pack $ show priceCategoryId))])
               Left err
                 -> Left err
               Right (Just bundle)
@@ -1003,12 +1029,12 @@ mainRatePlan_calcCost isDebug rateRole env bundleState1 mainRatePlan cdr
            [] -> Right Nothing
            [r] -> Right (Just r)
            _ -> let priceCategoryName
-                      = rateCategories_code (params_rateCategories $ env_params env) priceCategoryId
+                      = rateCategories_code (params_rateCategories env) priceCategoryId
                 in Left $ createError
                             Type_Error
                             Domain_RATES
                             ("conflicting bundle rates on price category - " ++ show rateRole ++ "-" ++ show priceCategoryId)
-                            ("There is more than one " ++ show rateRole ++ " bundle rate on price-category \"" ++ priceCategoryName ++ "\", during rating of CDR " ++ rate_showDebug env cdr)
+                            ("There is more than one " ++ show rateRole ++ " bundle rate on price-category \"" ++ Text.unpack priceCategoryName ++ "\", during rating of CDR " ++ rate_showDebug env cdr)
                             ("All similar CDRs can not be rated. The call report stats will contain the correct totals of all CDRs with errors/not-rated.")
                             ("Correct the rate specification, or contact the assistance.")
 
@@ -1029,7 +1055,7 @@ mainRatePlan_calcCost isDebug rateRole env bundleState1 mainRatePlan cdr
 
    where
 
-     rootBundleRateUserName = "/" ++ rootBundleRatePlan_userId mainPlan
+     rootBundleRateUserName = Text.append "/" (rootBundleRatePlan_userId mainPlan)
      children = case bundle_children $ bundle_plan mainPlan of
                   Left r -> Left r
                   Right r -> Right $ List.map Left r
@@ -1042,7 +1068,7 @@ mainRatePlan_calcCost isDebug rateRole env bundleState1 mainRatePlan cdr
                       Type_Error
                       Domain_RATES
                       ("missing rate for - " ++ show rateRole ++ "-" ++ (cdr_missingRateKey cdr))
-                      ("There is no " ++ show rateRole ++ " (no-bundle) rate for rating CDRs like " ++ rate_showDebug env cdr ++ "\n\n" ++ discardedRates_toDetails unselectedRates)
+                      ("There is no " ++ show rateRole ++ " (no-bundle) rate for rating CDRs like " ++ rate_showDebug env cdr ++ "\n\n" ++ (Text.unpack $ discardedRates_toDetails unselectedRates))
                       ("All similar CDRs can not be rated. The call report stats will contain the correct totals of all CDRs with errors/not-rated.")
                       ("Correct the rate specification, or contact the assistance.")
          r -> r
@@ -1074,11 +1100,11 @@ mainRatePlan_calcCost isDebug rateRole env bundleState1 mainRatePlan cdr
                         Right currentPlan
                           -> let userId = rate_userId $ rate_params currentPlan
                                  systemId = rate_systemId currentPlan
-                             in  (ratePathName parentPath ++ "/" ++ userId, userId, systemId)
+                             in  (Text.concat [ratePathName parentPath, "/", userId], userId, systemId)
                         Left (mainRatePlan, unitId, currentPlan)
                           -> let userId = rate_userId $ bundle_rateParams currentPlan
                                  systemId = bundle_systemId currentPlan
-                             in  (ratePathName parentPath ++ "/" ++ userId, userId, systemId)
+                             in  (Text.concat [ratePathName parentPath, "/", userId], userId, systemId)
 
                   currentParams
                     = case currentBundleOrNormalPlan of
@@ -1225,8 +1251,8 @@ mainRatePlan_calcCost isDebug rateRole env bundleState1 mainRatePlan cdr
                                    in Left $ createError
                                                Type_Error
                                                Domain_RATES
-                                               ("virtual rate conflict - " ++ show rateRole ++ "-" ++ name1 ++ "-" ++ name2)
-                                               ("The " ++ show rateRole ++ " rate \"" ++ name1 ++ "\", conflicts with rate \"" ++ name2 ++ "\", because it matches the CDR with the same strenght, and the system have no hints about which is the best rate to apply. The CDR has calldate is " ++ showLocalTime (cdr_calldate cdr) ++ ". The CDR content, after import, and initial processing is " ++ rate_showDebug env cdr)
+                                               ("virtual rate conflict - " ++ show rateRole ++ "-" ++ Text.unpack name1 ++ "-" ++ Text.unpack name2)
+                                               ("The " ++ show rateRole ++ " rate \"" ++ Text.unpack name1 ++ "\", conflicts with rate \"" ++ Text.unpack name2 ++ "\", because it matches the CDR with the same strenght, and the system have no hints about which is the best rate to apply. The CDR has calldate is " ++ showLocalTime (cdr_calldate cdr) ++ ". The CDR content, after import, and initial processing is " ++ rate_showDebug env cdr)
                                                ("All CDRs with a similar format can not be rated. The call report stats will contain the correct totals of all CDRs with errors/not-rated.")                         ("Correct the rate specification, or contact the assistance.")
 
                               Just LT
@@ -1242,14 +1268,14 @@ mainRatePlan_calcCost isDebug rateRole env bundleState1 mainRatePlan cdr
                                (errorMessage1, errorMessage2)
                                  = if (List.null currentPath)
                                    then (("There is no applicable " ++ show rateRole ++ " rate "), "")
-                                   else (("The " ++ show rateRole ++ " rate " ++ rateName ++ " is applicable ")
+                                   else (("The " ++ show rateRole ++ " rate " ++ Text.unpack rateName ++ " is applicable ")
                                         ,("\n\nbut none of its more specific children rates can be applied.\nFor avoiding ambiguites in rating specifications, one and only one children rate must be selected, but in this case none can be selected.\n\n"))
 
                            in if isNormalRate
                               then (Left $ createError
                                              Type_Error
                                              Domain_RATES
-                                             ("not applicale children rate - " ++ show rateRole ++ "-" ++ rateName)
+                                             ("not applicale children rate - " ++ show rateRole ++ "-" ++ Text.unpack rateName)
                                              (errorMessage1 ++ " to a CDR like this: \n" ++ rate_showDebug env cdr ++ errorMessage2)
                                              ("All CDRs with a similar format can not be rated. The call report stats will contain the correct totals of all CDRs with errors/not-rated.")
                                              ("Improve the rate specification."))
@@ -1310,8 +1336,8 @@ mainRatePlan_calcCost isDebug rateRole env bundleState1 mainRatePlan cdr
           -> Left $ createError
                       Type_Error
                       Domain_RATES
-                      ("unknown external rate name - " ++ show rateRole ++ "-" ++ externalRateReference)
-                      ("The " ++ show rateRole ++ " external rate reference \"" ++ externalRateReference ++ "\", does not exists at date " ++ showLocalTime callDate ++ ". The CDR content is " ++ rate_showDebug env cdr)
+                      ("unknown external rate name - " ++ show rateRole ++ "-" ++ Text.unpack externalRateReference)
+                      ("The " ++ show rateRole ++ " external rate reference \"" ++ Text.unpack externalRateReference ++ "\", does not exists at date " ++ showLocalTime callDate ++ ". The CDR content is " ++ rate_showDebug env cdr)
                       ("All CDRs with a similar format can not be rated. The call report stats will contain the correct totals of all CDRs with errors/not-rated.")
                       ("Correct the rate specification, or contact the assistance.")
 
@@ -1321,8 +1347,8 @@ mainRatePlan_calcCost isDebug rateRole env bundleState1 mainRatePlan cdr
                  -> Left $ createError
                              Type_Error
                              Domain_RATES
-                             ("external rate name with bundle params - " ++ show rateRole ++ "-" ++ externalRateReference)
-                             ("The " ++ show rateRole ++ " external rate reference \"" ++ externalRateReference ++ "\", exists at date " ++ showLocalTime callDate ++ ", but it has bundle children, and it can not be embeded correctly in a rate plan.")
+                             ("external rate name with bundle params - " ++ show rateRole ++ "-" ++ Text.unpack externalRateReference)
+                             ("The " ++ show rateRole ++ " external rate reference \"" ++ Text.unpack externalRateReference ++ "\", exists at date " ++ showLocalTime callDate ++ ", but it has bundle children, and it can not be embeded correctly in a rate plan.")
                              ("CDRS can not be rated. The call report stats will contain the correct totals of all CDRs with errors/not-rated.")
                              ("Correct the rate specification, or contact the assistance.")
                True
@@ -1335,7 +1361,7 @@ debug_showRateSystemIds rs = List.concat $ List.intersperse ", " $ List.map show
 -- BUNDLE RATE STATE --
 -----------------------
 
--- | LocalTime greather or equal to this value,
+-- | CallDate greather or equal to this value,
 --   are to be considered in the next bundle-rate scheduling timeframe.
 type NextScheduledLocalTime = CallDate
 
@@ -1383,6 +1409,7 @@ mainRatePlan_deriveMapFromChildrenRateToMainRate mainRatePlan
 
 -- TODO consider using a sorted set, for fast lookup, and mantained in synchro every time
 -- we add or remove an element, also because this function is called for every CDR
+-- MAYBE or use instead a sequence instead of a list (locality of access)
 bundleState_minimumNextScheduledLocalTime :: BundleState -> Maybe NextScheduledLocalTime
 bundleState_minimumNextScheduledLocalTime s
   = IMap.foldl' (\mT1 (t2, _, _)
@@ -1401,7 +1428,7 @@ bundleState_debugShow state1
 --   and it is the top-down entry.
 --   DEV NOTES: the code of this function must be fast, because it is called for each CDR.
 bundleState_serviceCdrs
-  :: RatingEnv
+  :: RatingParams
   -> MainRatePlan
   -> BundleState
   -> CallDate
@@ -1429,7 +1456,7 @@ bundleState_serviceCdrs env mainRatePlan state0 callDate
         Just minCallDate
           -> if callDate >= minCallDate
              then let serviceCdrs2 = generateServiceCDRs state1 minCallDate
-                      state2 = bundleState_initAccordingRatingEnv env mainRatePlan (Right minCallDate) state1
+                      state2 = bundleState_initAccordingRatingParams env mainRatePlan (Right minCallDate) state1
                       (_, state3, serviceCdrs3) = fRec state2
                       -- call recursively until the calldate is not reached. In this way if there are holes in the rating, procces,
                       -- the ServiceCDRS are generated for all missing timeframes.
@@ -1470,7 +1497,7 @@ bundleState_serviceCdrs env mainRatePlan state0 callDate
 --   These ServiceCDRS are related to not yet closed time-frames, so they are temporary/pending.
 --   DEV NOTES: this function can be not fast, because it is called only one time, at the end of rating process.
 bundleState_pendingServiceCdrs
-  :: RatingEnv
+  :: RatingParams
   -> MainRatePlan
   -> BundleState
   -> [ServiceCDR]
@@ -1517,8 +1544,9 @@ timeFrame_fromCallDate1 :: BundleRateTimeFrame -> CallDate -> TimeFrame
 timeFrame_fromCallDate1 timeFrame callDate
   = case timeFrame of
       EveryDaysTimeFrame deltaDays d0
-        -> -- DEV NOTE: this code/timeframe up to date not tested and not supported.
-           -- TODO support this
+        -> error "Bundles using days as time-frame are implemented, but not yet tested. Contact the assistance for complete activation and support."
+           {-
+           -- DEV NOTE: this code/timeframe up to date not tested and not supported.
            let deltaSeconds :: NominalDiffTime = fromInteger $ (toInteger deltaDays) * 24 * 60 * 60
                dd0 = localTimeToUTC utc d0
                dd1 = localTimeToUTC utc callDate
@@ -1529,6 +1557,7 @@ timeFrame_fromCallDate1 timeFrame callDate
                startingCallDateOfCurrentTimeFrame = addUTCTime (lapsedCompleteTimeFrame * deltaSeconds) dd0
                endingCallDateOfCurrentTimeFrame = addUTCTime deltaSeconds startingCallDateOfCurrentTimeFrame
            in (utcToLocalTime utc startingCallDateOfCurrentTimeFrame, utcToLocalTime utc endingCallDateOfCurrentTimeFrame)
+           -}
 
       MonthlyTimeFrame dayOfMonth
         -> let (yyyy, mm, dd) = toGregorian $ localDay callDate
@@ -1566,7 +1595,6 @@ timeFrame_fromCallDate1 timeFrame callDate
                    localDay = d
                  , localTimeOfDay = midnight
                  }
-
 
 -- | Try to apply a bundle rate to a CDR, considering only the bundle limits conditions, and without considering the children rates,
 --   and other rate params.
@@ -1639,7 +1667,7 @@ bundle_canBeApplied rootBundleRate bundlePlan state1 (cdr, unitId, duration1)
 --
 --   DEV NOTE: this function is called only at the end of each bundle time frame, so it can be also slow.
 rootBundleRate_initBundleRecord
-  :: RatingEnv
+  :: RatingParams
   -> MainRatePlan
   -> RootBundleRatePlan
   -> NextScheduledLocalTime
@@ -1665,7 +1693,7 @@ rootBundleRate_initBundleRecord env mainRatePlan rootBundleRate fromCallDate
 
   timeFrameDuration = timeFrame_duration (bundleFromCallDate, toCallDate)
 
-  unitInfo = params_organizations $ env_params env
+  unitInfo = params_organizations env
 
   bundlePriceCategoryIds = Set.fromList $ bundle_priceCategoryIds rootBundleRate
 
@@ -1793,8 +1821,8 @@ rootBundleRate_initBundleRecord env mainRatePlan rootBundleRate fromCallDate
 --   it can make sense, as in case of initial entering date.
 --   DEV NOTES: this function is called only at the end of a time-frame, so it can be also slow,
 --   because it is called some order of magnitude less than CDR processing functions.
-bundleState_initAccordingRatingEnv
-  :: RatingEnv
+bundleState_initAccordingRatingParams
+  :: RatingParams
   -> CheckedMainRatePlan
   -> Either NextScheduledLocalTime NextScheduledLocalTime
   -- ^ Right for the time frame to close: delete all time frame closed at this date, and open new time frames. This must be exactly the calldate
@@ -1807,7 +1835,7 @@ bundleState_initAccordingRatingEnv
   -> BundleState
   -> BundleState
 
-bundleState_initAccordingRatingEnv env mainRatePlan referenceCallDate state1
+bundleState_initAccordingRatingParams env mainRatePlan referenceCallDate state1
   = List.foldl' initRootRate state2 (mainRatePlan_bundleRates mainRatePlan)
  where
 
@@ -1852,7 +1880,7 @@ bundleState_initAccordingRatingEnv env mainRatePlan referenceCallDate state1
 --   * (see #1341 for more details)
 --   DEV NOTE: this function it is not needed to be very fast, because it is called only at the end of the time frame
 bundleState_closeServiceCDRsAccordingRatePlan
-  :: RatingEnv
+  :: RatingParams
   -> CheckedMainRatePlan
   -> RootBundleRatePlan
   -> BundleState
@@ -1870,7 +1898,7 @@ bundleState_closeServiceCDRsAccordingRatePlan env mainRatePlan rootBundleRate st
 
     rootId = bundle_systemId $ bundle_plan rootBundleRate
     rootName = fromJust1 "rp13" $ IMap.lookup rootId $ mainRatePlan_systemIdToUserIdPath mainRatePlan
-    precision = params_currencyPrecision $ env_params env
+    precision = params_currencyPrecision env
 
     groupedIncomes :: Map.Map (UnitId, TimeFrame) (MonetaryValue, Int)
     groupedIncomes
@@ -1969,7 +1997,7 @@ bundleState_update
   :: BundleState
   -> BundleRateSystemId
   -> BundleRateUnitId
-  -> CountOfCalls
+  -> CountOfCDRS
   -> BundleCallDuration
   -> MonetaryValue
   -> BundleState
@@ -2001,9 +2029,8 @@ bundleState_update bundleState1 rateId unitId countOfCalls callDuration cost
          , bundle_appliedCost = (bundle_appliedCost rec1) + cost
          }
 
---------------------------
--- CALC CDR COST/INCOME --
---------------------------
+-- ---------------------------
+-- CALC CDR COST/INCOME
 
 -- | This can be a Monetary value, or a value imported from the importer CDR (Left ()).
 data RateCost =
@@ -2338,128 +2365,186 @@ monetaryValueOrImported_show vi
       RateCost_expected -> "expected"
       RateCost_cost v -> monetaryValue_show v
 
-----------------
--- ENV PARAMS --
-----------------
+-- -------------------------------
+-- Rating Params
 
-data EnvParams
-  =  EnvParams {
-      params_rateCategories :: ! RateCategories
-    , params_vendors :: ! Vendors
-    , params_channelTypes :: ! ChannelTypes
-    , params_channelDomains :: ! ChannelDomains
-    , params_telephonePrefixes :: ! TelephonePrefixes
-    , params_organizations :: ! Info
-    , params_numberOfDigitsToMask :: Int
-    , params_defaultTelephonePrefixToNotDisplay :: Maybe String
-    , params_currencyPrecision :: Int
-    } deriving(Show)
+-- | Rating params that are "externally" specified, and that can can not be derived
+--   reading the DB content.
+--   Usually these params are specified from the command line.
+data InitialRatingParams
+  = InitialRatingParams {
+        iparams_isDebugMode :: Bool
+      , iparams_isVoipReseller :: Bool
+      , iparams_digitsToMask :: Int
+        -- ^ mask the last digits of an external telephone number, for privacy reasons
+      , iparams_defaultTelephonePrefixToNotDisplay :: Maybe Text.Text
+        -- ^ telephone numbers starting with these prefix are shortened, not including it,
+        -- because it is an implicit prefix.
+      , iparams_currencyPrecision :: Int
+      , iparams_extensionsFileName :: FilePath
+      , iparams_debugFileName :: FilePath
+      , iparams_fromDate :: CallDate
+      , iparams_toDate :: CallDate
+      , iparams_isRateUnbilledCallsEvent :: Bool
+        -- ^ True if the rating operation is associated to a rerate all unbilled calls
+      , iparams_onlyImportedServices :: Bool
+        -- ^ True if it must rate only Imported Service CDRS
+      , iparams_dbName :: String
+      , iparams_dbUser :: String
+      , iparams_dbPasswd :: String
+      , iparams_configuredRatePlanParsers :: ConfiguredRatePlanParsers
+    }
+ deriving (Show, Generic, NFData)
 
-initialClassificationParams_empty
-  = EnvParams {
-      params_rateCategories = rateCategories_empty
-    , params_vendors = Map.empty
-    , params_channelTypes = Map.empty
-    , params_channelDomains = trie_empty
-    , params_telephonePrefixes = trie_empty
-    , params_organizations = info_empty
-    , params_numberOfDigitsToMask = 0
-    , params_defaultTelephonePrefixToNotDisplay = Nothing
-    , params_currencyPrecision = 4
-  }
+iparams_dbConf :: InitialRatingParams -> DBConf
+iparams_dbConf p
+  =  DBConf {
+       dbConf_user = fromStringToByteString $ iparams_dbUser p
+     , dbConf_password = fromStringToByteString $ iparams_dbPasswd p
+     , dbConf_dbName = fromStringToByteString $ iparams_dbName p
+     }
 
-params_respectCodeContracts :: EnvParams -> Either String ()
-params_respectCodeContracts p
-  = do info_respectCodeContracts (params_organizations p)
+params_dbConf :: RatingParams -> DBConf
+params_dbConf p = iparams_dbConf $ params_initial p
+
+-- | Extensions to export to an external database.
+type ExtensionsToExport = Trie ()
+
+-- | Initial and derived rating params.
+--   These params are loaded from the DB, but after the rating process starts,
+--   they are immutable and read-only.
+data RatingParams
+  = RatingParams {
+      params_initial :: InitialRatingParams
+    , params_isShorterSafeTimeFrame :: Bool
+      -- ^ it is used a shorter time frame, respect the original requested timeframe,
+      --   because in the original time-frame there were changes in main income or cost rates.
+    , params_bundleStateFromCallDate :: CallDate
+      -- ^ the first bundle state start at this date.
+      -- @ensure less or equal to rate from date
+    , params_bundleStateCanBeSavedFromCallDate :: CallDate
+      -- ^ cdrs can be saved/updated from this date, before this date
+      --   they can be used for calculating the bundle-state, but they are not
+      --   deleted from the DB.
+      -- @ensure less or equal to rate from date
+    , params_bundleStateToCallDate :: CallDate
+      -- ^ the date of when the bundle state will be closed
+    , params_initialBundleState :: Maybe BundleState
+    , params_rateChanges :: DBRateChanges
+    , params_rates :: CachedDBRates
+    , params_extensionsToExport :: ExtensionsToExport
+    , params_rateCategories :: RateCategories
+    , params_vendors :: Vendors
+    , params_channelTypes :: ChannelTypes
+    , params_channelDomains :: ChannelDomains
+    , params_telephonePrefixes :: TelephonePrefixes
+    , params_organizations :: Info
+    , params_fastLookupCDRImporters :: FastLookupCDRImporters
+    , params_services :: ServiceIdMap Service
+    , params_servicePrices :: ServiceIdMap [ServicePrice]
+    -- ^ @ensure prices are ordered by date in reverse order
+    , params_assignedServices :: ServiceIdMap (UnitIdMap [AssignedService])
+    -- ^ @ensure assignments are in reverse order of assignment
+  } deriving(Show, Generic, NFData)
+
+params_isDebugMode :: RatingParams -> Bool
+params_isDebugMode p = iparams_isDebugMode $ params_initial p
+
+params_isVoipReseller :: RatingParams -> Bool
+params_isVoipReseller p = iparams_isVoipReseller $ params_initial p
+
+params_onlyImportedServices :: RatingParams -> Bool
+params_onlyImportedServices p = iparams_onlyImportedServices $ params_initial p
+
+params_digitsToMask :: RatingParams -> Int
+params_digitsToMask p = iparams_digitsToMask $ params_initial p
+
+params_defaultTelephonePrefixToNotDisplay :: RatingParams -> Maybe Text.Text
+params_defaultTelephonePrefixToNotDisplay p = iparams_defaultTelephonePrefixToNotDisplay $ params_initial p
+
+params_currencyPrecision :: RatingParams -> Int
+params_currencyPrecision p = iparams_currencyPrecision $ params_initial p
+
+params_extensionsFileName :: RatingParams -> FilePath
+params_extensionsFileName p = iparams_extensionsFileName $ params_initial p
+
+params_debugFileName :: RatingParams -> FilePath
+params_debugFileName p = iparams_debugFileName $ params_initial p
+
+params_fromDate :: RatingParams -> CallDate
+params_fromDate p = iparams_fromDate $ params_initial p
+
+params_toDate :: RatingParams -> CallDate
+params_toDate p = iparams_toDate $ params_initial p
+
+params_isRateUnbilledCallsEvent :: RatingParams -> Bool
+params_isRateUnbilledCallsEvent p = iparams_isRateUnbilledCallsEvent $ params_initial p
+
+params_dbName :: RatingParams -> String
+params_dbName p = iparams_dbName $ params_initial p
+
+params_dbUser :: RatingParams -> String
+params_dbUser p = iparams_dbUser $ params_initial p
+
+params_dbPasswd :: RatingParams -> String
+params_dbPasswd p = iparams_dbPasswd $ params_initial p
+
+params_configuredRatePlanParsers :: RatingParams -> ConfiguredRatePlanParsers
+params_configuredRatePlanParsers p = iparams_configuredRatePlanParsers $ params_initial p
+
+ratingParams_empty :: InitialRatingParams -> RatingParams
+ratingParams_empty p = RatingParams {
+       params_initial = p
+     , params_isShorterSafeTimeFrame = False
+     , params_bundleStateFromCallDate = iparams_fromDate p
+     , params_bundleStateCanBeSavedFromCallDate = iparams_fromDate p
+     , params_bundleStateToCallDate = iparams_toDate p
+     , params_initialBundleState = Nothing
+     , params_rateChanges = rateChanges_empty
+     , params_rates = cachedRates_empty
+     , params_extensionsToExport = trie_empty
+     , params_rateCategories = rateCategories_empty
+     , params_vendors = Map.empty
+     , params_channelTypes = Map.empty
+     , params_channelDomains = trie_empty
+     , params_telephonePrefixes = trie_empty
+     , params_organizations = info_empty
+     , params_fastLookupCDRImporters = IMap.empty
+     , params_services = IMap.empty
+     , params_servicePrices = IMap.empty
+     , params_assignedServices = IMap.empty
+   }
+
+-- ----------------------------------------------
+-- Check code contracts (used during debugging)
+
+ratingParams_respectCodeContracts :: RatingParams -> Either String ()
+ratingParams_respectCodeContracts env
+  = do rateChanges_respectCodeContracts (params_rateChanges env)
+       info_respectCodeContracts (params_organizations env)
+       serviceParams_respectCodeContracts env
        return ()
 
--------------------------
--- SERVICE CDRS EXPORT --
--------------------------
+-- | Return an error in case ServiceParams does not respect code contracts.
+serviceParams_respectCodeContracts :: RatingParams -> Either String ()
+serviceParams_respectCodeContracts s
+  = do
+       extractAndCheckReverseOrder "(err 1075) prices are not in reverse order of date" (servicePrice_fromDate) (params_servicePrices s)
+       extractAndCheckReverseOrder2 "(err 1076) service assignmentes are not in reverse order of date" (assignedService_fromDate) (params_assignedServices s)
 
--- | A CSV format used internally from Asterisell.
-data CSVFormat_TelephonePrefix1
-  = CSVFormat_TelephonePrefix1 {
-      t1_prefix :: Text.Text
-    , t1_matchOnlyExactDigits :: Int
-    , t1_name :: Text.Text
-    , t1_geographic_location :: Text.Text
-    , t1_operator_type :: Text.Text
-    , t1_display_priority :: Int
- } deriving(Show)
+       return ()
 
-instance CSV.ToRecord CSVFormat_TelephonePrefix1 where
-     toRecord p
-       = CSV.record [
-           CSV.toField $ t1_prefix p
-         , CSV.toField $ t1_matchOnlyExactDigits p
-         , CSV.toField $ t1_name p
-         , CSV.toField $ t1_geographic_location p
-         , CSV.toField $ t1_operator_type p
-         , CSV.toField $ t1_display_priority p
-         ]
-
-instance CSV.FromRecord CSVFormat_TelephonePrefix1 where
-     parseRecord v
-         | V.length v == 6
-              = CSVFormat_TelephonePrefix1 <$>
-                v .! 0 <*>
-                v .! 1 <*>
-                v .! 2 <*>
-                v .! 3 <*>
-                v .! 4 <*>
-                v .! 5
-         | otherwise = mzero
-
--- | Export the telephone prefixes to use for service-cdrs.
-mainRatePlan_exportToCSVTheServiceCDRSTelephonePrefixes :: MainRatePlan -> BS.ByteString
-mainRatePlan_exportToCSVTheServiceCDRSTelephonePrefixes mp
-  = CSV.encode $ List.map f $ mainRatePlan_bundleRates mp
  where
 
-  f :: RootBundleRatePlan -> CSVFormat_TelephonePrefix1
-  f p
-    = let sName = bundle_serviceCDRDescription p
-          sType = bundle_serviceCDRType p
-      in CSVFormat_TelephonePrefix1 {
-              t1_prefix = serviceCdr_defaultExternalTelephoneNumber sType sName
-            , t1_matchOnlyExactDigits = 1
-            , t1_name = sName
-            , t1_geographic_location = sName
-            , t1_operator_type = sType
-            , t1_display_priority = 10
-           }
+  extractAndCheckReverseOrder msgError extract map1
+    = let l1 = List.map snd $ IMap.toAscList map1
+          l2 = List.map (List.map extract) l1
+          l3 = List.map isDescendingOrder l2
+      in  unless (List.all id l3) (fail msgError)
 
------------------------------------------
--- IMPORT LIST OF RATES FROM PHP WORLD --
------------------------------------------
-
--- | The ID used in PHP world: "ar_rate.id" field value.
---   Every PHP rate, has a unique RateId.
---   Note that RatePlan can be composed of nested rates, having many RateSystemId
---   that are id in a different namespace, and with the RatePlan scope.
-type DBRateId = Int
-
--- | Store all the rate plans that must be used in current rating pass.
---   Because rating passage are using a limited time-frame, it is feasible
---   loading all the rates in advance.
-type CachedDBRates = SMap.Map DBRateId MainRatePlan
-
-cachedRates_empty = SMap.empty
-
--- | "ar_rate.internal_name" used from user for identifying a rate
---   and its successive versions, in a unique name.
---   There can be different rates with the same ReferenceName,
---   but they are valid on distinct time-frames.
-type DBRateReferenceName = String
-
--- | Store for each DBRateReferenceName, the date from wich is valid,
---   in order to load it if it is not appropiate for the CDR to rate.
---   @ensure: the list of LocalTime and DBRateId are in descending order of date.
-type DBRateChanges = SMap.Map DBRateReferenceName [(LocalTime, DBRateId)]
-
-rateChanges_empty :: DBRateChanges
-rateChanges_empty = Map.empty
+  extractAndCheckReverseOrder2 msgError extract map1
+    = let l1 = List.map snd $ IMap.toAscList map1
+      in  mapM_ (extractAndCheckReverseOrder msgError extract) l1
 
 rateChanges_respectCodeContracts :: DBRateChanges -> Either String ()
 rateChanges_respectCodeContracts map1
@@ -2468,12 +2553,94 @@ rateChanges_respectCodeContracts map1
           True -> Right ()
           False -> Left $ dbc_error "rp105"
 
--- | Add a value into the head of the list.
+-- -----------------------
+-- SERVICE CDRS EXPORT --
+
+-- | Export the telephone prefixes to use for service-cdrs.
+mainRatePlan_exportServiceCDRSTelephonePrefixes :: DB.MySQLConn -> MainRatePlan -> IO ()
+mainRatePlan_exportServiceCDRSTelephonePrefixes conn sp = do
+  s1 :: S.InputStream RootBundleRatePlan <- S.fromList $ mainRatePlan_bundleRates sp
+  s2 :: S.InputStream TelephonePrefixRecord
+     <- S.map
+          (\s -> let sName = bundle_serviceCDRDescription s
+                     sType = bundle_serviceCDRType s
+                     prefix = serviceCdr_defaultExternalTelephoneNumber sType sName
+                 in TelephonePrefixRecord {
+                       tpr_prefix = prefix
+                     , tpr_matchOnlyExactDigits = Just $ Text.length prefix
+                     , tpr_name = sName
+                     , tpr_geographic_location = sName
+                     , tpr_operator_type = sType
+                     , tpr_display_priority = 10
+                     }
+          ) s1
+  updateS <- telephonePrefixes_update conn
+  S.connect s2 updateS
+  return ()
+
+-- ----------------------------------------------
+-- Read Rates from DB
+
+-- | The character used as decimal separator.
+type DecimalSeparator = Char
+
+type FieldSeparator = Char
+
+type UseHeader = Bool
+
+-- | The ID used in PHP world: "ar_rate.id" field value.
+--   Every PHP rate, has a unique RateId.
+--   Note that RatePlan can be composed of nested rates, having many RateSystemId
+--   that are id in a different namespace, and with the RatePlan scope.
+type DBRateId = Int
+
+-- | From DBRateId to MainRatePlan.
+--   Because rating passage are using a limited time-frame, it is feasible
+--   loading all the rates in advance in RAM.
+type CachedDBRates = IMap.IntMap MainRatePlan
+
+cachedRates_empty :: CachedDBRates
+cachedRates_empty = IMap.empty
+
+-- | "ar_rate.internal_name" used from user for identifying a rate
+--   and its successive versions, in a unique name.
+--   There can be different rates with the same ReferenceName,
+--   but they are valid on distinct time-frames.
+type DBRateReferenceName = Text.Text
+
+-- | Store for each DBRateReferenceName, the date from wich is valid,
+--   in order to load it if it is not appropiate for the CDR to rate.
+--   @ensure: the list of CallDate and DBRateId are in descending order of date.
+type DBRateChanges = SMap.Map DBRateReferenceName [(LocalTime, DBRateId)]
+
+rateChanges_empty :: DBRateChanges
+rateChanges_empty = Map.empty
+
+-- | Add a value only if it is useful for rating the specified time frame.
 --   @require: recent values are inserted before older values (descending order on application date)
 --   @ensure: recent values are near the head of the list
-rateChanges_insert :: DBRateChanges -> DBRateReferenceName -> DBRateId -> LocalTime -> DBRateChanges
-rateChanges_insert changes rateRef rateId localTime
-  = Map.insertWith (\newValue oldValue -> oldValue ++ newValue) rateRef [(localTime, rateId)] changes
+rateChanges_insertIfInTimeFrame :: DBRateChanges -> CallDate -> CallDate -> DBRateReferenceName -> DBRateId -> CallDate -> DBRateChanges
+rateChanges_insertIfInTimeFrame changes rateCDRSFromCallDate rateCDRSToCallDate rateRef rateId applyRateFromTime
+  = Map.insertWith
+     (\newValue oldValue
+       -> let (applyRateToTime, _) = List.last oldValue
+          in case applyRateToTime <= rateCDRSFromCallDate of
+               True
+                 -> oldValue
+                    -- do nothing because the previous more recent rate was sufficient to rate all the CDRS
+                    -- in the rating time-frame, and this is superfluous, because too old
+               False
+                 -> case applyRateFromTime >= rateCDRSToCallDate of
+                      True
+                        -> oldValue
+                           -- do nothing because the current rate is outside rating time frame
+                      False
+                        -> oldValue ++ newValue
+                           -- insert the new rate time frame after the previous rate,
+                           -- so most recent rates are in head (NOTE: the input is from recent to old rate)
+
+     ) rateRef [(applyRateFromTime, rateId)] changes
+     -- NOTE: new rates are added by default by `insertWith` function.
 
 -- | Return the rate version, active at the CDR calldate.
 rateChanges_getRateId
@@ -2504,227 +2671,321 @@ rateChanges_getRateId rateChanges refName cdrTime
       then Just (i, l)
       else f (Just t) r
 
--- | Used for annotating in the type system, an automatic conversion from LocalTime.
-data LocalTimeFromMySQLTimeStamp = LocalTimeFromMySQLTimeStamp LocalTime
+-- | Load complete RatingParams.
+ratePlan_loadRatingParams :: InitialRatingParams -> IO RatingParams
+ratePlan_loadRatingParams p0 =
+  safeBracket
+    (openDBConnection (iparams_dbConf p0) True)
+    (\maybeExc conn -> do
+          case maybeExc of
+            Just exc
+              -> do DB.execute_ conn "ROLLBACK"
+                    return ()
+            Nothing
+              -> do DB.execute_ conn "COMMIT"
+                    return ()
+          DB.close conn)
 
-instance Show LocalTimeFromMySQLTimeStamp where
-  show (LocalTimeFromMySQLTimeStamp t) = showLocalTime t
+    (\conn -> do
 
-instance PC.FromField LocalTimeFromMySQLTimeStamp where
-  parseField s
-    = case fromMySQLDateTimeAsTextToLocalTime (decodeUtf8 s) of
-        Nothing
-          -> mzero
-        Just t
-          -> pure $ LocalTimeFromMySQLTimeStamp t
+      let precisionDigits = iparams_currencyPrecision p0
+      let configuredRateParsers = iparams_configuredRatePlanParsers p0
+      let isDebugMode = iparams_isDebugMode p0
+      let onlyImportedServices = iparams_onlyImportedServices p0
 
-data MaybeId = MaybeId (Maybe Int)
+      let p1 = ratingParams_empty p0
 
-instance Show MaybeId where
-  show (MaybeId Nothing) = show "NULL"
-  show (MaybeId (Just v)) = show v
+      --
+      -- Load all Rating Params, excepts rates and telephone prefixes.
+      -- These params are necessary for loading rates.
+      --
 
-instance PC.FromField MaybeId where
-  parseField bs
-    = let ts = decodeUtf8 bs
-      in  if ts == "\\N"
-          then pure $ MaybeId Nothing
-          else case fromTextToInt ts of
-                 Nothing
-                   -> fail $ "Unrecognized number \"" ++ (Text.unpack ts) ++ "\""
-                 Just i
-                   -> pure $ MaybeId $ Just i
+      rateCategories <- rateCategories_load conn isDebugMode
+      vendors <- vendors_load  conn isDebugMode
+      channelTypes <- channelTypes_load conn isDebugMode
+      channelsDomains <- channelDomains_load conn isDebugMode
+      extensions <- extensions_load isDebugMode (iparams_extensionsFileName p0)
 
--- | A CSV format used from PHP world for sending the changes in rate plans.
-data CSVFormat_RateChanges
-  = CSVFormat_RateChanges {
-       rpc1_id :: !DBRateId
-     , rpc1_formatName :: !Text.Text
-     , rpc1_fromTime :: !LocalTimeFromMySQLTimeStamp
-     , rpc1_internalName :: !Text.Text
-     , rpc1_maybeChangedRateId :: !MaybeId
-     , rpc1_shortDescription :: !Text.Text
-    } deriving (Show)
+      let p2 = p1 {
+                 params_rateCategories = rateCategories
+               , params_vendors = vendors
+               , params_channelTypes = channelTypes
+               , params_channelDomains = channelsDomains
+               , params_organizations = extensions
+               }
 
-instance PC.FromRecord CSVFormat_RateChanges where
-     parseRecord v
-       = case V.length v == 6 of
-           True
-             -> CSVFormat_RateChanges <$>
-                  v .! 0 <*>
-                  v .! 1 <*>
-                  v .! 2 <*>
-                  v .! 3 <*>
-                  v .! 4 <*>
-                  v .! 5
-           False
-             -> fail $ "There are " ++ show (V.length v) ++ " fields, instead of expected number of fields."
+      p3 <- serviceParams_load conn p2
 
--- | Load a rate plan environment form the PHP world,
---   parse them, and convert to proper rates in the Haskell World.
---   @require: rate stream is ordered by date of change (first older changes, later more recent changes)
-ratingEnv_load
-  :: FilePath
-     -- ^ rate plan changes
-  -> FilePath
-     -- ^ rate plan base file name
-  -> LocalTime
-     -- ^ from call date
-  -> Maybe LocalTime
-     -- ^ to call date
-  -> ConfiguredRatePlanParsers
-  -> EnvParams
-  -> Maybe Text.Text
-     -- ^ load only the rate with the specified name
-  -> (PS.SafeT IO) (Either AsterisellError RatingEnv)
+      --
+      -- Adapt rating time-frame of CDRS and BundleState
+      -- to a safe/stable one.
+      --
 
-ratingEnv_load fileName specificRateFileName fromDate maybeToDate ratePlanParsers params maybeOnlyRateWithName
-  = do PS.withFile fileName ReadMode (\handle -> do
+      p4 <- calcStableTimeFrame conn p3
+      let ratesToImport1 :: HSet.HashSet Text.Text = HSet.fromList ["main-cost-rate", "main-income-rate"]
+      p5 <- ratePlan_loadRates conn p4 ratesToImport1
 
-         -- this is a pipe that convert a file to a stream of bytes
-         let sourceFile = PB.fromHandle handle
+      p6 <- case env_getRate p5 "main-income-rate" (params_fromDate p5) of
+             Nothing
+               -> throw $ AsterisellException $ "The \"main-income-rate\" is missing at date " ++ (show $ fromLocalTimeToMySQLDateTime $ params_fromDate p5)
 
-         -- this is a pipe that convert the stream of bytes to a stream of records.
-         -- Rates are ordered respect starting application date.
-         let sourceRecords :: Producer (Either String CSVFormat_RateChanges) (PS.SafeT IO) ()
-             sourceRecords = PC.decodeWith csvOptions PC.NoHeader sourceFile
+             Just (ratePlan, _)
+               -> let (d1, d2) = mainRatePlan_getBundleRateStartCallDate ratePlan (params_fromDate p5)
+                      d3 = mainRatePlan_getBundleRateEndCallDate ratePlan (params_toDate p5)
+                  in  return p5 {
+                                params_bundleStateFromCallDate = d1
+                              , params_bundleStateCanBeSavedFromCallDate = d2
+                              , params_bundleStateToCallDate = d3
+                             }
 
-         -- Insert into the change of rates, only rates inside the rating time frame
-         maybeRatePlanChanges :: Either AsterisellError (Int, DBRateChanges, Map.Map DBRateId CSVFormat_RateChanges)
-           <- PP.fold calcRatePlanChanges (Right (1, rateChanges_empty, Map.empty)) (id) sourceRecords
+      let checkP1 = ratingParams_empty $ p0 { iparams_fromDate = params_bundleStateFromCallDate p6
+                                            , iparams_toDate = params_bundleStateToCallDate p6 }
+      checkP2 <- calcStableTimeFrame conn checkP1
+      when (params_isShorterSafeTimeFrame checkP2)
+           (throw $ AsterisellException
+                      ("The CDRs must be rated from date " ++  show (fromLocalTimeToMySQLDateTime $ params_bundleStateFromCallDate p6) ++ " (taking in consideration the start of the bundle time-frame), to date " ++ show (fromLocalTimeToMySQLDateTime $ params_bundleStateToCallDate p6) ++ " (taking in consideration the ending of the bundle time frame), but in this time-frame there are changes in the main income or cost rate plan (note: not the individual referenced CSV rates that can change, but the main rate plan), and Asterisell can not determine which rate plan to use for calculating bundles. Specify a common rate plan in the specified time-frame, that takes in consideration both old customers with the old rating plan, and new customers with different rating categories and different rating plans. At the end of the bigger bundle time-frame, you can load a completely different rating plan, that can ignore old types of rating plans, but until they can be virtually active, you must include them in rating plan of the bundle time-frame."))
 
-         case maybeRatePlanChanges of
-           Left err
-             -> return $ Left err
-           Right (_, ratePlanChanges, rateCSVFormat)
-             -> do maybeAllRates <- foldM importReferencedRatePlan (Right Map.empty) (Map.assocs rateCSVFormat)
-                   case maybeAllRates of
-                     Left err
-                       -> return $ Left err
-                     Right allRates
-                       -> return $ Right $ RatingEnv {
-                                             env_changes = ratePlanChanges
-                                           , env_rates = allRates
-                                           , env_params = params
-                                           , env_extensionsToExport = trie_empty
-                                                     }
+      -- If there is an already cached and saved bundle_state, use it
+      p7 <- case onlyImportedServices of
+             True
+               -> return $ p6 { params_bundleStateFromCallDate = params_fromDate p6
+                              , params_bundleStateCanBeSavedFromCallDate = params_fromDate p6
+                              , params_bundleStateToCallDate = params_toDate p6
+                              }
+             False
+               -> do let query1 = [str| SELECT
+                                      |   id
+                                      | , to_time
+                                      | , data_file
+                                      | FROM ar_bundle_state
+                                      | WHERE to_time <= ?
+                                      | AND to_time > ?
+                                      | ORDER BY to_time
+                                      | DESC LIMIT 1
+                                      |]
 
-         )
+                     let params1 = [toDBLocalTime $ params_fromDate p6, toDBLocalTime $ params_bundleStateFromCallDate p6]
+                     -- NOTE: consider `<= ?` because the date is exclusive, so all the new CDRS from this date (inclusive)
+                     -- to next dates can be added to the old bundle-state. In other word, it contains all CDRS before to_time.
+                     -- NOTE: consider `> ?` because otherwise it is better starting with an empty bundle.
+
+                     (qsDef, qs) <- DB.query conn query1 params1
+                     maybeRow <- S.toList qs
+                     DB.skipToEof qs
+                     case maybeRow of
+                       [[_, savedBundleCallDate, content]]
+                         -> case  DBS.decode $ LZ.decompress (fromDBByteString content) of
+                              Left err
+                                -> return p6
+                              Right (b :: BundleState)
+                                -> return $ p6 { params_bundleStateFromCallDate = fromDBLocalTime savedBundleCallDate
+                                               , params_bundleStateCanBeSavedFromCallDate = fromDBLocalTime savedBundleCallDate
+                                               }
+                       [] -> return p6
+                       unexpected
+                         -> do throw $ AsterisellException ("Error 11775 in application code. Unexpected result: " ++ show unexpected ++ ", with column defs " ++ show qsDef)
+
+
+      --
+      -- Load Rates in the rating time frame.
+      --
+
+      let allRatesToImport
+            = List.foldl' mainRatePlan_externalRateReferences ratesToImport1 (IMap.elems $ params_rates p7)
+
+      p8 <- ratePlan_loadRates conn p7 allRatesToImport
+
+      (when isDebugMode)
+        (case ratingParams_respectCodeContracts p8 of
+           Left err -> throw $ AsterisellException err
+           Right () -> return ())
+
+      cdrImporters <- deriveFastLookupCDRImportes conn 
+
+      let p9 = p8 { params_fastLookupCDRImporters = cdrImporters }
+
+      --
+      -- Update telephone prefix table with info derived from services and rates.
+      --
+
+      service_exportServiceCDRSTelephonePrefixes conn p9
+      case env_getRate p9 "main-income-rate" (params_bundleStateFromCallDate p9) of
+             Nothing
+               -> throw $ AsterisellException $ "The \"main-income-rate\" is missing at date " ++ (show $ fromLocalTimeToMySQLDateTime $ params_bundleStateFromCallDate p9)
+
+             Just (ratePlan, _)
+               -> mainRatePlan_exportServiceCDRSTelephonePrefixes conn ratePlan
+
+      telephonePrefixes <- telephonePrefixes_load conn isDebugMode
+      -- NOTE: doing this only now, we are sure to load the last/updated telephone prefixes
+
+      return $ p9 { params_telephonePrefixes = telephonePrefixes })
+
+  where
+
+   calcStableTimeFrame :: DB.MySQLConn -> RatingParams -> IO RatingParams
+
+   calcStableTimeFrame conn p1 
+     = let fromCallDate = params_fromDate p1
+           toCallDate = params_toDate p1
+
+           q = [str| SELECT
+                   |   from_time
+                   | FROM ar_rate
+                   | WHERE (internal_name = 'main-cost-rate' OR internal_name = 'main-income-rate')
+                   | AND from_time > ?
+                   | AND from_time < ?
+                   | ORDER BY from_time
+                   | LIMIT 1
+                   |]
+
+           values = [toDBLocalTime fromCallDate, toDBLocalTime toCallDate]
+
+       in do (_, inS) <- DB.query conn (DB.Query q) values
+             mr <- S.read inS
+             case mr of
+               Nothing
+                 -> return $ p1 { params_isShorterSafeTimeFrame = False }
+               Just [r]
+                 -> do DB.skipToEof inS
+                       return $ p1 { params_isShorterSafeTimeFrame = True
+                                   , params_initial = (params_initial p1) { iparams_toDate = fromDBLocalTime r } }
+
+-- | Complete RatingParams with the info about the specified rates.
+ratePlan_loadRates
+  :: DB.MySQLConn
+  -> RatingParams
+     -- @require the time frame is safe: there are no changes in main or income cost rates
+  -> HSet.HashSet Text.Text
+     -- ^ load only the rate with the specified internal name
+  -> IO RatingParams
+
+ratePlan_loadRates conn p1 ratesToImport = do
+
+  -- Get the rates used in the rating time frame,
+  -- without loading also the big content.
+
+  let q1 = [str| SELECT
+               |   id
+               | , internal_name
+               | , from_time
+               | FROM ar_rate
+               | WHERE from_time < ?
+               | ORDER BY from_time DESC
+               |]
+
+  (_, inS1) <- DB.query conn (DB.Query q1) [toDBLocalTime $ params_toDate p1]
+
+  changes :: DBRateChanges
+    <- S.fold (\s [rId', rInternalName', rToTime']
+                 -> let rId = fromDBInt rId'
+                        rInternalName = fromDBText rInternalName'
+                        rToTime = fromDBLocalTime rToTime'
+                    in case HSet.member rInternalName ratesToImport of
+                         False
+                           -> s
+                         True
+                           -> rateChanges_insertIfInTimeFrame s (params_fromDate p1) (params_toDate p1) rInternalName rId rToTime
+              ) rateChanges_empty inS1
+
+  -- Load the big content of only really used rates.
+
+  let q2 = [str| SELECT
+               |   ar_rate_format.internal_name
+               | , ar_rate.source_data_file
+               | FROM ar_rate
+               | INNER JOIN ar_rate_format
+               | ON ar_rate.ar_rate_format_id = ar_rate_format.id
+               | WHERE ar_rate.id = ?
+               |]
+
+  getRateStmt <- DB.prepareStmt conn (DB.Query q2)
+
+  -- MAYBE create a parallel stream job processor using many cores for parsing different rates
+
+  rates :: CachedDBRates <- M.foldM (loadRate getRateStmt) cachedRates_empty (List.concat $ SMap.elems changes)
+
+  return p1 {
+             params_rateChanges = changes
+           , params_rates = rates
+           }
 
  where
 
-   csvOptions = PC.defaultDecodeOptions
+  loadRate :: DB.StmtID -> CachedDBRates -> (LocalTime, DBRateId) -> IO CachedDBRates
+  loadRate getRateStmt s (_, rateId) = do
+    (_, inS2) <- DB.queryStmt conn getRateStmt [toDBInt64 rateId]
+    maybeR  <- S.read inS2
+    case maybeR of
+      Nothing
+        -> throw $ AsterisellException
+                     ("The rate with id \"" ++ (show rateId) ++ "\" is not present in the DB. The CDRs can not be rated. This is an error of the application. If the problem persist, contact the assistance.")
 
-   importReferencedRatePlan (Left err) _
-     = do return (Left err)
+      Just [formatName', rateContent']
+        -> do S.skipToEof inS2
+              let formatName = fromDBText formatName'
+              rateContent <-
+                case fromMaybeDBValue fromDBByteString rateContent' of
+                  Nothing
+                    -> throw $ AsterisellException ("The rate with id  \"" ++ show rateId ++ "\" has no content. Add the content of the rate.")
+                  Just c
+                    -> return c
 
-   importReferencedRatePlan (Right cachedRates) (rateId, csv)
-     = do  let rateFileName = specificRateFileName ++ show rateId ++ ".rate"
-           let formatName = rpc1_formatName csv
-           let rateRefName = rpc1_internalName csv
-           case configuredRatePlanParsers_get ratePlanParsers (Text.unpack formatName) of
-             Nothing
-               -> return $ Left $ createError
-                                    Type_Critical
-                                    Domain_RATES
-                                    ("unknown rate format - " ++ (Text.unpack formatName))
-                                    ("The rate format \"" ++ (Text.unpack formatName) ++ "\" used for the definition of rate \"" ++ (Text.unpack rateRefName) ++ "\" is unknown, and the rate specification can not be parsed. The call report will not report the CDRs with problems, because this is a critical error preventing the import and rating of all the CDRs in the timeframe.")
-                                    ("The CDRs can not be rated.")
-                                    ("Use a correct rate format name, or contact the assistance, for adding the support for this new rate format in the application code.")
+              case configuredRatePlanParsers_get (params_configuredRatePlanParsers p1) formatName of
+                Nothing
+                  -> throw $ AsterisellException
+                               ("The rate format \"" ++ (Text.unpack formatName) ++ "\" used for the definition of rate with id " ++ show rateId ++ "\" is unknown, and the rate specification can not be parsed. The call report will not report the CDRs with problems, because this is a critical error preventing the import and rating of all the CDRs in the timeframe. The CDRs can not be rated. Use a correct rate format name, or contact the assistance, for adding the support for this new rate format in the application code.")
 
-             Just rateParser
-               -> do maybeRatePlan <- rateParser rateFileName params
-                     case maybeRatePlan of
-                       Left err
-                         -> return $ Left $ err {
-                                              asterisellError_key = asterisellError_key err ++ " - " ++ show rateId
-                                            , asterisellError_type = Type_Critical
-                                            , asterisellError_domain = Domain_RATES
-                                            , asterisellError_description = "Error during parsing of rate id " ++ show rateId ++ ", with name \"" ++ (Text.unpack rateRefName) ++ "\"." ++ asterisellError_description err
-                                            , asterisellError_effect = "CDRs will be not rated. " ++ asterisellError_effect err
-                                            , asterisellError_proposedSolution = "Fix the rate specification. " ++ asterisellError_proposedSolution err
-                                                }
-                       Right ratePlan1
-                         -> return $ Right $ Map.insert rateId ratePlan1 cachedRates
+                Just rateParser
+                  -> do case rateParser p1 rateContent of
+                          Left err
+                            -> throw $ AsterisellException
+                                         ("Error during parsing of rate id " ++ show rateId ++ ". CDRs will be not rated. Fix the rate specification. Parsing error: " ++ err)
+                          Right ratePlan1
+                            -> return $ IMap.insert rateId ratePlan1 s
 
+-- --------------------------------
+-- EXTERNAL RATE PARSING SUPPORT
 
-   calcRatePlanChanges (Left err) _ = Left err
+mainRatePlan_externalRateReferences :: HSet.HashSet ExternalRateReference -> MainRatePlan -> HSet.HashSet ExternalRateReference
+mainRatePlan_externalRateReferences s p = f s p
+ where
 
-   calcRatePlanChanges (Right (line, changes1, cache1)) maybeRatePlan
-     = case maybeRatePlan of
-         Left err -> Left $ createError
-                              Type_Critical
-                              Domain_RATES
-                              ("rate changes error")
-                              ("Error parsing the system generated file \"" ++ fileName ++ "\", with changes in rates, at line " ++ show line ++ ". " ++ err)
-                              ("CDRs will be not rated. The call report will not report the CDRs with problems, because this is a critical error preventing the import and rating of all the CDRs in the timeframe.")
-                              ("This is an error in the application. Contact the assistance.")
-         Right ratePlan
-           -> let (LocalTimeFromMySQLTimeStamp ratePlanStartFrom) = rpc1_fromTime ratePlan
+    f :: HSet.HashSet ExternalRateReference -> MainRatePlan -> HSet.HashSet ExternalRateReference
+    f s1 p1
+      = let s2 = List.foldl' ratePlan_externalRateReferences s1 (mainRatePlan_normalRates p1)
+            s3 = List.foldl' bundleRate_externalRateReferences s2 (List.map bundle_plan $ mainRatePlan_bundleRates p1)
+         in s3
 
-                  -- test if this rate replace a "new" rate specification with the same name.
-                  -- The searched rate is new because they are loaded in reverse order of date,
-                  -- so the old start-date is the end-date of this rate.
-                  ratePlanMaybeEndTo :: Maybe LocalTime
-                  ratePlanMaybeEndTo
-                    = case Map.lookup (Text.unpack rateRef) changes1 of
-                        Nothing
-                          -> Nothing
-                        Just []
-                          -> Nothing
-                        Just ((r, _):_)
-                          -> Just r
+    bundleRate_externalRateReferences :: HSet.HashSet ExternalRateReference -> BundleRatePlan -> HSet.HashSet ExternalRateReference
+    bundleRate_externalRateReferences s1 p1
+      = case bundle_children p1 of
+          Left e
+            -> HSet.insert e s1
+          Right p2s
+            -> List.foldl' bundleRate_externalRateReferences s1 p2s
 
-                  rateId = rpc1_id ratePlan
-                  -- this is the PHP world id of the rate, and it is unique
+ratePlan_externalRateReferences :: HSet.HashSet ExternalRateReference -> RatePlan -> HSet.HashSet ExternalRateReference
+ratePlan_externalRateReferences s p = f s p
+ where
 
-                  rateRef = rpc1_internalName ratePlan
-                  -- this is the PHP world internal/symbolic name of the rate, and it is unique,
-                  -- or if it change, then replace an old rate, with a new version.
-
-                  changes2 = rateChanges_insert changes1 (Text.unpack rateRef) rateId ratePlanStartFrom
-
-                  cache2 = Map.insert rateId ratePlan cache1
-
-                  excludeRate1
-                    = case maybeToDate of
-                        Nothing
-                          -> False
-                        Just toDate
-                          -> ratePlanStartFrom > toDate
-                             -- exclude rates that are applicable after the ending of the rating event time frame
-
-                  excludeRate2
-                    = case ratePlanMaybeEndTo of
-                        Nothing
-                          -> False
-                        Just ratePlanEndTo
-                          -> ratePlanEndTo <= fromDate
-                             -- exclude rates having a new version before the starting of the rating event time frame
-
-                  excludeRate3
-                    = case maybeOnlyRateWithName of
-                        Nothing -> False
-                        Just onlyRateWithName -> not (onlyRateWithName == rateRef)
-                                                 -- exclude rates with a different name
-
-              in if excludeRate1 || excludeRate2 || excludeRate3
-                 then Right (line + 1, changes1, cache1)
-                 else Right (line + 1, changes2, cache2)
-
------------------------------------
--- EXTERNAL RATE PARSING SUPPORT --
------------------------------------
+   f :: HSet.HashSet ExternalRateReference -> RatePlan -> HSet.HashSet ExternalRateReference
+   f s1 p1
+     = let s2 = List.foldl' f s1 (rate_elsePart p1)
+       in case rate_children p1 of
+            Left e
+              -> HSet.insert e s2
+            Right rs
+              -> List.foldl' f s2 rs
 
 -- | A name for a rate format, as imported from the external database.
-type RateFormatName = String
+type RateFormatName = Text.Text
 
 -- | Parse a rate specification, deriving the matching function.
---   The returned error message will be enriched from the caller,
---   with the rate file name.
---   The EnvParams are passed, because they can be used
---   for validating in a static way the rate file.
-type RatePlanParser = FilePath -> EnvParams -> (PS.SafeT IO) (Either AsterisellError MainRatePlan)
+type RatePlanParser = RatingParams -> BS.ByteString -> (Either String MainRatePlan)
+
+instance Show RatePlanParser where
+    show s = "<rate plan parser>"
 
 type ConfiguredRatePlanParsers = Map.Map RateFormatName RatePlanParser
 
@@ -2733,50 +2994,17 @@ ratePlanSpecificationType :: Text.Text
 ratePlanSpecificationType = Text.pack "rate-plan-specification"
 
 -- | The reference name of an external rate.
-type ExternalRateReference = String
+type ExternalRateReference = Text.Text
 
 -- | The result of compilation of external rate plans.
 type ExternalRatePlans = Map.Map ExternalRateReference RatePlan
 
 configuredRatePlanParsers_get :: ConfiguredRatePlanParsers -> RateFormatName -> Maybe RatePlanParser
-configuredRatePlanParsers_get conf1 l
-  = Map.lookup l conf1
-
-----------------
--- RATING ENV --
-----------------
-
--- | Extensions to export to an external database.
-type ExtensionsToExport = Trie ()
-
--- | A running environment to use during rating.
---   In this environment there are:
---   *  only read-only values, that do not change during rating of CDRs;
---   *  values not depending from the current rate used for rating a CDR;
-data RatingEnv
-  = RatingEnv {
-      env_changes :: ! DBRateChanges
-    , env_rates :: ! CachedDBRates
-    , env_params :: ! EnvParams
-    , env_extensionsToExport :: ExtensionsToExport
-    } deriving(Show)
-
-env_empty params = RatingEnv {
-       env_changes = rateChanges_empty
-     , env_rates = cachedRates_empty
-     , env_params = params
-     , env_extensionsToExport = trie_empty
-  }
-
-env_respectCodeContracts :: RatingEnv -> Either String ()
-env_respectCodeContracts env
-  = do rateChanges_respectCodeContracts (env_changes env)
-       params_respectCodeContracts (env_params env)
-       return ()
+configuredRatePlanParsers_get conf1 l = Map.lookup l conf1
 
 -- | Retrieve a RatePlan, using PHP reference name.
 env_getRate
-  :: RatingEnv
+  :: RatingParams
   -> DBRateReferenceName
   -> LocalTime
   -- ^ the CDR calldate
@@ -2788,199 +3016,22 @@ env_getRate
            )
 
 env_getRate env refName cdrTime
-  = let rateChanges = env_changes env
+  = let rateChanges = params_rateChanges env
     in case rateChanges_getRateId rateChanges refName cdrTime of
          Nothing
            -> Nothing
          Just (i, t)
-           -> Just (fromJust1 "rp30" $ Map.lookup i (env_rates env), t)
+           -> Just (fromJust1 "rp30" $ IMap.lookup i (params_rates env), t)
 
 ------------------------------
 -- GENERIC PARSING OF RATES --
 ------------------------------
-
-parseRatePlan :: (EnvParams -> Parsec.Parser MainRatePlan) -> FilePath -> EnvParams -> (PS.SafeT IO) (Either AsterisellError MainRatePlan)
-parseRatePlan parserToCall fileName env
-  = do !maybeResult <- liftIO $! Parsec.parseFromFile (parserToCall env) fileName
-       case maybeResult of
-            Left err
-              -> return $ Left $ createError
-                                   Type_Critical
-                                   Domain_RATES
-                                   ("error parsing - " ++ fileName)
-                                   ("The rate file \"" ++ fileName ++ "\" has a bad format: " ++ show err)
-                                   ("The CDRs in the time frame of this rate will be not rated. The call report will not report the CDRs with problems, because this is a critical error preventing the import and rating of all the CDRs in the timeframe.")
-                                   ("Correct the format of the rate file, or contact the assistance if there are no problems in the format of the file.")
-
-            Right result
-              -> return $ Right result
-
-
-parseRatePlanUsingParsecParser :: (EnvParams -> Parsec.Parser MainRatePlan) -> RatePlanParser
-parseRatePlanUsingParsecParser parserToCall fileName env
-  = do !r <- parseRatePlan parserToCall fileName env
-       case r of
-         Left err
-           -> return $! Left err
-         Right ratePlan
-           -> return $! Right ratePlan
-
--- | Parse a file using Attoparsec, and chunk by chunk,
---   so it can be used for big files, without using too much RAM.
-parseRatePlanUsingAttoParsec :: (EnvParams -> LazyAttoParsec.Parser MainRatePlan) -> RatePlanParser
-parseRatePlanUsingAttoParsec  parserToCall fileName envParams
-  = do !r <- openFileAndParse (parseRate True)
-       case r of
-         Left msg
-           -> do err <- countLineWithError
-                 let lineWithError
-                       = case err of
-                           Left _ -> "unspecified"
-                           Right l -> show l
-                 return $ Left $ createError
-                                        Type_Critical
-                                        Domain_RATES
-                                        ("error parsing rate file - " ++ fileName)
-                                        ("The rate file \"" ++ fileName ++ "\" has a bad format at line " ++ lineWithError ++ ". " ++ msg)
-                                        ("The CDRs in the time frame of this rate will be not rated. The call report will not report the CDRs with problems, because this is a critical error preventing the import and rating of all the CDRs in the timeframe.")
-                                        ("Correct the format of the rate file, or contact the assistance.")
-
-
-         Right rs
-           -> return $ Right rs
-
- where
-
-  myEitherResult :: LazyAttoParsec.Result r -> Either String r
-  myEitherResult (LazyAttoParsec.Done t r) = if LazyText.null t then Right r else Left "Parse error."
-  myEitherResult err = LazyAttoParsec.eitherResult err
-
-  openFileAndParse :: LazyAttoParsec.Parser a -> (PS.SafeT IO) (Either String a)
-  openFileAndParse p =
-    PS.bracket
-      (do handle <- IO.openFile fileName ReadMode
-          IO.hSetEncoding handle IO.utf8_bom
-          return handle
-      )
-
-      (hClose)
-
-      (\handle -> do
-          fileContent <- liftIO $ LazyIO.hGetContents handle
-          return $! myEitherResult $! LazyAttoParsec.parse p fileContent
-          -- NOTE: force a strict evaluation, otherwise the file is closed
-          -- before it is completeley parsed.
-      )
-
-  parseRate True  = (parserToCall envParams) <* LazyAttoParsec.endOfInput
-  parseRate False = (parserToCall envParams)
-
-  countLineWithError :: (PS.SafeT IO) (Either String Int)
-  countLineWithError = do
-    totLines <- openFileAndParse (countLines 1)
-    remainingLines <- openFileAndParse (parseRate False *> countLines 1)
-    case (totLines, remainingLines) of
-      (Left err, _) -> return $ Left err
-      (_, Left err) -> return $ Left err
-      (Right totLines', Right remainingLines') -> return $ Right $ totLines' - remainingLines' + 1
-
-countLines :: Int -> LazyAttoParsec.Parser Int
-countLines n =
-  LazyAttoParsec.option n (snl *> LazyAttoParsec.endOfLine *> countLines (n + 1))
- where
-   snl = LazyAttoParsec.skipWhile (\c -> not $ (LazyAttoParsec.isEndOfLine c))
-
--- TODO old code to delete
-
--- | Parse a file using Attoparsec, and chunk by chunk,
---   so it can be used for big files, without using too much RAM.
-parseRatePlanUsingAttoParsecOld :: (EnvParams -> LazyAttoParsec.Parser MainRatePlan) -> RatePlanParser
-parseRatePlanUsingAttoParsecOld  parserToCall fileName envParams
-  = do r <- openFileAndParse (parseRate True)
-       case r of
-         Left msg
-           -> do err <- countLineWithError
-                 let lineWithError
-                       = case err of
-                           Left _ -> "unknown"
-                           Right l -> show l
-                 return $ Left $ createError
-                                        Type_Critical
-                                        Domain_RATES
-                                        ("error parsing rate file - " ++ fileName)
-                                        ("The rate file \"" ++ fileName ++ "\" has a bad format at line " ++ lineWithError ++ ". " ++ msg)
-                                        ("The CDRs in the time frame of this rate will be not rated. The call report will not report the CDRs with problems, because this is a critical error preventing the import and rating of all the CDRs in the timeframe.")
-                                        ("Correct the format of the rate file, or contact the assistance.")
-
-         Right rs
-           -> return $ Right rs
- 
- where
-
-  myEitherResult :: LazyAttoParsec.Result r -> Either String r
-  myEitherResult (LazyAttoParsec.Done t r) = if LazyText.null t then Right r else Left "Parse error."
-  myEitherResult err = LazyAttoParsec.eitherResult err
-   
-  openFileAndParse :: LazyAttoParsec.Parser a -> (PS.SafeT IO) (Either String a)
-  openFileAndParse p = do
-    PS.bracket
-      (do handle <- IO.openFile fileName ReadMode
-          IO.hSetEncoding handle IO.utf8_bom
-          return handle
-      )
-
-      (hClose)
-
-      (\handle
-         -> do fileContent <- liftIO $ LazyIO.hGetContents handle
-               return $ myEitherResult $ LazyAttoParsec.parse p fileContent
-      )
-
-  countLines :: Int -> LazyAttoParsec.Parser Int 
-  countLines n
-     = do LazyAttoParsec.skipWhile (\c -> not $ LazyAttoParsec.isEndOfLine c)
-          (Control.Applicative.<|>)
-            (do LazyAttoParsec.endOfInput
-                return n)
-            (do LazyAttoParsec.endOfLine
-                countLines (n + 1))
-
-  parseRate :: Bool -> LazyAttoParsec.Parser MainRatePlan
-  parseRate complete = do
-    r <- (parserToCall envParams)
-    isEOF <- LazyAttoParsec.atEnd
-    case (complete, isEOF) of
-      (True, False) -> fail "Parsing error."
-      _ -> do return r
-      
-  countLineWithError :: (PS.SafeT IO) (Either String Int)
-  countLineWithError = do 
-    totLines <- openFileAndParse (countLines 1)
-    remainingLines <- openFileAndParse
-                            (do parseRate False
-                                countLines 1)
-    case (totLines, remainingLines) of
-      (Left err, _) -> return $ Left err
-      (_, Left err) -> return $ Left err
-      (Right totLines', Right remainingLines') -> return $ Right $ totLines' - remainingLines'
-
--- | Test the parser.
-testParserUsingAttoParsec :: (Show a) => LazyAttoParsec.Parser a -> String -> IO ()
-testParserUsingAttoParsec p fileName
-  = do handle <- IO.openFile fileName ReadMode
-       IO.hSetEncoding handle IO.utf8_bom
-       fileContent <- liftIO $ LazyIO.hGetContents handle
-       let !r = LazyAttoParsec.parse (p <* LazyAttoParsec.endOfInput) fileContent
-       case LazyAttoParsec.eitherResult r of
-         Left msg
-           -> putStrLn $ "Error: \n" ++ msg
-         Right rs
-           -> putStrLn $ "Result: \n" ++ show r
+-- MAYBE remove this section
 
 -- | Show a CDR content, with also additional initializated content.
 --   This make sense only if the CDR has passed the first initialization pass, and there are errors in the next rating part.
-rate_showDebug :: RatingEnv -> CDR -> String
-rate_showDebug env1 cdr
+rate_showDebug :: RatingParams -> CDR -> String
+rate_showDebug env cdr
   =    (cdr_showDebug cdr)
     ++ (addLine "organization-ids" organizationIds)
     ++ (addLine "price-category" priceCategoryName)
@@ -2991,8 +3042,6 @@ rate_showDebug env1 cdr
 
     addLine l v
       = "\n   " ++ l ++ ": " ++ v
-
-    env = env_params env1
 
     info = params_organizations env
 
@@ -3014,7 +3063,7 @@ rate_showDebug env1 cdr
            Nothing
              -> unassigned
            Just id
-             -> fromJust1 "rpa1" $ Map.lookup id rateCategories
+             -> Text.unpack $ fromJust1 "rpa1" $ Map.lookup id rateCategories
 
     organizationIds
        = case cdr_cachedParentIdHierarchy cdr of
@@ -3028,7 +3077,7 @@ rate_showDebug env1 cdr
           Nothing
             -> unassigned
           Just id
-            -> fromJust1 "rpa2" $ Map.lookup id channelTypes
+            -> Text.unpack $ fromJust1 "rpa2" $ Map.lookup id channelTypes
 
     vendorName
       = case cdr_vendorId cdr of
@@ -3038,13 +3087,527 @@ rate_showDebug env1 cdr
             -> case Map.lookup id vendors of
                  Nothing
                    -> "unnamed-vendor-" ++ show id
-                      -- DEV-NOTE: vendors without an explicit internal-name remain unnamed
+                 -- DEV-NOTE: vendors without an explicit internal-name remain unnamed
                  Just n
-                   -> n
+                   -> Text.unpack n
 
-----------------
--- UNIT TESTS --
-----------------
+-- --------------------------------------------------
+-- Manage Rent Services associated to customers.
+-- They are different from Bundle Service CDRs, because they are explicitely associated to a customer though Service related tables,
+-- and they are not associated to BundleRate and Price Category.
+
+data Service
+  = Service {
+      service_id :: !Int
+    , service_name :: !Text.Text
+    , service_description :: !Text.Text
+    , service_priceIsProportionalToActivationDate :: !Bool
+    , service_priceChangeWithPriceList :: !Bool
+    , service_isAppliedOnlyOneTime :: !Bool
+    , service_schedule :: BundleRateTimeFrame
+  } deriving(Show, Generic, NFData)
+
+
+data ServicePrice
+  = ServicePrice {
+      servicePrice_id :: Int
+    , servicePrice_serviceId :: Int
+    , servicePrice_fromDate :: CallDate
+    , servicePrice_price :: MonetaryValue
+    } deriving (Show, Generic, NFData)
+
+data AssignedService
+  = AssignedService {
+      assignedService_id :: Int
+    , assignedService_serviceId :: Int
+    , assignedService_unitId :: Int
+    , assignedService_nrOfItems :: Int
+    , assignedService_fromDate :: CallDate
+    , assignedService_discount :: Rational
+    } deriving (Show, Generic, NFData)
+
+-- | Load services from the DB.
+serviceParams_load :: DB.MySQLConn -> RatingParams -> IO RatingParams
+serviceParams_load  conn envParams = do
+
+     let q1 = [str| SELECT
+                  |   id
+                  | , customer_name
+                  | , customer_description
+                  | , customer_price_depend_from_activation_date
+                  | , customer_price_change_with_price_list
+                  | , is_applied_only_one_time
+                  | , schedule_timeframe
+                  | , schedule_from
+                  | FROM ar_service
+                  |]
+
+     (_, inS) <- DB.query_ conn q1
+     services <- S.foldM importService IMap.empty inS
+
+     let q2 = [str| SELECT
+                  |   id
+                  | , ar_service_id
+                  | , from_date
+                  | , price
+                  | FROM ar_service_price
+                  | ORDER BY from_date DESC
+                  |]
+
+     (_, inS) <- DB.query_ conn q2
+     let precisionDigits = params_currencyPrecision envParams
+     servicePrices <- S.foldM (importServicePrice precisionDigits) IMap.empty inS
+
+     let q3 = [str| SELECT
+                  |   id
+                  | , ar_service_id
+                  | , ar_organization_unit_id
+                  | , nr_of_items
+                  | , from_date
+                  | , discount
+                  | FROM ar_assigned_service
+                  | ORDER BY from_date DESC, nr_of_items DESC
+                  |]
+
+
+     (_, inS) <- DB.query_ conn q3
+     assignedServices <- S.foldM importAssignedService IMap.empty inS
+
+     let r = envParams {
+                  params_services = services
+                , params_servicePrices = servicePrices
+                , params_assignedServices = assignedServices
+             }
+
+     case (params_isDebugMode envParams) of
+        False
+            -> return r
+        True
+            -> case serviceParams_respectCodeContracts r of
+                 Right ()
+                     -> return r
+                 Left err
+                     -> throw $ AsterisellException $ "Error in application code. Failed code contracts. " ++ err
+
+ where
+
+   importService
+     map1
+     [  id'
+      , customer_name'
+      , customer_description'
+      , customer_price_depend_from_activation_date'
+      , customer_price_change_with_price_list'
+      , is_applied_only_one_time'
+      , schedule_timeframe'
+      , schedule_from'] = do
+
+       let id = fromDBInt id'
+       customer_name <- nn "service" id fromDBText customer_name'
+       let customer_description
+             = case fromMaybeDBValue fromDBText customer_description' of
+                 Nothing -> ""
+                 Just d -> d
+
+       customer_price_depend_from_activation_date <- nn "service" id fromDBBool customer_price_depend_from_activation_date'
+       customer_price_change_with_price_list <- nn "service" id fromDBBool customer_price_change_with_price_list'
+       is_applied_only_one_time <- nn "service" id fromDBBool is_applied_only_one_time'
+       schedule_timeframe <- nn "service" id fromDBText schedule_timeframe'
+       schedule_from <- nn "service" id fromDBText schedule_from'
+
+       s <- case schedule_timeframe of
+              "monthly"
+                -> case fromTextToInt $ schedule_from of
+                     Nothing
+                       -> throw $ AsterisellException $ "In service with id " ++ show id ++ "expected a number in field schedule_from, instead of " ++ (show $ schedule_from)
+                     Just i
+                       -> return $ MonthlyTimeFrame i
+
+              "weekly"
+                -> case schedule_from of
+                     "Monday" -> return $ WeeklyTimeFrame 1
+                     "Tuesday" -> return $ WeeklyTimeFrame 2
+                     "Wednesday" -> return $ WeeklyTimeFrame 3
+                     "Thursday" -> return $ WeeklyTimeFrame 4
+                     "Friday" -> return $ WeeklyTimeFrame 5
+                     "Saturday" -> return $ WeeklyTimeFrame 6
+                     "Sunday" -> return $ WeeklyTimeFrame 7
+                     _ -> throw $ AsterisellException $ "In service with id " ++ show id ++ " expected a day of week like Monday, Tuesday, and so on, in schedule_from, instead of " ++ show schedule_from
+
+       let r = Service {
+                service_id = id
+              , service_name = customer_name
+              , service_description = customer_description
+              , service_priceIsProportionalToActivationDate = customer_price_depend_from_activation_date
+              , service_priceChangeWithPriceList = customer_price_change_with_price_list
+              , service_isAppliedOnlyOneTime = is_applied_only_one_time
+              , service_schedule = s
+              }
+
+       return $ IMap.insert id r map1
+
+   importService _ _ = throw $ AsterisellException "err 1755 in code: unexpected DB format for ar_service"
+
+   addToHead [newValue] oldList = newValue:oldList
+
+   importServicePrice
+     precision
+     map1
+     [  id'
+      , ar_service_id'
+      , from_date'
+      , price'] = do
+
+        let id = fromDBInt id'
+        ar_service_id <- nn "service_price" id fromDBInt ar_service_id'
+        from_date <- nn "service_price" id fromDBLocalTime from_date'
+        price <- fromIntegerWithFixedPrecisionToMonetaryValue precision <$> nn "service_price" id fromDBInt price'
+
+        let r = ServicePrice {
+                   servicePrice_id = id
+                 , servicePrice_serviceId  = ar_service_id
+                 , servicePrice_fromDate = from_date
+                 , servicePrice_price = price
+                }
+        return $ IMap.insertWith (addToHead) id [r] map1
+
+   importServicePrice _ _ _ = throw $ AsterisellException "err 1756 in code: unexpected DB format for ar_service_price"
+
+   importAssignedService
+     map1
+     [ id'
+     , ar_service_id'
+     , ar_organization_unit_id'
+     , nr_of_items'
+     , from_date'
+     , discount'
+     ] = do
+            let id = fromDBInt id'
+            ar_service_id <- nn "assigned_service" id fromDBInt ar_service_id'
+            ar_organization_unit_id <- nn "assigned_service" id fromDBInt ar_organization_unit_id'
+            let nr_of_items
+                  = case fromMaybeDBValue fromDBInt nr_of_items' of
+                      Nothing -> 0
+                      Just i -> i
+            from_date <- nn "assigned_service" id fromDBLocalTime from_date'
+            discount'' <- nn "assigned_service" id fromDBInt discount'
+
+            let discount :: Rational = (toRational $ discount'') / (toRational 100)
+
+            let r = AssignedService {
+                      assignedService_id = id
+                    , assignedService_serviceId = ar_service_id
+                    , assignedService_unitId = ar_organization_unit_id
+                    , assignedService_nrOfItems = nr_of_items
+                    , assignedService_fromDate= from_date
+                    , assignedService_discount = discount
+                    }
+            return $ serviceParams_insertAssignment map1 r
+
+   importAssignedService  _ _ = throw $ AsterisellException "err 1757 in code: unexpected DB format for ar_assigned_service"
+
+type ServiceId = Int
+
+type ServiceIdMap a = RatePlanIdMap a
+
+serviceParams_insertAssignment :: ServiceIdMap (UnitIdMap [AssignedService]) -> AssignedService -> ServiceIdMap (UnitIdMap [AssignedService])
+serviceParams_insertAssignment map1 assignment
+  = let serviceId = assignedService_serviceId assignment
+        unitId = assignedService_unitId assignment
+
+        addToHead [newValue] oldList = newValue:oldList
+
+    in case IMap.lookup serviceId map1 of
+         Nothing
+           -> IMap.insert serviceId (IMap.singleton unitId [assignment]) map1
+         Just map2
+           -> IMap.insert serviceId (IMap.insertWith (addToHead) unitId [assignment] map2) map1
+
+data CalcService
+  = CalcService {
+      calcService_price :: MonetaryValue
+    , calcService_nrOfItems :: Int
+    , calcService_timeFrame :: TimeFrame
+    , calcService_discount :: Rational
+    } deriving(Show)
+
+-- | Generate all ServiceCDRs until the calldate is not reached.
+--   Return also the ServiceCDRs in open timeframes.
+--
+--   DEV-NOTE: there are not so many CDRs of this type (proportional to customers), so they are generated using a list, and not pipes.
+service_generate
+  :: RatingParams
+  -> CallDate
+  -- ^ the initial rating call date (it can be not exactly the beginning of a time-frame)
+  -> CallDate
+  -- ^ the final rating calldate (it can be not exactly the beginning of a time-frame)
+  -> Bool
+  -- ^ True for generating also ServiceCDRs of open time frames
+  -> Either String [ServiceCDR]
+
+service_generate env rateFromDate rateToDate generateAlsoForOpenTimeFrames
+  = cdrsOrError
+
+ where
+
+  precision = params_currencyPrecision env
+
+  cdrsOrError = IMap.foldlWithKey' processServiceInAllTimeFrames (Right []) (params_assignedServices env)
+
+  processServiceInAllTimeFrames :: Either String [CDR] -> Int -> UnitIdMap [AssignedService] -> Either String [CDR]
+  processServiceInAllTimeFrames (Left err) _ _  = Left err
+  processServiceInAllTimeFrames (Right cdrs1) serviceId assignedServices
+    = let service = fromJust1 ("s1: unknown serviceId " ++ show serviceId ++ ", on data: " ++ show (params_services env)) $ IMap.lookup serviceId (params_services env)
+
+          serviceSchedule = service_schedule service
+
+          allTimeFrames
+            = timeFrames_allInsideRatingPeriod serviceSchedule rateFromDate rateToDate generateAlsoForOpenTimeFrames
+
+          cdrs2OrError = List.foldl' extractError (Right []) $ List.map processServiceInTimeFrame allTimeFrames
+
+          extractError (Left err) _ = Left err
+          extractError (Right r1) (Left err) = Left err
+          extractError (Right r1) (Right r2) = Right $ r1 ++ r2
+
+          processServiceInTimeFrame :: TimeFrame -> Either String [CDR]
+          processServiceInTimeFrame (timeFrameStart2, timeFrameEnd2)
+            = let cdrs3 = IMap.foldlWithKey' processUnit  (Right []) assignedServices
+                  timeFrameDuration2 = timeFrame_duration (timeFrameStart2, timeFrameEnd2)
+
+                  processUnit :: Either String [CDR] -> UnitId -> [AssignedService] -> Either String [CDR]
+                  processUnit (Left err) _ _  = Left err
+                  processUnit (Right cdrs4) unitId assignements
+                    = let -- DEV-NOTE: this code is based on fact that assignments are in reverse order of applicability date.
+
+                          calculatedServicesOrErrors = processAssignment assignements ([], Nothing)
+
+                          calculatedServices = case calculatedServicesOrErrors of
+                                                 Right (r, _) -> r
+                                                 _ -> error "never used"
+
+                          calculatedCdrs = List.concatMap calcService calculatedServices
+
+                          processAssignment :: [AssignedService] -> ([CalcService], Maybe CallDate) -> Either String ([CalcService], Maybe CallDate)
+                          processAssignment [] result = return result
+                          processAssignment (assignement:rest) (calcs1, maybePartialDate)
+                            = let items = assignedService_nrOfItems assignement
+                                  assignmentCallDate = assignedService_fromDate assignement
+
+                                  -- The reference date to use for searching in the price-list
+                                  priceListDate
+                                    = case service_priceChangeWithPriceList service of
+                                        True
+                                          -> max assignmentCallDate timeFrameStart2
+                                             -- consider the price at the moment of activation or rating: it is the more precise price
+                                        False
+                                          -> -- In this case the price is the price paid from the customer the first time he activated the service.
+                                             -- In case the service was set to 0 in the past, and then activated again, consider the price of the new activation.
+                                             let f resultCallDate [] = resultCallDate
+                                                 f resultCallDate (ass:rest)
+                                                   = case (assignedService_fromDate ass) >= assignmentCallDate of
+                                                       True
+                                                         -> f resultCallDate rest
+                                                            -- discard assignment in the future respect current assignment
+                                                       False
+                                                         -> case assignedService_nrOfItems ass of
+                                                              0 -> resultCallDate
+                                                                   -- in this case the previous used prices can be discarded, and the new price is determined from this point
+                                                              _ -> f (assignedService_fromDate ass) rest
+                                                                   -- go to the first assignment (the first price used)
+
+                                             in f assignmentCallDate assignements
+
+                                  -- The price of the service, using priceListDate as reference
+                                  maybePrice :: Maybe MonetaryValue
+                                    = let f [] = Nothing
+                                          f (price:rest)
+                                            = case (servicePrice_fromDate price) <= priceListDate of
+                                                True -> Just $ servicePrice_price price
+                                                False -> f rest
+
+                                      in case IMap.lookup serviceId (params_servicePrices env) of
+                                           Nothing
+                                             -> Nothing
+
+                                           Just prices
+                                             -> f prices
+                                                -- search the more recent price (according priceListDate) in the prices list
+
+                                  calc2 price
+                                    = CalcService {
+                                        calcService_nrOfItems = items
+                                      , calcService_price = price
+                                      , calcService_discount = assignedService_discount assignement
+                                      , calcService_timeFrame
+                                          = (case service_priceIsProportionalToActivationDate service of
+                                               True -> max assignmentCallDate timeFrameStart2
+                                               False -> timeFrameStart2
+                                            , case maybePartialDate of
+                                                Nothing -> timeFrameEnd2
+                                                Just d -> case service_priceIsProportionalToActivationDate service of
+                                                            True -> min d timeFrameEnd2
+                                                            False -> timeFrameEnd2
+                                            )
+                                      }
+
+
+                                  -- Test if the current assignment can be applied in the current time frame,
+                                  -- and if there can be results continuing processing.
+                                  (canBeApplied, continueProcessing) :: (Bool, Bool)
+                                    = case service_isAppliedOnlyOneTime service of
+                                        True
+                                          -> ((assignmentCallDate >= timeFrameStart2 && assignmentCallDate < timeFrameEnd2), True)
+                                             -- process only the assignment in the first time-frame
+                                        False
+                                          -> case assignmentCallDate >= timeFrameEnd2 of
+                                               True
+                                                 -> (False, True)
+                                                    -- this assignment was done in the future respect current time frame, and it does not affect it
+                                               False
+                                                 -> case maybePartialDate of
+                                                      Nothing
+                                                        -> (True, True)
+                                                           -- the assignment is in the past, but it is still actual in the current time frame
+                                                      Just partialDate
+                                                        -> case partialDate <= timeFrameStart2 of
+                                                             True
+                                                               -> (False, False)
+                                                                  -- the assignment is in the past respect the timeframe, and already overwritten from a more recent assignment
+                                                             False
+                                                               -> (True, True)
+                                                                  -- the assignment is in the past, but it extend also to the current time-frame, until a more recent assignment take effect
+
+                                  nextPartialDate
+                                    = case canBeApplied of
+                                        True -> Just assignmentCallDate
+                                        False -> Nothing
+
+                              in do calcs2
+                                      <- case canBeApplied of
+                                           False
+                                             -> return calcs1
+                                           True
+                                             -> do price
+                                                     <- case maybePrice of
+                                                          Nothing -> throwError $ "There is no price for service " ++ (show $ service_id service) ++ ", " ++ (show $ service_name service) ++ ", at date " ++ showLocalTime priceListDate ++ ", in its price list."
+                                                          Just p -> return p
+
+                                                   return $ (calc2 price):calcs1
+                                                   case service_priceIsProportionalToActivationDate service of
+                                                     True -> return $ (calc2 price):calcs1
+                                                             -- in case of prices depending from the activation date,
+                                                             -- keep note of all different activations, and sum them.
+
+                                                     False -> let maxItems = List.maximum $ items:(List.map calcService_nrOfItems calcs1)
+                                                              in return $ [(calc2 price) { calcService_nrOfItems = maxItems } ]
+                                                              -- in case of prices not depending from activation date,
+                                                              -- keep note of the maximum number of activated items in the time frame period,
+                                                              -- using the price of the first activation in the time-frame.
+
+                                    case continueProcessing of
+                                      False
+                                        -> return $ (calcs2, Just assignmentCallDate)
+                                      True
+                                        -> processAssignment rest (calcs2, nextPartialDate)
+
+                          calcService :: CalcService -> [CDR]
+                          calcService c
+                            = let duration = timeFrame_duration $ calcService_timeFrame c
+                                  proportion
+                                    = case (service_priceIsProportionalToActivationDate service) of
+                                        True -> (toRational duration) / (toRational timeFrameDuration2)
+                                        False -> toRational 1
+
+                                  scaledPrice = (calcService_price c) * proportion
+                                  discountSum =  scaledPrice * (calcService_discount c)
+                                  income = (scaledPrice - discountSum) * (toRational $ calcService_nrOfItems c)
+
+                                  externalTelephoneNumber = service_defaultExternalTelephoneNumber service
+                                  -- NOTE: the rate compilation procedure generate a telephone prefix associated to this telephone number.
+
+                                  serviceInfo
+                                    = let descr = (Text.unpack $ service_description service)
+                                          maybeDescr = case List.null descr of
+                                                         True -> ""
+                                                         False -> " - " ++ descr
+
+                                      in  Text.pack $ (Text.unpack $ service_name service) ++ maybeDescr
+
+                                  cdr = (cdr_empty timeFrameStart2 precision) {
+                                          cdr_countOfCalls = calcService_nrOfItems c
+                                        , cdr_toCalldate = Just timeFrameEnd2
+                                        , cdr_direction = CDR_outgoing
+                                        , cdr_errorDirection = CDR_none
+                                        , cdr_isRedirect = False
+                                        , cdr_duration = Just 0
+                                        -- NOTE: I'm using 0 because the total of calls is already in normal calls,
+                                        -- and if I set a value here, it will be added two times to the totals in call report.
+                                        , cdr_billsec = Just 0
+                                        , cdr_internalTelephoneNumber = ""
+                                        , cdr_organizationUnitId = Just $ unitId
+                                        , cdr_bundleOrganizationUnitId = Nothing
+                                        , cdr_income = income
+                                        , cdr_cost = 0
+                                        , cdr_channel = Just serviceCdr_defaultCommunicationChannel
+                                        , cdr_externalTelephoneNumber =  externalTelephoneNumber
+                                        , cdr_externalTelephoneNumberWithAppliedPortability = Just externalTelephoneNumber
+                                        -- DEV NOTE: this number is matched with the telephone prefix-table, so use a symbolic name
+                                        , cdr_displayedExternalTelephoneNumber = Just $ serviceInfo
+                                        , cdr_displayedMaskedExternalTelephoneNumber = Just $ serviceInfo
+                                        , cdr_debug_bundle_left_calls = Nothing
+                                        , cdr_debug_bundle_left_duration = Nothing
+                                        , cdr_debug_bundle_left_cost = Nothing
+                                        }
+
+                              in if income == 0
+                                 then []
+                                 else if ((cdr_calldate cdr) >= rateFromDate && (cdr_calldate cdr) < rateToDate)
+                                      then [cdr]
+                                           -- NOTE: keep in synchro this condition with Cmd_deleteCDRS condition.
+                                      else []
+
+                      in case calculatedServicesOrErrors of
+                           Left err
+                             -> Left err
+                           Right _
+                             -> Right $ cdrs4 ++ calculatedCdrs
+
+              in cdrs3
+
+      in case cdrs2OrError of
+           Left err
+             -> Left err
+           Right cdrs2
+             -> Right $ cdrs1 ++ cdrs2
+
+service_defaultExternalTelephoneNumber :: Service -> Text.Text
+service_defaultExternalTelephoneNumber service
+  = serviceCdr_defaultExternalTelephoneNumber (service_name service) (service_description service)
+
+-- | Export the telephone prefixes to use for service-cdrs.
+service_exportServiceCDRSTelephonePrefixes :: DB.MySQLConn -> RatingParams -> IO ()
+service_exportServiceCDRSTelephonePrefixes conn sp = do
+  s1 :: S.InputStream Service <- S.fromList $ IMap.elems $ params_services sp
+  s2 :: S.InputStream TelephonePrefixRecord
+     <- S.map
+          (\s -> let prefix = service_defaultExternalTelephoneNumber s
+                 in  TelephonePrefixRecord {
+                       tpr_prefix = prefix
+                     , tpr_matchOnlyExactDigits = Just $ Text.length prefix
+                     , tpr_name = service_name s
+                     , tpr_geographic_location = service_name s
+                         , tpr_operator_type = "Service"
+                         , tpr_display_priority = 10
+                         }
+          ) s1
+
+  updateS <- telephonePrefixes_update conn
+  S.connect s2 updateS
+  return ()
+
+-- ----------------------
+-- UNIT TESTS
 
 tt_ratePlanTests
   = [ HUnit.TestCase $ HUnit.assertEqual "time frame " secondsInADay (timeFrame_duration (date1, date2))
@@ -3132,3 +3695,472 @@ tt_ratePlanTests
           }
 
   cdrO1V = toRational 3
+
+ratingParamsForTest :: Int -> RatingParams
+ratingParamsForTest precisionDigits
+  = ratingParams_empty $ InitialRatingParams {
+        iparams_isDebugMode = True
+      , iparams_isVoipReseller = True
+      , iparams_digitsToMask = 0
+      , iparams_defaultTelephonePrefixToNotDisplay = Nothing
+      , iparams_currencyPrecision = precisionDigits
+      , iparams_extensionsFileName = ""
+      , iparams_debugFileName = ""
+      , iparams_fromDate = fromJust $ fromMySQLDateTimeToLocalTime "2000-01-01 00:00:00"
+      , iparams_toDate = fromJust $ fromMySQLDateTimeToLocalTime "2000-02-01 00:00:00"
+      , iparams_isRateUnbilledCallsEvent = False
+      , iparams_onlyImportedServices = False
+      , iparams_dbName = ""
+      , iparams_dbUser = ""
+      , iparams_dbPasswd = ""
+      , iparams_configuredRatePlanParsers = Map.empty
+    }
+
+tt_servicesTests
+
+  = [ isExpectedResult
+        "simple case 1"
+        cdrs1_1
+        [(fromJust $ fromMySQLDateTimeToLocalTime "2014-02-01 00:00:00", 1, toRational 20)]
+    , isExpectedResult
+        "simple case 2"
+        cdrs1_2
+        [(fromJust $ fromMySQLDateTimeToLocalTime "2014-02-01 00:00:00", 1, toRational 20)
+        ,(fromJust $ fromMySQLDateTimeToLocalTime "2014-03-01 00:00:00", 1, toRational 20)
+        ]
+
+    , isExpectedResult
+        "simple case 3"
+        cdrs1_3
+        []
+
+    , isExpectedError "simple case 4" error2
+
+    , isExpectedResult "complex case 1" cdrs3_1 expected3_1
+    , isExpectedResult "complex case 2" cdrs4_1 expected4_1
+    ]
+
+ where
+
+  precisionDigits = 4
+
+  env = ratingParamsForTest precisionDigits
+
+  serviceMap :: [Service] -> ServiceIdMap Service
+  serviceMap ss = IMap.fromList $ List.map (\s -> (service_id s, s)) ss
+
+  priceListMap :: [ServicePrice] -> ServiceIdMap [ServicePrice]
+  priceListMap ss
+    = let sameService s1 s2 = (servicePrice_serviceId s1) == (servicePrice_serviceId s2)
+          l1 = List.groupBy sameService ss
+          l2 = List.map (\(e:r) -> ((servicePrice_serviceId e), (e:r))) l1
+          l3 = List.map (\(i, l) -> (i, List.reverse $ List.sortBy (\x y -> compare (servicePrice_fromDate x) (servicePrice_fromDate y)) l)) l2
+      in  IMap.fromList l3
+
+  assignmentMap :: [AssignedService] -> ServiceIdMap (UnitIdMap [AssignedService])
+  assignmentMap ss
+    = let ss1 = List.foldl' serviceParams_insertAssignment IMap.empty ss
+          ss2 = IMap.map (\m -> IMap.map (\s -> List.reverse $ List.sortBy (\x y -> compare (assignedService_fromDate x) (assignedService_fromDate y)) s) m) ss1
+      in ss2
+
+  generate p fromDate toDate
+    = service_generate p (fromJust1 "sa1" $ fromMySQLDateTimeToLocalTime fromDate) (fromJust1 "sa2" $ fromMySQLDateTimeToLocalTime toDate) True
+
+  isExpectedResult
+    :: String
+    -- ^ test title
+    -> [ServiceCDR]
+    -- ^ calculated result
+    -> [(CallDate, UnitId, MonetaryValue)]
+    -- ^ expected result
+    -> HUnit.Test
+
+  isExpectedResult msg c1 e1
+    = let extract s = ( cdr_calldate s
+                      , fromJust1 "sa3" $ cdr_organizationUnitId s
+                      , cdr_income s
+                      )
+
+          c2 = List.sort $ List.map extract c1
+          e2 = List.sort e1
+
+      in  HUnit.TestCase $ HUnit.assertEqual msg e2 c2
+
+  isExpectedError :: String -> Either String a -> HUnit.Test
+  isExpectedError msg a
+    = let f (Left _) = True
+          f _ = False
+      in  HUnit.TestCase $ HUnit.assertBool msg (f a)
+
+  s1
+    = Service {
+         service_id = 1
+       , service_name = "1"
+       , service_description = ""
+       , service_priceIsProportionalToActivationDate = False
+       , service_priceChangeWithPriceList = False
+       , service_isAppliedOnlyOneTime = False
+       , service_schedule = MonthlyTimeFrame 1
+       }
+
+  sp1
+    = ServicePrice {
+          servicePrice_id = 1
+        , servicePrice_serviceId = service_id s1
+        , servicePrice_fromDate = fromJust $ fromMySQLDateTimeToLocalTime "2013-01-01 00:00:00"
+        , servicePrice_price = toRational 10
+        }
+
+  unit1 = 1
+
+  sa1
+    = AssignedService {
+        assignedService_id = 1
+      , assignedService_serviceId = service_id s1
+      , assignedService_unitId = unit1
+      , assignedService_nrOfItems = 2
+      , assignedService_fromDate = fromJust $ fromMySQLDateTimeToLocalTime "2014-01-01 00:00:00"
+      , assignedService_discount = fromRational 0
+     }
+
+  p1
+    = env {
+        params_services = serviceMap [s1]
+      , params_servicePrices = priceListMap [sp1]
+      , params_assignedServices = assignmentMap [sa1]
+      }
+
+  (Right cdrs1_1)
+    = generate p1 "2014-02-01 00:00:00" "2014-03-01 00:00:00"
+
+  (Right cdrs1_2)
+    = generate p1 "2014-02-01 00:00:00" "2014-04-01 00:00:00"
+
+  (Right cdrs1_3)
+    = generate p1 "2013-11-01 00:00:00" "2013-12-01 00:00:00"
+
+  -- do not specify a needed price list
+  sp2
+    = ServicePrice {
+          servicePrice_id = 1
+        , servicePrice_serviceId = service_id s1
+        , servicePrice_fromDate = fromJust $ fromMySQLDateTimeToLocalTime "2014-01-15 00:00:00"
+        , servicePrice_price = toRational 10
+        }
+
+  sa2
+    = AssignedService {
+        assignedService_id = 1
+      , assignedService_serviceId = service_id s1
+      , assignedService_unitId = unit1
+      , assignedService_nrOfItems = 2
+      , assignedService_fromDate = fromJust $ fromMySQLDateTimeToLocalTime "2014-01-03 00:00:00"
+      , assignedService_discount = fromRational 0
+     }
+
+  p2
+    = env {
+        params_services = serviceMap [s1]
+      , params_servicePrices = priceListMap [sp2]
+      , params_assignedServices = assignmentMap [sa2]
+      }
+
+  error2
+    = generate p2 "2014-01-01 00:00:00" "2014-02-01 00:00:00"
+
+  -- Test different combinations of services, with different parameters.
+  -- I'm using a month with 30 days for having round values.
+
+  s3_1
+    = Service {
+         service_id = 31
+       , service_name = "3_1"
+       , service_description = "Service depend from activation date."
+       , service_priceIsProportionalToActivationDate = True
+       , service_priceChangeWithPriceList = False
+       , service_isAppliedOnlyOneTime = False
+       , service_schedule = MonthlyTimeFrame 1
+       }
+
+  s3_2
+    = Service {
+         service_id = 32
+       , service_name = "3_2"
+       , service_description = "Service price change with time."
+       , service_priceIsProportionalToActivationDate = False
+       , service_priceChangeWithPriceList = True
+       , service_isAppliedOnlyOneTime = False
+       , service_schedule = MonthlyTimeFrame 1
+       }
+
+  s3_3
+    = Service {
+         service_id = 33
+       , service_name = "3_3"
+       , service_description = "Service price change with time, and depend from activation date."
+       , service_priceIsProportionalToActivationDate = True
+       , service_priceChangeWithPriceList = True
+       , service_isAppliedOnlyOneTime = False
+       , service_schedule = MonthlyTimeFrame 1
+       }
+
+  s3_4
+    = Service {
+         service_id = 34
+       , service_name = "3_4"
+       , service_description = "Service is applied only one time."
+       , service_priceIsProportionalToActivationDate = True
+       , service_priceChangeWithPriceList = False
+       , service_isAppliedOnlyOneTime = True
+       , service_schedule = MonthlyTimeFrame 1
+       }
+
+  s3_5
+    = Service {
+         service_id = 35
+       , service_name = "3_5"
+       , service_description = "Weekly service."
+       , service_priceIsProportionalToActivationDate = False
+       , service_priceChangeWithPriceList = False
+       , service_isAppliedOnlyOneTime = False
+       , service_schedule = MonthlyTimeFrame 1
+       }
+
+  generateCommonSp1 serviceId
+    = [
+        ServicePrice {
+          servicePrice_id = 1
+        , servicePrice_serviceId = serviceId
+        , servicePrice_fromDate = fromJust $ fromMySQLDateTimeToLocalTime "2014-04-01 00:00:00"
+        , servicePrice_price = toRational 50
+        }
+
+      , ServicePrice {
+          servicePrice_id = 2
+        , servicePrice_serviceId = serviceId
+        , servicePrice_fromDate = fromJust $ fromMySQLDateTimeToLocalTime "2014-04-20 00:00:00"
+        , servicePrice_price = toRational 100
+        }
+
+      , ServicePrice {
+          servicePrice_id = 3
+        , servicePrice_serviceId = serviceId
+        , servicePrice_fromDate = fromJust $ fromMySQLDateTimeToLocalTime "2014-05-16 00:00:00"
+        , servicePrice_price = toRational 200
+        }
+      ]
+
+  sa3_1
+    = AssignedService {
+        assignedService_id = 1
+      , assignedService_serviceId = service_id s3_1
+      , assignedService_unitId = 1
+      , assignedService_nrOfItems = 1
+      , assignedService_fromDate = fromJust $ fromMySQLDateTimeToLocalTime "2014-04-16 00:00:00"
+      , assignedService_discount = fromRational 0.1
+     }
+
+  sa3_2
+    = AssignedService {
+        assignedService_id = 2
+      , assignedService_serviceId = service_id s3_4
+      , assignedService_unitId = 4
+      , assignedService_nrOfItems = 1
+      , assignedService_fromDate = fromJust $ fromMySQLDateTimeToLocalTime "2014-04-16 00:00:00"
+      , assignedService_discount = fromRational 0.1
+     }
+
+  sa3_3
+    = AssignedService {
+        assignedService_id = 3
+      , assignedService_serviceId = service_id s3_2
+      , assignedService_unitId = 2
+      , assignedService_nrOfItems = 1
+      , assignedService_fromDate = fromJust $ fromMySQLDateTimeToLocalTime "2014-04-16 00:00:00"
+      , assignedService_discount = fromRational 0.1
+     }
+
+  sa3_4
+    = AssignedService {
+        assignedService_id = 4
+      , assignedService_serviceId = service_id s3_3
+      , assignedService_unitId = 3
+      , assignedService_nrOfItems = 1
+      , assignedService_fromDate = fromJust $ fromMySQLDateTimeToLocalTime "2014-04-16 00:00:00"
+      , assignedService_discount = fromRational 0.1
+     }
+
+  p3
+    = env {
+        params_services = serviceMap [s3_1, s3_2, s3_3, s3_4, s3_5]
+      , params_servicePrices = priceListMap $ (List.concatMap generateCommonSp1 $ List.map service_id $ [s3_1, s3_2, s3_3, s3_4, s3_5])
+      , params_assignedServices = assignmentMap [sa3_1, sa3_2, sa3_3, sa3_4]
+      }
+
+  (Right cdrs3_1)
+    = generate p3 "2014-04-01 00:00:00" "2014-06-01 00:00:00"
+
+  expected3_1
+    = [(fromJust $ fromMySQLDateTimeToLocalTime "2014-04-01 00:00:00", 1, toRational 22.5)
+      ,(fromJust $ fromMySQLDateTimeToLocalTime "2014-05-01 00:00:00", 1, toRational 45)
+       -- price proportional to activation date, and with discount applied
+       -- next month there is a full activation time frame
+       -- next month the old price list is applied
+
+      ,(fromJust $ fromMySQLDateTimeToLocalTime "2014-04-01 00:00:00", 3, toRational 22.5)
+      ,(fromJust $ fromMySQLDateTimeToLocalTime "2014-05-01 00:00:00", 3, toRational 90)
+       -- next month there is a full activation date
+       -- next month the new price list is appliedy
+
+      ,(fromJust $ fromMySQLDateTimeToLocalTime "2014-04-01 00:00:00", 4, toRational 22.5)
+       -- it is applied only one month
+
+      ,(fromJust $ fromMySQLDateTimeToLocalTime "2014-04-01 00:00:00", 2, toRational 45)
+      ,(fromJust $ fromMySQLDateTimeToLocalTime "2014-05-01 00:00:00", 2, toRational 90)
+       -- use the new price for calculating the cost in the second time frame
+      ]
+
+  -- Test multiple assignments of a price in the same timeframe
+
+  p4
+    = env {
+        params_services = serviceMap [s3_1, s3_2, s3_3, s3_4, s3_5]
+      , params_servicePrices = priceListMap $ (List.concatMap generateCommonSp1 $ List.map service_id $ [s3_1, s3_2, s3_3, s3_4, s3_5])
+      , params_assignedServices
+          = assignmentMap [
+              AssignedService {
+                assignedService_id = 1
+              , assignedService_serviceId = service_id s3_1
+              , assignedService_unitId = 1
+              , assignedService_nrOfItems = 1
+              , assignedService_fromDate = fromJust $ fromMySQLDateTimeToLocalTime "2014-04-01 00:00:00"
+              , assignedService_discount = fromRational 0
+              }
+            , AssignedService {
+                assignedService_id = 2
+              , assignedService_serviceId = service_id s3_1
+              , assignedService_unitId = 1
+              , assignedService_nrOfItems = 1
+              , assignedService_fromDate = fromJust $ fromMySQLDateTimeToLocalTime "2014-04-22 00:00:00"
+              , assignedService_discount = fromRational 0
+              }
+
+            -- test assignment to 0
+            , AssignedService {
+                assignedService_id = 1
+              , assignedService_serviceId = service_id s3_1
+              , assignedService_unitId = 11
+              , assignedService_nrOfItems = 1
+              , assignedService_fromDate = fromJust $ fromMySQLDateTimeToLocalTime "2014-04-01 00:00:00"
+              , assignedService_discount = fromRational 0
+              }
+            , AssignedService {
+                assignedService_id = 2
+              , assignedService_serviceId = service_id s3_1
+              , assignedService_unitId = 11
+              , assignedService_nrOfItems = 0
+              , assignedService_fromDate = fromJust $ fromMySQLDateTimeToLocalTime "2014-04-22 00:00:00"
+              , assignedService_discount = fromRational 0
+              }
+            , AssignedService {
+                assignedService_id = 2
+              , assignedService_serviceId = service_id s3_1
+              , assignedService_unitId = 11
+              , assignedService_nrOfItems = 1
+              , assignedService_fromDate = fromJust $ fromMySQLDateTimeToLocalTime "2014-05-01 00:00:00"
+              , assignedService_discount = fromRational 0
+              }
+
+              -- use a service not proportional, but the price that is changing
+            , AssignedService {
+                assignedService_id = 1
+              , assignedService_serviceId = service_id s3_2
+              , assignedService_unitId = 2
+              , assignedService_nrOfItems = 1
+              , assignedService_fromDate = fromJust $ fromMySQLDateTimeToLocalTime "2014-04-01 00:00:00"
+              , assignedService_discount = fromRational 0
+              }
+            , AssignedService {
+                assignedService_id = 2
+              , assignedService_serviceId = service_id s3_2
+              , assignedService_unitId = 2
+              , assignedService_nrOfItems = 2
+              , assignedService_fromDate = fromJust $ fromMySQLDateTimeToLocalTime "2014-04-22 00:00:00"
+              , assignedService_discount = fromRational 0
+              }
+
+              -- proportional timeframe and variable price list
+            , AssignedService {
+                assignedService_id = 1
+              , assignedService_serviceId = service_id s3_3
+              , assignedService_unitId = 3
+              , assignedService_nrOfItems = 1
+              , assignedService_fromDate = fromJust $ fromMySQLDateTimeToLocalTime "2014-04-01 00:00:00"
+              , assignedService_discount = fromRational 0
+              }
+            , AssignedService {
+                assignedService_id = 2
+              , assignedService_serviceId = service_id s3_3
+              , assignedService_unitId = 3
+              , assignedService_nrOfItems = 2
+              , assignedService_fromDate = fromJust $ fromMySQLDateTimeToLocalTime "2014-04-22 00:00:00"
+              , assignedService_discount = fromRational 0
+              }
+
+              -- no proportional timeframe and no variable price list
+            , AssignedService {
+                assignedService_id = 1
+              , assignedService_serviceId = service_id s3_5
+              , assignedService_unitId = 5
+              , assignedService_nrOfItems = 1
+              , assignedService_fromDate = fromJust $ fromMySQLDateTimeToLocalTime "2014-04-01 00:00:00"
+              , assignedService_discount = fromRational 0
+              }
+            , AssignedService {
+                assignedService_id = 2
+              , assignedService_serviceId = service_id s3_5
+              , assignedService_unitId = 5
+              , assignedService_nrOfItems = 2
+              , assignedService_fromDate = fromJust $ fromMySQLDateTimeToLocalTime "2014-04-22 00:00:00"
+              , assignedService_discount = fromRational 0
+              }
+
+            ]
+
+      }
+
+  (Right cdrs4_1)
+    = generate p4 "2014-04-01 00:00:00" "2014-06-01 00:00:00"
+
+  expected4_1
+    = [(fromJust $ fromMySQLDateTimeToLocalTime "2014-04-01 00:00:00", 1, toRational 35)
+      , (fromJust $ fromMySQLDateTimeToLocalTime "2014-04-01 00:00:00", 1, toRational 15)
+       -- combine two time frames, but with fixed price
+      , (fromJust $ fromMySQLDateTimeToLocalTime "2014-05-01 00:00:00", 1, toRational 50)
+       -- entire time frame, using the original price
+
+      , (fromJust $ fromMySQLDateTimeToLocalTime "2014-04-01 00:00:00", 11, toRational 35)
+      -- rate until units are not 0
+
+      , (fromJust $ fromMySQLDateTimeToLocalTime "2014-05-01 00:00:00", 11, toRational 100)
+      -- recognize a setting to 0 of a service, and start with the new price
+
+      , (fromJust $ fromMySQLDateTimeToLocalTime "2014-04-01 00:00:00", 2, toRational 100)
+        -- consider 2 items on the entire time frame, but using the last price
+      , (fromJust $ fromMySQLDateTimeToLocalTime "2014-05-01 00:00:00", 2, toRational 200)
+        -- consider 2 items using the new price
+
+      , (fromJust $ fromMySQLDateTimeToLocalTime "2014-04-01 00:00:00", 3, toRational 35)
+        -- consider 1 item
+      , (fromJust $ fromMySQLDateTimeToLocalTime "2014-04-01 00:00:00", 3, toRational 60)
+        -- consider 2 items using the new price, and proportional timeframe
+      , (fromJust $ fromMySQLDateTimeToLocalTime "2014-05-01 00:00:00", 3, toRational 200)
+        -- consider 2 items using the new price
+
+      , (fromJust $ fromMySQLDateTimeToLocalTime "2014-04-01 00:00:00", 5, toRational 100)
+        -- consider 2 items using the initial price
+
+      , (fromJust $ fromMySQLDateTimeToLocalTime "2014-05-01 00:00:00", 5, toRational 100)
+        -- consider 2 items using the old price
+
+      ]

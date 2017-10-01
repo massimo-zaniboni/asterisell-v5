@@ -1437,6 +1437,10 @@ line like this in file ``fabric_data/.../instances.py``
 The suggested directory to use for exchanging files is
 ``/var/opt/asterisell/<provider-code>/<export-code>``
 
+Make the same for exporting service CDRS (bundle rates, or pure services) to resellers, but using a subclass of ``ExportServiceCDRSToReseler``.
+
+Note that unlike normal CDRS, a reseller receives from its provider already billed services, and it can not double check the calculated cost, because there are no cost rates for services. So it simply import them, and consider them as costs.
+
 Reseller Code on Provider Side
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -1670,22 +1674,20 @@ Configure something like this
 
 ::
 
-
       import_cdrs_jobs = [ 'FooImportCDRSFromBar' ]
 
-      def conf_connectionParams(self):
-          r = []
+      def conf_connection_params(self):
+        r = []
 
-          c = asterisell_instance.ConnectionParams()
-          c.connection_name = 'bar'
-          c.user = 'foo'
-          c.password = ''
-          c.host = 'https:///get-foo'
-          c.port = ''
-          r.append(c)
+        c = lib.ConnectionParams()
+        c.connection_name = "bar"
+        c.user = "foo"
+        c.password = "somepassword"
+        c.host = "https://get-foo"
+        c.port = ""
+        r.append(c)
 
-          return r
-
+        return r
 
 .. |image0| image:: tut_a_01.png
 .. |image1| image:: tut_a_02.png

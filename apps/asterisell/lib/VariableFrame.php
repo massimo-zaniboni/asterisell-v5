@@ -58,10 +58,10 @@ class VariableFrame
     public static $totCosts;
     public static $totSavingCosts;
     public static $totEarn;
-    public static $filterOnShow;
     public static $geographicLocationsInTimeRange;
     public static $startOrganizationId;
     public static $showMaskedTelephoneNumbers;
+    public static $groupOn;
 
     /**
      * @var string

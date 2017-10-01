@@ -25,12 +25,6 @@ abstract class BaseArDailyStatusChange extends BaseObject  implements Persistent
 	protected $day;
 
 	/**
-	 * The value for the is_service_cdr field.
-	 * @var        boolean
-	 */
-	protected $is_service_cdr;
-
-	/**
 	 * The value for the ar_daily_status_job_id field.
 	 * @var        int
 	 */
@@ -98,16 +92,6 @@ abstract class BaseArDailyStatusChange extends BaseObject  implements Persistent
 	}
 
 	/**
-	 * Get the [is_service_cdr] column value.
-	 * 
-	 * @return     boolean
-	 */
-	public function getIsServiceCdr()
-	{
-		return $this->is_service_cdr;
-	}
-
-	/**
 	 * Get the [ar_daily_status_job_id] column value.
 	 * 
 	 * @return     int
@@ -167,26 +151,6 @@ abstract class BaseArDailyStatusChange extends BaseObject  implements Persistent
 	} // setDay()
 
 	/**
-	 * Set the value of [is_service_cdr] column.
-	 * 
-	 * @param      boolean $v new value
-	 * @return     ArDailyStatusChange The current object (for fluent API support)
-	 */
-	public function setIsServiceCdr($v)
-	{
-		if ($v !== null) {
-			$v = (boolean) $v;
-		}
-
-		if ($this->is_service_cdr !== $v) {
-			$this->is_service_cdr = $v;
-			$this->modifiedColumns[] = ArDailyStatusChangePeer::IS_SERVICE_CDR;
-		}
-
-		return $this;
-	} // setIsServiceCdr()
-
-	/**
 	 * Set the value of [ar_daily_status_job_id] column.
 	 * 
 	 * @param      int $v new value
@@ -243,8 +207,7 @@ abstract class BaseArDailyStatusChange extends BaseObject  implements Persistent
 		try {
 
 			$this->day = ($row[$startcol + 0] !== null) ? (string) $row[$startcol + 0] : null;
-			$this->is_service_cdr = ($row[$startcol + 1] !== null) ? (boolean) $row[$startcol + 1] : null;
-			$this->ar_daily_status_job_id = ($row[$startcol + 2] !== null) ? (int) $row[$startcol + 2] : null;
+			$this->ar_daily_status_job_id = ($row[$startcol + 1] !== null) ? (int) $row[$startcol + 1] : null;
 			$this->resetModified();
 
 			$this->setNew(false);
@@ -254,7 +217,7 @@ abstract class BaseArDailyStatusChange extends BaseObject  implements Persistent
 			}
 
 			// FIXME - using NUM_COLUMNS may be clearer.
-			return $startcol + 3; // 3 = ArDailyStatusChangePeer::NUM_COLUMNS - ArDailyStatusChangePeer::NUM_LAZY_LOAD_COLUMNS).
+			return $startcol + 2; // 2 = ArDailyStatusChangePeer::NUM_COLUMNS - ArDailyStatusChangePeer::NUM_LAZY_LOAD_COLUMNS).
 
 		} catch (Exception $e) {
 			throw new PropelException("Error populating ArDailyStatusChange object", $e);
@@ -577,9 +540,6 @@ abstract class BaseArDailyStatusChange extends BaseObject  implements Persistent
 				return $this->getDay();
 				break;
 			case 1:
-				return $this->getIsServiceCdr();
-				break;
-			case 2:
 				return $this->getArDailyStatusJobId();
 				break;
 			default:
@@ -604,8 +564,7 @@ abstract class BaseArDailyStatusChange extends BaseObject  implements Persistent
 		$keys = ArDailyStatusChangePeer::getFieldNames($keyType);
 		$result = array(
 			$keys[0] => $this->getDay(),
-			$keys[1] => $this->getIsServiceCdr(),
-			$keys[2] => $this->getArDailyStatusJobId(),
+			$keys[1] => $this->getArDailyStatusJobId(),
 		);
 		return $result;
 	}
@@ -641,9 +600,6 @@ abstract class BaseArDailyStatusChange extends BaseObject  implements Persistent
 				$this->setDay($value);
 				break;
 			case 1:
-				$this->setIsServiceCdr($value);
-				break;
-			case 2:
 				$this->setArDailyStatusJobId($value);
 				break;
 		} // switch()
@@ -671,8 +627,7 @@ abstract class BaseArDailyStatusChange extends BaseObject  implements Persistent
 		$keys = ArDailyStatusChangePeer::getFieldNames($keyType);
 
 		if (array_key_exists($keys[0], $arr)) $this->setDay($arr[$keys[0]]);
-		if (array_key_exists($keys[1], $arr)) $this->setIsServiceCdr($arr[$keys[1]]);
-		if (array_key_exists($keys[2], $arr)) $this->setArDailyStatusJobId($arr[$keys[2]]);
+		if (array_key_exists($keys[1], $arr)) $this->setArDailyStatusJobId($arr[$keys[1]]);
 	}
 
 	/**
@@ -685,7 +640,6 @@ abstract class BaseArDailyStatusChange extends BaseObject  implements Persistent
 		$criteria = new Criteria(ArDailyStatusChangePeer::DATABASE_NAME);
 
 		if ($this->isColumnModified(ArDailyStatusChangePeer::DAY)) $criteria->add(ArDailyStatusChangePeer::DAY, $this->day);
-		if ($this->isColumnModified(ArDailyStatusChangePeer::IS_SERVICE_CDR)) $criteria->add(ArDailyStatusChangePeer::IS_SERVICE_CDR, $this->is_service_cdr);
 		if ($this->isColumnModified(ArDailyStatusChangePeer::AR_DAILY_STATUS_JOB_ID)) $criteria->add(ArDailyStatusChangePeer::AR_DAILY_STATUS_JOB_ID, $this->ar_daily_status_job_id);
 
 		return $criteria;
@@ -704,7 +658,6 @@ abstract class BaseArDailyStatusChange extends BaseObject  implements Persistent
 		$criteria = new Criteria(ArDailyStatusChangePeer::DATABASE_NAME);
 
 		$criteria->add(ArDailyStatusChangePeer::DAY, $this->day);
-		$criteria->add(ArDailyStatusChangePeer::IS_SERVICE_CDR, $this->is_service_cdr);
 		$criteria->add(ArDailyStatusChangePeer::AR_DAILY_STATUS_JOB_ID, $this->ar_daily_status_job_id);
 
 		return $criteria;
@@ -721,9 +674,7 @@ abstract class BaseArDailyStatusChange extends BaseObject  implements Persistent
 
 		$pks[0] = $this->getDay();
 
-		$pks[1] = $this->getIsServiceCdr();
-
-		$pks[2] = $this->getArDailyStatusJobId();
+		$pks[1] = $this->getArDailyStatusJobId();
 
 		return $pks;
 	}
@@ -739,9 +690,7 @@ abstract class BaseArDailyStatusChange extends BaseObject  implements Persistent
 
 		$this->setDay($keys[0]);
 
-		$this->setIsServiceCdr($keys[1]);
-
-		$this->setArDailyStatusJobId($keys[2]);
+		$this->setArDailyStatusJobId($keys[1]);
 
 	}
 
@@ -759,8 +708,6 @@ abstract class BaseArDailyStatusChange extends BaseObject  implements Persistent
 	{
 
 		$copyObj->setDay($this->day);
-
-		$copyObj->setIsServiceCdr($this->is_service_cdr);
 
 		$copyObj->setArDailyStatusJobId($this->ar_daily_status_job_id);
 

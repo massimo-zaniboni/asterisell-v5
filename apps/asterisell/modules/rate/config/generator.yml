@@ -11,7 +11,7 @@ generator:
       internal_name: { name: Reference Name, help: "A unique reference/identifier name, used in rate specifications. Use names like \"some-name\"" }
       short_description: { name: Short Description, help: "Brief description of the rate porpouse. Useful for identifying quickly CSV rates to change when prices are updated, without reading the complete rate plan. In case of a rate shared with a reseller these notes are sent too. So use a name that can be understood also from the reseller. For you this is a rate of income, but for the reseller is a rate of cost."  }
       note: { name: Notes, help: "In case of a rate shared with a reseller, these notes are not sent to the reseller.", type: textarea_tag, params: size=70x5 }
-      input_file: { name: "Source Data File", help: "A file containing rate specification or data." }
+      input_file: { name: "Source Data File", help: "A file containing rate specification or data. If not specified otherwise the rate must be encoded in UTF8." }
       download_file: { name: "Source Date File", help: "The source data file with the rate specification or data." }
       download_backup_file: { name: "Backup Source Data File", help: "The previous version of the source data file, to use in case the current source data file is not the correct one. " }
       save_action: { name: "Fix", help: "Fix current selected rate. Use this for fixing errors in rate specification, or during initial configuration of a rate."}

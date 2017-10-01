@@ -1,5 +1,6 @@
 Create a Docker image.
 
-NOTE: I'm not following the Docker recomended usage scenario, because I'm putting more
+NOTE: I'm not following the Docker suggested usage scenario, because I'm putting more
 than a service/server inside the same container image.
+
 

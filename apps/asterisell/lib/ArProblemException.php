@@ -25,9 +25,14 @@
  * A problem to signal into the ArNewProblem table and to signal as Exception in the PhpCode.
  *
  * NOTE: errors are added using a separate connection, that is distinct from the connection used for managing CDRs,
- * so it is not affected from application rollback.
- *
- * The policy is to add English error messages with date in universal format (yyyy/mm/dd).
+ * so it is not affected from application rollback:
+ * - every connection can be associated only to 1 transaction
+ * - there is the main PDO connection/transaction (MAIN)
+ * - in case of severe errors the job can rollback the transaction on MAIN
+ * - an error PDO connection (ERR) is used for signaling errors
+ * - the error data written using ERR is not rollbacked if transaction on MAIN is rollbacked
+ * - the UI shows the UI table, while the jobs add transactions to the job table
+ * - at the end of the cron processor, the UI table is updated
  */
 class ArProblemException extends Exception
 {
@@ -82,9 +87,6 @@ class ArProblemException extends Exception
      */
     static public function beginLogTransaction()
     {
-        // do nothing.
-        // Then errors will be to ar_current_problem" table at the end of the transaction.
-
         try {
             // Use the normal DB connection for updating this field
             $deleteErrorTable = FixedJobProcessor::getCleanErrorTable();
