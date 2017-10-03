@@ -608,7 +608,13 @@ process_db isDebugMode dbConf pd maybeFileName inChan
                      -> let newErrorDirection
                               = case cdr_direction cdr1 of
                                   CDR_error -> cdr_errorDirection cdr1
-                                  _ -> cdr_direction cdr1
+                                               -- NOTE: if the direction is already an error, then the error direction is already set
+
+                                  CDR_none -> CDR_outgoing
+                                              -- NOTE: signal the worst damage.
+                                              -- Usually it is CDR_none in case of CDRS with importing/parsing problems
+
+                                  other -> other 
 
                             cdr2 = cdr1 {
                                      cdr_errorDirection = newErrorDirection
@@ -1369,7 +1375,11 @@ process_completePortedTelephoneNumbers env inChan outChan
                         ) (L.zip [0 ..] (V.toList cdrs))
 
               _ <- DB.executeStmt conn stmtTruncate []
-              _ <- DB.executeMany conn stmtInsertQ valuesToPort
+
+              case (L.null valuesToPort) of
+                True -> return ()
+                False -> do _ <- DB.executeMany conn stmtInsertQ valuesToPort
+                            return ()
 
               (_, portedRS) <- DB.queryStmt conn stmtGetPortedTelephoneNumbers []
               portedNumbers1 <- S.map (\[dbId, dbN] -> (fromDBInt dbId, fromDBText dbN)) portedRS
@@ -1413,6 +1423,29 @@ process_fakeCompletePortedTelephoneNumbers env inChan outChan = do
   processChan inChan (\_ -> return ())
   writeEOFChan outChan
   return ()
+
+-- | Apply the minimal amount of work for completing the external telephone number.
+process_simpleCompletePortedTelephoneNumbers
+    :: RatingParams
+    -> Chan ParsedCDR
+    -> Chan ParsedCDR
+    -> IO ()
+
+process_simpleCompletePortedTelephoneNumbers env inChan outChan = do
+  cdrs <- readChan inChan
+  case isEOFChan cdrs of
+    True -> writeEOFChan outChan
+    False -> do writeChan outChan (V.map noExportV cdrs)
+                process_simpleCompletePortedTelephoneNumbers env inChan outChan
+
+ where
+
+   noExportV :: ParsedCDR -> ParsedCDR
+   noExportV (ParsedCDR (p, t, f, c, cdr)) = ParsedCDR $ (p, t, f, c, noExport cdr)
+
+   noExport :: Either AsterisellError CDR -> Either AsterisellError CDR
+   noExport (Left err) = Left err
+   noExport (Right cdr) = Right $ cdr { cdr_externalTelephoneNumberWithAppliedPortability = Just $ cdr_externalTelephoneNumber cdr} 
 
 type CountOfCDRS = Int
 

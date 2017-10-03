@@ -360,7 +360,7 @@ Enable Letsencrypt certificates:
 ::
 
   yum install -y epel-release
-  yum install ngnix certbot certbot-nginx
+  yum install nginx certbot certbot-nginx
 
 
 On Centos 7 configure ``/etc/nginx/nginx.conf`` like this:

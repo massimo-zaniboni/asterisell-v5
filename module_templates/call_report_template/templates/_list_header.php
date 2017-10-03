@@ -36,30 +36,30 @@ $moduleName = <?php echo "\"" . FieldsToShow::getModuleName($generateForAdmin) .
     $thereIsError = false;
 
     if ($importantErrors > 0 || $warningErrors > 0) {
-    $thereIsError = true;
-    $alsoErrors = false;
-    if ($importantErrors > 0) {
-    $problemMsg = '<a href="' . url_for('problem/list', TRUE) . '">' . $importantErrors .
-        '</a>' . ' important problems to solve';
-    $alsoErrors = true;
-    }
+      $thereIsError = true;
+      $alsoErrors = false;
+      if ($importantErrors > 0) {
+        $problemMsg = '<a href="' . url_for('problem/list', TRUE) . '">' . $importantErrors .
+          '</a>' . ' important problems to solve';
+        $alsoErrors = true;
+      }
 
-    if ($warningErrors > 0) {
-    if ($alsoErrors) {
-    $problemMsg .= ', and ';
-    }
-    $problemMsg .= '<a href="' . url_for('problem/list', TRUE) . '">' . $warningErrors .
-        '</a>' . ' warnings to inspect';
-    }
-    $problemMsg = __('There are ') . $problemMsg . '. ';
+      if ($warningErrors > 0) {
+        if ($alsoErrors) {
+          $problemMsg .= ', and ';
+        }
+        $problemMsg .= '<a href="' . url_for('problem/list', TRUE) . '">' . $warningErrors . '</a>' . ' warnings to inspect';
+      }
+
+      $problemMsg = __('There are ') . $problemMsg . '. ';
     }
 
     $cdrErrors = CustomCDRServices::getInstance()->getCDRsWithErrorsByDestinationType(VariableFrame::$startFilterDate, VariableFrame::$endFilterDate, $conn);
     $problemType = CustomCDRServices::getInstance()->getProblemType($cdrErrors);
 
     if ($problemType !== ArProblemType::TYPE_INFO) {
-    $thereIsError = true;
-    $problemMsg .= 'In the selected time frame ' . CustomCDRServices::getInstance()->getErrorDescription($cdrErrors, null, 'cdrlist_unprocessed/list');
+      $thereIsError = true;
+      $problemMsg .= 'In the selected time frame ' . CustomCDRServices::getInstance()->getErrorDescription($cdrErrors, null, 'cdrlist_unprocessed/list');
     }
 
     $reratingMsg = FixedJobProcessor::getScheduledRatingEventDescription();

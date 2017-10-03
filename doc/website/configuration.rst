@@ -217,8 +217,18 @@ Tables on External Databases
 
 An external database is a database that is not on the same Linux
 instance where Asterisell is installed.
+Supposing the remote Asterisell instance is on IP '10.10.10.10',
+the SQL commands to execute are like:
 
-TODO continue
+::
+
+  CREATE USER 'someuser'@'localhost' IDENTIFIED BY 'somepassword';
+  CREATE USER 'someuser'@'10.10.10.10' IDENTIFIED BY 'somepassword';
+
+  GRANT SELECT,DELETE,UPDATE ON dbname.collector TO 'someuser'@'localhost';
+  GRANT SELECT,DELETE,UPDATE ON dbname.collector TO 'someuser'@'10.10.10.10';
+
+  FLUSH PRIVILEGES;
 
 Tables on the same Host and Database Server
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

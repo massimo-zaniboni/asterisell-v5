@@ -333,3 +333,10 @@ of a specific account, with limited privileges. This is not best practice,
 but as mitigation, there is the fact that there is no input from regular
 users, but only from administrators.
 
+How to export data to a different container
+-------------------------------------------
+
+These are guidelines that must be adapted to your specific case.
+
+::
+
