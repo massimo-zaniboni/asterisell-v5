@@ -8,7 +8,7 @@ Asterisell Usage
 .. important::
    Each page of the application has an extensive online help. This manual will not repeat this information.
 
-Recurring Concepts
+Recurring concepts
 ------------------
 
 Hierarchical structure definitions (tree-like) are preferred respect flat definitions (list-like):
@@ -31,7 +31,7 @@ So a complete history of the past is preserved. The advantages are:
 
 Asterisell uses a conservative approach about CDR rating. In case of doubt it does not rate a CDR, but it signals the problem.
 
-Recurring Work-Flow
+Recurring work-flow
 -------------------
 
 Asterisell run-time workflow is:
@@ -45,12 +45,12 @@ Asterisell run-time workflow is:
 Asterisell supports fully customizable jobs that can be added in every phase of the workflow.
 
 
-Official Calldate
+Official calldate
 .................
 
 The official calldate is the date of the last billed CDRs. All CDRs before this date are not re-rated automatically, because they are considerd as already billed to customers. CDRs after this date are re-rated automatically every time configuration params change.
 
-Error Notifications
+Error notifications
 ...................
 
 Asterisell generate errors in ``Status -> Current Problems``.
@@ -66,7 +66,7 @@ Every time you rerate CDRs, the solved errors disappear from the table. In some 
 circumstance, it is better deleting the table and rerating all the CDRs, for seeing
 if the problem disappeared or not.
 
-Emergency Email
+Emergency email
 ~~~~~~~~~~~~~~~
 
 You can define another administrator account, with a distinct email, and with only

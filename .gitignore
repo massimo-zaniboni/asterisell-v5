@@ -8,6 +8,7 @@ tags
 *.pyc
 doc/src/_build/doctrees/*
 doc/src/doctrees/*
+doc/website/_build/*
 web/help/.buildinfo
 fabfile.pyc
 .idea/*

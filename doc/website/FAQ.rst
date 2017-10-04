@@ -11,13 +11,13 @@ Asterisell FAQ
 Docker
 ------
 
-How Updating the SSL Certificates of an Instance
+How updating the SSL certificates of an instance
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Change the configurations in ``fabric_data/asterisell_instances.py``, and then ``fab restart:INSTANCE``.
 
 
-How Removing an Instance Completely
+How removing an instance completely
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 ::
@@ -38,7 +38,7 @@ How Removing an Instance Completely
 Reports
 -------
 
-Totals on Reports
+Totals on reports
 ~~~~~~~~~~~~~~~~~
 
 | The total cost of vendor reports does not match the grand total on the report
@@ -46,7 +46,7 @@ Totals on Reports
 Check in the online call report if you have some internal vendors with
 costs. Internal vendors are not showed on reports
 
-Regeneration of Many Reports in the Past
+Regeneration of many reports in the past
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 |I'm generating many reports in the past, setting the scheduler to 4 months in the past, but only the first set is generated
@@ -59,7 +59,7 @@ In the JobLog you can see how much it is post-poned.
 So if you wait some time, another batch of reports will be executed.
 
 
-File Processing
+File processing
 ---------------
 
 Conversion of files to UTF-8 format
@@ -92,7 +92,7 @@ or a probably better command with in-place conversion:
 Rating
 ------
 
-Generic RateEngine Error Messages
+Generic rateEngine error messages
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Sometimes the application generate long error messages like
@@ -132,7 +132,7 @@ So it suffices in this case opening the rate with id 44, on the web-interface, a
 The problem of this error messages it is that the rate plan language is very powerful and it is not
 easy to generate meaningful error messages.
 
-Debug Rating Errors
+Debug rating errors
 ~~~~~~~~~~~~~~~~~~~
 
 Open always fully the error message, because it is formatted in a clear way, with correct indentation.
@@ -167,7 +167,7 @@ rates, rating in debug mode. In the Asterisell instance admin directory:
 It is possible inspecting the reason of an unrated CDR, in the
 ``Calls -> Calls with Errors`` menu entry.
 
-Fixing Errors in Source CDRs
+Fixing errors in source CDRs
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The utility ``php asterisell.php data export-cdrs`` accessible after executing ``fab connect:INSTANCE``
@@ -182,7 +182,7 @@ deleted, and replaced with the new version.
 A copy of the original exported source-cdrs can be maintained for a
 while, in order to restore them in case of errors.
 
-Low Level Details
+Low level details
 ^^^^^^^^^^^^^^^^^
 
 During rating, a ``source_cdr`` is assigned to the extension.

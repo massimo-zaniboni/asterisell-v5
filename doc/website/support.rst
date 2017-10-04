@@ -15,7 +15,7 @@ Contacts
 * `Asterisell Mailing List`_ : community free support 
 * `Asterisell News`_ section : application upgrades, and important notifications. If you are using Asterisell in production, you should subscribe to the related `RSS feeds`_.
 
-Open Source Development
+Open source development
 -----------------------
 
 Asterisell is released under GPL3+ license, at `Asterisell GitHub Repository`_. There is no distinction between commercial and free version. It is all free except private customization that can expose confidential information of Asterisell users. But all improvements to the application are back-ported to the free repository.
@@ -26,7 +26,7 @@ For contributing to the development, the suggested way is:
 * For every modified source code file add yourself to the list of authors/contributors, using something like: ``Copyright (C) 20XX You Name <optionally-your-email@example.net>``. This is mandatory for GPL compliance, except in case of correction of typos.
 * Send a pull request.
 
-Current Status
+Current status
 --------------
 
 Asterisell is used in production from 2007.

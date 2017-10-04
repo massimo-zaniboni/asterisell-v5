@@ -3,7 +3,7 @@
 Asterisell Installation
 =======================
 
-System Requirements
+System requirements
 -------------------
 
 Asterisell supports any Linux x64 distribution with a recent version of Docker. Up to date it is tested on:
@@ -22,10 +22,10 @@ otherwise some jobs can behave in an incorrect way.
 Asterisell instances resides on local Docker containers, and they are managed using a tool based on Fabric,
 installed on the host system.
 
-Host Configuration
+Host configuration
 ------------------
 
-Transparent Huge Pages
+Transparent huge pages
 ~~~~~~~~~~~~~~~~~~~~~~
 
 The MariaDB TokuDB engine used from Asterisell does not support hosts with `transparent huge pages` enabled.
@@ -160,7 +160,7 @@ Then start the Docker service.
   systemctl
   systemctl status docker.service
 
-Configure the Docker User
+Configure the Docker user
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
 If you are not installing as root (suggested and fully supported), set your normal user as a docker administrator user:
@@ -212,7 +212,7 @@ Asterisell uses Git http://en.wikipedia.org/wiki/Git\_(software) for installing/
 
 So the content of the local repo can be freely customized, and the merged with Asterisell upgrades.
 
-Install Demo Instance
+Install demo instance
 ---------------------
 
 The file `fabric_data/asterisell_instances.py` contains the configured
@@ -236,7 +236,7 @@ instance in this way
    The image will be shared between all other instances, so next installations will be
    a lot faster.
 
-Testing the Demo Instance
+Testing the demo instance
 -------------------------
 
 This command
@@ -293,7 +293,7 @@ An URL like `http://localhost:8020/ <http://localhost:8020/>`_ open a normal ins
 * only normal users (your customers) can access it
 * the PHP application and database connection has limited read access
 
-Install Production Instance
+Install production instance
 ---------------------------
 
 Customize the content of the configuration file `fabric_data/asterisell_instances.py`.
@@ -312,7 +312,7 @@ In case `billing` is the name of the instance, execute:
   # use `admin` `SOME-PASSWORD` for connecting to the container, and opening a web instance
 
 
-Httpd Settings for (multiple) Private Instances
+Httpd settings for (multiple) private instances
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 An instance is private if it is not accessible to customers, but only to the administrators of the host.
@@ -330,7 +330,7 @@ For doing this, connect to the instance setting the tunneling, and using the con
 
 Then if you open the URL `http://localhost:8020/admin <http://>`_ it will be redirected to the port on the remote host, using a secure SSH tunnelling.
 
-Httpd Settings for Single Public Instance
+Httpd settings for single public instance
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 An instance is public if it can be accessed to customers, and/or it is accessible from some global and untrusted network.
@@ -344,16 +344,14 @@ are exported to the external network.
 You can activate this following the notes on the Asterisell configuration file, because
 it is directly supported from Asterisell and proper configuration files will be generated.
 
-Httpd Settings for Multiple Public Instances
+Httpd settings for multiple public instances
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 In case of multiple public instances on the same host, the host must serve the https requests and then proxy them
 to the various Docker instances:
 
-* each Docker instance has a unique http port, that is not exported to the external network, but accessible only
-from the local host
-* the Nginx server on the host manage the SSL/https connections, and related certificates, and then it proxies
-requests to the Nginx servers on the Docker instances
+* each Docker instance has a unique http port, that is not exported to the external network, but accessible only from the local host
+* the Nginx server on the host manage the SSL/https connections, and related certificates, and then it proxies requests to the Nginx servers on the Docker instances
 
 Enable Letsencrypt certificates:
 

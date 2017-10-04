@@ -6,6 +6,7 @@ Asterisell News
    :title: Asterisell
    :link: https://www.asterisell.com/
 
+   news_2017-10-04
    news_2017-03-24
    news_2016-12-21
    news_2016-11-02

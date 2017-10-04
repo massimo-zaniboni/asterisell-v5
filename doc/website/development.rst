@@ -10,12 +10,12 @@ These notes are interesting only if you want to extend the Asterisell applicatio
    :backlinks: top
    :local:
 
-How Installing the Symfony Docker DEV Container
+How installing the symfony Docker DEV container
 -----------------------------------------------
 
 Read notes inside `scripts/dockerfiles/symfony_dev`.
 
-How Changing the Database Schema
+How changing the database schema
 --------------------------------
 
 Change the file ``config/schema.yml``.
@@ -32,7 +32,7 @@ Test the application.
 
 Add upgrade jobs extending the database also in already production instances. TODO complete this
 
-How Generating UI Web Modules
+How generating UI web modules
 -----------------------------
 
 Inside the Symfony Docker DEV Container in:
@@ -141,7 +141,7 @@ How profiling and solve speace leaks of the Haskell Rating Engine
 
 It is possible executing only specific parts of the rating engine using the ``--run-level`` options. See the source code of the rating engine for more info.
 
-Code Gist
+Code gist
 ---------
 
 Adding LOG message
@@ -167,10 +167,10 @@ Inside a template if the error must be viewed on the web toolbar
    echo log_message(...);
 
 
-Project Administration
+Project administration
 ----------------------
 
-How Publishing a New Release
+How publishing a new release
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 * Make sure to use a recent version of Stackage LTS, consulting ``https://www.stackage.org/``

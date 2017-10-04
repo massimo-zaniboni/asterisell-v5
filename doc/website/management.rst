@@ -1,13 +1,23 @@
 .. _Asterisell: https://www.asterisell.com
 .. _support: support@asterisell.com
 .. _assistance: support@asterisell.com
+.. _management:
 
 Asterisell Management
 =====================
 
+
+.. contents:: Table of Contents
+   :depth: 2
+   :backlinks: top
+   :local:
+
+Management tool
+---------------
+
 Instances are administered from the Management Tool installed in the host.
 
-Management Commands
+Management commands
 -------------------
 
 The most useful management commands are described in
@@ -35,7 +45,7 @@ Some useful commands are:
 -  ``php asterisell.php debug jobs`` run jobs in debug mode, signaling
    more problems respect normal mode$
 
-Docker Management
+Docker management
 -----------------
 
 Asterisell does not use Docker in the suggested way, because it puts in the same container all the required servers.
@@ -73,10 +83,10 @@ For seeing the active Docker containers, and managing them, execute
 See the instance deletion howto for a description of how to remove completely an instance,
 and its volume with data.
 
-Application Upgrade
+Application upgrade
 -------------------
 
-Git Repository Upgrade
+Git repository upgrade
 ~~~~~~~~~~~~~~~~~~~~~~
 
 Instances can be upgraded to a new version of Asterisell, using the
@@ -115,7 +125,7 @@ must:
 -  ``git commit -a -m "Resolved conflicts."`` for merging the changes,
    when all the files are fixed
 
-Instances Upgrade
+Instances upgrade
 ~~~~~~~~~~~~~~~~~
 
 When the Instance Management Tool contains the last version of Asterisell,
@@ -143,7 +153,7 @@ For upgrading all the instances
    fab upgrade:all
 
 
-Change of Configurations
+Change of configurations
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
 Instance configurations are on `fabric_data/asterisell_instances.py` file.
@@ -151,10 +161,10 @@ Instance configurations are on `fabric_data/asterisell_instances.py` file.
 After changing the file you must upgrade the instances, using the
 ``fab upgrade:INSTANCE`` command.
 
-Data Backup
+Data backup
 -----------
 
-Quick Undo/Restore
+Quick undo/restore
 ~~~~~~~~~~~~~~~~~~
 
 Asterisell saves partial copies of rates, and organization/customer
@@ -163,7 +173,7 @@ an administrator. It is a sort of UNDO function.
 
 The web interface contains info on how restoring quickly this information.
 
-Container Data Backup
+Container data backup
 ~~~~~~~~~~~~~~~~~~~~~
 
 Asterisell performs a daily backup of configurations, reports, rated
@@ -188,7 +198,7 @@ data, is favored respect reduction of data duplication.
 Maybe in future a compressed file system can be used, for reducing further
 the space usage.
 
-Remote Backup
+Remote backup
 ~~~~~~~~~~~~~
 
 Create a backup server, distinct from Asterisell server.
@@ -241,7 +251,7 @@ The Asterisell job will backup all important directories:
 -  ``instance/web/uploads``
 -  ``instance/data_files/messages/backup``
 
-Backup of Management Tool
+Backup of management tool
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The backup of instances does not suffices, because you need also a backup
@@ -275,7 +285,7 @@ Test it
 
     /etc/cron.daily/asterisell_deploy_backup.sh
 
-Data Restore
+Data restore
 ~~~~~~~~~~~~
 
 Recreate an instance of the application.
@@ -333,10 +343,72 @@ of a specific account, with limited privileges. This is not best practice,
 but as mitigation, there is the fact that there is no input from regular
 users, but only from administrators.
 
-How to export data to a different container
+
+.. _export_data:
+How exporting data to a different container
 -------------------------------------------
 
 These are guidelines that must be adapted to your specific case.
 
+First create a destination container, with maybe correct configurations, but without real data inside.
+
+Then on the source container:
+
 ::
+
+  fab connect:your-source-instance
+  # if it is a Docker image
+
+  php asterisell.php data backup
+
+If the source container is in a Docker image you had to move the backup file to the hosting file system:
+
+::
+
+  docker inspect your-source-container-name | grep volume
+  # you obtain a result like
+  # > "/var/lib/docker/volumes/af44ab14c07c8322027dedbb8ed2f24cbc2e02ab439235a9bb01a/_data",
+
+  mv /var/lib/docker/volumes/af44ab14c07c8322027dedbb8ed2f24cbc2e02ab439235a9bb01a/_data/tmp/your-backup-file.sql .
+
+Then you had to move the file to your destination Docker container
+
+::
+
+  docker inspect your-dest-instance | grep volume
+  # you obtain a result like
+  # > "/var/lib/docker/volumes/14c07c8322027dedbb8ed2f24cbc2e02ab439235a9bb01a/_data",
+
+  mv your-backup-file.sql /var/lib/docker/volumes/14c07c8322027dedbb8ed2f24cbc2e02ab439235a9bb01a/_data/tmp/your-backup-file.sql .
+
+  fab connect:your-dest-instance
+
+  php asterisell.php cron disable
+  mv asterisell.php asterisell_disable_cron.php
+  # force the block of the cron-job
+
+  # determine the password for accessing the database using
+  cat config/database.yml
+
+  # NOTE: drop database so all triggers and indexes are deleted,
+  # because during upgrade there can be indexes with different names
+  # and there can be repetitions
+  mysql -uroot -psomepassword
+  drop database your-dest-instance;
+  create database your-dest-instance;
+  exit
+
+  # import the data
+  mysql -uroot -psomepassword your-dest-instance < /var/tmp/your-backup-file.sql
+  rm /var/tmp/your-backup-file.sql
+
+  # restore the entry point
+  mv asterisell_disable_cron.php asterisell.php
+  php asterisell.php cron disable
+  exit
+
+  fab upgrade:your-instance
+  # this will apply database upgrade jobs,
+  # and this enable the cron job again
+
 
