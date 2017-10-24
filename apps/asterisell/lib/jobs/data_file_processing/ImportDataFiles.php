@@ -60,8 +60,7 @@ class ImportDataFiles extends FixedJobProcessor
     const INPUT_DIRECTORY = 'data_files/messages/input/';
 
     /**
-     * Not used anymore. Mantained only because it is used from upgrade jobs.
-     * It can be deleted in future.
+     * The directory where imported files are put.
      */
     const ARCHIVE_DIRECTORY = 'data_files/messages/archive/';
 
@@ -112,7 +111,7 @@ class ImportDataFiles extends FixedJobProcessor
     }
 
     /**
-     * @return bool true for deleting processed files, false for moving in tmp directory.
+     * @return bool true for deleting processed files, false for moving in ARCHIVE_DIRECTORY.
      */
     public function deleteProcessedFiles()
     {
@@ -403,24 +402,6 @@ class ImportDataFiles extends FixedJobProcessor
     }
 
     /**
-     * @param string $sourceFile
-     * @param string $completeSourceFile
-     * @return bool false if the operation had an error
-     */
-    protected function deleteOrMoveProcessedFile($sourceFile, $completeSourceFile)
-    {
-        if ($this->deleteProcessedFiles()) {
-            return @unlink($completeSourceFile);
-        } else {
-            $completeSourceFile2 = normalizeFileNamePath($this->getAbsoluteTmpDirectory() . '/' . $sourceFile);
-            if (file_exists($completeSourceFile2)) {
-                @unlink($completeSourceFile2);
-            }
-            return rename($completeSourceFile, $completeSourceFile2);
-        }
-    }
-
-    /**
      * @param string $sourceFile file name inside input directory, to import.
      * @param string $debugFileName
      * @return int processed CDRs
@@ -436,7 +417,7 @@ class ImportDataFiles extends FixedJobProcessor
         }
 
         if (filesize($completeSourceFile) === 0) {
-            $this->deleteOrMoveProcessedFile($sourceFile, $completeSourceFile);
+            @unlink($completeSourceFile);
             return 0;
         }
 
@@ -589,23 +570,41 @@ class ImportDataFiles extends FixedJobProcessor
             $exitStatus = 0;
             exec($cmd, $output, $exitStatus);
 
-            if (!$this->deleteProcessedFiles()) {
-                $isOk = $this->deleteOrMoveProcessedFile($sourceFile, $completeSourceFile);
-                if ($isOk === FALSE) {
-                    self::signalError(
-                        "error moving file $completeSourceFile",
-                        "Error moving file \"$completeSourceFile\" into directory \"" . $this->getAbsoluteTmpDirectory() . "\".",
-                        "Rating process is interrupted. Repeated CDRs can be added in the database if the file is not a status file. ",
-                        "Check directory permissions. If the error persist contact the assistance.",
-                        true,
-                        ArProblemDomain::APPLICATION
-                    );
-                }
+            if ($this->deleteProcessedFiles()) {
+                return @unlink($completeSourceFile);
             }
+
+            // NOTE: the file will be signaled as imported, from the Haskell rating engine
 
             $totLines = 0;
             $isFirstLine = true;
             if ($exitStatus == 0) {
+
+                // Archive the input file
+                if (!$this->deleteProcessedFiles()) {
+                    $archiveTime = $minDate;
+                    if (is_null($archiveTime)) {
+                        $archiveTime = time();
+                    }
+                    $completeSourceFile2 = normalizeFileNamePath(self::getAbsoluteArchiveDirectory($cdrProvider, $logicalType, $versionType, $archiveTime) . '/' . $sourceFile);
+                    if (file_exists($completeSourceFile2)) {
+                        @unlink($completeSourceFile2);
+                    }
+                    $isOk = @rename($completeSourceFile, $completeSourceFile2);
+
+                    if ($isOk === FALSE) {
+                        self::signalError(
+                            "error moving file $completeSourceFile",
+                            "Error moving file \"$completeSourceFile\" into \"" . $completeSourceFile2 . "\".",
+                            "Rating process is interrupted. Repeated CDRs can be added in the database if the file is not a status file. ",
+                            "Check directory permissions. If the error persist contact the assistance.",
+                            true,
+                            ArProblemDomain::APPLICATION
+                        );
+                    }
+                }
+
+                // Return info to the user
                 foreach ($output as $resultLine) {
                     if ($isFirstLine) {
                         $isFirstLine = false;
