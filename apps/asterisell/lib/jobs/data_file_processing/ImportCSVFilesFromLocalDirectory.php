@@ -137,6 +137,7 @@ abstract class ImportCSVFilesFromLocalDirectory extends ImportCSVFilesFromRemote
                                 }
                             }
 
+                            $this->maybeArchiveFile($sourceFile, $tmpResultFileName);
                             $archive = $this->processFile($tmpResultFileName);
                             if ($archive) {
                                 $dstResultFileName = normalizeFileNamePath(ImportDataFiles::getAbsoluteInputDirectory() . '/' . $fileName);

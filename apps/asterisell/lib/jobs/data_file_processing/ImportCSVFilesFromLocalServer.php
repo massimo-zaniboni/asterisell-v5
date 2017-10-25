@@ -191,6 +191,7 @@ abstract class ImportCSVFilesFromLocalServer extends ImportCSVFilesFromRemoteSer
                                 }
                             }
 
+                            $this->maybeArchiveFile($sourceFile, $tmpResultFileName);
                             $archive = $this->processFile($tmpResultFileName);
                             if ($archive) {
 

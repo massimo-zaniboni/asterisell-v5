@@ -109,7 +109,7 @@ abstract class ImportCSVFilesFromFTPServer extends ImportCSVFilesFromRemoteServe
 
             foreach ($remoteFiles as $remoteFileName) {
                 try {
-                    // NOTE: call first this becaune the provider can change
+                    // NOTE: call first this because the provider can change
                     if (isPrefixOf('./', $remoteFileName)) {
                        $remoteFileName = substr($remoteFileName, 2);
                     }
@@ -186,9 +186,9 @@ abstract class ImportCSVFilesFromFTPServer extends ImportCSVFilesFromRemoteServe
                                 }
                             }
 
+                            $this->maybeArchiveFile($remoteFileName, $tmpResultFileName);
                             $archive = $this->processFile($tmpResultFileName);
                             if ($archive) {
-
                                 $dstResultFileName = normalizeFileNamePath(ImportDataFiles::getAbsoluteInputDirectory() . '/' . $fileName);
                                 @unlink($dstResultFileName);
                                 $isOk = rename($tmpResultFileName, $dstResultFileName);

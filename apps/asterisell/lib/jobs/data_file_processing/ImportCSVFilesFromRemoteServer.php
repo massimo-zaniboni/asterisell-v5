@@ -75,21 +75,33 @@ abstract class ImportCSVFilesFromRemoteServer extends FixedJobProcessor
     abstract public function canAcceptFileName($n);
 
     /**
+     * @param string $sourceFileName the name of the file, on the provider side
+     * @return null|string null for no archiving the file.
+     * A unique name, respect the provider, for the file to archive in ARCHIVE_DIRECTORY
+     */
+    public function fileArchiveName($sourceFileName)
+    {
+        return null;
+    }
+
+    /**
      * @return string the locale used from the provider.
      * It must be in Linux `recode` utility format, so something like:
      * - 'ISO-8859-1'
      * - 'UTF8'
      * If the format is different from UTF8, it will be converted to it using the `recode` utility.
      */
-    public function getSourceCharacterEncoding() {
+    public function getSourceCharacterEncoding()
+    {
         return 'UTF8';
     }
 
     /**
      * @return int minutes of check frequency
      */
-    public function checkNewFilesEveryMinutes() {
-        return 60*3;
+    public function checkNewFilesEveryMinutes()
+    {
+        return 60 * 3;
     }
 
     /**
@@ -211,13 +223,13 @@ abstract class ImportCSVFilesFromRemoteServer extends FixedJobProcessor
             if (!is_null($v)) {
                 $id = $v->getId();
             } else {
-               $id = null;
+                $id = null;
             }
         }
 
         if (is_null($id)) {
             throw $this->createProblem(
-                 "not defined cdr provider - " . $this->getCdrProvider()
+                "not defined cdr provider - " . $this->getCdrProvider()
                 , "There is no configured CDR provider \"" . $this->getCdrProvider() . "\"."
                 , "Configure the CDR provider in `Params->CDR Providers` form of the Web User Interface."
             );
@@ -344,6 +356,48 @@ abstract class ImportCSVFilesFromRemoteServer extends FixedJobProcessor
                 fclose($h);
             }
             throw $e;
+        }
+    }
+
+    /**
+     * Called from jobs for archiving the file, if the flag is activated.
+     * @param string $sourceFile the name of the file on the provider side, without directories
+     * @param string $completeSourceFile the file to copy/archive on the local file system
+     */
+    public function maybeArchiveFile($sourceFile, $completeSourceFile)
+    {
+        $destFileName = $this->fileArchiveName($sourceFile);
+        if (!isEmptyOrNull($destFileName)) {
+            $archiveTime = time();
+            $dirName = ImportDataFiles::getAbsoluteArchiveDirectory($this->getCDRProvider(), $this->getCDRProvider(), $this->getCDRProvider(), $archiveTime);
+            $completeSourceFile2 = normalizeFileNamePath($dirName . '/' . $destFileName);
+            if (file_exists($completeSourceFile2)) {
+                @unlink($completeSourceFile2);
+            }
+            @mkdir($dirName, 0777, true);
+            $isOk = @copy($completeSourceFile, $completeSourceFile2);
+
+            if ($isOk === FALSE) {
+                $key = 'can not archive ' . $completeSourceFile2;
+                $problemDuplicationKey = $key . '-' . get_class($this);
+
+                $problemDescription =
+                    "The CDR importing procedure \""
+                    . get_class($this) . "\", can not archive into \"" . $completeSourceFile2
+                    . "\" the file \"" . $completeSourceFile
+                    . "\" of the provider \"" . $this->getCDRProvider() . "\"";
+                $problemEffect = "This file will be not arhived. ";
+                $problemProposedSolution = "Fix the directory permissions, and archive manually this file.";
+
+                ArProblemException::createWithoutGarbageCollection(
+                    ArProblemType::TYPE_ERROR,
+                    ArProblemDomain::CONFIGURATIONS,
+                    null,
+                    $problemDuplicationKey,
+                    $problemDescription,
+                    $problemEffect,
+                    $problemProposedSolution);
+            }
         }
     }
 }
