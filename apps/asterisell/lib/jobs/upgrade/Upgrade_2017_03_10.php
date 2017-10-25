@@ -26,7 +26,7 @@ class Upgrade_2017_03_10 extends AdminJobProcessor
 
         $conn->exec('DROP TABLE IF EXISTS `ar_postponed_report_tmp`;');
         $conn->exec('
-CREATE TABLE `ar_postponed_report_tmp`
+CREATE TABLE IF NOT EXISTS `ar_postponed_report_tmp`
 (
 	`ar_organization_unit_id` INTEGER  NOT NULL,
 	`from_date` DATETIME  NOT NULL,
@@ -44,7 +44,7 @@ CREATE TABLE `ar_postponed_report_tmp`
         $conn->exec('UPDATE ar_report_set SET postponed_fields_are_updated = 0;');
 
         $conn->exec('
-CREATE TABLE `ar_expanded_extensions`
+CREATE TABLE IF NOT EXISTS `ar_expanded_extensions`
 (
 	`id` INTEGER  NOT NULL AUTO_INCREMENT,
 	`ar_organization_unit_id` INTEGER,
