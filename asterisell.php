@@ -339,7 +339,7 @@ function makeDatabaseBackup($isInteractive = true, $onlyConfig = false)
 
     list($database, $user, $password) = getDatabaseNameUserAndPassword();
 
-    $onlyConfigTables = array('ar_cdr', 'ar_current_problem', 'ar_new_problem', 'ar_source_csv_file', 'ar_bundle_state', 'ar_source_cdr');
+    $onlyConfigTables = array('ar_cdr', 'ar_current_problem', 'ar_new_problem', 'ar_source_csv_file', 'ar_bundle_state', 'ar_source_cdr', 'ar_remote_file');
 
     $options = ' ';
     if ($onlyConfig) {
