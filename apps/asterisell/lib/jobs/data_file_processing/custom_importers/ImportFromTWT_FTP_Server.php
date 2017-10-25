@@ -58,6 +58,11 @@ abstract class ImportFromTWT_FTP_Server extends ImportCSVFilesFromFTPServer
     // Specific Implementation.
     //
 
+    public function fileArchiveName($sourceFileName)
+    {
+        return $sourceFileName;
+    }
+
     public function getSourceCharacterEncoding() {
         return 'ISO-8859-1';
     }
