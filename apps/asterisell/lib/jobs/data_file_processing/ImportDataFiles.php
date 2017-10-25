@@ -570,10 +570,6 @@ class ImportDataFiles extends FixedJobProcessor
             $exitStatus = 0;
             exec($cmd, $output, $exitStatus);
 
-            if ($this->deleteProcessedFiles()) {
-                return @unlink($completeSourceFile);
-            }
-
             // NOTE: the file will be signaled as imported, from the Haskell rating engine
 
             $totLines = 0;
