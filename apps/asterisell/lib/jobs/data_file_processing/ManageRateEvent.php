@@ -315,11 +315,11 @@ class ManageRateEvent extends FixedJobProcessor
                 $debugModeS = '0';
             }
 
-            $isVoIpReseller = sfConfig::get('app_is_voip_reseller');
-            if ($isVoIpReseller) {
-                $isVoIpResellerS = '1';
+            $isBilling = sfConfig::get('app_is_billing');
+            if ($isBilling) {
+                $isBillingS = '1';
             } else {
-                $isVoIpResellerS = '0';
+                $isBillingS = '0';
             }
             $debugFileName = normalizeFileNamePath(ImportDataFiles::getMySQLAccessibleTmpDirectory(self::GARBAGE_KEY) . '/' . self::RATE_DEBUG_FILE_NAME);
             @unlink($debugFileName);
@@ -328,7 +328,7 @@ class ManageRateEvent extends FixedJobProcessor
                 . ' --rate '
                 . ' --debug-mode ' . $debugModeS
                 . ' --run-level 0'
-                . ' --is-voip-reseller ' . $isVoIpResellerS;
+                . ' --is-voip-reseller ' . $isBillingS;
 
             $mask = sfConfig::get('app_mask_for_external_telephone_number');
 

@@ -2888,7 +2888,7 @@ ratePlan_loadRates conn p1 ratesToImport = do
                            -> rateChanges_insertIfInTimeFrame s (params_fromDate p1) (params_toDate p1) rInternalName rId rToTime
               ) rateChanges_empty inS1
 
-  -- Load the big content of only really used rates.
+  -- Load the big content only for really used rates.
 
   let q2 = [str| SELECT
                |   ar_rate_format.internal_name
