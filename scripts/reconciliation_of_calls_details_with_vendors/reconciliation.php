@@ -82,7 +82,7 @@ function help()
 
 Usage:
 
-  php reconciliation.php format-name vendor-file format-name asterisell-file diff show-all
+  php reconciliation.php format-name vendor-file format-name asterisell-file diff show-all compare-costs
 
 where
 
@@ -92,6 +92,9 @@ where
 
   show-all: true for showing all calls,
             false for showing only calls with problems
+
+  compare-costs: true for comparing the cost of the vendor file, with the cost calculated from Asterisell file
+                 false for comparing the cost of the vendor file, with the income calculated from Asterisell file
 
 available format are:
 
@@ -103,10 +106,18 @@ available format are:
 
   asterisell
 
-    ,"Account","Direction","Telephone Number","Location","Connection type","Date","Duration in seconds","Currency","Cost (VAT excluded)","Cost Savings (VAT excluded)","Vendor","Communication Channel","Organization Level 1","Organization Level 2","Organization Level 3","Organization Level 4","Organization Level 5","Organization Level 6","Organization Level 7","Organization Level 8","Organization Level 9","Organization Level 10","Organization Level 11","Organization Level 12","Organization Level 13","Organization Level 14","Organization Level 15"
-    ,"Universidade de Aveiro / Serviços/ Departamentos internos à UA / Departamento de Química / Eduarda Pereira (24904)","outgoing","234423XXX","Portugal","Fixed Line","2013-05-31 23:19:17","8","EUR","0.0010","0.0000","PT Prime","SIP Fixed Line Operator","Universidade de Aveiro","Serviços/ Departamentos internos à UA","Departamento de Química","Eduarda Pereira (24904)","","","","","","","","","","",""
-    ,"Universidade de Aveiro / Instituíções afiliadas à UA / Instituto Superior de Contabilidade e Administração da Universidade de Aveiro (ISCA-UA) / sec-ISCA (45118)","outgoing","234423XXX","Portugal","Fixed Line","2013-05-31 21:57:11","20","EUR","0.0020","0.0000","PT Prime","SIP Fixed Line Operator","Universidade de Aveiro","Instituíções afiliadas à UA","Instituto Superior de Contabilidade e Administração da Universidade de Aveiro (ISCA-UA)","sec-ISCA (45118)","","","","","","","","","","",""
-    ,"Universidade de Aveiro / Serviços/ Departamentos internos à UA / Serviços de Ação Social da Universidade de Aveiro (SASUA) / Secretaria de Apoio Ao Estudante (22508)","outgoing","707500XXX","Portugal","Fixed Line","2013-05-31 20:54:00","22","EUR","0.0030","0.0000","PT Prime","SIP Fixed Line Operator","Universidade de Aveiro","Serviços/ Departamentos internos à UA","Serviços de Ação Social da Universidade de Aveiro (SASUA)","Secretaria de Apoio Ao Estudante (22508)","","","","","","","","","","",""
+    "Account","Direction","Telephone Number","Location","Connection type","Date","Duration in seconds","Currency","Cost (VAT excluded)","Cost Savings (VAT excluded)","Vendor","Communication Channel","Organization Level 1","Organization Level 2","Organization Level 3","Organization Level 4","Organization Level 5","Organization Level 6","Organization Level 7","Organization Level 8","Organization Level 9","Organization Level 10","Organization Level 11","Organization Level 12","Organization Level 13","Organization Level 14","Organization Level 15"
+    "Universidade de Aveiro / Serviços/ Departamentos internos à UA / Departamento de Química / Eduarda Pereira (24904)","outgoing","234423XXX","Portugal","Fixed Line","2013-05-31 23:19:17","8","EUR","0.0010","0.0000","PT Prime","SIP Fixed Line Operator","Universidade de Aveiro","Serviços/ Departamentos internos à UA","Departamento de Química","Eduarda Pereira (24904)","","","","","","","","","","",""
+    "Universidade de Aveiro / Instituíções afiliadas à UA / Instituto Superior de Contabilidade e Administração da Universidade de Aveiro (ISCA-UA) / sec-ISCA (45118)","outgoing","234423XXX","Portugal","Fixed Line","2013-05-31 21:57:11","20","EUR","0.0020","0.0000","PT Prime","SIP Fixed Line Operator","Universidade de Aveiro","Instituíções afiliadas à UA","Instituto Superior de Contabilidade e Administração da Universidade de Aveiro (ISCA-UA)","sec-ISCA (45118)","","","","","","","","","","",""
+    "Universidade de Aveiro / Serviços/ Departamentos internos à UA / Serviços de Ação Social da Universidade de Aveiro (SASUA) / Secretaria de Apoio Ao Estudante (22508)","outgoing","707500XXX","Portugal","Fixed Line","2013-05-31 20:54:00","22","EUR","0.0030","0.0000","PT Prime","SIP Fixed Line Operator","Universidade de Aveiro","Serviços/ Departamentos internos à UA","Serviços de Ação Social da Universidade de Aveiro (SASUA)","Secretaria de Apoio Ao Estudante (22508)","","","","","","","","","","",""
+
+  asterisell2
+
+    like asterisell but with ";" as field separator and "," as decimal separator.
+
+  asterisell3
+
+    like asterisll but with "," as decimal separator.
 
 STRING;
 
@@ -117,18 +128,26 @@ function main($argc, $argv)
     global $createTables;
     global $createIndexes;
 
-    if ($argc !== 7) {
+    if ($argc !== 8) {
         help();
         return;
     }
 
     $diff = floatval($argv[5]);
     $showAllCalls = $argv[6];
+    $compareCostsS = $argv[7];
+
 
     if ($showAllCalls == 'true') {
         $showAllCals = true;
     } else {
         $showAllCalls = false;
+    }
+
+    if ($compareCostsS == 'true') {
+        $compareCosts = true;
+    } else {
+        $compareCosts = false;
     }
 
     $databaseFile = 'reconcile.sqlite.db';
@@ -144,11 +163,11 @@ function main($argc, $argv)
     $i = 1;
     $formatType = $argv[$i++];
     $fileName = $argv[$i++];
-    importAccordingFormat($diff, $formatType, $fileName, true, $conn);
+    importAccordingFormat($diff, $formatType, $fileName, $compareCosts, true, $conn);
 
     $formatType = $argv[$i++];
     $fileName = $argv[$i++];
-    importAccordingFormat($diff, $formatType, $fileName, false, $conn);
+    importAccordingFormat($diff, $formatType, $fileName, $compareCosts, false, $conn);
 
     $conn->exec('COMMIT TRANSACTION;');
 
@@ -499,17 +518,20 @@ SQL;
  * @param float $diff
  * @param string $formatType
  * @param string $fileName
+ * @param bool $compareCosts
  * @param bool $isVendor
  * @param SQLite3 $conn
  */
-function importAccordingFormat($diff, $formatType, $fileName, $isVendor, $conn)
+function importAccordingFormat($diff, $formatType, $fileName, $compareCosts, $isVendor, $conn)
 {
     if ($formatType == 'ptprime') {
         importFromCSV_usingPTPrimeFormat($fileName, $isVendor, $conn);
     } else if ($formatType == 'asterisell') {
-        importFromCSV_usingAsterisellFormat($fileName, $isVendor, $conn);
+        importFromCSV_usingAsterisellFormat($fileName, $compareCosts, $isVendor, $conn);
     } else if ($formatType == 'asterisell2') {
-        importFromCSV_usingAsterisellFormat($fileName, $isVendor, $conn, ';', ',');
+        importFromCSV_usingAsterisellFormat($fileName, $compareCosts, $isVendor, $conn, ';', ',');
+    } else if ($formatType == 'asterisell3') {
+        importFromCSV_usingAsterisellFormat($fileName, $compareCosts, $isVendor, $conn, ',', ',');
     } else if ($formatType == 'consertis') {
          importFromCSV_usingConsertisFormat($fileName, $isVendor, $conn);
     } else {
@@ -654,12 +676,13 @@ function importFromCSV_usingPTPrimeFormat($fileName, $isVendor, SQLite3 $conn)
 
 /**
  * @param string $fileName
+ * @param bool $compareCosts
  * @param bool $isVendor
  * @param SQLite3 $conn
  * @param string $separator
  * @param string $decimalSeparator
  */
-function importFromCSV_usingAsterisellFormat($fileName, $isVendor, SQLite3 $conn, $separator = ',', $decimalSeparator = '.')
+function importFromCSV_usingAsterisellFormat($fileName, $compareCosts, $isVendor, SQLite3 $conn, $separator = ',', $decimalSeparator = '.')
 {
     global $insertStmt;
 
@@ -690,15 +713,18 @@ function importFromCSV_usingAsterisellFormat($fileName, $isVendor, SQLite3 $conn
         }
 
         $i = 1;
-        $source = $data[$i++];
-        $i++;
-        $calledNr = $data[$i++];
-        $geographicLocation = $data[$i++];
-        $connectionType = $data[$i++];
-        $callDate = strtotime($data[$i++]);
-        $duration = $data[$i++];
-        $i++;
-        $callCost1 = $data[$i++];
+        $source = $data[$i++];                  // 1
+        $i++;                                   // 2
+        $calledNr = $data[$i++];                // 3
+        $geographicLocation = $data[$i++];      // 4
+        $connectionType = $data[$i++];          // 5
+        $callDate = strtotime($data[$i++]);     // 6
+        $duration = $data[$i++];                // 7
+        if ($compareCosts) {
+            $i++;                                   // 8
+            // skip the income field and compare the cost instead
+        }
+        $callCost1 = $data[$i++];               // 8 or 9
 
         if ($decimalSeparator == '.') {
             $callCost = floatval($callCost1);
