@@ -189,6 +189,16 @@ DROP TRIGGER IF EXISTS add_daily_status_change_event_trigger_5$$
 DROP TRIGGER IF EXISTS add_daily_status_change_event_trigger_6$$
 
 /**
+ * Leave for avoiding upgrading problems, but it is not any more used.
+ */
+DROP PROCEDURE IF EXISTS add_data_change_event$$
+CREATE PROCEDURE add_data_change_event()
+MODIFIES SQL DATA
+BEGIN
+  CALL schedule_rerating();
+END $$
+
+/**
  * Schedule a rerating and invalidate the various caches.
  */
 DROP PROCEDURE IF EXISTS schedule_rerating$$
