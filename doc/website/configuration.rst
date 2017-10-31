@@ -1581,91 +1581,29 @@ Communication channels are eported following the settings in this method
             return array();
         }
 
-Import CDRs on Reseller Side
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Resellers
+~~~~~~~~~
 
-Create a subclass of type ``ImportCDRSFromLocalAsterisellProvider``.
-Something like
+It is possible sending files to a (maybe remote) Reseller using the WebDav protocol.
 
-::
+WebDAV is a standard protocol based on HTTP connections, so it has encryption by default,
+and it can pass through firewalls.
 
-    class MiniTelImportCDRSFromInternationalVoipVendor extends ImportCDRSFromLocalAsterisellProvider
-    {
+WebDAV configuration on the Provider Server
+...........................................
 
-        function getCDRProviderName() {
-            return 'international_voip_vendor';
-        }
-    }
-
-Add the job to the list of jobs, for importing CDRs. Something like
+You must define in ``fabric_data/asterisell_instances.py``, something like
 
 ::
 
-     import_cdrs_jobs = [ 'MiniTelImportCDRSFromInternationalVoipVendor' ]
+    webdav_users = [('foo','some-password')]
 
-Remote Resellers
-~~~~~~~~~~~~~~~~
+The installation tool, will create the webdav configurations for you,
+and it will expose the WebDAV service on ``https://provider-url/get-foo``
+You can inspect the ``/etc/nginx/`` configurations inside the Docker image.
 
-Up to date it is possible sending files to a remote Reseller, sending
-them to a local directory, accessible from the Remote Server using
-WebDav protocol:
-
--  the provider send the files to a local directory
--  the provider share the directory content using WebDAV protocol:
-
-   -  https encription
-   -  secret password shared with the reseller
-
--  the reseller access the webdav resources, using standard curl
-   interface
-
-The advantage of this approach are:
-
--  WebDAV is a standard protocol based on HTTP connections
--  HTTPS encryption encrypt the traffic
--  the traffic can pass through firewalls
-
-WebDAV Configuration on the Server
-..................................
-
-You must define in ``instance.py``, something like
-
-::
-
-    server_site = asterisell_http_conf.AsterisellInstanceSite()
-    server_site.webdav_users = [('client-code','some-password')]
-
-The installation tool, will create the webdav configurations for you.
-
-If the webdav server is accessible also on a private network address,
-because the server and the client reside on the same private network,
-you can add for the server the private IP, something like:
-
-::
-
-    server_domain.domain2 = '127.0.0.1'
-
-Inspect the generated configuration files in
-``/etc/nginx/asterisell-instances.d`` for the comments about:
-
--  the directory to create
--  the password file to generate
--  assign the apache user ownership to the directories
-
-::
-
-    chown -R apache:apache /var/opt/asterisell/*
-
-Generate manually the password
-
-::
-
-    # Up to date password file is not automatically generated.
-    # Use the reseller code as user name, and a shared password.
-    htpasswd -c /etc/nginx/${instance_code}-${webdav_instance}.passwd ${webdav_instance}
-
-WebDav configuration on the client
-..................................
+WebDav configuration on the Reseller Client
+...........................................
 
 Create a Job like this
 
@@ -1675,7 +1613,7 @@ Create a Job like this
     {
 
         function getCDRProviderName() {
-            return 'bar';
+            return 'foo';
         }
 
     }
@@ -1690,10 +1628,10 @@ Configure something like this
         r = []
 
         c = lib.ConnectionParams()
-        c.connection_name = "bar"
+        c.connection_name = "foo"
         c.user = "foo"
-        c.password = "somepassword"
-        c.host = "https://get-foo"
+        c.password = "some-password"
+        c.host = "https://provider-url/get-foo"
         c.port = ""
         r.append(c)
 
