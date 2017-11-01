@@ -1467,7 +1467,7 @@ function linkToOrganizationUnitViewer($id, $date, $content, $performHtmlEntities
         $content2 = $content;
     }
 
-    return '<a href="' . url_for($r, TRUE) . '">' . $content2 . '</a>';
+    return '<a href="' . url_for($r) . '">' . $content2 . '</a>';
 }
 
 function myAppend($str1, $str2)

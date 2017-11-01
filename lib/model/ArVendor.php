@@ -59,7 +59,7 @@ class ArVendor extends BaseArVendor
      */
     public function  getNameAsHtmlLink()
     {
-        return '<a href="' . url_for('vendor/edit?id=' . $this->getId(), TRUE) . '">' . htmlspecialchars($this->getName(), ENT_QUOTES, 'UTF-8') . '</a>';
+        return '<a href="' . url_for('vendor/edit?id=' . $this->getId()) . '">' . htmlspecialchars($this->getName(), ENT_QUOTES, 'UTF-8') . '</a>';
     }
 
     public function __toString()

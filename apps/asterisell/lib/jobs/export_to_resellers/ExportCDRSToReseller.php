@@ -566,7 +566,8 @@ NOWDOC;
         $logicalType = self::LOGICAL_TYPE;
         $formatType = self::FORMAT_TYPE;
 
-        $tmpFileName = ImportDataFiles::createAbsoluteInputStatusDataFileName($this->getResellerCode(), self::CDR_PROVIDER_TYPE, $logicalType, $formatType, $year, $month, $day, true);
+        //NOTE: use this directory because the DB has write permissions
+        $tmpFileName = '/var/tmp/' . ImportDataFiles::createInputStatusDataFileName($this->getResellerCode(), self::CDR_PROVIDER_TYPE, $logicalType, $formatType, $year, $month, $day, true);
         $fileName = basename($tmpFileName);
         @unlink($tmpFileName);
 

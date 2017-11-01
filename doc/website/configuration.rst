@@ -1592,11 +1592,63 @@ and it can pass through firewalls.
 WebDAV configuration on the Provider Server
 ...........................................
 
-You must define in ``fabric_data/asterisell_instances.py``, something like
+Create a file ``customizations/ExportToFoo.php`` like this
 
 ::
 
-    webdav_users = [('foo','some-password')]
+  class ExportToFoo extends ExportCDRSToReseller
+  {
+
+    /**
+     * @return string
+     */
+    function getResellerCode() {
+        return 'foo';
+    }
+
+    public function getActivationDate() {
+        // NOTE: before this date the info is manually sent, retrieving from the historic data.
+        // From this data the info is sent live, the rates are aligned.
+        return strtotime('2017-01-01');
+    }
+  }
+
+and a file ``customizations/ExportServicesToFoo.php`` like this
+
+::
+
+  class ExportServicesToFoo extends ExportServiceCDRSToReseller
+  {
+
+    /**
+     * @return string
+     */
+    function getResellerCode() {
+        return 'foo';
+    }
+
+    public function getActivationDate() {
+        // NOTE: before this date the info is manually sent, retrieving from the historic data.
+        // From this data the info is sent live, the rates are aligned.
+        return strtotime('2017-01-01');
+    }
+  }
+
+Enable the job customizing ``fabric_data/asterisell_instances.py``
+
+::
+
+  custom_files = {
+    'ExportToFoo':'apps/asterisell/lib/jobs/customizations',
+    'ExportServicesToFoo':'apps/asterisell/lib/jobs/customizations'
+  }
+
+  custom_export_jobs = [
+    'ExportToFoo',
+    'ExportServicesToFoo'
+  ]
+
+  webdav_users = [('foo','some-password')]
 
 The installation tool, will create the webdav configurations for you,
 and it will expose the WebDAV service on ``https://provider-url/get-foo``
@@ -1612,10 +1664,13 @@ Create a Job like this
     class FooImportCDRSFromBar extends ImportCDRSFromRemoteAsterisellProvider
     {
 
-        function getCDRProviderName() {
-            return 'foo';
+        function getConnectionName() {
+            return 'bar';
         }
 
+        function getCDRProviderName() {
+          return 'bar';
+        }
     }
 
 Configure something like this
@@ -1628,7 +1683,7 @@ Configure something like this
         r = []
 
         c = lib.ConnectionParams()
-        c.connection_name = "foo"
+        c.connection_name = "bar"
         c.user = "foo"
         c.password = "some-password"
         c.host = "https://provider-url/get-foo"

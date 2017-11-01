@@ -93,7 +93,7 @@ class ArUser extends BaseArUser
     public function getNameAsHtml()
     {
         $userId = $this->getId();
-        return '<a href="' . url_for('user/edit?id=' . $userId, TRUE) . '">' . htmlspecialchars($this->getName(), ENT_QUOTES, 'UTF-8') . '</a>';
+        return '<a href="' . url_for('user/edit?id=' . $userId) . '">' . htmlspecialchars($this->getName(), ENT_QUOTES, 'UTF-8') . '</a>';
     }
 
     /**

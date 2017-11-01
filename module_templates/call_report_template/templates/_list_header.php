@@ -39,8 +39,8 @@ $moduleName = <?php echo "\"" . FieldsToShow::getModuleName($generateForAdmin) .
       $thereIsError = true;
       $alsoErrors = false;
       if ($importantErrors > 0) {
-        $problemMsg = '<a href="' . url_for('problem/list', TRUE) . '">' . $importantErrors .
-          '</a>' . ' important problems to solve';
+        $problemMsg = '<a href="' . url_for('problem/list') . '">' . $importantErrors .
+          ' important</a> problems to solve';
         $alsoErrors = true;
       }
 
@@ -48,7 +48,7 @@ $moduleName = <?php echo "\"" . FieldsToShow::getModuleName($generateForAdmin) .
         if ($alsoErrors) {
           $problemMsg .= ', and ';
         }
-        $problemMsg .= '<a href="' . url_for('problem/list', TRUE) . '">' . $warningErrors . '</a>' . ' warnings to inspect';
+        $problemMsg .= '<a href="' . url_for('problem/list') . '">' . $warningErrors . ' warnings</a> to inspect';
       }
 
       $problemMsg = __('There are ') . $problemMsg . '. ';
