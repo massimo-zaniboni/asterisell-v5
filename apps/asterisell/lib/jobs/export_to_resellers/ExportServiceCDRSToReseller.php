@@ -62,8 +62,8 @@ abstract class ExportServiceCDRSToReseller extends ExportCDRSToReseller
         $resellerCallFilter = '%/' . $this->getOrganizationId() . '/%';
 
         foreach($this->monthsToProcess as $month => $notUsed) {
-            $yyyy = int(date('Y', $month));
-            $mm = int(date('m'), $month);
+            $yyyy = intval(date('Y', $month));
+            $mm = intval(date('m'), $month);
 
             $tmpFileName = ImportDataFiles::createAbsoluteInputStatusDataFileName($this->getResellerCode(), self::CDR_PROVIDER_TYPE, $logicalType, $formatType, $yyyy, $mm, null, true);
             $fileName = basename($tmpFileName);
