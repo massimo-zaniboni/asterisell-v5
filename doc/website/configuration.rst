@@ -1680,16 +1680,16 @@ Create a Job like this
        * true in case the server is accessed using an IP (also from the router)
        * and the certificate can not be checked.
        *
-       * As a rule of thumb: if the provider server resides externally respected the
+      * As a rule of thumb: if the provider server resides externally respected the
        * reseller instance leave "false", so SSL certificates are checked.
        * If the provider server is on the same host of the reseller,
        * then usually its address is resolved
        * to an internal IP and then the SSL certificate can not be checked, so
        * use "true".
        */
-      function isCertificateWithDedicatedIP()
+      function skipSSLCertificateVerify()
       {
-        return false;
+          return false;
       }
     }
 
@@ -1723,6 +1723,7 @@ You can try the access using a command like this inside the reseller Docker inst
 
 The ``--insecure`` flag skip the check of the SSL certificate,
 and it should used only if you are accessing the provider from the same host.
+According the results decide if testing or not the SSL certificate in ``function skipSSLCertificateVerify()``.
 
 .. |image0| image:: tut_a_01.png
 .. |image1| image:: tut_a_02.png

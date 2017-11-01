@@ -219,6 +219,7 @@ abstract class ImportCDRSFromRemoteAsterisellProvider extends ImportCDRSFromLoca
                     }
                 }
 
+                @mkdir($this->getInputDirectory(), 0660, true);
                 $destFile = normalizeFileNamePath($this->getInputDirectory() . '/' . $fileName);
                 $isOk = rename($tmpResultFileName, $destFile);
                 if ($isOk === FALSE) {
