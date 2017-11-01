@@ -21,8 +21,6 @@
  * $
  */
 
-use ImportDataFiles;
-
 sfLoader::loadHelpers(array('I18N', 'Debug', 'Date', 'Asterisell'));
 
 /**
@@ -41,9 +39,21 @@ abstract class ImportCDRSFromRemoteAsterisellProvider extends ImportCDRSFromLoca
     abstract function getConnectionName();
 
     /**
-     * @return bool true if the SSL certificate has a dedicated IP address, it does not use SNI, and it can be recognized also from an old version of CURL.
+     * @return bool true if the SSL certificate has a dedicated IP address,
+     * it does not use SNI, and it can be recognized also from an old version of CURL.
+     * true also if it is a self-signed certificated.
+     * true for using the SSL certificate, but skipping its validation.
+     * true in case the server is accessed using an IP (also from the router)
+     * and the certificate can not be checked.
+     *
+     * As a rule of thumb: if the provider server resides externally respected the
+     * reseller instance leave "false", so SSL certificates are checked.
+     * If the provider server is on the same host of the reseller,
+     * then usually its address is resolved
+     * to an internal IP and then the SSL certificate can not be checked, so
+     * use "true".
      */
-    function isCertificateWithDedicatedIP()
+    function skipSSLCertificateVerify()
     {
         return false;
     }
@@ -280,7 +290,7 @@ abstract class ImportCDRSFromRemoteAsterisellProvider extends ImportCDRSFromLoca
         curl_setopt($ch, CURLOPT_USERPWD, "$conf_user:$conf_password");
         curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 30);
         curl_setopt($ch, CURLOPT_TIMEOUT, 60 * 60);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, $this->isCertificateWithDedicatedIP());
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, !$this->skipSSLCertificateVerify());
         curl_setopt($ch, CURLOPT_NOPROGRESS, true);
         curl_setopt($ch, CURLOPT_FAILONERROR, true);
         curl_setopt($ch, CURLOPT_ENCODING, "gzip,deflate");

@@ -1671,6 +1671,26 @@ Create a Job like this
         function getCDRProviderName() {
           return 'bar';
         }
+
+      /**
+       * @return bool true if the SSL certificate has a dedicated IP address,
+       * it does not use SNI, and it can be recognized also from an old version of CURL.
+       * true also if it is a self-signed certificated.
+       * true for using the SSL certificate, but skipping its validation.
+       * true in case the server is accessed using an IP (also from the router)
+       * and the certificate can not be checked.
+       *
+       * As a rule of thumb: if the provider server resides externally respected the
+       * reseller instance leave "false", so SSL certificates are checked.
+       * If the provider server is on the same host of the reseller,
+       * then usually its address is resolved
+       * to an internal IP and then the SSL certificate can not be checked, so
+       * use "true".
+       */
+      function isCertificateWithDedicatedIP()
+      {
+        return false;
+      }
     }
 
 Configure something like this
@@ -1686,11 +1706,23 @@ Configure something like this
         c.connection_name = "bar"
         c.user = "foo"
         c.password = "some-password"
-        c.host = "https://provider-url/get-foo"
-        c.port = ""
+        c.host = "https://provider-url/admin/get-foo"
+        c.port = '443'
         r.append(c)
 
         return r
+
+If the reseller and provider are on two different hosts use the provider URL,
+otherwise use the host IP.
+
+You can try the access using a command like this inside the reseller Docker instance:
+
+::
+
+  curl -v --basic --user foo:some-password --insecure https://provider-url/admin/get-foo/is_asterisell_directory.chk
+
+The ``--insecure`` flag skip the check of the SSL certificate,
+and it should used only if you are accessing the provider from the same host.
 
 .. |image0| image:: tut_a_01.png
 .. |image1| image:: tut_a_02.png

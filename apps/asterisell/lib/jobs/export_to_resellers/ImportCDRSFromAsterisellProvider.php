@@ -21,8 +21,6 @@
  * $
  */
 
-use ImportDataFiles;
-
 sfLoader::loadHelpers(array('I18N', 'Debug', 'Date', 'Asterisell'));
 
 /**
