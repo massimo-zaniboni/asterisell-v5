@@ -65,10 +65,9 @@ abstract class ExportServiceCDRSToReseller extends ExportCDRSToReseller
             $yyyy = intval(date('Y', $month));
             $mm = intval(date('m'), $month);
 
-            $tmpFileName = ImportDataFiles::createAbsoluteInputStatusDataFileName($this->getResellerCode(), self::CDR_PROVIDER_TYPE, $logicalType, $formatType, $yyyy, $mm, null, true);
+            $tmpFileName = '/var/tmp/' . ImportDataFiles::createInputStatusDataFileName($this->getResellerCode(), self::CDR_PROVIDER_TYPE, $logicalType, $formatType, $yyyy, $mm, null, true);
             $fileName = basename($tmpFileName);
             @unlink($tmpFileName);
-
             $query = $this->getExportCDRSQuery(true, $tmpFileName);
 
             $stmt = $conn->prepare($query);
