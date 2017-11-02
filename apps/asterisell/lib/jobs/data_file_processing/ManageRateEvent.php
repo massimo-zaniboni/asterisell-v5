@@ -105,21 +105,21 @@ class ManageRateEvent extends FixedJobProcessor
      */
     static public function invalidatePendingReports($conn, $fromDate, $toDate) {
 
-        $tf = fromUnixTimestampToMySQLTimestamp($fromDate);
-        $tt = fromUnixTimestampToMySQLTimestamp($toDate);
+        $rateFromDate = fromUnixTimestampToMySQLTimestamp($fromDate);
+        $rateToDate = fromUnixTimestampToMySQLTimestamp($toDate);
 
         $conn->beginTransaction();
 
-        // a report is affected if it is not one of this condition
-        // > <rf----rt> <tf-----tt> <rf----rt>
+        // A report is affected if its start or its end is inside the rerating time frame.
 
         $query = 'UPDATE ar_report
                   SET    produced_report_must_be_regenerated = 1
                   WHERE  produced_report_already_reviewed = 0
-                  AND    (to_date < ? OR ? < from_date)';
+                  AND    (   (? <= from_date AND from_date < ?)
+                          OR (? < to_date AND to_date <= ?))';
 
         $stm = $conn->prepare($query);
-        $stm->execute(array($tf, $tt));
+        $stm->execute(array($rateFromDate, $rateToDate, $rateFromDate, $rateToDate));
 
         self::commitTransactionOrSignalProblem_static($conn, 'invalidate pending reports');
     }
