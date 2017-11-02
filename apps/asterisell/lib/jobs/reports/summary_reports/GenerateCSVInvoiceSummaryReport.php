@@ -276,10 +276,10 @@ class GenerateCSVInvoiceSummaryReport extends JobProcessor
                         . csv_field($rs['phone'], false)
                         . csv_field($rs['migration_field_for_telephone'], false)
                         . csv_field($rs['migration_field_for_adsl'], false)
-                        . csv_numeric_field(from_db_decimal_to_locale_decimal_with_full_precision($rs['total_without_tax']), false)
-                        . csv_numeric_field(from_db_decimal_to_locale_decimal_with_full_precision($rs['vat_perc']), false)
-                        . csv_numeric_field(from_db_decimal_to_locale_decimal_with_full_precision($rs['vat_tax']), false)
-                        . csv_numeric_field(from_db_decimal_to_locale_decimal_with_full_precision($rs['total_with_tax']), false);
+                        . csv_numeric_field(from_db_decimal_to_php_decimal($rs['total_without_tax']), false)
+                        . csv_numeric_field(from_db_decimal_to_php_decimal($rs['vat_perc']), false)
+                        . csv_numeric_field(from_db_decimal_to_php_decimal($rs['vat_tax']), false)
+                        . csv_numeric_field(from_db_decimal_to_php_decimal($rs['total_with_tax']), false);
 
                     foreach ($tags as $tagId => $tagName) {
                         if (array_key_exists($tagId, $partyTags)) {

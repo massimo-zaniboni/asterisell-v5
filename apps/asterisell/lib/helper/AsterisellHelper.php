@@ -633,6 +633,11 @@ function csv_field($val, $isFirst = false)
     return $r;
 }
 
+/**
+ * @param string $val a string with a PHP decimal number, not formatted into a locale
+ * @param bool $isFirst
+ * @return string format $val according the settings in `app.yaml`.
+ */
 function csv_numeric_field($val, $isFirst = false)
 {
     $decimalSep = trim(sfConfig::get('app_decimal_separator_symbol_in_csv'));

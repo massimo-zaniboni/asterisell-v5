@@ -142,7 +142,7 @@ class CSVCallDetails extends BaseBillingReport
                     $v = '?';
                 }
 
-                $line .= csv_numeric_field(from_db_decimal_to_locale_decimal_with_full_precision($v), false);
+                $line .= csv_numeric_field(from_db_decimal_to_php_decimal($v), false);
             }
 
             if ($this->getShowVoipProvider()) {
