@@ -348,7 +348,7 @@ class CustomCDRServices
 
         if ($countBadCalls > 0) {
             if (!is_null($insertLink)) {
-                $countDescr = '<a href="' . url_for($insertLink, TRUE) . '">' . $countBadCalls . '</a>';
+                $countDescr = '<a href="' . url_for($insertLink) . '">' . $countBadCalls . '</a>';
             } else {
                 $countDescr = $countBadCalls;
             }
