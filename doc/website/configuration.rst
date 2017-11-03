@@ -1557,7 +1557,7 @@ normal calls.
 Communication Channels
 ~~~~~~~~~~~~~~~~~~~~~~
 
-Communication channels are eported following the settings in this method
+Communication channels are exported following the settings in this method
 
 ::
 
@@ -1654,10 +1654,11 @@ The installation tool, will create the webdav configurations for you,
 and it will expose the WebDAV service on ``https://provider-url/get-foo``
 You can inspect the ``/etc/nginx/`` configurations inside the Docker image.
 
-WebDav configuration on the Reseller Client
-...........................................
+WebDav configuration for resellers on the same host
+...................................................
 
-Create a Job like this
+In case the reseller is a Docker instance on the same host of the provider,
+create a Job like this
 
 ::
 
@@ -1672,30 +1673,67 @@ Create a Job like this
           return 'bar';
         }
 
-      /**
-       * @return bool true if the SSL certificate has a dedicated IP address,
-       * it does not use SNI, and it can be recognized also from an old version of CURL.
-       * true also if it is a self-signed certificated.
-       * true for using the SSL certificate, but skipping its validation.
-       * true in case the server is accessed using an IP (also from the router)
-       * and the certificate can not be checked.
-       *
-      * As a rule of thumb: if the provider server resides externally respected the
-       * reseller instance leave "false", so SSL certificates are checked.
-       * If the provider server is on the same host of the reseller,
-       * then usually its address is resolved
-       * to an internal IP and then the SSL certificate can not be checked, so
-       * use "true".
-       */
-      function skipSSLCertificateVerify()
-      {
-          return false;
+        function skipSSLCertificateVerify()
+        {
+          return true;
+        }
+    }
+
+Then configure something like this
+
+::
+
+      custom_files = {
+        'FooImportCDRSFromBar':'apps/asterisell/lib/jobs/customizations'
       }
+
+      import_cdrs_jobs = [ 'FooImportCDRSFromBar' ]
+
+      def conf_connection_params(self):
+        r = []
+
+        c = lib.ConnectionParams()
+        c.connection_name = 'bar'
+        c.user = 'foo'
+        c.password = 'some-password'
+        c.host = 'http://local-ip/admin/get-foo/'
+        c.port = '8001' # this must be the http port exposed from the Docker container of the `bar` provider
+        r.append(c)
+
+        return r
+
+WebDav configuration for resellers on external hosts
+....................................................
+
+In case the reseller is a Docker instance on a different host respect the provider,
+create a Job like this
+
+::
+
+    class FooImportCDRSFromBar extends ImportCDRSFromRemoteAsterisellProvider
+    {
+
+        function getConnectionName() {
+            return 'bar';
+        }
+
+        function getCDRProviderName() {
+          return 'bar';
+        }
+
+       function skipSSLCertificateVerify()
+       {
+         return false;
+       }
     }
 
 Configure something like this
 
 ::
+
+      custom_files = {
+        'FooImportCDRSFromBar':'apps/asterisell/lib/jobs/customizations'
+      }
 
       import_cdrs_jobs = [ 'FooImportCDRSFromBar' ]
 
@@ -1706,24 +1744,19 @@ Configure something like this
         c.connection_name = "bar"
         c.user = "foo"
         c.password = "some-password"
-        c.host = "https://provider-url/admin/get-foo"
+        c.host = 'https://provider-url/admin/get-foo/'
         c.port = '443'
         r.append(c)
 
         return r
 
-If the reseller and provider are on two different hosts use the provider URL,
-otherwise use the host IP.
-
 You can try the access using a command like this inside the reseller Docker instance:
 
 ::
 
-  curl -v --basic --user foo:some-password --insecure https://provider-url/admin/get-foo/is_asterisell_directory.chk
+  curl -v --basic --user foo:some-password https://provider-url/admin/get-foo/is_asterisell_directory.chk
 
-The ``--insecure`` flag skip the check of the SSL certificate,
-and it should used only if you are accessing the provider from the same host.
-According the results decide if testing or not the SSL certificate in ``function skipSSLCertificateVerify()``.
+using the ``--insecure`` flag if there are problems in recognizing the SSL certificate.
 
 .. |image0| image:: tut_a_01.png
 .. |image1| image:: tut_a_02.png
