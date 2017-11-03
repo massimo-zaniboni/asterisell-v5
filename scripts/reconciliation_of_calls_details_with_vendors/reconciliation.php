@@ -94,7 +94,7 @@ where
             false for showing only calls with problems
 
   compare-costs: true for comparing the cost of the vendor file, with the cost calculated from Asterisell file
-                 false for comparing the cost of the vendor file, with the income calculated from Asterisell file
+                 false for comparing the income calculated from Asterisell file.
 
 available format are:
 
@@ -139,7 +139,7 @@ function main($argc, $argv)
 
 
     if ($showAllCalls == 'true') {
-        $showAllCals = true;
+        $showAllCalls = true;
     } else {
         $showAllCalls = false;
     }
