@@ -31,7 +31,7 @@ abstract class CheckExclusiveTags extends FixedJobProcessor
 
     /**
      * @return array an array of pair array containing the two exclusive tags.
-     * For example {{10,11},{20,21}} if a customer had to be tagged as 10 or 11 (if not it is an error,
+     * For example `array(array(10,11), array(20,21))` if a customer had to be tagged as 10 or 11 (if not it is an error,
      * if both it is an error), and as 20 or 21 (if not it is an error, if both it is an error).
      * NOTE: in this version of the code the supported TAGS are only pairs.
      */
