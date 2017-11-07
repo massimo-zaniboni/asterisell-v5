@@ -96,14 +96,14 @@ abstract class ImportFromTWT_FTP_Server extends ImportCSVFilesFromFTPServer
         // NOTE: the digits are the date in YYYYMMDD format, "N" for a new data, and a progressive number.
         // "X" is used in case of data deleting previous info, but it is not managed up to date, but only signaled.
         // NOTE: do not use status files, because the timeframe of the file name is not the same of the CDRs inside it, and it can be error prone.
-        $reg = '/^' . $account . "\\d\\d\\d\\d\\d\\d\\d\\dN\\d\\d\\d[.]zip/i";
+        $reg = '/^' . $account . "(\\d)+N(\\d)+[.]zip/i";
         if (preg_match($reg, $n)) {
             return ImportDataFiles::createInputDataFileName(null, $this->getCdrProvider(), $this->getLogicalType(), $this->getPhysicalType());
         }
 
         // this type of file must be taken in consideration, but it is not processed in an automatic way.
         // So signal the problem.
-        $reg = '/^' . $account . "\\d\\d\\d\\d\\d\\d\\d\\dX\\d\\d\\d[.]zip/i";
+        $reg = '/^' . $account . "(\\d)+X(\\d)+[.]zip/i";
         if (preg_match($reg, $n)) {
             return false;
         }
