@@ -89,7 +89,7 @@ class BackupOrganizationInfo extends JobProcessor
             list($databaseName, $user, $password) = getDatabaseNameUserAndPassword();
 
             $rootDir = getAsterisellCompleteRootDirectory();
-            $cmd = "cd $rootDir && mysqldump --skip-dump-date --no-create-info --no-create-db --skip-triggers -u$user -p$password $databaseName ar_user ar_party ar_organization_unit ar_organization_unit_type ar_organization_unit_has_structure ar_user_has_role ar_user_has_permission ar_itc_organizations > $outFileName ";
+            $cmd = "cd $rootDir && mysqldump --opt -u$user -p$password $databaseName ar_user ar_party ar_organization_unit ar_organization_unit_type ar_organization_unit_has_structure ar_user_has_role ar_user_has_permission ar_itc_organizations > $outFileName ";
             system($cmd, $result);
 
             // Check if this is a new backup

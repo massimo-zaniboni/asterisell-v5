@@ -110,7 +110,7 @@ class BackupConfigurations extends DailyBackupJob
             $tmpFileName = normalizeFileNamePath($this->getMySQLAccessibleTmpDirectory() . '/' . $fileName);
             @unlink($tmpFileName);
 
-            $cmd = "mysqldump -u $user --password=$password $database --single-transaction $options > $tmpFileName";
+            $cmd = "mysqldump -u $user --password=$password $database --opt $options > $tmpFileName";
             $isOk = system($cmd);
             if ($isOk === FALSE) {
                 throw $this->createError(
