@@ -91,6 +91,9 @@ RUN ssh-keygen -b 1024 -t rsa -f /etc/ssh/ssh_host_key && ssh-keygen -b 1024 -t 
 ADD set_mysql_password.sh /tmp/set_mysql_password.sh
 RUN /bin/bash /tmp/set_mysql_password.sh
 
+# Install additional packages needed from custom/specific Asterisell Jobs
+RUN yum -y install recode lftp
+
 #
 # These actions **must** be the last!!!
 #
