@@ -276,13 +276,14 @@
             <input type="submit" name="classification_fix" value="Fix"/>
             <input type="submit" name="classification_delete" value="Delete"/>
 
-            <div class="sf_admin_edit_help">Use this button the first time you are configuring an extension or an
-                organization.
-
-                Use when there is an error in the current description of the organization/extension, and you want fix
-                it.
-
-                Old properties are not preserved, and they will be replaced with the new specified properties.
+            <div class="sf_admin_edit_help">
+               Use this button for fixing errors, but only if you are configuring a new organization/extension,
+               and there are no old billed CDRS associated to it.
+               Current CDRS will be rated again, with the new fixed settings.
+               Do not use this button, if there are already billed CDRS associated to the extension,
+               because you could corrupt them.
+               Use this button also for fixing errors in last inserted changes, because
+               they affect only CDRS yet to bill (that will be calculated again).
             </div>
         </div>
     </div>
@@ -294,9 +295,14 @@
             <input type="submit" name="change_from_date" value="Change From Date"/>
             <input type="submit" name="disable_from_date" value="Disable From Date"/>
 
-            <div class="sf_admin_edit_help">Use this button when there is a change in the current description of the
-                organization/extension. Before the specified date, the old properties still holds. The new properties
-                are active only after the specified date. Use this button for adding information to the history.
+            <div class="sf_admin_edit_help">
+                Use this button when there is a change in the past, current or future configurations of the
+                organization/extension. The new settings will be added to the history of changes
+                of the organization/extensions, and old settings can still be inspected.
+                Current CDRS will be rated again: CDRS before the date of change will be rated using the old settings,
+                CDRS after the date of change will be rated with the new settings.
+                If you committed errors in specifying last settings, you can fix them using the Fix Button,
+                instead of this button, but only if the changes are not part of already billed CDRS.
             </div>
         </div>
     </div>
