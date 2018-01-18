@@ -91,9 +91,8 @@ OPTIONS
       upgrade
           upgrade the instance to the version in this admin directory.
 
-      pedantic_upgrade
-          safe but very slow upgrade, to use if the RateEngine
-          compilation exit with an error.
+      dev_upgrade
+          upgrade without recompiling from scratch the rating engine, and other tools. 
 
       restart
           safe restart of a Docker container.
@@ -173,8 +172,8 @@ def upgrade(instance):
 
 @task
 @runs_once
-def pedantic_upgrade(instance):
-    manage_instance('pedantic_upgrade', instance)
+def dev_upgrade(instance):
+    manage_instance('dev_upgrade', instance)
 
 
 @task
@@ -321,9 +320,9 @@ def manage_instance(action, instance_code, passw = ''):
                     print ""
 
                 elif action == 'upgrade':
-                    instance.execute_upgrade_task(True)
-                elif action == 'pedantic_upgrade':
                     instance.execute_upgrade_task(False)
+                elif action == 'dev_upgrade':
+                    instance.execute_upgrade_task(True)
                 elif action == 'connect':
                     instance.execute_connect_task()
                 elif action == 'authorize_ssh_access':
