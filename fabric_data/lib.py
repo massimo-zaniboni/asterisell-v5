@@ -635,7 +635,7 @@ class AsterisellInstance(object):
 
         with cd(self.haskell_rate_engine_dir()):
             if not use_fast_compile:
-                run('stack setup && stack clean')
+                run('stack upgrade && stack setup && stack clean')
 
             if debug_mode:
                run('stack setup && stack build --profile --executable-profiling --ghc-options=\'' + debug_ghc_options + '\'')

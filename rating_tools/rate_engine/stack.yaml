@@ -3,5 +3,5 @@ packages:
 - '.'
 extra-deps:
 - quicklz-1.5.0.11
-- unagi-chan-0.4.0.0
-resolver: lts-9.5
+- unagi-chan-0.4.1.0
+resolver: lts-9.21

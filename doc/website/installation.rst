@@ -83,28 +83,7 @@ memory heavy services, apart Asterisell.
 Install Docker on Debian 9
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Install Docker-CE package from Docker project page:
-
-::
-
-   # Remove old engine if present
-   apt-get -y remove docker docker-engine docker.io
-
-   # Install utilities needed in next phases
-   apt-get update
-   apt-get install -y apt-transport-https ca-certificates wget software-properties-common
-
-   # Configure Docker apt repository
-   curl -fsSL https://download.docker.com/linux/$(. /etc/os-release; echo "$ID")/gpg | apt-key add -
-   add-apt-repository \
-   "deb [arch=amd64] https://download.docker.com/linux/$(. /etc/os-release; echo "$ID") \
-   $(lsb_release -cs) \
-   stable"
-
-   # Install Docker
-   apt-get update
-   apt-cache policy docker-ce
-   apt-get -y install docker-ce
+Install Docker following the instructions on https://www.docker.com
 
 Set the ``overlay2`` storage engine, because otherwise there can be errors during creation of the image. First create/update the file ``/etc/docker/daemon.json`` with
 

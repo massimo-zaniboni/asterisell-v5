@@ -37,10 +37,11 @@ RUN cd /root/ragel-6.10 && ./configure && make && make install
 # Install Haskell Compilation Env
 #
 
-RUN curl -sSL https://s3.amazonaws.com/download.fpcomplete.com/centos/7/fpco.repo | tee /etc/yum.repos.d/fpco.repo
-RUN yum -y install stack gnupg gmp-devel libffi zlib xz tar git && cd && stack setup && stack install cabal-install
+ENV PATH="/local/bin:/root/.local/bin:/root/.cabal/bin:${PATH}"
 
-ENV PATH /local/bin:/root/.local/bin:/root/.cabal/bin:$$PATH
+RUN curl -sSL https://s3.amazonaws.com/download.fpcomplete.com/centos/7/fpco.repo | tee /etc/yum.repos.d/fpco.repo
+RUN yum -y install stack gnupg gmp-devel libffi zlib xz tar git && stack upgrade
+RUN cd && stack --version && stack setup && stack install cabal-install
 
 # Precompile Haskell application so all Stack packages are downloaded
 # and the big compilation environment is shared between multiple
@@ -93,6 +94,8 @@ RUN /bin/bash /tmp/set_mysql_password.sh
 
 # Install additional packages needed from custom/specific Asterisell Jobs
 RUN yum -y install recode lftp
+
+RUN echo "PATH=/local/bin:/root/.local/bin:/root/.cabal/bin:\$PATH" >> /root/.bashrc && echo "export PATH" >> /root/.bashrc
 
 #
 # These actions **must** be the last!!!
