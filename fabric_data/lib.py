@@ -631,6 +631,10 @@ class AsterisellInstance(object):
         """Compile the rate engine files, and other derived files."""
         self.send_source_files_to_compilation_env()
 
+        # Force the usage of last development tools
+        with cd('/root'):
+            run('grep -i "path=" .bashrc || (echo "PATH=/local/bin:/root/.local/bin:/root/.cabal/bin:\$PATH" >> .bashrc && echo "export PATH" >> .bashrc)')
+
         # Haskell Rating Engine
 
         with cd(self.haskell_rate_engine_dir()):
