@@ -290,6 +290,12 @@ In case `billing` is the name of the instance, execute:
   fab connect:demo
   # use `admin` `SOME-PASSWORD` for connecting to the container, and opening a web instance
 
+If you modify the content of `fabric_data/asterisell_instances.py` file, you had to update the instance with
+
+::
+
+  fab upgrade_conf:billing
+
 
 Httpd settings for (multiple) private instances
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

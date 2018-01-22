@@ -142,7 +142,7 @@ The command
 
 ::
 
-    fab upgrade:INSTANCE
+    fab upgrade_app:INSTANCE
 
 can be used for upgrading an instance.
 
@@ -150,7 +150,7 @@ For upgrading all the instances
 
 ::
 
-   fab upgrade:all
+   fab upgrade_app:all
 
 
 Change of configurations
@@ -158,8 +158,17 @@ Change of configurations
 
 Instance configurations are on `fabric_data/asterisell_instances.py` file.
 
-After changing the file you must upgrade the instances, using the
-``fab upgrade:INSTANCE`` command.
+After changing the file you must upgrade the instances, using
+
+::
+
+   fab upgrade_conf:INSTANCE
+
+Some configurations (signaled in the comments of the same file) requires a restart of the Docker container
+
+::
+
+  fab restart:INSTANCE
 
 Data backup
 -----------
@@ -233,7 +242,7 @@ Upgrade your instance
 ::
 
   fab help
-  fab upgrade:INSTANCE
+  fab upgrade_conf:INSTANCE
 
 If you want force the test of the backup
 
@@ -302,7 +311,7 @@ Put data backup
   php asterisell.php data restore
   exit
 
-  fab upgrade:INSTANCE
+  fab upgrade_conf:INSTANCE
 
 Security
 --------
@@ -407,7 +416,7 @@ Then you had to move the file to your destination Docker container
   php asterisell.php cron disable
   exit
 
-  fab upgrade:your-instance
+  fab upgrade_conf:your-instance
   # this will apply database upgrade jobs,
   # and this enable the cron job again
 

@@ -88,11 +88,13 @@ OPTIONS
       add_admin
           add an admin user with the specified password.
 
-      upgrade
-          upgrade the instance to the version in this admin directory.
+      upgrade_app
+          upgrade the instance to the last version of the application,
+          in a safe but slow way. If only settings was changed use `upgrade_conf` instead.
 
-      dev_upgrade
-          upgrade without recompiling from scratch the rating engine, and other tools. 
+      upgrade_conf
+          like `upgrade_app` but a lot faster, because binaries are not compiled from scratch.
+          Useful during development, or if only configuration settings are changed.
 
       restart
           safe restart of a Docker container.
@@ -141,17 +143,25 @@ OPTIONS
     print """
 NORMAL USAGE
 
+For installing a new instance:
+
     fab prepare:INSTANCE
-
     fab restart:INSTANCE
-
     fab install:INSTANCE
 
-    fab upgrade:INSTANCE
+For updating configurations in `fabric_data/asterisell_instances.py`:
 
-    fab upgrade:all
+    fab upgrade_conf:INSTANCE
+
+For upgrading the application code:
+
+    git pull
+    fab upgrade_app:INSTANCE
+
+For inspecting the instance:
 
     fab connect:INSTANCE
+
 """
 
 @task
@@ -159,21 +169,23 @@ NORMAL USAGE
 def prepare(instance):
     manage_instance('prepare', instance)
 
+
 @task
 @runs_once
 def pedantic_prepare(instance):
     manage_instance('pedantic_prepare', instance)
 
+
 @task
 @runs_once
-def upgrade(instance):
-    manage_instance('upgrade', instance)
+def upgrade_app(instance):
+    manage_instance('upgrade_app', instance)
 
 
 @task
 @runs_once
-def dev_upgrade(instance):
-    manage_instance('dev_upgrade', instance)
+def upgrade_conf(instance):
+    manage_instance('upgrade_conf', instance)
 
 
 @task
@@ -319,9 +331,9 @@ def manage_instance(action, instance_code, passw = ''):
                     print "> fab restart:" + instance_code
                     print ""
 
-                elif action == 'upgrade':
+                elif action == 'upgrade_app':
                     instance.execute_upgrade_task(False)
-                elif action == 'dev_upgrade':
+                elif action == 'upgrade_conf':
                     instance.execute_upgrade_task(True)
                 elif action == 'connect':
                     instance.execute_connect_task()

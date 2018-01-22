@@ -1254,7 +1254,7 @@ For supporting another language:
   * you can ignore this detail, and convert all the strings preserving the "__" if it is present
 
 * update the code inside ``apps/asterisell/lib/helper/CustomLocaleConversionsHelper.php``
-* execute ``fab upgrade:INSTANCE`` for activating the new translations
+* execute ``fab upgrade_conf:INSTANCE`` for activating the new translations
 * consider to send pull requests/patches to :doc:`support` with the new translations, so they can be included in the official Asterisell release
 
 Mails to Customers

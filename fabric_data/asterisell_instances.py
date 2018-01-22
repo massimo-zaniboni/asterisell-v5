@@ -44,7 +44,7 @@ class InstanceTemplate(lib.BillingInstance):
     You can improve *incrementally* many settings, and then performing
     a normal application upgrade for applying them:
 
-    > fab upgrade:INSTANCE
+    > fab upgrade_conf:INSTANCE
 
     or for system related params
 
@@ -54,7 +54,7 @@ class InstanceTemplate(lib.BillingInstance):
     or require a `restart` are marked with the `IMPORTANT` annotation.
     All other params can be updated with a simple
 
-    > fab upgrade:INSTANCE
+    > fab upgrade_conf:INSTANCE
     """
 
     #

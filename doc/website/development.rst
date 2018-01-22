@@ -132,12 +132,12 @@ How profiling and solve speace leaks of the Haskell Rating Engine
 -----------------------------------------------------------------
 
 * Enable ``debug_mode`` in ``fabric_data/lib.py``.
-* The first time execute a ``fab pedantic_upgrade:instance_name``, and then ``fab upgrade:instance_name``, for forcing a clean of the build files, and a recompilation with profiling options enabled.
-  * Choose the profiling options to execute, according notes on `<https://downloads.haskell.org/~ghc/latest/docs/html/users_guide/profiling.html>`_
-* ``fab upgrade:instance_name`` for enabling them.
+* Choose the profiling options to execute, according notes on `<https://downloads.haskell.org/~ghc/latest/docs/html/users_guide/profiling.hl>`_
+* The first time execute a ``fab upgrade_app:instance_name``, for recompiling from scratch with enabled profiling instructions.
 * ``fab connect:instance_name`` and then ``php asterisell.php debug rerate`` and ``php asterisell.php run jobs`` for executing a rating pass with the profiling enabled.
 * Inspect the ".hp" and ".prof" produced files. Use as example ``rating_tools/utilities/process-haskell-profiling.sh``.
-* At the end of the profiling process, disable ``debug_mode``, and execute a ``fab pedantic_upgrade:instance_name`` again.
+* If you change the code ``fab upgrade_conf:instance_name`` for updating it in a fast way.
+* At the end of the profiling process, disable ``debug_mode``, and execute a ``fab upgrade_app:instance_name`` again.
 
 It is possible executing only specific parts of the rating engine using the ``--run-level`` options. See the source code of the rating engine for more info.
 
