@@ -23,6 +23,9 @@ class ArReportGeneration extends BaseArReportGeneration {
     // NOTE: the const value is used as ID of the created reports,
     // so do not change them.
 
+    /**
+     * NOTE: this name is bad, in reality it should be: GENERATE_A_UNIQUE_CUMULATIVE_REPORT
+     */
     const GENERATE_ONLY_FOR_SPECIFIED_ORGANIZATION = 10;
 
     const GENERATE_FOR_ALL_CHILDREN_ORGANIZATIONS_AND_VOIP_ACCOUNTS = 20;
@@ -32,7 +35,6 @@ class ArReportGeneration extends BaseArReportGeneration {
     const GENERATE_FOR_ALL_BILLABLE_CHILDREN_ORGANIZATIONS = 40;
 
     const GENERATE_FOR_ALL_CHILDREN_ORGANIZATIONS_WITH_A_RESPONSIBLE = 50;
-
 
     public function __toString() {
         return $this->getName();

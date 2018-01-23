@@ -28,11 +28,8 @@ generator:
 
         filter_on_organization: { name: "Organization", filter_criteria_disabled: true }
 
-        select_organization: { name: "Organization", help: "Reports are generated starting from the specified organization. This overrides the organization used in the report template. Leave empty for generating reports for every root organization. " }
-        select_proper_organization: { name: "Organization", help: "Reports are generated starting from the specified organization. This overrides the organization used in the report template. Leave empty for generating reports for every root organization, in case the 'Generate For' field is set for generating multiple reports, or leave empty for generating a single report with the summary of all organizations, in case the 'Generate For' field is set for generating a single reeport. "  }
+        select_proper_organization: { name: "Organization", help: "Reports are generated only starting from this organization. Empty for including all organizations."  }
         select_voip_account: { name: "Extension", help: "Reports are generated for the specified extension. Note: in case also an organization is specified, this filter takes the precedence, because it is more selective."  }
-
-        ar_organization_unit: { name: "Organization", help: "Reports are generated starting from the specified organization. This overrides the organization used in the report template." }
 
         additional_description: { name: "Description", help: "This will be completed from the system, after reports will be generated. ", type: textarea_tag, params: disabled=true size=80x8 }
 
@@ -40,7 +37,7 @@ generator:
 
         short_description: { name: "Name" }
 
-        ar_report_generation_id: { name: "Generate for", help: "Generate a single report, or multiple reports. NOTE: if you change the billable state of an organization, or add responsible users to an organization, you must regenarte reports, for sending them to new users." }
+        ar_report_generation_id: { name: "Generate for", help: "Generate a unique cumulative report, or multiple distinct reports for each organization. In case the \"Tagged Party\" of the template report is set, only reports for organizations respecting the tag are generated." }
 
         start_generation_after_x_hours: { name: "Generate after some hours", help: "Delay reports generation of some hours, in order to give time to automatic jobs and/or administrators to execute some administration work. Note: this setting does not affect the time range of reports, but only the scheduler execution time. " }
 

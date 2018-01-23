@@ -124,6 +124,7 @@ all:
       - Upgrade_2017_03_06
       - Upgrade_2017_03_10
       - Upgrade_2017_03_16
+      - Upgrade_2018_01_23
       $custom_upgrade_jobs
 
   custom_cdr_services: $custom_cdr_services

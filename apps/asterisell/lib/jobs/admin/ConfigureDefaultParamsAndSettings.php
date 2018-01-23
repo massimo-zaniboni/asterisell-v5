@@ -347,29 +347,27 @@ class ConfigureDefaultParamsAndSettings extends AdminJobProcessor
 
         $r = new ArReportGeneration();
         $r->setId(ArReportGeneration::GENERATE_ONLY_FOR_SPECIFIED_ORGANIZATION);
-        $r->setName('Generate only for the specified organization');
+        $r->setName('Generate a unique cumulative report');
         $r->save();
-
 
         $r = new ArReportGeneration();
         $r->setId(ArReportGeneration::GENERATE_FOR_ALL_BILLABLE_CHILDREN_ORGANIZATIONS);
-        $r->setName('Generate for all billable children of the specified organization');
+        $r->setName('Generate a distinct report for each billable organization');
         $r->save();
-
 
         $r = new ArReportGeneration();
         $r->setId(ArReportGeneration::GENERATE_FOR_ALL_CHILDREN_ORGANIZATIONS_THAT_ARE_NOT_VOIP_ACCOUNTS);
-        $r->setName('Generate for all children of the specified organization, that are not VoIP accounts');
+        $r->setName('Generate a distinct report for each main and children organization, but not extensions');
         $r->save();
 
         $r = new ArReportGeneration();
         $r->setId(ArReportGeneration::GENERATE_FOR_ALL_CHILDREN_ORGANIZATIONS_AND_VOIP_ACCOUNTS);
-        $r->setName('Generate for all children of the specified organization, also if they are VoIP accounts');
+        $r->setName('Generate a distinct report for each main and children organization and extension');
         $r->save();
 
         $r = new ArReportGeneration();
         $r->setId(ArReportGeneration::GENERATE_FOR_ALL_CHILDREN_ORGANIZATIONS_WITH_A_RESPONSIBLE);
-        $r->setName('Generate for all children of the specified organization, having a responsible');
+        $r->setName('Generate a distinct report for each main and children organization with a responsible');
         $r->save();
 
         ////////////////////////////////

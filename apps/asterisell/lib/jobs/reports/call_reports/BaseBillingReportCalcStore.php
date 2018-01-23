@@ -228,6 +228,8 @@ class BaseBillingReportCalcStore extends ReportCalcStore
         $this->fromTime = $from;
         $this->toTime = $to;
 
+        // NOTE: I can not add here the filter/group on party tag, because there can be multiple tags
+        // for each party, and so we can generate not correct sums.
 
         $query = 'SELECT
     ar_cdr.cached_parent_id_hierarchy AS organization_hierarchy

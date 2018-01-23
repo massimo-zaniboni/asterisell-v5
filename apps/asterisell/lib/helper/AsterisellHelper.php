@@ -1946,13 +1946,18 @@ After the first run of a report scheduler, next reports will be generated automa
 
 ## Generation of Legal Documents Consecutive Numbers
 
-The new generated legal documents use consecutive numbers starting from the next number of the last generated legal document.
+Legal documents use consecutive numbers, according the last generated legal document.
 
 If there are not legal documents in the system, the first used number is 1, and not the number on the document template.
 
-For specifying an initial legal number different from 1, or for starting the generation of documents with a new non consecutive legal number, you must create a document of type "Placeholder for Invoice Numeration", leaving blank all params (also the reference date), set that it is a "Billing Document", set the legal number previous to the number to use in new legal documents, set the legal date equals to the date of new invoices to generate, and then saving.
+For specifying an initial legal number different from 1, or for starting the generation of documents with a new non consecutive legal number, you had to:
 
-Note that for the content of all other fields, new legal documents will be generated according the values on the template document.
+* create a fake legal document of type "Placeholder for Invoice Numeration"
+* set the "Billing Document" flag
+* set the legal number with the previous number you want to use on new (real) generated legal documents
+* set the "legal date" equals to the date of new invoices to generate, so it will be used as last reference number
+* leave blank all other params (also the reference date), because they are not used (the document is a "fake")
+* save
 
 MARKDOWN;
 

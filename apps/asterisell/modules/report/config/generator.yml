@@ -50,7 +50,7 @@ generator:
         select_voip_account: { name: "Extension", help: "Reports are generated for the specified extension. Note: in case also an organization is specified, this filter takes the precedence, because it is more selective."  }
 
         select_vendor: { name: "Vendor", help: "The report is restricted to this vendor. Empty for including all vendors. Note: this option is not supported from all the reports. " }
-        select_party_tag: { name: "Tagged Party", help: "The report is generated only for parties tagged with the specified TAG. Empty for generating for all parties. " }
+        select_party_tag: { name: "Tagged Party", help: "This report is generated from the report scheduler only if the root party associated to the report is tagged accordingly. Empty for no filter condition. NOTE: in case of summary reports containing all/many parties, this filter has (counterintuitively) no effect because there is no main part associated to the report, and so all tagged and non-tagged parties will be included. So this field is only useful for generating invoices (or other non cumulative reports) for certain classes of customers." }
 
         ar_report_order_of_children_id: { name: "Order", help: "The order to use for report elements. " }
         report_name: { name: "Name", help: "Empty for using the default report name. Otherwise a short report name/description, to use as name of the report. "}

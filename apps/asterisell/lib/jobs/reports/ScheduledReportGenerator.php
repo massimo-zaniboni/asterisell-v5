@@ -1,7 +1,7 @@
 <?php
-/* $LICENSE 2012, 2013, 2017:
+/* $LICENSE 2012, 2013, 2017, 2018:
  *
- * Copyright (C) 2012, 2013, 2017 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
+ * Copyright (C) 2012, 2013, 2017, 2018 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
  *
  * This file is part of Asterisell.
  *
@@ -212,13 +212,13 @@ class ScheduledReportGenerator
             $stmt->execute(array($reportSet->getId()));
 
             if ($report->getSendCompactReportListToAccountant() === true) {
-              $d = new GenerateSummaryReportEvent();
-              $d->reportSetId = $reportSet->getId();
-              ArJobQueuePeer::addNew($d, $parentJobId, null);
+                $d = new GenerateSummaryReportEvent();
+                $d->reportSetId = $reportSet->getId();
+                ArJobQueuePeer::addNew($d, $parentJobId, null);
             }
 
             $conn->commit();
-       } catch (ArProblemException $e) {
+        } catch (ArProblemException $e) {
             $conn->rollBack();
 
             throw($e);
@@ -229,15 +229,15 @@ class ScheduledReportGenerator
         }
 
         if (!is_null($report->getMinimumCost()) && $report->getMinimumCost() > 0) {
-                //NOTE: if a report-set has no minimum cost, then it is correct because the code
-                // generating it is simple.
-                //
-                // Otherwise if it has minimun cost then 99% of the times it is used for generating
-                // customer invoices, and the code for postponing them can be error-prone,
-                // so it is tested that it is all ok.
-                // It is an heuristic respect an explicit flag on scheduled reports saying if
-                // a check must be performed, but it is good enough.
-                $this->checkPostponedReportSet($report, $reportSet->getId());
+            //NOTE: if a report-set has no minimum cost, then it is correct because the code
+            // generating it is simple.
+            //
+            // Otherwise if it has minimun cost then 99% of the times it is used for generating
+            // customer invoices, and the code for postponing them can be error-prone,
+            // so it is tested that it is all ok.
+            // It is an heuristic respect an explicit flag on scheduled reports saying if
+            // a check must be performed, but it is good enough.
+            $this->checkPostponedReportSet($report, $reportSet->getId());
         }
         return $count;
     }
@@ -345,6 +345,9 @@ class ScheduledReportGenerator
         $organizationId = $this->getArReportScheduler()->getArOrganizationUnitId();
 
         $generationMethod = $this->getArReportScheduler()->getArReportGenerationId();
+        if (is_null($generationMethod)) {
+            $generationMethod = ArReportGeneration::GENERATE_FOR_ALL_BILLABLE_CHILDREN_ORGANIZATIONS;
+        }
 
         $templateReport = $this->getArReportScheduler()->getArReport();
 
@@ -447,19 +450,17 @@ class ScheduledReportGenerator
         }
 
         // Start with initial organizations, according report params
-
         $organizations = array();
-
         if (!is_null($organizationId)) {
+            // we have an explicit starting point
             array_push($organizations, $organizationId);
         } else {
-
             if ($generationMethod == ArReportGeneration::GENERATE_ONLY_FOR_SPECIFIED_ORGANIZATION) {
-                // generate a single report, associated to the super root organization
+                // generate a unique cumulative report, associated to the super root organization.
                 array_push($organizations, null);
-
             } else {
-                // generate a report for every root organization
+                // generate a report for every root organization as starting point,
+                // then further reports will be generated.
                 foreach (OrganizationUnitInfo::getInstance()->getRootOrganizationsIds($fromDate, $toDate) as $rootId => $ignore) {
                     array_push($organizations, $rootId);
                 }
@@ -469,84 +470,78 @@ class ScheduledReportGenerator
         // Process organizations
 
         while (!empty($organizations)) {
+            // NOTE: $organizationId is null only if this is a unique cumulative report
             $organizationId = array_pop($organizations);
 
             $generateThisReport = false;
             $exploreChildren = false;
-
-            /**
-             * @var ArOrganizationUnit $organizationUnit
-             */
-            $info = OrganizationUnitInfo::getInstance()->getDataInfo($organizationId, $fromDate);
-
-            // Check if the party has the specified TAG
-            $partyId = OrganizationUnitInfo::getInstance()->getArPartyId($organizationId, $fromDate);
+            $isTagFilterRespected = true;
+            $info = null;
+            $partyId = null;
             $tagId = $templateReport->getArTagId();
-            if (is_null($tagId)) {
-                $isTagFilterRespected = true;
-            } else {
-                if (is_null($partyId)) {
-                    $isTagFilterRespected = false;
-                } else {
-                    $isTagFilterRespected = ArPartyPeer::hasTag($partyId, $tagId);
+
+            if (!is_null($tagId)) {
+                if ($generationMethod == ArReportGeneration::GENERATE_ONLY_FOR_SPECIFIED_ORGANIZATION) {
+                    $this->signalProblem("A unique cumulative report can not use a template report with a filter on tagged party. This feature is not supported.");
+                }
+
+                if (!is_null($organizationId)) {
+                    // Check if the party has the specified TAG
+                    $partyId = OrganizationUnitInfo::getInstance()->getArPartyId($organizationId, $fromDate);
+                    if (is_null($partyId)) {
+                        $isTagFilterRespected = false;
+                    } else {
+                        $isTagFilterRespected = ArPartyPeer::hasTag($partyId, $tagId);
+                    }
                 }
             }
 
-            if (is_null($organizationId)) {
-                if ($generationMethod == ArReportGeneration::GENERATE_ONLY_FOR_SPECIFIED_ORGANIZATION) {
-                    $exploreChildren = false;
-                    $generateThisReport = true;
-                } else {
-                    $this->signalProblem('Error in the code: 1023. Contact the assistance.');
-                }
+            if ($generationMethod == ArReportGeneration::GENERATE_ONLY_FOR_SPECIFIED_ORGANIZATION) {
+                $exploreChildren = false;
+                $generateThisReport = true;
             } else {
+                /**
+                 * @var ArOrganizationUnit $organizationUnit
+                 */
+                $info = OrganizationUnitInfo::getInstance()->getDataInfo($organizationId, $fromDate);
 
+                if ($generationMethod == ArReportGeneration::GENERATE_FOR_ALL_CHILDREN_ORGANIZATIONS_AND_VOIP_ACCOUNTS) {
+                    $exploreChildren = true;
+                    $generateThisReport = true;
+                } else if ($generationMethod == ArReportGeneration::GENERATE_FOR_ALL_CHILDREN_ORGANIZATIONS_THAT_ARE_NOT_VOIP_ACCOUNTS) {
+                    $isLeaf = $info[OrganizationUnitInfo::DATA_UNIT_TYPE_IS_LEAF];
+                    if (is_null($isLeaf)) {
+                        $isLeaf = false;
+                    }
+                    $generateThisReport = !$isLeaf;
+                    $exploreChildren = true;
+                } else if ($generationMethod == ArReportGeneration::GENERATE_FOR_ALL_BILLABLE_CHILDREN_ORGANIZATIONS) {
+                    $isBillable = $info[OrganizationUnitInfo::DATA_UNIT_IS_BILLABLE];
+                    if (is_null($isBillable)) {
+                        $isBillable = false;
+                    }
+                    $generateThisReport = $isBillable;
+                    $exploreChildren = true;
+                } else if ($generationMethod == ArReportGeneration::GENERATE_FOR_ALL_CHILDREN_ORGANIZATIONS_WITH_A_RESPONSIBLE) {
 
-                if (!is_null($info)) {
+                    if (is_null($responsibleRoleId)) {
+                        $responsibleRoleId = ArRolePeer::retrieveByInternalName(ArRole::USER)->getId();
+                    }
 
-                    if ($generationMethod == ArReportGeneration::GENERATE_ONLY_FOR_SPECIFIED_ORGANIZATION) {
-                        $exploreChildren = false;
-                        $generateThisReport = true;
-                    } else if ($generationMethod == ArReportGeneration::GENERATE_FOR_ALL_CHILDREN_ORGANIZATIONS_AND_VOIP_ACCOUNTS) {
-                        $exploreChildren = true;
-                        $generateThisReport = true;
-                    } else if ($generationMethod == ArReportGeneration::GENERATE_FOR_ALL_CHILDREN_ORGANIZATIONS_THAT_ARE_NOT_VOIP_ACCOUNTS) {
-                        $isLeaf = $info[OrganizationUnitInfo::DATA_UNIT_TYPE_IS_LEAF];
-                        if (is_null($isLeaf)) {
-                            $isLeaf = false;
-                        }
-                        $generateThisReport = !$isLeaf;
-                        $exploreChildren = true;
-                    } else if ($generationMethod == ArReportGeneration::GENERATE_FOR_ALL_BILLABLE_CHILDREN_ORGANIZATIONS) {
-                        $isBillable = $info[OrganizationUnitInfo::DATA_UNIT_IS_BILLABLE];
-                        if (is_null($isBillable)) {
-                            $isBillable = false;
-                        }
-                        $generateThisReport = $isBillable;
-                        $exploreChildren = true;
-                    } else if ($generationMethod == ArReportGeneration::GENERATE_FOR_ALL_CHILDREN_ORGANIZATIONS_WITH_A_RESPONSIBLE) {
-
-                        if (is_null($responsibleRoleId)) {
-                            $responsibleRoleId = ArRolePeer::retrieveByInternalName(ArRole::USER)->getId();
-                        }
-
-                        $usersWithRoles = OrganizationUnitInfo::getInstance()->getDirectUsersWithRoles($organizationId);
-                        $isThereResponsible = false;
-                        foreach ($usersWithRoles as $userId => $roles) {
-                            foreach ($roles as $role) {
-                                if ($role == $responsibleRoleId) {
-                                    $isThereResponsible = true;
-                                }
+                    $usersWithRoles = OrganizationUnitInfo::getInstance()->getDirectUsersWithRoles($organizationId);
+                    $isThereResponsible = false;
+                    foreach ($usersWithRoles as $userId => $roles) {
+                        foreach ($roles as $role) {
+                            if ($role == $responsibleRoleId) {
+                                $isThereResponsible = true;
                             }
                         }
-
-                        $generateThisReport = $isThereResponsible;
-                        $exploreChildren = true;
-                    } else {
-                        $this->signalProblem('Error in the code: not supported generation method. Contact the assistance.');
                     }
+
+                    $generateThisReport = $isThereResponsible;
+                    $exploreChildren = true;
                 } else {
-                    $this->signalProblem('Error in the code: 7575. Contact the assistance.');
+                    $this->signalProblem('Error in the code: not supported generation method. Contact the assistance.');
                 }
             }
 
@@ -592,12 +587,14 @@ class ScheduledReportGenerator
     /**
      * @var ArReportScheduler
      */
-    protected $report;
+    protected
+        $report;
 
     /**
      * @param ArReportScheduler $report
      */
-    public function setArReportScheduler($report)
+    public
+    function setArReportScheduler($report)
     {
         $this->report = $report;
     }
@@ -605,7 +602,8 @@ class ScheduledReportGenerator
     /**
      * @return ArReportScheduler|null
      */
-    public function getArReportScheduler()
+    public
+    function getArReportScheduler()
     {
         return $this->report;
     }
@@ -617,7 +615,8 @@ class ScheduledReportGenerator
     /**
      * @return null|string
      */
-    public function getName()
+    public
+    function getName()
     {
         if (!is_null($this->getArReportScheduler())) {
             return 'Generate ' . $this->getArReportScheduler()->getName();
@@ -630,7 +629,8 @@ class ScheduledReportGenerator
      * @param bool $shortVersion
      * @return string
      */
-    public function calcCompleteDescription($shortVersion)
+    public
+    function calcCompleteDescription($shortVersion)
     {
         try {
             $this->checkParams();
@@ -683,7 +683,8 @@ class ScheduledReportGenerator
      * @return string
      * @throws ArProblemException
      */
-    protected function getReportSubjectsDescription()
+    protected
+    function getReportSubjectsDescription()
     {
 
         $organization = ArOrganizationUnitPeer::retrieveByPK($this->getArReportScheduler()->getArOrganizationUnitId());
@@ -715,7 +716,8 @@ class ScheduledReportGenerator
      * @param string $description
      * @throws ArProblemException
      */
-    protected function signalProblem($description)
+    protected
+    function signalProblem($description)
     {
         $report = $this->getArReportScheduler();
         if (is_null($report)) {
@@ -740,7 +742,8 @@ class ScheduledReportGenerator
     /**
      * @throws ArProblemException
      */
-    public function checkParams()
+    public
+    function checkParams()
     {
         $report = $this->getArReportScheduler();
         if (is_null($report)) {
@@ -783,7 +786,8 @@ class ScheduledReportGenerator
      * is equal to the sum of cdrs in the time-frame, except the postponed costs.
      *
      */
-    public function checkPostponedReportSet(ArReportScheduler $scheduler, $reportSetId)
+    public
+    function checkPostponedReportSet(ArReportScheduler $scheduler, $reportSetId)
     {
         $conn = Propel::getConnection();
 
@@ -890,15 +894,15 @@ class ScheduledReportGenerator
                 $isAllOk = false;
 
                 $errorInfo = "The report sets from " . fromUnixTimestampToMySQLTimestamp($minFromDate)
-                . " to " . fromUnixTimestampToMySQLTimestamp($maxToDate)
-                . ", generated by the report scheduler " . $scheduler->getId() . " "
-                . " have a total of " . from_db_decimal_to_monetary_txt_according_locale($groupTot)
-                . " for the organization with id " . $id . ", and name " . OrganizationUnitInfo::getInstance()->getFullNameAtDate($id, null, false, false)
-                . ", that is different from the totals of incomes of CDRs that is " . from_db_decimal_to_monetary_txt_according_locale($cdrTot)
-                . ". Difference is " . from_db_decimal_to_monetary_txt_according_locale(abs($cdrTot - $groupTot))
-                . ", and it is superior to the minimum invoice postpone of "
-                . from_db_decimal_to_monetary_txt_according_locale($minimumCost)
-                . ".";
+                    . " to " . fromUnixTimestampToMySQLTimestamp($maxToDate)
+                    . ", generated by the report scheduler " . $scheduler->getId() . " "
+                    . " have a total of " . from_db_decimal_to_monetary_txt_according_locale($groupTot)
+                    . " for the organization with id " . $id . ", and name " . OrganizationUnitInfo::getInstance()->getFullNameAtDate($id, null, false, false)
+                    . ", that is different from the totals of incomes of CDRs that is " . from_db_decimal_to_monetary_txt_according_locale($cdrTot)
+                    . ". Difference is " . from_db_decimal_to_monetary_txt_according_locale(abs($cdrTot - $groupTot))
+                    . ", and it is superior to the minimum invoice postpone of "
+                    . from_db_decimal_to_monetary_txt_according_locale($minimumCost)
+                    . ".";
                 $errorSolution = "If you have modified the parameters of the scheduler, or of organizations you need to regenerate the reports. Otherwise contact the assistance, because it is an error of the application.";
                 $errorEffect = "You are billing more or less money respect the totals of rated CDRs.";
 

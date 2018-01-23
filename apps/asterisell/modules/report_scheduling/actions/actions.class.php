@@ -30,6 +30,10 @@ class report_schedulingActions extends autoReport_schedulingActions
             $this->ArReportScheduler = $this->getArReportSchedulerOrCreate();
             $this->updateArReportSchedulerFromRequest();
 
+            if (is_null($this->ArReportScheduler->getArReportGenerationId())) {
+                $this->ArReportScheduler->setArReportGenerationId(ArReportGeneration::GENERATE_FOR_ALL_BILLABLE_CHILDREN_ORGANIZATIONS);
+            }
+
             try {
                 $this->saveArReportScheduler($this->ArReportScheduler);
             } catch (PropelException $e) {
