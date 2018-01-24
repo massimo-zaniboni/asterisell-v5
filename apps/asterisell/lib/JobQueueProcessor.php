@@ -299,7 +299,6 @@ class JobQueueProcessor
             }
         }
 
-
         return $allOk;
     }
 

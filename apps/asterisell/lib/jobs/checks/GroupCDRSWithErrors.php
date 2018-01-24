@@ -55,7 +55,6 @@ class GroupCDRSWithErrors extends FixedJobProcessor
         $stmt->execute(array(fromUnixTimestampToMySQLTimestamp($fromDate)
                             , DestinationType::known_error
                         ));
-        $stmt->execute();
         $stmt->closeCursor();
 
         return "Counted CDRs with errors of " . $prof->stop();

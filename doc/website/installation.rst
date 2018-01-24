@@ -472,6 +472,11 @@ So open it and transform it to something like:
     client_max_body_size 30m;
     client_body_buffer_size 128k;
 
+    # wait for slow queries
+    proxy_connect_timeout 1200;
+    proxy_send_timeout 1200;
+    proxy_read_timeout 1200;
+
     location / {
       # this is the port used from the Docker instance
       proxy_pass http://0.0.0.0:8001;

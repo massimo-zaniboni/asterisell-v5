@@ -76,6 +76,7 @@ all:
       - BackupOrganizationInfo
       - ChangePassword                      # execute more times this, for having a more reactive upgrade
       $custom_export_cdrs_jobs
+      - AnalyzeTables                       # this job execute system commands, and must be executed outside any open transaction
       - BackupConfigurations
       - BackupSourceCDRS
       - BackupCDRS
