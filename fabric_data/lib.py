@@ -1094,8 +1094,7 @@ class AsterisellInstance(object):
             maybe_ssl=maybe_ssl,
             ssl_settings1=self.create_ssl_settings1_conf(),
             ssl_settings2=self.create_ssl_settings2_conf(),
-            domain1=self.httpd_domain1,
-            domain2=self.httpd_domain2,
+            server_name=self.get_nginx_server_name(),
             port=port,
             admin_instance=self.create_httpd_instance_conf(True),
             user_instance=self.create_httpd_instance_conf(False)
@@ -1122,12 +1121,21 @@ class AsterisellInstance(object):
 
         return pref + self.httpd_domain1 + ':' + self.get_httpd_default_bridged_port() + suff
 
+    def get_nginx_server_name(self):
+        """Remove unucessary spaces from NGINX server name"""
+        r = self.httpd_domain1.strip()
+        r2 = self.httpd_domain2.strip()
+        if len(r2) > 0:
+            r = r + " " + r2
+
+        r = "server_name " + r + ";"
+        return r
+
     def create_ssl_settings1_conf(self):
         if self.is_ssl():
             t = self.get_httpd_template('ssl_redirect_fragment.conf')
             s = t.substitute(
-                domain1=self.httpd_domain1,
-                domain2=self.httpd_domain2,
+                server_name=self.get_nginx_server_name(),
                 port='443'
             )
             return s
@@ -1148,8 +1156,7 @@ class AsterisellInstance(object):
 
             t = self.get_httpd_template('ssl_certificates_fragment.conf')
             s = t.substitute(
-                domain1=self.httpd_domain1,
-                domain2=self.httpd_domain2,
+                server_name=self.get_nginx_server_name(),
                 port='443',
                 ssl_certificate=self.get_ssl_cert_file_on_container(),
                 ssl_certificate_key=self.get_ssl_key_file_on_container()
