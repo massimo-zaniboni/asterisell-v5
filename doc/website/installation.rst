@@ -176,7 +176,7 @@ You can generate them using
     cd ~
     mkdir .ssh
     cd .ssh
-    ssh-keygen -t rsa -C "your_email@example.com"
+    ssh-keygen -t rsa -b 4096 -C "your_email@example.com"
 
 Finally install Asterisell and the Management Tool using
 
