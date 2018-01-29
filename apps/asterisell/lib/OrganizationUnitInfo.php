@@ -171,6 +171,7 @@ class OrganizationUnitInfo
     const DATA_EXTENSION_NAME = 25;
     const DATA_EXTENSION_USER_CODE = 26;
     const DATA_EXPORT_CODE = 27;
+    const DATA_PARTY_CRM = 28;
 
     /**
      * The info associated to an organization, in descending order by date.
@@ -284,7 +285,8 @@ u.automatically_managed_from AS field_23,
 s.extension_codes AS field_24,
 s.extension_name AS field_25,
 s.extension_user_code AS field_26,
-u.export_code AS field_27
+u.export_code AS field_27,
+p.external_crm_code AS field_28
 FROM ar_organization_unit_has_structure AS s
      JOIN ar_organization_unit AS u ON (s.ar_organization_unit_id = u.id)
      LEFT JOIN ar_organization_unit_type AS t ON (s.ar_organization_unit_type_id = t.id)
@@ -550,6 +552,20 @@ SQL;
         $info = $this->getDataInfo($organizationId, $date);
         return $info[self::DATA_PARTY_ID];
     }
+
+     /**
+     * NULL if it is not a party
+     *
+     * @param int $organizationId
+     * @param int|null $date
+     * @return string|null the external CRM code
+     */
+    public function getPartyCRM($organizationId, $date)
+    {
+        $info = $this->getDataInfo($organizationId, $date);
+        return $info[self::DATA_PARTY_CRM];
+    }
+
 
     /**
      * unixtimestamp from when this info is valid

@@ -44,8 +44,18 @@ $fieldsToShow = FieldsToShow::getFieldsToShowInCSVReport($generateForAdmin);
 foreach($fieldsToShow as $fieldToShow) {
     switch($fieldToShow) {
         case FieldsToShow::ORGANIZATION_ID:
+        if ($generateForAdmin) {
             ?>
-        echo csv_field(__('Account'), false);
+          echo csv_field(__('Billable CRM'), true);
+          echo csv_field(__('Account'), false);
+        <?php
+        } else {
+        ?>
+          echo csv_field(__('Account'), true);
+        <?php
+        }
+        ?>
+
         <?php
             break;
 
@@ -248,17 +258,21 @@ echo "\n";
     $i = 0;
     $c->clearSelectColumns();
 
+    $billableOrganitazionUnitIdIndex = $i++;
+    $c->addSelectColumn(ArCdrPeer::BILLABLE_AR_ORGANIZATION_UNIT_ID);
 
-$organizationUnitIdIndex = $i++;
+$organizationUnitIdIndex = 0;
 if (VariableFrame::$groupOn == 0) {
     // group on calls
+    $organizationUnitIdIndex = $i++;
     $c->addSelectColumn(ArCdrPeer::AR_ORGANIZATION_UNIT_ID);
 } else if (VariableFrame::$groupOn == 1) {
     // group on extensions
+    $organizationUnitIdIndex = $i++;
     $c->addSelectColumn(ArCdrPeer::AR_ORGANIZATION_UNIT_ID);
 } else if (VariableFrame::$groupOn == 2) {
     // group on billable organization
-    $c->addSelectColumn(ArCdrPeer::BILLABLE_AR_ORGANIZATION_UNIT_ID);
+    $organizationUnitIdIndex = $billableOrganitazionUnitIdIndex;
 }
 
 if (VariableFrame::$groupOn == 0) {
@@ -445,8 +459,22 @@ if (VariableFrame::$groupOn == 0) {
 foreach($fieldsToShow as $fieldToShow) {
     switch($fieldToShow) {
         case FieldsToShow::ORGANIZATION_ID:
+        if ($generateForAdmin) {
             ?>
-        echo csv_field(OrganizationUnitInfo::getInstance()->getFullNameAtDate($unitId, $cdrDate, false, false, null, false), false);
+           $crm = OrganizationUnitInfo::getInstance()->getPartyCRM($r[$billableOrganitazionUnitIdIndex], $cdrDate);
+           if (is_null($crm)) {
+              $crm = '';
+           }
+           echo csv_field($crm, true);
+           echo csv_field(OrganizationUnitInfo::getInstance()->getFullNameAtDate($unitId, $cdrDate, false, false, null, false), false);
+        <?php
+        } else {
+        ?>
+            echo csv_field(OrganizationUnitInfo::getInstance()->getFullNameAtDate($unitId, $cdrDate, false, false, null, false), true);
+        <?php
+        }
+        ?>
+
         <?php
             break;
 

@@ -134,7 +134,12 @@ DROP TRIGGER IF EXISTS change_event_trigger_3$$
 DROP TRIGGER IF EXISTS recalc_add_user_can_view_report_2$$
 DROP TRIGGER IF EXISTS recalc_add_user_can_view_report_1$$
 DROP PROCEDURE IF EXISTS add_data_change_event$$
+
+/** Force recalcs after upgrade */
+DELETE FROM ar_cached_organization_info$$
+
 ';
+
 
         $sqlCode .= '
 
