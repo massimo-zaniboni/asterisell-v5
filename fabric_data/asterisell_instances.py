@@ -32,7 +32,6 @@ import os.path
 import datetime
 import lib
 
-
 class InstanceTemplate(lib.BillingInstance):
     # USE INSTEAD:
     # class InstanceTemplate(lib.CallReportingInstance)
@@ -615,6 +614,32 @@ class InstanceTemplate(lib.BillingInstance):
     # If enabled in the rates, CDR having this domain in special fields, will be considered as CDRs on the local network.
     # This option is used from special configured rates, and it is not enabled by default.
     conf_instance_voip_domain = ''
+
+    # Specify some connection params (passwords, URLs and so on) to use for connecting
+    # to external data sources.
+    #
+    # Keep private passwords on `fabric_data/passwords.ini` file, using `fabric_data/passwords.ini.rename` file as template.
+    # This file is in `.gitignore`, and so it is not sent to the Git repo.
+    def conf_connection_params(self):
+      r = []
+
+      # Add a demo password for user `foo` of service `bar`
+      c = lib.ConnectionParams()
+
+      c.connection_name = 'bar'
+      c.user = 'foo'
+      c.password = self.get_password_for('bar')
+      # NOTE: the password is on file `fabric_data/passwords.ini` file
+
+      c.host = 'http://some-host'
+      c.port = '8001' 
+      r.append(c)
+
+      # Add your passwords here using the same template...
+
+
+      # Return the list of all passwords (do not touch)
+      return r
 
     #
     # Do Not Touch

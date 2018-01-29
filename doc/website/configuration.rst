@@ -17,10 +17,10 @@ Configuration is an iterative process:
 
    In case you need help, you can contact the :doc:`support`.
 
-Basic Configurations
+Basic configurations
 --------------------
 
-CDRs Providers
+CDRs providers
 ..............
 
 First CDRs must be imported inside Asterisell.
@@ -46,7 +46,7 @@ or a Vendor can use more than one CDR provider (the Vendor uses multiple FTP acc
 
 Vendors are created in ``Rates -> Vendors`` menu.
 
-Communication Channels Types
+Communication channels types
 .............................
 
 A cummunication channel type identifies the type of the call. It is something like:
@@ -59,7 +59,7 @@ A cummunication channel type identifies the type of the call. It is something li
 
 Communication Channels types are created in ``Params -> Communication Channels``.
 
-Communication Channel
+Communication channel
 .....................
 
 A Communication Channel is a (low-level system) value inside a CDR identifying the channel
@@ -99,7 +99,7 @@ configuring some import jobs. If you import them manually, make sure to:
    content of the file, and there are no conflicts
 -  Asterisell jobs take care of this automatically
 
-CDRs File Name
+CDRs file name
 ..............
 
 A CDRs source file has a name like
@@ -117,7 +117,7 @@ A CDRs source file has a name like
 -  ``version`` is the name of the version of the type used. So the same
    type, can have different versions, with slightly different formats
 
-CDRs Status Files
+CDRs status files
 .................
 
 A CDRs CDRs status file name is like
@@ -137,7 +137,7 @@ The importing of a status file:
 -  the net effect is replacing the calls in the status time frame, with
    the content of the status file
 
-Pseudo CSV File
+Pseudo CSV file
 ...............
 
 Asterisell supports a pseudo CSV-file format:
@@ -150,7 +150,7 @@ This format is useful in case there can be errors in the CSV files,
 because it minimize the number of unrecognized entries, in case of a
 missing ending quote.
 
-How CDRs Source File are Saved Internally
+How CDRs source file are saved internally
 .........................................
 
 CDRs source file are processed from Asterisell, and imported in
@@ -161,7 +161,7 @@ CDRs:
 -  bakc in their original format, when decompressed, allowing a complete
    reprocessing if the rules about their processing changes
 
-Automatic Importing
+Automatic importing
 ...................
 
 You can add jobs into Asterisell, for importing files from different
@@ -170,7 +170,7 @@ tables, and so on.
 
 TODO continue
 
-How Importing From Collector Table
+How importing from collector table
 ..................................
 
 ``apps/asterisell/lib/jobs/data_file_processing/ImportCDRSFromDatabase.php``
@@ -212,7 +212,7 @@ CDRs. The source table will work like a queue.
 
 Transactions are used, so in case of connection problems, the CDRs will be imported and rated again.
 
-Tables on External Databases
+Tables on external databases
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 An external database is a database that is not on the same Linux
@@ -230,7 +230,7 @@ the SQL commands to execute are like:
 
   FLUSH PRIVILEGES;
 
-Tables on the same Host and Database Server
+Tables on the same host and database server
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 If the table with source CDRs is on the same Host and Database Server,
@@ -274,7 +274,7 @@ If you cannot interrupt the stream of CDRs, consult the assistance. It
 is possibile copying on the fly old and new CDRs, and them executing a
 fast switch.
 
-Fix Errors in Imported CDRs
+Fix errors in imported CDRs
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 If CDRs contains errors, and the error is in Asterisell code processing
@@ -301,7 +301,7 @@ This workflow is needed because:
    method for updating CDRs, because all CDRs in the timeframe are
    deleted, and then new version of CDRs are inserted;
 
-Rating Plans
+Rating plans
 ------------
 
 In Asterisell there are two main rating plans: ``main-cost-rate``, and
@@ -311,7 +311,7 @@ references to rating plan details, for example to CSV files.
 Usually the initial specification of rating plans can be difficult,
 but then updating rates is rather easy.
 
-Call Reporting Mode
+Call reporting mode
 ...................
 
 In Call Reporting Mode, Asterisell is not used for billing the calls, but calls have only a cost.
@@ -320,10 +320,10 @@ The user must specify only the ``main-income-rate``. It is called
 ``income`` but it is rating the costs of calls. The resulting CDRs will have
 income and cost equals.
 
-Cost Rates
+Cost rates
 ..........
 
-Free Incoming and Internal Calls
+Free incoming and internal calls
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 ::
@@ -338,7 +338,7 @@ Free Incoming and Internal Calls
       match-call-direction: internal
     }
 
-Multiple Vendors
+Multiple vendors
 ~~~~~~~~~~~~~~~~
 
 You can have multiple vendors (also called suppliers), that you use for
@@ -384,10 +384,10 @@ different vendors:
       }
     }
 
-Income Rates
+Income rates
 ............
 
-Free Incoming and Internal Calls
+Free incoming and internal calls
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 ::
@@ -429,7 +429,7 @@ TODO continue
 
 .. _tutorial_csv_rates:
 
-Tutorial on CSV Rates
+Tutorial on CSV rates
 ---------------------
 
 This is a CSV rate, with prices specified by minute, and applied by
@@ -514,12 +514,12 @@ An automatic rerating is scheduled, and we can inspect the differences
 
 .. _rate_plan_specification_language:
 
-Rate Plan Specification
+Rate plan specification
 -----------------------
 
 This is a complete specification of the rating plan language.
 
-Normal Rates
+Normal rates
 ............
 
 The rate plan contains nested rules. There can be one or more rates at
@@ -765,7 +765,7 @@ The specification is
 
         }
 
-Rates with Explicit Priority
+Rates with explicit priority
 ............................
 
 By default rates are selected according the longest matched telephone
@@ -805,7 +805,7 @@ So rate ``r1`` has implicitely more priority (is always preferred)
 respect rate ``r4``, and the same is true for ``r1/r2``, against
 ``r1/r3``.
 
-Bundle Rates
+Bundle rates
 ............
 
 A bundle-rate is a way to rate a group of calls, while certain limits
@@ -845,7 +845,7 @@ Bundle-rates can be used for specifying things like:
 Up to date, bundle-rates can be used only for specifying the income of a
 call, not the vendor cost.
 
-Example of Bundle-Rate Specification
+Example of bundle-rate specification
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 ::
@@ -1078,7 +1078,7 @@ Specification
           [other-children-rates]
         }
 
-Nested Bundle Rates
+Nested bundle rates
 ...................
 
 Bundle-rates have higher priority respect normal-rates. Normal-rates are
@@ -1097,7 +1097,7 @@ The match condition on a bundle-rate are:
    with a direct assignment to the price-category of the bundle-rate;
 -  other normal rate conditions;
 
-Residual Call Duration
+Residual call duration
 ......................
 
 If "calls-can-be-split" is set to false, then a call C is rated using
@@ -1116,7 +1116,7 @@ insidie B1 limits, but partially inside B2 limits, then:
 -  bundle-C is rated using B1/B2, because it respects the limits;
 -  residual-C is rated using normal rates;
 
-Nested Organizations
+Nested organizations
 ....................
 
 Suppose that there is this organization hierachy:
@@ -1189,7 +1189,7 @@ Up to date bundle-rates:
 -  do not accept children bundle-rates with "calls-can-be-split" value
    different from parent bundle-rate;
 
-Changes of Rates
+Changes of rates
 ................
 
 In Asterisell rates are modified adding a new rate plan, with an initial
@@ -1200,7 +1200,7 @@ rated using the new version.
 In this way it is possible re-rating old calls, using the old version of
 the rating plans.
 
-Changes of Bundle Rates
+Changes of bundle rates
 .......................
 
 A Bundle Rate can change.
@@ -1235,7 +1235,7 @@ The reasons of these rules are that an organization accepting a bundle
 rate plan, must follow the same plan until the end of the bundle rate
 time frame, but that rated calls must use always the most recent plan.
 
-User Interface Localization
+User interface localization
 ---------------------------
 
 Set ``culture`` with the correct locale in ``fabric_data/asterisell_instances.py`` and update the instances.
@@ -1257,7 +1257,7 @@ For supporting another language:
 * execute ``fab upgrade_conf:INSTANCE`` for activating the new translations
 * consider to send pull requests/patches to :doc:`support` with the new translations, so they can be included in the official Asterisell release
 
-Mails to Customers
+Mails to customers
 ------------------
 
 Customers can receive emails with attachments from Asterisell:
@@ -1269,7 +1269,7 @@ Customers can receive emails with attachments from Asterisell:
 
 Mails and reports can be fully customized.
 
-Testing Mode
+Testing mode
 ............
 
 During initial testing of messages and application you can set in the
@@ -1278,7 +1278,7 @@ Asterisell Management Tool, the option
 redirecting all the emails originally directed to customers to an
 internal test email.
 
-Adding Payment Terms and Notes to Invoices
+Adding payment terms and notes to invoices
 ..........................................
 
 You can customize the notes, payments terms, and so on, added inside
@@ -1300,7 +1300,7 @@ can customize the message also for a single specific report/invoice.
 
 .. _notifications:
 
-Warning Emails for High Call Costs
+Warning emails for high call costs
 ..................................
 
 You can customize
@@ -1319,7 +1319,7 @@ configuration settings.
 Asterisell will install with some predefined reports. The admin can
 customize them later.
 
-Scheduled Reports
+Scheduled reports
 .................
 
 The report workflow is usually this:
@@ -1352,13 +1352,13 @@ The report workflow is usually this:
 So after initial configurations, the generation of reports is
 automatized.
 
-Examples of Scheduled Reports
+Examples of scheduled reports
 .............................
 
 The initial demo instance, is configured with some common scheduled
 reports.
 
-Billing Reports
+Billing reports
 ...............
 
 Billing reports (legal reports) are important, because they are also
@@ -1373,7 +1373,7 @@ Invoices
 
 See :ref:`adding_new_type_of_reports`.
 
-Sending of Reports
+Sending of reports
 ..................
 
 Reports are sent to proper billable users. If an user has no associated
@@ -1384,7 +1384,7 @@ specified, the reports will be sent automatically.
 
 .. _adding_new_type_of_reports:
 
-Adding New Reports
+Adding new reports
 ..................
 
 You can define new type of reports adding source code under
@@ -1392,7 +1392,7 @@ You can define new type of reports adding source code under
 variable ``custom_reports``, so they can be selected for scheduling and
 then generated.
 
-Configuration of Resellers
+Configuration of resellers
 --------------------------
 
 An Asterisell server instance can send CSV files with CDRs to other
@@ -1407,7 +1407,7 @@ for the reseller.
 
    They are only a guideline.
 
-Export of CDRS on Provider Side
+Export of CDRS on provider side
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Add a PHP class like
@@ -1451,7 +1451,7 @@ Make the same for exporting service CDRS (bundle rates, or pure services) to res
 
 Note that unlike normal CDRS, a reseller receives from its provider already billed services, and it can not double check the calculated cost, because there are no cost rates for services. So it simply import them, and consider them as costs.
 
-Reseller Code on Provider Side
+Reseller code on provider side
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 In the ``Entities -> Resellers`` menu define a reseller with the same
@@ -1461,10 +1461,10 @@ In the ``Entities -> Customers`` menu, create a customer associated to
 the Reseller. The reseller association is made in the ``party`` section
 of the customer.
 
-Extensions Codes
+Extensions codes
 ~~~~~~~~~~~~~~~~
 
-Provider Side
+Provider side
 .............
 
 Create VoIP accounts associated to the reseller, and that are child
@@ -1490,7 +1490,7 @@ organization on the reseller side:
 -  on the reseller side create a pseudo extension, associated to the
    shared organization, and specify the ``export-code``
 
-Reseller Side
+Reseller side
 .............
 
 Resellers see only the provider exported code.
@@ -1498,7 +1498,7 @@ Resellers see only the provider exported code.
 Rates
 ~~~~~
 
-Provider Side
+Provider side
 .............
 
 Identify the income rates associated to the price-category of the
@@ -1506,7 +1506,7 @@ reseller. These rates must/can be configured as automatically exported
 to the reseller. In case choose a name and notes making sense also on
 the reseller side.
 
-Reseller Side
+Reseller side
 .............
 
 Service on the provider, can be exported to the reseller as cost. They
@@ -1554,7 +1554,7 @@ and so there will be a 1:1 relation ship between services on the
 provider side (cost) and on the reseller side (income), like in case of
 normal calls.
 
-Communication Channels
+Communication channels
 ~~~~~~~~~~~~~~~~~~~~~~
 
 Communication channels are exported following the settings in this method
@@ -1589,7 +1589,7 @@ It is possible sending files to a (maybe remote) Reseller using the WebDav proto
 WebDAV is a standard protocol based on HTTP connections, so it has encryption by default,
 and it can pass through firewalls.
 
-WebDAV configuration on the Provider Server
+WebDAV configuration on the provider server
 ...........................................
 
 Create a file ``customizations/ExportToFoo.php`` like this
@@ -1695,12 +1695,14 @@ Then configure something like this
         c = lib.ConnectionParams()
         c.connection_name = 'bar'
         c.user = 'foo'
-        c.password = 'some-password'
+        c.password = self.get_password_for('bar-foo')
         c.host = 'http://local-ip/admin/get-foo/'
         c.port = '8001' # this must be the http port exposed from the Docker container of the `bar` provider
         r.append(c)
 
         return r
+
+You had to set the password on file ``fabric_data/passwords.ini``. 
 
 WebDav configuration for resellers on external hosts
 ....................................................
@@ -1743,12 +1745,14 @@ Configure something like this
         c = lib.ConnectionParams()
         c.connection_name = "bar"
         c.user = "foo"
-        c.password = "some-password"
+        c.password = self.get_password_for('bar-foo')
         c.host = 'https://provider-url/admin/get-foo/'
         c.port = '443'
         r.append(c)
 
         return r
+
+You had to set the password on file ``fabric_data/passwords.ini``. 
 
 You can try the access using a command like this inside the reseller Docker instance:
 

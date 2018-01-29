@@ -38,6 +38,7 @@ import tempfile
 import random
 import string
 import shutil
+import ConfigParser
 
 # Set to True for enabling debug and profiling.
 # See also the notes in the DEVELOPMENT section of the manual.
@@ -1241,6 +1242,21 @@ class AsterisellInstance(object):
                 w = w + t
 
         return w + s
+
+    #
+    # Manage passwords
+    #
+
+    config_parser = None
+    config_parser_fname = 'passwords.ini'
+
+    def get_password_for(self, name):
+        if self.config_parser is None:
+            self.config_parser = ConfigParser.ConfigParser()
+            pfile = (os.path.join(os.path.abspath('.'), 'fabric_data', self.config_parser_fname))
+            if os.path.exists(pfile):
+                self.config_parser.read(pfile)
+        return self.config_parser.get("passwords", name)
 
     #
     # Utility Functions
