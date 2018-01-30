@@ -91,8 +91,7 @@ $params = ArParamsPeer::getDefaultParams();
         echo '<li>' . link_to(__('Parties'), 'party/list') . '</li>' . "\n";
         echo '<li>' . link_to(__('Backup'), 'backup_of_organizations/list') . '</li>' . "\n";
         echo '<li>' . link_to(__('Resellers'), 'reseller/index') . '</li>' . "\n";
-        echo '<li>' . link_to(__('Customers List'), 'get_type_of_customers/exportToCsv') . '</li>' . "\n";
-        echo '<li>' . link_to(__('Extensions List'), 'get_extension_list/exportToCsv') . '</li>' . "\n";
+        echo '<li>' . link_to(__('Complete Info'), 'get_extension_list/exportToCsv') . '</li>' . "\n";
         // TODO temporary disabled
         //  echo '<li>' . link_to(__('Show Documents to Customers'), 'document/list') . '</li>'. "\n";
         echo '</ul>' . "\n";

@@ -511,6 +511,13 @@ SQL;
         }
     }
 
+    /**
+     * @return array values are all the organizationIds of past, present, and future
+     */
+    public function getOrganizationIds() {
+        return array_keys($this->idToStructureData);
+    }
+
     //////////////////
     // Basic Access //
     //////////////////

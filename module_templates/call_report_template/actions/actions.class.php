@@ -39,7 +39,7 @@ if ($request->isMethod(sfRequest::POST))
 
     if ($this->getRequestParameter('resetCallsCost')) {
       $this->initBeforeCalcCondition();
-      list($fromDate, $toDate) = $this->getAndUpdateTimeFrame();
+      list($fromDate, $toDate, $descr) = $this->getAndUpdateTimeFrame();
       FixedJobProcessor::rerateCalls($fromDate, $toDate);
       return $this->redirect("$moduleName/list");
 
@@ -58,15 +58,19 @@ if ($request->isMethod(sfRequest::POST))
 <?php } ?>
 
 if ($this->getRequestParameter('exportToCsv')) {
-return $this->forward($moduleName, 'exportToCsv');
+  return $this->forward($moduleName, 'exportToCsv');
 } else if ($this->getRequestParameter('exportToExcel')) {
-return $this->forward($moduleName, 'exportToExcel');
+  return $this->forward($moduleName, 'exportToExcel');
+} else if ($this->getRequestParameter('exportExtensions')) {
+  $this->initBeforeCalcCondition();
+  list($startDate, $endDate, $descr) = $this->getAndUpdateTimeFrame();
+  VariableFrame::$startFilterDate = $startDate;
+  VariableFrame::$endFilterDate = $endDate;
+  return $this->forward('get_type_of_customers', 'exportToCsv');
 }
-}
-
+} // end sfRequest::POST
 return $this->forward($moduleName, 'list');
-}
-
+} // end function
 
 public function executeExportToCsv($request) {
 // execute list operation and then invoke templates/exportToCsvSuccess.php
@@ -179,7 +183,7 @@ protected function updateVariableFrameWithHeaderInfo($c) {
 
   VariableFrame::$filterConditionWithOrder = $filterWithOrder;
 
-  list($startDate, $endDate) = $this->getAndUpdateTimeFrame();
+  list($startDate, $endDate, $descr) = $this->getAndUpdateTimeFrame();
   VariableFrame::$startFilterDate = $startDate;
   VariableFrame::$endFilterDate = $endDate;
 
@@ -679,7 +683,7 @@ return array($fromDate, $toDate, $filterDescr);
 * @return $c the final condition with the new constraints
 */
 protected function addFilterOnTimeFrame($c) {
-list($fromDate, $toDate) = $this->getAndUpdateTimeFrame();
+list($fromDate, $toDate, $descr) = $this->getAndUpdateTimeFrame();
 
 if (is_null($toDate)) {
 $filterFromDate = fromUnixTimestampToMySQLTimestamp($fromDate);

@@ -2,58 +2,62 @@
 
 use_helper('I18N', 'Debug', 'Date', 'Asterisell');
 
-// NOTE: if there are price categories and customers with the same name this code is not correct.
-
-$conn = Propel::getConnection();
-$query = 'SELECT id, internal_name FROM ar_rate_category ORDER BY internal_name';
-$stm = $conn->prepare($query);
-$stm->execute();
-$priceCategoryNames = array();
-$byPriceCategory = array();
-while ((($rs = $stm->fetch(PDO::FETCH_NUM)) !== false)) {
-    $id = $rs[0];
-    $name = $rs[1];
-    $byPriceCategory[$name] = array();
-    $priceCategoryNames[$id] = $name;
-}
-$stm->closeCursor();
-
 $info = OrganizationUnitInfo::getInstance();
+$ids = $info->getOrganizationIds();
 
-$conn = Propel::getConnection();
-$query = 'SELECT id FROM ar_organization_unit';
-$stm = $conn->prepare($query);
-$stm->execute();
+$time = VariableFrame::$startFilterDate;
+if (is_null($time)) {
+    $time = time();
+}
+$timeS = fromUnixTimestampToMySQLTimestamp($time);
 
-$date = time();
-while ((($rs = $stm->fetch(PDO::FETCH_NUM)) !== false)) {
-    $organizationId = $rs[0];
-    $fullName = $info->getFullNameAtDate($organizationId, $date, false, false, null, false, false);
-    $priceCategoryId = $info->getArRateCategoryId($organizationId, $date);
-
-    if (is_null($priceCategoryId)) {
-        // nothing to do because it is the same category of its parent
-    } else {
-        $priceCategoryName = $priceCategoryNames[$priceCategoryId];
-        $byPriceCategory[$priceCategoryName][] = $fullName;
+$sortedIds = array();
+foreach ($ids as $id) {
+    if ($info->getExists($id, $time)) {
+        $sortedIds[$id] = $info->getFullNameAtDate($id, $time, false, false, null, false, false);
     }
 }
-$stm->closeCursor();
+asort($sortedIds);
+reset($sortedIds);
 
 // Set UTF-8 encoding
 echo "\xEF\xBB\xBF";
 
-echo csv_field("Price Category", true);
-echo csv_field("Customer", false);
+echo csv_field("Active at date", true);
+echo csv_field("Extension codes", false);
+echo csv_field("Organization", false);
+echo csv_field("Price category", false);
+echo csv_field("Billable organization", false);
+echo csv_field("Billable CRM", false);
 echo "\n";
 
-foreach ($byPriceCategory as $categoryName => $organizations) {
-    sort($organizations);
-    foreach ($organizations as $orgName) {
-        echo csv_field($categoryName, true);
-        echo csv_field($orgName, false);
-        echo "\n";
+foreach ($sortedIds as $id => $organizationName) {
+    echo csv_field($timeS, true);
+
+    $d = $info->getDataInfo($id, $time);
+    $c = $d[OrganizationUnitInfo::DATA_EXTENSION_CODES];
+    if (is_null($c)) {
+        $c = "";
     }
+    echo csv_field($c, false);
+    echo csv_field($organizationName, false);
+
+    try {
+        $priceCategoryId = $info->getNearestRateCategoryId($id, $time);
+        $priceCategory = ArRateCategoryPeer::retrieveByPK($priceCategoryId);
+        if (!is_null($priceCategory)) {
+            echo csv_field($priceCategory->getName(), false);
+        } else {
+            echo csv_field("!!error!!", false);
+        }
+    } catch (ArProblemException $ex) {
+        echo csv_field("!!error!!", false);
+    }
+
+    $billableId = $info->getBillableArOrganizationId($info->getFullIds($id, $time), $time);
+    echo csv_field($info->getFullNameAtDate($billableId, $time, false, false, null, false, false), false);
+    echo csv_field($info->getPartyCRM($billableId, $time), false);
+    echo "\n";
 }
 
 ?>

@@ -375,10 +375,10 @@ echo '<tr class="sf_admin_row_0">';
             echo form_tag("$moduleName/userActs");
 
         echo '<input type="submit" class="user_actions" name="exportToCsv" value="' . __('Export to CSV') . '"/>';
-
         <?php
         if ($generateForAdmin) {
         ?>
+          echo '<input type="submit" class="user_actions" name="exportExtensions" value="' . __('Extensions/DIDS') . '"/>';
           echo '<input type="submit" class="user_actions" name="resetCallsCost" value="' . __('Re-rate Calls in Timeframe') .'"/>';
           echo '<input type="submit" class="user_actions" name="resetRecentCallsCost" value="' . __('Re-rate Not Yet Billed Calls') .'"/>';
         <?php
