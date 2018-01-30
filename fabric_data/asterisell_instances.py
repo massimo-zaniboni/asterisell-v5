@@ -620,26 +620,27 @@ class InstanceTemplate(lib.BillingInstance):
     #
     # Keep private passwords on `fabric_data/passwords.ini` file, using `fabric_data/passwords.ini.rename` file as template.
     # This file is in `.gitignore`, and so it is not sent to the Git repo.
-    def conf_connection_params(self):
-      r = []
-
-      # Add a demo password for user `foo` of service `bar`
-      c = lib.ConnectionParams()
-
-      c.connection_name = 'bar'
-      c.user = 'foo'
-      c.password = self.get_password_for('bar')
-      # NOTE: the password is on file `fabric_data/passwords.ini` file
-
-      c.host = 'http://some-host'
-      c.port = '8001' 
-      r.append(c)
-
-      # Add your passwords here using the same template...
-
-
-      # Return the list of all passwords (do not touch)
-      return r
+    #
+    # def conf_connection_params(self):
+    #   r = []
+    #
+    #   # Add a demo password for user `foo` of service `bar`
+    #   c = lib.ConnectionParams()
+    #
+    #   c.connection_name = 'bar'
+    #   c.user = 'foo'
+    #   c.password = self.get_password_for('bar')
+    #   # NOTE: the password is on file `fabric_data/passwords.ini` file
+    #
+    #   c.host = 'http://some-host'
+    #   c.port = '8001' 
+    #   r.append(c)
+    #
+    #   # Add your passwords here using the same template...
+    #
+    #
+    #   # Return the list of all passwords (do not touch)
+    #   return r
 
     #
     # Do Not Touch
