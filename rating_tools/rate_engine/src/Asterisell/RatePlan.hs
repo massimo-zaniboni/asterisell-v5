@@ -105,7 +105,6 @@ module Asterisell.RatePlan (
   , params_digitsToMask 
   , params_defaultTelephonePrefixToNotDisplay 
   , params_currencyPrecision 
-  , params_extensionsFileName 
   , params_debugFileName 
   , params_fromDate 
   , params_toDate 
@@ -2381,7 +2380,6 @@ data InitialRatingParams
         -- ^ telephone numbers starting with these prefix are shortened, not including it,
         -- because it is an implicit prefix.
       , iparams_currencyPrecision :: Int
-      , iparams_extensionsFileName :: FilePath
       , iparams_debugFileName :: FilePath
       , iparams_fromDate :: CallDate
       , iparams_toDate :: CallDate
@@ -2464,9 +2462,6 @@ params_defaultTelephonePrefixToNotDisplay p = iparams_defaultTelephonePrefixToNo
 
 params_currencyPrecision :: RatingParams -> Int
 params_currencyPrecision p = iparams_currencyPrecision $ params_initial p
-
-params_extensionsFileName :: RatingParams -> FilePath
-params_extensionsFileName p = iparams_extensionsFileName $ params_initial p
 
 params_debugFileName :: RatingParams -> FilePath
 params_debugFileName p = iparams_debugFileName $ params_initial p
@@ -2704,7 +2699,7 @@ ratePlan_loadRatingParams p0 =
       vendors <- vendors_load  conn isDebugMode
       channelTypes <- channelTypes_load conn isDebugMode
       channelsDomains <- channelDomains_load conn isDebugMode
-      extensions <- extensions_load isDebugMode (iparams_extensionsFileName p0)
+      extensions <- extensions_load conn isDebugMode 
 
       let p2 = p1 {
                  params_rateCategories = rateCategories
@@ -3704,7 +3699,6 @@ ratingParamsForTest precisionDigits
       , iparams_digitsToMask = 0
       , iparams_defaultTelephonePrefixToNotDisplay = Nothing
       , iparams_currencyPrecision = precisionDigits
-      , iparams_extensionsFileName = ""
       , iparams_debugFileName = ""
       , iparams_fromDate = fromJust $ fromMySQLDateTimeToLocalTime "2000-01-01 00:00:00"
       , iparams_toDate = fromJust $ fromMySQLDateTimeToLocalTime "2000-02-01 00:00:00"

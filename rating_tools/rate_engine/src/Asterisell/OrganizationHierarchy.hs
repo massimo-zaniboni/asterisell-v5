@@ -1,7 +1,7 @@
-{-# Language BangPatterns, OverloadedStrings, ScopedTypeVariables, TypeSynonymInstances, FlexibleInstances, DeriveGeneric, DeriveAnyClass, FlexibleContexts  #-}
+{-# Language BangPatterns, OverloadedStrings, ScopedTypeVariables, TypeSynonymInstances, FlexibleInstances, DeriveGeneric, DeriveAnyClass, FlexibleContexts, QuasiQuotes  #-}
 
-{- $LICENSE 2013, 2014, 2015, 2016
- * Copyright (C) 2013-2016 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
+{- $LICENSE 2013, 2014, 2015, 2016, 2018
+ * Copyright (C) 2013-2018 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
  *
  * This file is part of Asterisell.
  *
@@ -21,11 +21,9 @@
 -}
 
 
--- | Import Organization Hierarchies related tables from the PHP world.
+-- | Import organization hierarchies and extensions.
 --
---   This code must be keept in synchro with
---   * `apps/asterisell/lib/jobs/data_file_processing/ExportConfigurationsToExternalRateEngine.php`,
---   * `apps/asterisell/lib/OrganizationUnitInfo.php`
+--   This code must be keept in synchro with `apps/asterisell/lib/OrganizationUnitInfo.php`
 --
 
 module Asterisell.OrganizationHierarchy (
@@ -59,6 +57,7 @@ module Asterisell.OrganizationHierarchy (
 import Asterisell.Trie
 import Asterisell.Utils
 import Asterisell.Error
+import Asterisell.DB
 
 import Prelude hiding (concat, takeWhile)
 import Control.Applicative ((<$>), (<|>), (<*>), (<*), (*>), many)
@@ -84,6 +83,20 @@ import Data.Maybe
 import Debug.Trace
 import qualified System.IO as SIO
 import Control.Monad (when)
+import Text.Heredoc
+
+import System.IO.Streams as S
+import qualified System.IO.Streams.Text as S
+import qualified System.IO.Streams.Combinators as S
+import qualified System.IO.Streams.List as S
+import qualified System.IO.Streams.File as S
+import qualified System.IO.Streams.Vector as S
+import qualified Data.Vector as V
+
+import Database.MySQL.Base as DB
+import qualified Database.MySQL.Protocol.Escape as DB
+import Database.MySQL.Protocol.MySQLValue
+import Text.Heredoc
 
 import qualified Test.HUnit as HUnit
 import qualified Test.HUnit.Base as HUnit
@@ -91,9 +104,8 @@ import Control.Exception.Safe (catch, catchAny, onException, finally, handleAny,
                               , SomeException, throwIO, throw, Exception, MonadMask
                               , withException, displayException)
 
------------------------
--- BASIC DATA TYPES  --
------------------------
+-- ----------------
+-- Basic data types
 
 -- | A unique identifier for ar_organization_unit.id.
 --
@@ -119,12 +131,16 @@ data DataInfo
       unit_id :: !UnitId,
       -- ^ the subject of the info
 
+      unit_internalName :: !(Maybe T.Text),
+      unit_internalName2 :: !(Maybe T.Text),
+
       structure_from :: !LocalTime,
       -- ^ from when the info replace the old info, on the same unit_id, and it became valid
 
       unitType_id :: !Int,
       unitType_name :: !(Maybe T.Text),
       unitType_shortCode :: !(Maybe T.Text),
+      unitType_internalName :: !(Maybe T.Text),
 
       structure_id :: !DataInfoId,
       structure_parentUnitId :: !(Maybe UnitId),
@@ -141,8 +157,10 @@ data DataInfo
       party_name :: !(Maybe T.Text),
       party_compactName :: !(Maybe T.Text),
       party_isBillable :: !Bool,
-      party_isActive :: !(Maybe Bool),
-      party_resellerId :: !(Maybe Int)
+      party_isActive :: !Bool,
+      party_resellerId :: !(Maybe Int),
+      party_externalCRMCode :: !(Maybe T.Text)
+
     }
  deriving(Eq, Ord, Show, Generic, NFData)
 
@@ -208,110 +226,119 @@ info_respectCodeContracts info
      = let map2 = IMap.map (\l1 -> isDescendingOrder $ L.map structure_from l1) map1
        in  L.all id (L.map snd $ IMap.toList map2)
 
--------------------------------------------------
--- PARSING OF INFO IMPORTED FROM THE PHP WORLD --
--------------------------------------------------
+-- --------------------------------------------
+-- Import from DB
 
-type ParserState = (Info, StringDictionary, ConfigurationErrors, LineNumber)
+-- TODO code to convert
 
--- | Parse a file using Attoparsec, and chunk by chunk.
---   So it can be used for big files, without using too much RAM.
---   @require: the records are in ascending order respect ar_organization_unit_has_structure.from
-extensions_load :: Bool -> String -> IO Info
-extensions_load isDebugMode fileName
-  = SIO.withFile fileName SIO.ReadMode $ \handle -> do
-       SIO.hSetEncoding handle SIO.utf8_bom
-       fileContent <- IO.hGetContents handle
+-- | Load extension data from the DB.
+extensions_load :: DB.MySQLConn -> Bool -> IO Info
+extensions_load conn isDebugMode = do
+  let 
+      q = [str|SELECT ar_organization_unit.id
+              |, ar_organization_unit.internal_name
+              |, ar_organization_unit.internal_name2
+              |, ar_organization_unit_type.id
+              |, ar_organization_unit_type.name
+              |, ar_organization_unit_type.short_code
+              |, ar_organization_unit_type.internal_name
+              |, ar_organization_unit_has_structure.id
+              |, ar_organization_unit_has_structure.ar_parent_organization_unit_id
+              |, ar_organization_unit_has_structure.from
+              |, ar_organization_unit_has_structure.exists
+              |, ar_organization_unit_has_structure.ar_rate_category_id
+              |, ar_organization_unit_has_structure.ar_party_id
+              |, ar_organization_unit_has_structure.extension_codes
+              |, ar_organization_unit_has_structure.extension_name
+              |, ar_organization_unit_has_structure.extension_user_code
+              |, ar_rate_category.short_description
+              |, ar_rate_category.internal_name
+              |, ar_party.name
+              |, ar_party.compact_name
+              |, ar_party.is_billable
+              |, ar_party.is_active
+              |, ar_party.ar_reseller_id
+              |, ar_party.external_crm_code
+              |FROM ar_organization_unit_has_structure
+              |LEFT JOIN ar_organization_unit ON ar_organization_unit_has_structure.ar_organization_unit_id = ar_organization_unit.id
+              |LEFT JOIN ar_organization_unit_type ON ar_organization_unit_has_structure.ar_organization_unit_type_id = ar_organization_unit_type.id
+              |LEFT JOIN ar_rate_category ON ar_organization_unit_has_structure.ar_rate_category_id = ar_rate_category.id
+              |LEFT JOIN ar_party ON ar_organization_unit_has_structure.ar_party_id = ar_party.id
+              |ORDER BY ar_organization_unit_has_structure.from
+              |]
 
-       let !r = parse (parseExtensions parserState_empty <* endOfInput) fileContent
-       case eitherResult r of
-         Left msg
-           -> throw $ AsterisellException $ "Err 50575. This is an error in the code: contact the assistance. Error loading extensions info: " ++ msg
-         Right (info, _, errors, _)
-           -> case Set.null errors of
-                True
-                  -> return info
-                False
-                  -> throw $ AsterisellException $ "There are extensions configured not correctly. " ++ (L.concatMap (\t -> t ++ "\n") (Set.toList errors))
+  (_, inS) <- DB.query_ conn (DB.Query q)
+  (info, errors) <- S.fold addExtensionRecord (info_empty, Set.empty) inS
+  case Set.null errors of
+    True
+      -> return info
+    False
+      -> throw $ AsterisellException $ "There are extensions configured not correctly. " ++ (L.concatMap (\t -> t ++ "\n") (Set.toList errors))
 
-parserState_empty :: ParserState
-parserState_empty = (info_empty, Map.empty, Set.empty, 1)
+addExtensionRecord :: (Info, ConfigurationErrors) -> [DB.MySQLValue] -> (Info, ConfigurationErrors)
+addExtensionRecord
+  (info1, errors1)
+  [ unitId
+  , unitInternalName
+  , unitInternalName2
+  , typeId
+  , typeName
+  , typeShortCode
+  , typeInternalName
+  , structureId
+  , parentId
+  , fromDate
+  , existsFlag
+  , rateCategoryId
+  , partyId
+  , extensionCodes
+  , extensionName
+  , extensionUserCode
+  , rateCategoryShortDescr
+  , rateCategoryInternalName
+  , partyName
+  , partyCompactName
+  , partyIsBillable1
+  , partyIsActive1
+  , partyResellerId
+  , partyCRM
+  ]
+    = let partyIsBillable2 = case fromMaybeDBValue fromDBBool partyIsBillable1 of
+                               Nothing -> False
+                               Just v -> v
 
-addExtensionRecord :: ParserState -> Parser ParserState
-addExtensionRecord state1@(info1, dict1, errors1, ln)
-  = (do field1 <- parseInt
-        char ','
-        field2 <- parseInt
-        char ','
-        (field3, dict3) <- parseCSVMaybeSharedString ',' dict1
-        char ','
-        (field4, dict4) <- parseCSVMaybeSharedString ',' dict3
-        char ','
-        field5 <- parseInt
-        char ','
-        field6 <- parseMaybeInt
-        char ','
-        field7 <- parseMySQLDateTimeToLocalTime ','
-        char ','
-        field8 <- parse01AsBool
-        char ','
-        field9 <- parseMaybeInt
-        char ','
-        field10 <- parseMaybeInt
-        char ','
-        field11 <- parseCSVMaybeString ','
-        char ','
-        field12 <- parseCSVMaybeString ','
-        char ','
-        field13 <- parseCSVMaybeString ','
-        char ','
-        (field14, dict14) <- parseCSVMaybeSharedString ',' dict4
-        char ','
-        (field15, dict15) <- parseCSVMaybeSharedString ',' dict14
-        char ','
-        (field16, dict16) <- parseCSVMaybeSharedString ',' dict15
-        char ','
-        (field17, dict17) <- parseCSVMaybeSharedString ',' dict16
-        char ','
-        field18M <- parseMaybe01AsBool
-        char ','
-        field19 <- parseMaybe01AsBool
-        char ','
-        field20 <- parseMaybeInt
+          partyIsActive2 = case fromMaybeDBValue fromDBBool partyIsActive1 of
+                             Nothing -> False
+                             Just v -> v
 
-        (endOfLine <|> endOfInput)
-
-        let field18 = case field18M of
-                        Nothing -> False
-                        Just v -> v
-
-        let value = DataInfo {
-                      unit_id = field1,
-                      unitType_id = field2,
-                      unitType_name = field3,
-                      unitType_shortCode = field4,
-                      structure_id = field5,
-                      structure_parentUnitId = field6,
-                      structure_from = field7,
-                      structure_exists = field8,
-                      structure_rateCategoryId = field9,
-                      structure_partyId = field10,
-                      structure_extensionCodes = field11,
-                      structure_extensionName = field12,
-                      structure_extensionUserCode = field13,
-                      rateCategory_name = field14,
-                      rateCategory_internalName = field15,
-                      party_name = field16,
-                      party_compactName = field17,
-                      party_isBillable = field18,
-                      party_isActive = field19,
-                      party_resellerId = field20
+          value = DataInfo {
+                      unit_id = fromDBInt unitId,
+                      unit_internalName = fromMaybeDBValue fromDBText unitInternalName,
+                      unit_internalName2 = fromMaybeDBValue fromDBText unitInternalName2, 
+                      unitType_id = fromDBInt typeId,
+                      unitType_name = fromMaybeDBValue fromDBText typeName,
+                      unitType_shortCode = fromMaybeDBValue fromDBText typeShortCode,
+                      unitType_internalName = fromMaybeDBValue fromDBText typeInternalName,
+                      structure_id = fromDBInt structureId,
+                      structure_parentUnitId = fromMaybeDBValue fromDBInt parentId,
+                      structure_from = fromDBLocalTime fromDate,
+                      structure_exists = fromDBBool existsFlag,
+                      structure_rateCategoryId = fromMaybeDBValue fromDBInt rateCategoryId,
+                      structure_partyId = fromMaybeDBValue fromDBInt partyId,
+                      structure_extensionCodes = fromMaybeDBValue fromDBText extensionCodes,
+                      structure_extensionName = fromMaybeDBValue fromDBText extensionName,
+                      structure_extensionUserCode = fromMaybeDBValue fromDBText extensionUserCode ,
+                      rateCategory_name = fromMaybeDBValue fromDBText rateCategoryShortDescr,
+                      rateCategory_internalName = fromMaybeDBValue fromDBText rateCategoryInternalName ,
+                      party_name = fromMaybeDBValue fromDBText partyName,
+                      party_compactName = fromMaybeDBValue fromDBText partyCompactName,
+                      party_isBillable = partyIsBillable2,
+                      party_isActive = partyIsActive2,
+                      party_resellerId = fromMaybeDBValue fromDBInt partyResellerId,
+                      party_externalCRMCode = fromMaybeDBValue fromDBText partyCRM
                     }
 
-        let (info2, errors2) = info_addDataInfo (info1, errors1) value
-        return (info2, dict17, errors2, ln + 1)
-
-    ) <?> ("Error at line: " ++ show ln)
+      in info_addDataInfo (info1, errors1) value
 
 -- | Extract extension codes, from an user specification.
 extensionCodes_extractFromUserSpecification :: T.Text -> [ExtensionCode]
@@ -353,7 +380,7 @@ info_addDataInfo (info, errors) dataInfo
                                   -> let extensionCodeM = extensionCode_toCharsMatch extensionCode
                                       in case charsMatch_valid extensionCodeM of
                                           Just err
-                                            -> (trie1, Set.insert ("Extension \"" ++ extensionCode ++ "\" has an invalid format: " ++ err) errors1)
+                                            -> (trie1, Set.insert ("In organization with id " ++ show (unit_id dataInfo) ++ " the extension \"" ++ extensionCode ++ "\" has an invalid format: " ++ err) errors1)
                                           Nothing
                                             -> (trie_addExtensionCodeWith trie1 extensionCode [dataInfo] (flip (++)), errors1)
 
@@ -400,17 +427,9 @@ info_addDataInfo (info, errors) dataInfo
        , addedErrors
        )
 
--- | Parse zero or many extensions,
---   returning the final state.
---
-parseExtensions :: ParserState-> Parser ParserState
-parseExtensions state1
-  = (do state2 <- addExtensionRecord state1
-        parseExtensions state2) <|> (return state1)
+-- ----------------------------------------------
+-- Retrieve the best info according the hierarchy
 
-----------------------------------------------------
--- RETRIEVE THE BEST INFO ACCORDING THE HIERARCHY --
-----------------------------------------------------
 
 -- | List of parents, from root to child.
 type ParentHiearchy = [DataInfo]
@@ -573,9 +592,8 @@ info_getFullName infos implicitLevel reverseOrder showExtensionCode useOnlyExten
 
     in  L.intercalate " / " names2
 
-----------------------
--- REGRESSION TESTS --
-----------------------
+-- ----------------
+-- Regression tests
 
 -- | PHP regression code will generate specific data,
 --   that is imported and tested here. Keep in synchro

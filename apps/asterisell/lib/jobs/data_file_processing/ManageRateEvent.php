@@ -346,7 +346,6 @@ class ManageRateEvent extends FixedJobProcessor
             $cmd .= ' --digits-to-mask ' . $mask
                 . ' --default-telephone-prefix ' . $defaultTelephonePrefix
                 . ' --currency-precision ' . $currencyPrecision
-                . ' --load-extensions ' . self::getParamsFileCompleteName(ManageRateEvent::EXTENSIONS_FILE_NAME)
                 . ' --debug-file ' . $debugFileName
                 . ' --from-date "' . $eventFromDateS . '" '
                 . ' --to-date "' . $eventToDateS . '" '
@@ -500,142 +499,10 @@ class ManageRateEvent extends FixedJobProcessor
     public function exportConfigurationFiles($fromDate)
     {
         $this->maybeCreateDirectory(ImportDataFiles::getAbsoluteParamsDirectory());
-        $this->exportOrganizationAndExtensions();
+        // nothing to do, because up to date all settings are read directly
+        // from the DB from the rating engine
     }
 
-    public function exportOrganizationAndExtensions()
-    {
-        $garbageKey = self::GARBAGE_KEY;
-
-
-        $resultFileName = self::getParamsFileCompleteName(self::EXTENSIONS_FILE_NAME);
-        $outFileHandle = fopen($resultFileName, 'w');
-
-        if ($outFileHandle === FALSE) {
-            $problemDuplicationKey = "Can not open - " . $resultFileName;
-            $problemDescription = "The file \"" . $resultFileName . "\" can not be open for writing data on it.";
-            $problemEffect = "CDRs of the current rating event can not be rated.";
-            $problemProposedSolution = "Try to force a rerate again. If the problem persist contact the assistance.";
-            $p = ArProblemException::createWithGarbageCollection(
-                ArProblemType::TYPE_ERROR,
-                ArProblemDomain::APPLICATION,
-                null,
-                $problemDuplicationKey,
-                $garbageKey,
-                null,
-                null,
-                $problemDescription,
-                $problemEffect,
-                $problemProposedSolution);
-            throw ($p);
-        }
-
-        /**
-         * @var PDOStatement $stm
-         */
-        $stm = Propel::getConnection()->prepare('
-        SELECT ar_organization_unit.id
-        , ar_organization_unit_type.id
-        , ar_organization_unit_type.name
-        , ar_organization_unit_type.short_code
-        , ar_organization_unit_has_structure.id
-        , ar_organization_unit_has_structure.ar_parent_organization_unit_id
-        , ar_organization_unit_has_structure.from
-        , ar_organization_unit_has_structure.exists
-        , ar_organization_unit_has_structure.ar_rate_category_id
-        , ar_organization_unit_has_structure.ar_party_id
-        , ar_organization_unit_has_structure.extension_codes
-        , ar_organization_unit_has_structure.extension_name
-        , ar_organization_unit_has_structure.extension_user_code
-        , ar_rate_category.short_description
-        , ar_rate_category.internal_name
-        , ar_party.name
-        , ar_party.compact_name
-        , ar_party.is_billable
-        , ar_party.is_active
-        , ar_party.ar_reseller_id
-        FROM ar_organization_unit_has_structure
-        LEFT JOIN ar_organization_unit ON ar_organization_unit_has_structure.ar_organization_unit_id = ar_organization_unit.id
-        LEFT JOIN ar_organization_unit_type ON ar_organization_unit_has_structure.ar_organization_unit_type_id = ar_organization_unit_type.id
-        LEFT JOIN ar_rate_category ON ar_organization_unit_has_structure.ar_rate_category_id = ar_rate_category.id
-        LEFT JOIN ar_party ON ar_organization_unit_has_structure.ar_party_id = ar_party.id
-        ORDER BY ar_organization_unit_has_structure.from
-        ');
-        $stm->execute();
-
-        while (($rs = $stm->fetch(PDO::FETCH_NUM)) !== false) {
-            // write data to file
-
-            $i = 0;
-            $data = array();
-            $data[] = $this->intSQL($rs[$i++], false);
-            $data[] = $this->intSQL($rs[$i++], false);
-            $data[] = $this->stringSQL($rs[$i++], false);
-            $data[] = $this->stringSQL($rs[$i++], false);
-            $data[] = $this->intSQL($rs[$i++], false);
-            $data[] = $this->intSQL($rs[$i++], false);
-            $data[] = $this->stringSQL($rs[$i++], true);
-            $data[] = $this->boolSQL($rs[$i++], true);
-            $data[] = $this->intSQL($rs[$i++], false);
-            $data[] = $this->intSQL($rs[$i++], false);
-            $data[] = $this->stringSQL($rs[$i++], false);
-            $data[] = $this->stringSQL($rs[$i++], false);
-            $data[] = $this->stringSQL($rs[$i++], false);
-            $data[] = $this->stringSQL($rs[$i++], false);
-            $data[] = $this->stringSQL($rs[$i++], false);
-            $data[] = $this->stringSQL($rs[$i++], false);
-            $data[] = $this->stringSQL($rs[$i++], false);
-            $data[] = $this->boolSQL($rs[$i++], true);
-            $data[] = $this->boolSQL($rs[$i++], true);
-            $data[] = $this->intSQL($rs[$i++], false);
-
-            $this->assertCondition($i == 20, "Unexpected number of records: $i");
-
-            $isOk = safe_fputcsv($outFileHandle, $data);
-            if ($isOk === FALSE) {
-                $problemDuplicationKey = "Can not write file - $resultFileName";
-                $problemDescription = "The file \"" . $resultFileName . "\" can not be written correctly.";
-                $problemEffect = "CDRs of the current rating event can not be rated.";
-                $problemProposedSolution = "Try to force a rerate again. If the problem persist contact the assistance.";
-                $p = ArProblemException::createWithGarbageCollection(
-                    ArProblemType::TYPE_ERROR,
-                    ArProblemDomain::APPLICATION,
-                    null,
-                    $problemDuplicationKey,
-                    $garbageKey,
-                    null,
-                    null,
-                    $problemDescription,
-                    $problemEffect,
-                    $problemProposedSolution);
-                throw ($p);
-            }
-        }
-
-        $isOk = fclose($outFileHandle);
-        if ($isOk === FALSE) {
-            $problemDuplicationKey = "Can not close file - $resultFileName";
-            $problemDescription = "The file \"" . $resultFileName . "\" can not be closed correctly.";
-            $problemEffect = "CDRs of the current rating event can not be rated.";
-            $problemProposedSolution = "Try to force a rerate again. If the problem persist contact the assistance.";
-            $p = ArProblemException::createWithGarbageCollection(
-                ArProblemType::TYPE_ERROR,
-                ArProblemDomain::APPLICATION,
-                null,
-                $problemDuplicationKey,
-                $garbageKey,
-                null,
-                null,
-                $problemDescription,
-                $problemEffect,
-                $problemProposedSolution);
-            throw ($p);
-        }
-
-        $stm->closeCursor();
-
-        return '';
-    }
 
     /**
      * @return int|null the max call date in CSV files.

@@ -81,11 +81,14 @@ class RateEngineService
     {
 
         // Create command
+        list($database, $user, $password) = getDatabaseNameUserAndPassword(true);
 
         $cmd = self::getToolExecutable()
             . ' --test-organizations ' . $pass
-             . ' --from-date "' . fromUnixTimestampToMySQLTimestamp($referenceTime) . '" '
-            . ' --load-extensions ' . ManageRateEvent::getParamsFileCompleteName(ManageRateEvent::EXTENSIONS_FILE_NAME);
+            . ' --from-date "' . fromUnixTimestampToMySQLTimestamp($referenceTime) . '" '
+            . ' --db-name ' . $database
+            . ' --db-user ' . $user
+            . ' --db-password ' . $password;
 
         // Execute the command
         $discard = array();
@@ -97,7 +100,6 @@ class RateEngineService
         } else {
             return true;
         }
-
     }
 
 

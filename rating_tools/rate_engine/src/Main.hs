@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings, CPP, TemplateHaskell, ScopedTypeVariables, BangPatterns #-}
 
-{- $LICENSE 2013, 2014, 2015, 2016, 2017
- * Copyright (C) 2013-2017 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
+{- $LICENSE 2013, 2014, 2015, 2016, 2017, 2018
+ * Copyright (C) 2013-2018 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
  *
  * This file is part of Asterisell.
  *
@@ -38,6 +38,7 @@ import Asterisell.RateCategories
 import Asterisell.OrganizationHierarchy
 import Asterisell.CustomerSpecificImporters
 import Asterisell.CustomerSpecificRates
+import Asterisell.DB
 
 import System.Environment
 import System.Console.GetOpt
@@ -106,7 +107,6 @@ data Flag
   | Exec_FileLogicalTypeId String
   | Exec_FromDate MySQLDate
   | Exec_ToDate MySQLDate
-  | Exec_LoadExtensions FileName
   | Exec_DigitsToMask String
   | Exec_DefaultTelephonePrefix String
   | Exec_CurrencyPrecision String
@@ -134,7 +134,6 @@ options = [ Option [] ["help"] (NoArg Exec_Help) "help"
           , Option [] ["run-level"] (ReqArg Exec_RunLevel "0..4") "0 for complete rating, 1 .. 4 for disabling some parts"
           , Option [] ["test"] (NoArg Exec_Test) "execute some tests on the code"
           , Option [] ["test-organizations"] (ReqArg Exec_TestOrganizations "NR") "execute some tests on the organization structure. Data must be set from the PHP world."
-          , Option [] ["load-extensions"] (ReqArg Exec_LoadExtensions "FILE") "load extensions and organizations info"
           , Option [] ["result-file"] (ReqArg Exec_ResultFile "FILE") ""
           , Option [] ["import-data-file"] (ReqArg Exec_ImportDataFile "FILENAME") "import a data file with source CDRs"
           , Option [] ["test-import-data-file"] (ReqArg Exec_TestImportDataFile "FILENAME") "test the import procedure for a data file with source CDRs"
@@ -221,11 +220,22 @@ mainRate = do
             runTestList tt_servicesTests
             runTestList tt_customerSpecificImporters
 
-    [ Exec_TestOrganizations pass, Exec_FromDate fromDateS, Exec_LoadExtensions extensions]
+    [Exec_TestOrganizations pass,
+     Exec_FromDate fromDateS,
+     Exec_DBName dbName,
+     Exec_DBUser dbUser,
+     Exec_DBPassword dbPassword]
       -> do
-            let fromDate = fromJust1 "ma100" $ fromMySQLDateTimeToLocalTime fromDateS
+            let dbConf = DBConf {
+                           dbConf_user = fromStringToByteString dbUser
+                         , dbConf_password = fromStringToByteString dbPassword
+                         , dbConf_dbName = fromStringToByteString dbName
+                         }
 
-            extensionsInfo <- extensions_load True extensions
+
+            conn <- openDBConnection dbConf False
+            let fromDate = fromJust1 "ma100" $ fromMySQLDateTimeToLocalTime fromDateS
+            extensionsInfo <- extensions_load conn True 
             runTestList $ testWithDataImportedFromPHP extensionsInfo (fromJust1 "ma6" $ fromTextToInt (Text.pack pass)) fromDate
 
     [Exec_ImportDataFile fileName,
@@ -453,7 +463,6 @@ mainRate = do
      ,Exec_DigitsToMask digitsToMaskS
      ,Exec_DefaultTelephonePrefix defaultTelephonePrefixS
      ,Exec_CurrencyPrecision precision
-     ,Exec_LoadExtensions extensionsFileName
      ,Exec_DebugFileName debugFileName
      ,Exec_FromDate fromDateS
      ,Exec_ToDate toDateS
@@ -523,7 +532,6 @@ mainRate = do
                       , iparams_digitsToMask = digitsToMask
                       , iparams_defaultTelephonePrefixToNotDisplay = maybeDefaultTelephonePrefix
                       , iparams_currencyPrecision = currencyPrecision
-                      , iparams_extensionsFileName = extensionsFileName
                       , iparams_debugFileName = debugFileName
                       , iparams_fromDate = fromCallDate
                       , iparams_toDate = toCallDate
