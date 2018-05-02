@@ -624,16 +624,16 @@ class InstanceTemplate(lib.BillingInstance):
       r = []
 
       # Add a demo password for user `foo` of service `bar`
-      c = lib.ConnectionParams()
+      # c = lib.ConnectionParams()
 
-      c.connection_name = 'bar'
-      c.user = 'foo'
-      c.password = self.get_password_for('bar')
+      # c.connection_name = 'bar'
+      # c.user = 'foo'
+      # c.password = self.get_password_for('bar')
       # NOTE: the password is on file `fabric_data/passwords.ini` file
 
-      c.host = 'http://some-host'
-      c.port = '8001' 
-      r.append(c)
+      # c.host = 'http://some-host'
+      # c.port = '8001' 
+      # r.append(c)
 
       # Add your passwords here using the same template...
 
