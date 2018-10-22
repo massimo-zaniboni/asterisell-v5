@@ -1,0 +1,164 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE map PUBLIC "-//OASIS//DTD DITA Map//EN" "map.dtd">
+
+<map>
+  <title>Asterisell Manual</title>
+
+  <keydef keys="cdrs-provider" href="topics/reference/cdrs-provider.md" format="mdita"/>
+  <keydef keys="vendor" href="topics/reference/vendor.md" format="mdita"/>
+  <keydef keys="asterisell-host" href="topics/reference/asterisell-host.md" format="mdita"/>
+  <keydef keys="cdr" href="topics/reference/cdr.md" format="mdita"/>
+  <keydef keys="service-cdr" href="topics/reference/service-cdr.md" format="mdita"/>
+  <keydef keys="extension" href="topics/reference/extension.md" format="mdita"/>
+  <keydef keys="communication-channel-type" href="topics/reference/communication-channel-type.md" format="mdita"/>
+  <keydef keys="communication-channel" href="topics/reference/communication-channel.md" format="mdita"/>
+  <keydef keys="instances-configuration-file" href="topics/reference/instances-configuration-file.md" format="mdita"/>
+  <keydef keys="instances-configuration-tool" href="topics/reference/instances-configuration-tool.md" format="mdita"/>
+  <keydef keys="password-file" href="topics/reference/password-file.md" format="mdita"/>
+  <keydef keys="asterisell-instance" href="topics/reference/asterisell-instance.md" format="mdita"/>
+  <keydef keys="reseller" href="topics/reference/reseller.md" format="mdita"/>
+  <keydef keys="customized-file" href="topics/reference/customized-file.md" format="mdita"/>
+  <keydef keys="main-rate-plan" href="topics/reference/main-rate-plan.md" format="mdita"/>
+  <keydef keys="csv-rate" href="topics/reference/csv-rate.md" format="mdita"/>
+  <keydef keys="jobs-processor" href="topics/reference/job-processor.md" format="mdita"/>
+
+  <topichead navtitle="Getting started" locktitle="yes">
+    <topicref href="topics/installation/system-overview.md" format="mdita" />
+    <topicref href="topics/installation/system-requirements.md" format="mdita" />
+    <topicref href="topics/installation/install-docker.md" format="mdita" />
+    <topicref href="topics/installation/repository.md" format="mdita" />
+    <topicref href="topics/installation/install-management-tool.md" format="mdita" />
+    <topicref href="topics/installation/configure.md" format="mdita" />
+    <topicref href="topics/installation/ssh-keys.md" format="mdita" />
+    <topicref href="topics/installation/install-demo.md" format="mdita" />
+    <topicref href="topics/installation/access-demo.md" format="mdita" />
+    <topicref href="topics/installation/remove-demo.md" format="mdita" />
+  </topichead>
+
+   <topichead navtitle="Configuration" locktitle="yes">
+    <topicref href="topics/configuration/key-concepts.md" format="mdita" />
+    <topicref href="topics/configuration/configuring-instance.md" format="mdita" />
+    <topicref href="topics/configuration/managing-instances.md" format="mdita" />
+    <topicref href="topics/configuration/instance-upgrade.md" format="mdita" />
+    <topicref href="topics/configuration/call-reporting-mode.md" format="mdita" />
+    <topicref href="topics/configuration/main-rate-plans.md" format="mdita" />
+    <topicref href="topics/configuration/configuring-multiple-vendors.md" format="mdita" />
+    <topicref href="topics/configuration/configuring-multiple-price-categories.md" format="mdita" />
+    <topicref href="topics/configuration/rate-plan-example.md" format="mdita" />
+    <topicref href="topics/configuration/rate-specification-language.md" format="mdita" />
+    <topicref href="topics/configuration/bundle-rate-specification-language.md" format="mdita" />
+    <topicref href="topics/configuration/changes-of-rate-plans.md" format="mdita" />
+    <topicref href="topics/configuration/custom-jobs.md" format="mdita" />
+    <topicref href="topics/configuration/ui_localization.md" format="mdita" />
+    <topicref href="topics/configuration/reports.md" format="mdita" />
+    <topicref href="topics/configuration/configuring-emails.md" format="mdita" />
+    <topicref href="topics/configuration/emergency-email.md" format="mdita" />
+   </topichead>
+
+   <topichead navtitle="Recipes" locktitle="yes">
+    <topicref href="topics/configuration/managing-instances.md" format="mdita" />
+    <topicref href="topics/configuration/instance-upgrade.md" format="mdita" />
+    <topicref href="topics/recipes/backup.md" format="mdita" />
+    <topicref href="topics/recipes/convert-files-to-utf8.md" format="mdita" />
+    <topicref href="topics/recipes/correcting-source-cdrs.md" format="mdita" />
+    <topicref href="topics/recipes/debug-cdrs-rating.md" format="mdita" />
+    <topicref href="topics/recipes/db-lock-wait-timeout.md" format="mdita" />
+    <topicref href="topics/recipes/problems-on-reports.md" format="mdita" />
+    <topicref href="topics/recipes/restore-previous-versions-of-data.md" format="mdita" />
+    <topicref href="topics/configuration/emergency-email.md" format="mdita" />
+   </topichead>
+
+   <topichead navtitle="Web UI forms" locktitle="yes">
+     <topicref href="topics/web-ui/key-concepts.md" format="mdita" />
+     <topicref keyref="communication-channel"/>
+     <topicref keyref="communication-channel-type"/>
+     <topicref href="topics/web-ui/backup_of_organizations.md" format="mdita" />
+     <topicref href="topics/web-ui/call_report.md" format="mdita" />
+     <topicref keyref="cdrs-provider" />
+     <topicref href="topics/web-ui/holidays.md" format="mdita" />
+     <topicref href="topics/web-ui/number_portability.md" format="mdita" />
+     <topicref href="topics/web-ui/party.md" format="mdita" />
+     <topicref href="topics/web-ui/user.md" format="mdita" />
+     <topicref href="topics/web-ui/problem.md" format="mdita" />
+     <topicref href="topics/web-ui/rate.md" format="mdita" />
+     <topicref href="topics/web-ui/reports.md" format="mdita" />
+     <topicref href="topics/web-ui/root_organizations.md" format="mdita" />
+     <topicref href="topics/web-ui/service_price_list.md" format="mdita" />
+     <topicref href="topics/web-ui/service_sale.md" format="mdita" />
+     <topicref href="topics/web-ui/tag.md" format="mdita" />
+   </topichead> 
+
+   <topichead navtitle="Resellers" locktitle="yes">
+     <topicref keyref="reseller">
+       <topicmeta>
+         <linktext>Key concepts</linktext>
+       </topicmeta>
+     </topicref>
+     <topicref href="topics/resellers/security.md" format="mdita" />
+     <topicref href="topics/resellers/webui-configurations.md" format="mdita" />
+     <topicref href="topics/resellers/rates.md" format="mdita" />
+     <topicref href="topics/resellers/custom-jobs.md" format="mdita" />
+     <topicref href="topics/resellers/webdav-configurations.md" format="mdita" />
+   </topichead>
+
+   <topicref navtitle="Glossary" chunk="to-content">
+    <topicref keyref="cdr"/>
+    <topicref keyref="service-cdr"/>
+    <topicref keyref="extension"/>
+    <topicref keyref="vendor"/>
+    <topicref keyref="cdrs-provider"/>
+    <topicref keyref="communication-channel"/>
+    <topicref keyref="communication-channel-type"/>
+    <topicref keyref="instances-configuration-file"/>
+    <topicref keyref="instances-configuration-tool"/>
+    <topicref keyref="customized-file"/>
+    <topicref keyref="main-rate-plan"/>
+    <topicref keyref="csv-rate"/>
+    <topicref keyref="password-file"/>
+    <topicref keyref="asterisell-instance"/>
+    <topicref keyref="asterisell-host"/>
+    <topicref keyref="reseller"/>
+    <topicref keyref="jobs-processor"/>
+   </topicref>
+
+   <topichead navtitle="Internals" locktitle="yes">
+    <topicref href="topics/internals/key-concepts.md" format="mdita" />
+    <topicref href="topics/internals/cdrs-data-files.md" format="mdita" />
+    <topicref href="topics/internals/coding-notes.md" format="mdita" />
+   </topichead>
+
+   <topicref href="topics/about.md" format="mdita"/>
+
+   <reltable>
+     <relheader>
+       <relcolspec type="topic"/>
+       <relcolspec type="topic"/>
+     </relheader>
+    <relrow>
+      <relcell>
+        <topicref navtitle="System overview" href="topics/installation/system-overview.md"/>
+      </relcell>
+      <relcell>
+        <topicref navtitle="Application internals" href="topics/internals/key-concepts.md"/>
+      </relcell>
+    </relrow>
+    <relrow>
+      <relcell>
+        <topicgroup collection-type = "family">
+          <topicref href="topics/web-ui/call_report.md"/>
+          <topicref href="topics/web-ui/rate.md"/>
+        </topicgroup>
+      </relcell>
+      <relcell>
+        <topicgroup collection-type = "family">
+          <topicref href="topics/configuration/bundle-rate-specification-language.md"/>
+          <topicref href="topics/configuration/rate-specification-language.md"/>
+          <topicref href="topics/configuration/rate-plan-example.md"/>
+          <topicref href="topics/recipes/debug-cdrs-rating.md"/>
+        </topicgroup>
+      </relcell>
+    </relrow>
+  </reltable>
+
+</map>
+

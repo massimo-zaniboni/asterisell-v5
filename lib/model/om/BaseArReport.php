@@ -306,6 +306,7 @@ abstract class BaseArReport extends BaseObject  implements Persistent {
 
 	/**
 	 * The value for the legal_nr_prefix field.
+	 * Note: this column has a database default value of: ''
 	 * @var        string
 	 */
 	protected $legal_nr_prefix;
@@ -360,24 +361,28 @@ abstract class BaseArReport extends BaseObject  implements Persistent {
 
 	/**
 	 * The value for the total_without_tax field.
+	 * Note: this column has a database default value of: '0'
 	 * @var        string
 	 */
 	protected $total_without_tax;
 
 	/**
 	 * The value for the tax field.
+	 * Note: this column has a database default value of: '0'
 	 * @var        string
 	 */
 	protected $tax;
 
 	/**
 	 * The value for the applied_vat field.
+	 * Note: this column has a database default value of: '0'
 	 * @var        string
 	 */
 	protected $applied_vat;
 
 	/**
 	 * The value for the total_with_tax field.
+	 * Note: this column has a database default value of: '0'
 	 * @var        string
 	 */
 	protected $total_with_tax;
@@ -515,6 +520,11 @@ abstract class BaseArReport extends BaseObject  implements Persistent {
 		$this->produced_report_mime_type = 'application/pdf';
 		$this->produced_report_file_type_suffix = 'pdf';
 		$this->report_attachment_file_name_add_report_date = false;
+		$this->legal_nr_prefix = '';
+		$this->total_without_tax = '0';
+		$this->tax = '0';
+		$this->applied_vat = '0';
+		$this->total_with_tax = '0';
 	}
 
 	/**
@@ -2195,14 +2205,17 @@ abstract class BaseArReport extends BaseObject  implements Persistent {
 	 */
 	public function setCachedParentIdHierarchy($v)
 	{
-		if ($v !== null) {
-			$v = (string) $v;
-		}
-
-		if ($this->cached_parent_id_hierarchy !== $v) {
+		// Because BLOB columns are streams in PDO we have to assume that they are
+		// always modified when a new value is passed in.  For example, the contents
+		// of the stream itself may have changed externally.
+		if (!is_resource($v) && $v !== null) {
+			$this->cached_parent_id_hierarchy = fopen('php://memory', 'r+');
+			fwrite($this->cached_parent_id_hierarchy, $v);
+			rewind($this->cached_parent_id_hierarchy);
+		} else { // it's already a stream
 			$this->cached_parent_id_hierarchy = $v;
-			$this->modifiedColumns[] = ArReportPeer::CACHED_PARENT_ID_HIERARCHY;
 		}
+		$this->modifiedColumns[] = ArReportPeer::CACHED_PARENT_ID_HIERARCHY;
 
 		return $this;
 	} // setCachedParentIdHierarchy()
@@ -2219,7 +2232,7 @@ abstract class BaseArReport extends BaseObject  implements Persistent {
 			$v = (string) $v;
 		}
 
-		if ($this->legal_nr_prefix !== $v) {
+		if ($this->legal_nr_prefix !== $v || $this->isNew()) {
 			$this->legal_nr_prefix = $v;
 			$this->modifiedColumns[] = ArReportPeer::LEGAL_NR_PREFIX;
 		}
@@ -2428,7 +2441,7 @@ abstract class BaseArReport extends BaseObject  implements Persistent {
 			$v = (string) $v;
 		}
 
-		if ($this->total_without_tax !== $v) {
+		if ($this->total_without_tax !== $v || $this->isNew()) {
 			$this->total_without_tax = $v;
 			$this->modifiedColumns[] = ArReportPeer::TOTAL_WITHOUT_TAX;
 		}
@@ -2448,7 +2461,7 @@ abstract class BaseArReport extends BaseObject  implements Persistent {
 			$v = (string) $v;
 		}
 
-		if ($this->tax !== $v) {
+		if ($this->tax !== $v || $this->isNew()) {
 			$this->tax = $v;
 			$this->modifiedColumns[] = ArReportPeer::TAX;
 		}
@@ -2468,7 +2481,7 @@ abstract class BaseArReport extends BaseObject  implements Persistent {
 			$v = (string) $v;
 		}
 
-		if ($this->applied_vat !== $v) {
+		if ($this->applied_vat !== $v || $this->isNew()) {
 			$this->applied_vat = $v;
 			$this->modifiedColumns[] = ArReportPeer::APPLIED_VAT;
 		}
@@ -2488,7 +2501,7 @@ abstract class BaseArReport extends BaseObject  implements Persistent {
 			$v = (string) $v;
 		}
 
-		if ($this->total_with_tax !== $v) {
+		if ($this->total_with_tax !== $v || $this->isNew()) {
 			$this->total_with_tax = $v;
 			$this->modifiedColumns[] = ArReportPeer::TOTAL_WITH_TAX;
 		}
@@ -2594,6 +2607,26 @@ abstract class BaseArReport extends BaseObject  implements Persistent {
 				return false;
 			}
 
+			if ($this->legal_nr_prefix !== '') {
+				return false;
+			}
+
+			if ($this->total_without_tax !== '0') {
+				return false;
+			}
+
+			if ($this->tax !== '0') {
+				return false;
+			}
+
+			if ($this->applied_vat !== '0') {
+				return false;
+			}
+
+			if ($this->total_with_tax !== '0') {
+				return false;
+			}
+
 		// otherwise, everything was equal, so return TRUE
 		return true;
 	} // hasOnlyDefaultValues()
@@ -2665,7 +2698,13 @@ abstract class BaseArReport extends BaseObject  implements Persistent {
 			$this->report_attachment_file_name = ($row[$startcol + 40] !== null) ? (string) $row[$startcol + 40] : null;
 			$this->report_attachment_file_name_add_report_date = ($row[$startcol + 41] !== null) ? (boolean) $row[$startcol + 41] : null;
 			$this->internal_name = ($row[$startcol + 42] !== null) ? (string) $row[$startcol + 42] : null;
-			$this->cached_parent_id_hierarchy = ($row[$startcol + 43] !== null) ? (string) $row[$startcol + 43] : null;
+			if ($row[$startcol + 43] !== null) {
+				$this->cached_parent_id_hierarchy = fopen('php://memory', 'r+');
+				fwrite($this->cached_parent_id_hierarchy, $row[$startcol + 43]);
+				rewind($this->cached_parent_id_hierarchy);
+			} else {
+				$this->cached_parent_id_hierarchy = null;
+			}
 			$this->legal_nr_prefix = ($row[$startcol + 44] !== null) ? (string) $row[$startcol + 44] : null;
 			$this->legal_consecutive_nr = ($row[$startcol + 45] !== null) ? (int) $row[$startcol + 45] : null;
 			$this->legal_date = ($row[$startcol + 46] !== null) ? (string) $row[$startcol + 46] : null;
@@ -2977,6 +3016,11 @@ abstract class BaseArReport extends BaseObject  implements Persistent {
 				// Rewind the produced_report_document LOB column, since PDO does not rewind after inserting value.
 				if ($this->produced_report_document !== null && is_resource($this->produced_report_document)) {
 					rewind($this->produced_report_document);
+				}
+
+				// Rewind the cached_parent_id_hierarchy LOB column, since PDO does not rewind after inserting value.
+				if ($this->cached_parent_id_hierarchy !== null && is_resource($this->cached_parent_id_hierarchy)) {
+					rewind($this->cached_parent_id_hierarchy);
 				}
 
 				$this->resetModified(); // [HL] After being saved an object is no longer 'modified'

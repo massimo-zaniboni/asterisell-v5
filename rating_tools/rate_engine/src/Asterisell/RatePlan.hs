@@ -1,24 +1,6 @@
 {-# LANGUAGE ScopedTypeVariables, BangPatterns, OverloadedStrings, QuasiQuotes, TypeSynonymInstances, FlexibleInstances, DeriveGeneric, DeriveAnyClass, FlexibleContexts  #-}
 
-{- $LICENSE 2013, 2014, 2015, 2016, 2017
- * Copyright (C) 2013-2017 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
- *
- * This file is part of Asterisell.
- *
- * Asterisell is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 3 of the License, or
- * (at your option) any later version.
- *
- * Asterisell is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with Asterisell. If not, see <http://www.gnu.org/licenses/>.
- * $
--}
+-- SPDX-License-Identifier: GPL-3.0-or-later
 
 -- | Manage rate plans, services, bundle rates, and rate CDRs.
 --
@@ -52,6 +34,14 @@ module Asterisell.RatePlan (
   , fromCheckedMainRatePlan
   , mainRatePlan_empty
   , ratingParamsForTest
+  , mainRatePlanRef
+  , BundlePartition
+  , bundlePartition_all
+  , bundlePartition_contains
+  , bundlePartition_containsUnitId
+  , bundleState_partition
+  , bundleState_join
+  , bundleState_areThereServiceCdrs
   , RootBundleRatePlan(..)
   , BundleRatePlan(..)
   , BundleParams(..)
@@ -63,18 +53,18 @@ module Asterisell.RatePlan (
   , BundleRateTimeFrame(..)
   , BundleState
   , bundleState_empty
+  , bundleState_fake
   , CalcParams(..)
   , calcParams_empty
   , calcParams_defaultValues
   , calcParams_override
   , calcParams_overrideList
   , calcParams_calc
-  , bundleState_pendingServiceCdrs
   , ratingParams_empty
   , env_getRate
-  , mainRatePlan_assignSharedUniqueSystemId
-  , bundleState_initAccordingRatingParams
-  , bundleState_serviceCdrs
+  , bundleState_updateAccordingRatingParams
+  , bundleState_updateAndGetServiceCdrs
+  , bundleState_updateToSomeCallDate
   , RatingDebugInfo(..)
   , iparams_dbConf
   , params_dbConf
@@ -100,38 +90,40 @@ module Asterisell.RatePlan (
   , ServiceId
   , ServiceIdMap
   , tt_servicesTests
-  , params_isDebugMode 
-  , params_isVoipReseller 
-  , params_digitsToMask 
-  , params_defaultTelephonePrefixToNotDisplay 
-  , params_currencyPrecision 
-  , params_debugFileName 
-  , params_fromDate 
-  , params_toDate 
-  , params_isRateUnbilledCallsEvent 
-  , params_dbName 
-  , params_dbUser 
-  , params_dbPasswd 
+  , params_peakCodes
+  , params_isDebugMode
+  , params_isVoipReseller
+  , params_digitsToMask
+  , params_defaultTelephonePrefixToNotDisplay
+  , params_currencyPrecision
+  , params_debugFileName
+  , params_fromDate
+  , params_testToDate
+  , params_isRateUnbilledCallsEvent
+  , params_dbName
+  , params_dbUser
+  , params_dbPasswd
   , params_configuredRatePlanParsers
-  , params_onlyImportedServices
   ) where
 
-import Asterisell.Process
 import Asterisell.DB
 import Asterisell.Cdr
 import Asterisell.CustomerSpecificImporters
 import Asterisell.Error
 import Asterisell.Utils
 import Asterisell.Trie
+import Asterisell.Params
 import Asterisell.TelephonePrefixes
 import Asterisell.VoIPChannelAndVendor
 import Asterisell.RateCategories
 import Asterisell.OrganizationHierarchy
+import Asterisell.Holiday
 
 import Data.List as List
 import Control.Monad.State.Strict as State
 import Control.Applicative ((<$>), (<*>), (<|>), pure)
 import Data.Ord as Ord
+import Control.Exception.Assert.Sugar
 
 import qualified Data.Map.Strict as SMap
 import qualified Data.Map as Map
@@ -151,6 +143,7 @@ import Data.Time.Clock
 import Data.Time.Calendar.WeekDate
 import qualified Control.Exception.Base as Exception
 import Control.Monad.Except
+import Data.IORef
 
 import qualified Data.Text as Text
 import qualified Data.Text.Encoding as Text
@@ -166,7 +159,6 @@ import Text.Parsec.Prim((<|>), (<?>))
 import Text.Parsec.ByteString.Lazy as Parsec
 import qualified Text.Parsec.Char as Parsec
 
-import qualified Data.Attoparsec.Text.Lazy as LazyAttoParsec
 import qualified Data.Text.Lazy.IO as LazyIO
 import qualified Data.Text.Lazy as LazyText
 
@@ -174,7 +166,6 @@ import qualified Data.ByteString.Base64 as B64
 import qualified Codec.Compression.QuickLZ as LZ
 
 import System.IO as IO
-
 import Debug.Trace
 
 import Data.Maybe
@@ -184,6 +175,7 @@ import Data.IntMap as IMap
 import Data.Hashable
 import qualified Data.Serialize as DBS
 import qualified Data.Serialize.Text as DBS
+import Data.Either
 
 import qualified System.IO.Streams as S
 import qualified System.IO.Streams.Text as S
@@ -200,9 +192,7 @@ import Text.Heredoc
 
 import GHC.Generics
 import Control.DeepSeq
-import Control.Exception.Safe (catch, catchAny, onException, finally, handleAny, bracket
-                              , SomeException, throwIO, throw, Exception, MonadMask
-                              , withException, displayException)
+import Control.Exception.Safe
 
 -- -------------------
 -- MATCH STRENGHT
@@ -260,6 +250,11 @@ data RateRole
   | CostRate
  deriving(Ord, Eq)
 
+mainRatePlanRef :: RateRole -> DBRateReferenceName
+mainRatePlanRef IncomeRate = "main-income-rate"
+mainRatePlanRef CostRate = "main-cost-rate"
+{-# INLINE mainRatePlanRef #-}
+
 instance Show RateRole where
   show IncomeRate = "income"
   show CostRate = "cost"
@@ -293,7 +288,7 @@ filterFun_and funs env cdr
              in process bestMatch fs
 
 -- | Generic function for matching at least one of the specific ids, that will be used from other functions.
-filterFun_matchOneOfIds :: [Int] -> (CDR -> Int) -> FilterFun
+filterFun_matchOneOfIds :: (Eq a) => [a] -> (CDR -> a) -> FilterFun
 filterFun_matchOneOfIds ids funId env cdr
   = if List.elem (funId cdr) ids
     then Just matchStrenght_initial
@@ -362,17 +357,13 @@ mainRatePlan_getBundleRateStartCallDate
   :: MainRatePlan
   -> CallDate
      -- ^ at this date you want start the rating, but you are asking if you must include other previous CDRS, before starting with an empty bundle-state
-  -> (CallDate
+  -> CallDate
       -- ^ the initial call date where you can start with an empty BundleState.
-     , CallDate
-       -- ^ before this date (exclusive) you can not save the BundleState, because there can be intra BundleState in dirty status.
-       --   After this date you can save the BundleState, because all the intra BundleState are initializated with an empty state, and they are clean.
-     )
 mainRatePlan_getBundleRateStartCallDate plan rateFromDate
   = let allDates = List.map (\rb -> fst $ timeFrame_fromCallDate rb rateFromDate) (mainRatePlan_bundleRates plan)
     in case List.null allDates of
-         True -> (rateFromDate, rateFromDate)
-         False -> (List.minimum allDates, List.maximum allDates)
+         True -> rateFromDate
+         False -> List.minimum allDates
                   -- NOTE: due to `timeFrame_fromCallDate` behaviour, the time frame returned here contains always `rateFromDate`
 
 -- | Return the calldate from which you can save a BundleState, because it is the end of bundle timeframe.
@@ -441,14 +432,17 @@ data BundleRatePlan
 data BundleParams
   = BundleParams {
       bundle_initialCost :: ! MonetaryValue
-    , bundle_minCost :: ! MonetaryValue
     , bundle_leftCalls :: !(Maybe Int)
       -- ^ how many calls can be processed from the bundle.
       --   Nothing if this is not a limit.
     , bundle_leftDuration :: !(Maybe Int)
       -- ^ how many seconds can be processed from the bundle.
       --   Nothing if this is not a limit.
-    , bundle_appliedCost :: !MonetaryValue
+    , bundle_leftCost :: !(Maybe MonetaryValue)
+      -- ^ the bundle can accomodate calls with this cost.
+      --   Nothing if this is not a limit.
+      --   DEV-NOTE: not yet supported
+     , bundle_appliedCost :: !MonetaryValue
       -- ^ the cost of calls associated to the BundleRate.
   } deriving(Show, Generic, NFData)
 
@@ -474,11 +468,11 @@ data RateParams
 type BundleRecord = (BundleParams, TimeFrame)
 
 data BundleRateTimeFrame
-  = WeeklyTimeFrame Int
+  = WeeklyTimeFrame Int TimeOfDay
     -- 1 for Monday, 7 for Sunday
-  | MonthlyTimeFrame Int
+  | MonthlyTimeFrame Int TimeOfDay
   -- ^ start scheduling from the specified day of the month
-  | EveryDaysTimeFrame Int CallDate
+  | EveryDaysTimeFrame Int CallDate TimeOfDay
   -- ^ schedule every specified days, starting from the calldate
  deriving(Eq, Show, Generic, NFData)
 
@@ -533,8 +527,6 @@ rootBundleRatePlan_userId :: RootBundleRatePlan -> Text.Text
 rootBundleRatePlan_userId p = rate_userId $ bundle_rateParams $ bundle_plan p
 
 -- | Add support for binary serialization to LocalTime.
---   TODO use a faster method in future, using directly the fields.
---   TODO try generic approach
 instance DBS.Serialize CallDate where
   put l
     = do DBS.put $ show l
@@ -547,133 +539,33 @@ timeFrames_allInsideRatingPeriod
   :: BundleRateTimeFrame
   -- ^ the schudule to use
   -> CallDate
-  -- ^ rate from this date
+  -- ^ rate from this date (comprehensive)
   -> CallDate
-  -- ^ rate to this date
-  -> Bool
-  -- ^ True for including also open time frames
+  -- ^ rate to this date (exclusive)
   -> [TimeFrame]
-  -- ^ all the timeframes inside the rating period
+  -- ^ all the timeframes starting inside the rating period
 
-timeFrames_allInsideRatingPeriod serviceSchedule rateFromDate rateToDate includeOpenTimeFrames
-  = result
+timeFrames_allInsideRatingPeriod serviceSchedule rateFromDate rateToDate
+  = List.takeWhile isValidTimeFrame $ List.dropWhile isBeforeTimeFrame $ List.iterate nextTimeFrame $ timeFrame_fromCallDate1 serviceSchedule rateFromDate
 
  where
-
-   result
-     = List.takeWhile isValidTimeFrame $ List.iterate nextTimeFrame $ timeFrame_fromCallDate1 serviceSchedule rateFromDate
 
    nextTimeFrame :: TimeFrame -> TimeFrame
    nextTimeFrame (start1, end1)
      = timeFrame_fromCallDate1 serviceSchedule end1
 
-   -- NOTE: this condition takes in consideration also services activated after rateFromDate.
+   {-# INLINE isBeforeTimeFrame #-}
+   isBeforeTimeFrame (serviceFromCallDate, serviceToCallDate)
+     = serviceFromCallDate < rateFromDate
+
+   {-# INLINE isValidTimeFrame #-}
    isValidTimeFrame (serviceFromCallDate, serviceToCallDate)
-     = case includeOpenTimeFrames of
-         True -> serviceFromCallDate < rateToDate
-         False -> serviceToCallDate <= rateToDate
-
--- | Associate a unique or shared RateSystemId to each part of a MainRatePlan.
---   Share the same RateSystemId with previous defined rates, in order to support
---   the update of BundleRates without loosing previous status.
-mainRatePlan_assignSharedUniqueSystemId :: MainRatePlan -> BundleState -> Either String MainRatePlan
-mainRatePlan_assignSharedUniqueSystemId mainPlan1 bundleState
-  = do
-      -- all the open timeframe in bundle-state
-      let legacyFromNameToId :: Map.Map CompleteUserRateRefName RateSystemId
-            = IMap.foldWithKey (\i (_, name, _) m -> Map.insert name i m) Map.empty bundleState
-
-      -- This is the new rate plan with initial unique system-ids, that can be in conflict with the id of bundleState.
-      tempMainPlan
-        <- mainRatePlan_assignUniqueSystemId mainPlan1
-
-      let tempFromNameToId :: Map.Map CompleteUserRateRefName RateSystemId
-            = IMap.foldWithKey (\i name m -> Map.insert name i m) Map.empty (mainRatePlan_systemIdToUserIdPath tempMainPlan)
-
-      let maxId :: RateSystemId
-            = mainRatePlan_maxSystemId tempMainPlan
-
-      -- If there is a common rate name between the bundleState and mainPlain1,
-      -- then map the id in mainPlan1 associated to the name, to the id in bundleState.
-      -- The id in bundleState can conflict with another id in mainPlan1, so use a new fresh id for it.
-      let (substitutions, newMaxId) :: (RatePlanIdMap RateSystemId, RateSystemId)
-            = let sharedNames = Map.intersectionWith (\legacyId tempId -> (legacyId, tempId)) legacyFromNameToId tempFromNameToId
-              in Map.fold (\ (legacyId, tempId) (substitutions1, maxId1)
-                               -> let maxId2 = maxId1 + 1
-                                      substitutions2 = IMap.insert legacyId maxId2 substitutions1
-                                      substitutions3 = IMap.insert tempId legacyId substitutions2
-                                  in  (substitutions3,maxId2)) (IMap.empty, maxId) sharedNames
-
-      let newMainPlan1
-            = (processMainRatePlan substitutions tempMainPlan) { mainRatePlan_maxSystemId = newMaxId }
-
-      let missingRates
-            = Map.keys (Map.difference legacyFromNameToId tempFromNameToId)
-
-      case missingRates of
-        [] -> case mainRatePlan_completeDerivedInfo newMainPlan1 of
-                Left err
-                  -> throwError err
-                Right r
-                  -> return r
-
-        _ -> throwError $ "The new rate plan must define also open bundle-rates from the previous rate plan: " ++ List.intercalate ", " (List.map Text.unpack missingRates)
-
- where
-
-      substitute :: RatePlanIdMap RateSystemId -> RateSystemId -> RateSystemId
-      substitute substitutions id1
-            = case IMap.lookup id1 substitutions of
-                Nothing
-                  -> id1
-                Just id2
-                  -> id2
-
-      -- Apply the substitutions to the tempMainPlan
-      processMainRatePlan :: RatePlanIdMap RateSystemId -> MainRatePlan -> MainRatePlan
-      processMainRatePlan substitutions p
-            = let br = List.map (processRootBundleRatePlan substitutions) (mainRatePlan_bundleRates p)
-                  nr = List.map (processNormalRate substitutions) (mainRatePlan_normalRates p)
-              in mainRatePlan_empty {
-                   mainRatePlan_bundleRates = br
-                 , mainRatePlan_normalRates = nr
-                 }
-
-      processRootBundleRatePlan :: RatePlanIdMap RateSystemId -> RootBundleRatePlan -> RootBundleRatePlan
-      processRootBundleRatePlan substitutions p
-            = let br = processBundleRatePlan substitutions (bundle_plan p)
-              in  p { bundle_plan = br }
-
-      processBundleRatePlan :: RatePlanIdMap RateSystemId -> BundleRatePlan -> BundleRatePlan
-      processBundleRatePlan substitutions p
-            = let chs
-                    = case bundle_children p of
-                        Left e
-                          -> Left e
-                        Right ch
-                          -> Right $ List.map (processBundleRatePlan substitutions) ch
-              in p { bundle_systemId = substitute substitutions (bundle_systemId p)
-                   , bundle_children = chs
-                   }
-
-      processNormalRate :: RatePlanIdMap RateSystemId -> RatePlan -> RatePlan
-      processNormalRate substitutions p
-            = let chs
-                    = case rate_children p of
-                        Left e
-                          -> Left e
-                        Right ch
-                          -> Right $ List.map (processNormalRate substitutions) ch
-                  elsePart
-                    = List.map (processNormalRate substitutions) (rate_elsePart p)
-
-              in p { rate_systemId = substitute substitutions (rate_systemId p)
-                   , rate_children = chs
-                   , rate_elsePart = elsePart
-                   }
-
+     = serviceFromCallDate >= rateFromDate && serviceFromCallDate < rateToDate
 
 -- | Assign a unique RateSystemId to all rates, and complete also other derived info.
+--   NOTE: this code at every execution had to assign the same ID to the same bundle state rate parts,
+--   in case the main-rate-plan is not changed. In case of changes of the rate-plan, the bundle-state
+--   is regenerated from scratch and so this constraint does not hold.
 mainRatePlan_assignUniqueSystemId
   :: MainRatePlan
   -> Either String MainRatePlan
@@ -821,13 +713,13 @@ discardedRates_toDetails :: [DiscardedRate] -> Text.Text
 discardedRates_toDetails drs
   = Text.concat $ List.concatMap (\(n, reason) -> ["\nThe rate ", n, " was not applied because ", reason]) drs
 
--- | Calculate the cost of the rate, updating the BundleState.
+-- | Calculate the cost of the call, updating the BundleState.
+--
 --   The algo is composed of two phases:
 --   * select the rate to apply
 --   * apply the rate
---   The bundle-state is applied only for normal-cdrs:
---   * CDRS cdr_isImportedServiceCDR are not added to BundleState
---   * derived service CDRS are not rated in this phase, but only generated, and this is enforced by algo construction
+--
+--   The bundle-state is applied only for normal-cdrs: service CDRS are not added to BundleState.
 --
 --   @require: bundleState1 is correctly initializated according the time-frame
 mainRatePlan_calcCost
@@ -837,6 +729,8 @@ mainRatePlan_calcCost
   -> RatingParams
   -> BundleState
   -> CheckedMainRatePlan
+     -- ^ the main income or cost rate.
+     --   NOTE: cost rates have no associated bundle, so this code will not process it because it is missing
   -> CDR
   -- ^ the call to rate
   -> Either AsterisellError
@@ -846,7 +740,7 @@ mainRatePlan_calcCost
               -- ^ in case of BundleRate application, the used UnitId
             , BundleState
               -- ^ the new BundleState after processing the CDR
-            , RatingDebugInfo
+            , Maybe RatingDebugInfo
             )
 
 mainRatePlan_calcCost isDebug rateRole env bundleState1 mainRatePlan cdr
@@ -874,8 +768,11 @@ mainRatePlan_calcCost isDebug rateRole env bundleState1 mainRatePlan cdr
                                     Left err
                                       -> Left err
                                     Right (Just ((s, residualRatePath, _), _), unselectedRates2)
-                                      -> let info2 = info1 { info_residualAppliedRate = Just $ rateSystemId residualRatePath }
-                                             info3 = addToDebugInfo info2 unselectedRates2
+                                      -> let 
+                                             info3 = case info1 of
+                                                       Nothing -> Nothing
+                                                       Just info1' -> let info2 = info1' { info_residualAppliedRate = Just $ rateSystemId residualRatePath }
+                                                                      in addToDebugInfo info2 unselectedRates2
                                          in Right (bundleCost + (applyNormalRate (s, residualRatePath) (Just residualDuration)), Just bundleRateUnitId, finalBundleState, info3)
                    Right (Nothing, unselectedRates)
                      -> normalResult unselectedRates
@@ -899,7 +796,7 @@ mainRatePlan_calcCost isDebug rateRole env bundleState1 mainRatePlan cdr
           -> Right ( cost
                    , Nothing
                    , bundleState
-                   , createDebugInfo (rateSystemId selectedRatePath) Nothing (appendIfDebug unselectedRates1 unselectedRates2)
+                   , createDebugInfo (rateSystemId selectedRatePath) Nothing (appendIfDebug isDebug unselectedRates1 unselectedRates2)
                    )
 
   normalCost
@@ -912,47 +809,45 @@ mainRatePlan_calcCost isDebug rateRole env bundleState1 mainRatePlan cdr
                    , selectedRatePath
                    , unselectedRates2
                    )
+  {-# INLINE normalCost #-}
 
   hasNormalCost
     = case normalCost of
         Left _ -> False
         Right (m, _, _, _) -> m > 0
+  {-# INLINE hasNormalCost #-}
 
   createRateDetails :: [DiscardedRate] -> Maybe Text.Text
   createRateDetails dsr
     = if isDebug then (Just $ discardedRates_toDetails dsr) else Nothing
+  {-# INLINE createRateDetails #-}
 
-  createDebugInfo :: RateSystemId -> Maybe RateSystemId -> [DiscardedRate] -> RatingDebugInfo
+  createDebugInfo :: RateSystemId -> Maybe RateSystemId -> [DiscardedRate] -> Maybe RatingDebugInfo
   createDebugInfo sId msId dsr
-    = (ratingDebugInfo_empty sId msId) { info_ratingDetails = createRateDetails dsr }
+    = if isDebug then (Just $ (ratingDebugInfo_empty sId msId) { info_ratingDetails = createRateDetails dsr }) else Nothing
+  {-# INLINE createDebugInfo #-}
 
-  addToDebugInfo :: RatingDebugInfo -> [DiscardedRate] -> RatingDebugInfo
+  addToDebugInfo :: RatingDebugInfo -> [DiscardedRate] -> Maybe RatingDebugInfo
   addToDebugInfo info dsr
-    = let details1 = info_ratingDetails info
-          details2 = createRateDetails dsr
-          details3 = case (details1, details2) of
-                       (Nothing, Nothing) -> Nothing
-                       (Just s1, Nothing) -> Just s1
-                       (Just s1, Just s2) -> Just (Text.append s1 s2)
-                       (Nothing, Just s2) -> Just s2
-
-      in  info { info_ratingDetails = details3 }
-
-  -- | Reduce the load on the system, collecting info only in debug mode. Haskell lazy feature, can reduce the needing for this,
-  --   but I'm using it as safety measure.
-  appendIfDebug :: [DiscardedRate] -> [DiscardedRate] -> [DiscardedRate]
-  appendIfDebug a b = if isDebug then (a ++ b) else []
-
-  -- | The rate name to use for debug info.
-  ratePathName :: ReverseRatePathAndCalcParams -> Text.Text
-  ratePathName rs
-    = Text.concat $ List.concatMap (\(_,n, _) -> ["/", n]) (List.reverse rs)
+    = if isDebug
+      then let details1 = info_ratingDetails info
+               details2 = createRateDetails dsr
+               details3 = case (details1, details2) of
+                            (Nothing, Nothing) -> Nothing
+                            (Just s1, Nothing) -> Just s1
+                            (Just s1, Just s2) -> Just (Text.append s1 s2)
+                            (Nothing, Just s2) -> Just s2
+                                                  
+           in Just $ info { info_ratingDetails = details3 }
+      else Nothing
+  {-# INLINE addToDebugInfo #-}
 
   -- | Return the first RateSystemId that is not 0.
   --   There can be RateSystemId at 0 because they are the referenced external rates.
   --   @require not $ List.null n
   rateSystemId :: ReverseRatePathAndCalcParams -> RateSystemId
   rateSystemId n@((i, _, _):rest) = if (i == 0) then rateSystemId rest else i
+  {-# INLINE rateSystemId #-}
 
   -- | Given a Cdr return some of its key values, for reducing the number of errors.
   --   Requirements:
@@ -974,6 +869,7 @@ mainRatePlan_calcCost isDebug rateRole env bundleState1 mainRatePlan cdr
           mAppend l = List.foldl' (\r t -> Text.append r t) Text.empty l
 
       in  Text.unpack $ mAppend ((addI cdr_communicationChannelTypeId):(add4 cdr_externalTelephoneNumberWithAppliedPortability):(Text.pack $ show $ cdr_direction cdr):(addI cdr_priceCategoryId):[])
+  {-# INLINE cdr_missingRateKey #-}
 
   -- | Select a BundleRate for the CDR organization, or one of its parent organizations.
   --   This because BundleRate have greather priority respect normal rates.
@@ -1003,7 +899,7 @@ mainRatePlan_calcCost isDebug rateRole env bundleState1 mainRatePlan cdr
                          Left err
                            -> Left err
                          Right (maybeResult, unselectedRates2)
-                           -> Right (maybeResult, appendIfDebug unselectedRates1 unselectedRates2)
+                           -> Right (maybeResult, appendIfDebug isDebug unselectedRates1 unselectedRates2)
 
   -- | Select the BundleRate associated to a BundleRateUnitId, that can be a parent of the CDR UnitId.
   selectBundleRateForUnitId :: BundleRateUnitId -> SelectedBundleRateOrError
@@ -1044,7 +940,7 @@ mainRatePlan_calcCost isDebug rateRole env bundleState1 mainRatePlan cdr
           -> Right (Nothing, [(rootBundleRateUserName, "the call has cost 0")])
 
         False
-          -> case selectCurrentRateOrBestChild (matchStrenght_initial, [], (callBillsec, 0)) (Just $ Left (mainPlan, bundleRateUnitId, bundle_plan mainPlan)) children of
+          -> case selectCurrentRateOrBestChild env bundleState1 rateRole isDebug cdr (matchStrenght_initial, [], (callBillsec, 0)) (Just $ Left (mainPlan, bundleRateUnitId, bundle_plan mainPlan)) children of
                Left err
                  -> Left err
                Right (Nothing, unselectedRates)
@@ -1061,7 +957,7 @@ mainRatePlan_calcCost isDebug rateRole env bundleState1 mainRatePlan cdr
 
   selectNormalRate :: SelectedBundleRateOrError
   selectNormalRate
-    = case selectCurrentRateOrBestChild (matchStrenght_initial, [], (callBillsec, 0)) Nothing (Right $ List.map Right $ mainRatePlan_normalRates mainRatePlan) of
+    = case selectCurrentRateOrBestChild env bundleState1 rateRole isDebug cdr (matchStrenght_initial, [], (callBillsec, 0)) Nothing (Right $ List.map Right $ mainRatePlan_normalRates mainRatePlan) of
          Right (Nothing, unselectedRates)
           -> Left $ createError
                       Type_Error
@@ -1071,217 +967,6 @@ mainRatePlan_calcCost isDebug rateRole env bundleState1 mainRatePlan cdr
                       ("All similar CDRs can not be rated. The call report stats will contain the correct totals of all CDRs with errors/not-rated.")
                       ("Correct the rate specification, or contact the assistance.")
          r -> r
-
-  -- | Select the specified rate if applicable, or the best of its children, in a recursive way.
-  --   This function has "strange" parameters, because in this way I can reuse in many points of the code,
-  --   both for bundle rates and normal rats, and in recursive calls.
-  selectCurrentRateOrBestChild
-     :: (MatchStrenght, ReverseRatePathAndCalcParams, CallDuration)
-        -- ^ the parent path. So this does not comprise current rate
-     -> Maybe (Either (RootBundleRatePlan, BundleRateUnitId, BundleRatePlan) RatePlan)
-        -- ^ the current rate to evaluate. Nothing for root rate.
-     -> Either ExternalRateReference [Either BundleRatePlan RatePlan]
-        -- ^ the children of the current rate to evaluate
-        -- @require children are the children of maybeCurrentRate
-        -- @require if maybeCurrentRate is Nothing, then this is the list of all root rates that are non-bundles
-     -> SelectedBundleRateOrError
-        -- ^ the best inner-most selected rate
-
-  selectCurrentRateOrBestChild (parentStrenght, parentPath, callDuration) maybeCurrentRate currentChildren
-     = case maybeCurrentRate of
-         Nothing
-           -> selectCurrentRateOrBestChild1 True (parentStrenght, parentPath, callDuration) currentChildren
-              -- call this because it is for sure applicable (no rate), and so starts immediately choosing the best child.
-         Just currentBundleOrNormalPlan
-           -> -- test if the current rate is applicable (CDR respect params) and in case search for best children.
-              let (currentRateName, currentRateUserId, currentRateSystemId)
-                    = case currentBundleOrNormalPlan of
-                        Right currentPlan
-                          -> let userId = rate_userId $ rate_params currentPlan
-                                 systemId = rate_systemId currentPlan
-                             in  (Text.concat [ratePathName parentPath, "/", userId], userId, systemId)
-                        Left (mainRatePlan, unitId, currentPlan)
-                          -> let userId = rate_userId $ bundle_rateParams currentPlan
-                                 systemId = bundle_systemId currentPlan
-                             in  (Text.concat [ratePathName parentPath, "/", userId], userId, systemId)
-
-                  currentParams
-                    = case currentBundleOrNormalPlan of
-                        Right currentPlan
-                          -> rate_params currentPlan
-                        Left (mainRatePlan, unitId, currentPlan)
-                          -> bundle_rateParams currentPlan
-
-                  -- | Nothing if the BundleRate is not applicable because it does not respect the limits.
-                  maybeBundleCallDuration :: Maybe CallDuration
-                  maybeBundleCallDuration
-                    = case currentBundleOrNormalPlan of
-                        Right _
-                          -> Just callDuration
-                        Left (mainPlan, bundleRateUnitId, currentPlan)
-                          -> case bundle_canBeApplied mainPlan currentPlan bundleState1 (cdr, bundleRateUnitId, fst callDuration) of
-                               Nothing -> Nothing
-                               Just d -> Just (d, callBillsec - d)
-
-                  elseParts
-                    = case currentBundleOrNormalPlan of
-                        Right r -> List.map Right $ rate_elsePart r
-                        Left _ -> []
-
-              in case (maybeBundleCallDuration, rate_match currentParams env cdr) of
-                   (Nothing, _)
-                     -> Right (Nothing, [(currentRateName, "there are no sufficient left resources in the bundle state, associated to the CDR extension")])
-                   (Just _, Nothing)
-                     -> let unselectedRates1 = [(currentRateName, "params are not respected")]
-                            -- if the parent rate is not respected, then children are not checked, and only the else part is checked
-                        in case List.null elseParts of
-                             True
-                               -> Right (Nothing, unselectedRates1)
-
-                             False
-                               -> case selectCurrentRateOrBestChild (parentStrenght, parentPath, callDuration) Nothing (Right elseParts) of
-                                    Left err
-                                      -> Left err
-                                    Right (Nothing, unselectedRates2)
-                                      -> Right (Nothing, appendIfDebug unselectedRates1 unselectedRates2)
-                                    Right (Just finalResult, unselectedRates2)
-                                      -> Right (Just finalResult, appendIfDebug unselectedRates1 unselectedRates2)
-
-                   (Just bundleCallDuration, Just (currentStrenght1, currentCalcParams1))
-                     -> let currentStrenght = match_combineWithChild currentStrenght1 parentStrenght
-                            currentPath = (currentRateSystemId, currentRateUserId, currentCalcParams1):parentPath
-                        in  case selectCurrentRateOrBestChild1 True (currentStrenght, currentPath, bundleCallDuration) currentChildren of
-                              Right (Nothing, unselectedRates1)
-                                -> -- in this case a nested external reference rate can be failed, so we must manage the elsePart
-                                   case List.null elseParts of
-                                     True
-                                       -> Right (Nothing, unselectedRates1)
-
-                                     False
-                                       -> case selectCurrentRateOrBestChild (parentStrenght, parentPath, callDuration) Nothing (Right elseParts) of
-                                            Left err
-                                              -> Left err
-                                            Right (Nothing, unselectedRates2)
-                                              -> Right (Nothing, appendIfDebug unselectedRates1 unselectedRates2)
-                                            Right (Just finalResult, unselectedRates2)
-                                              -> Right (Just finalResult, appendIfDebug unselectedRates1 unselectedRates2)
-
-                              errorOrResult -> errorOrResult
-    where
-
-      rootUnitId
-        = case maybeCurrentRate of
-            Nothing
-              -> fromJust1 "err 724454" $ cdr_organizationUnitId cdr
-            Just (Left (_, r, _))
-              -> r
-            Just (Right _)
-              -> fromJust1 "err 724455" $ cdr_organizationUnitId cdr
-
-      rootBundleRate :: Maybe RootBundleRatePlan
-      rootBundleRate = case maybeCurrentRate of
-                         Just (Left (a, _, _)) -> Just a
-                         _ -> Nothing
-
-      -- | Search the best child, assuming that the current rate is applicable.
-      selectCurrentRateOrBestChild1
-        :: Bool
-           -- ^ True if we are evaluating a normal rate, False if we are evaluating an external referenced rate
-        -> SelectedBundleRate
-            -- ^ the current rate strenght, and path, before processing the child
-        -> Either ExternalRateReference [Either BundleRatePlan RatePlan]
-           -- ^ the children of the current rate
-        -> SelectedBundleRateOrError
-           -- ^ the best child, with all the info completed, also respect parent path
-
-      selectCurrentRateOrBestChild1 isNormalRate (currentStrenght, currentPath, callDuration) currentChildren
-        = case currentChildren of
-            Left externalRateRef
-              -> case getExternalChildren externalRateRef of
-                   Left err
-                     -> Left err
-                   Right children
-                     -> selectCurrentRateOrBestChild1 False (currentStrenght, currentPath, callDuration) (Right $ List.map Right children)
-            Right []
-              -> if isNormalRate
-                 then (Right $ (Just ((currentStrenght, currentPath, callDuration), rootUnitId), []))
-                      -- if there are no children, then the current rate is already applicable and the virtual best child
-                 else (Right (Nothing, []))
-                      -- in case of external reference rate, there should be at least a child for testing applicability
-            Right children
-              -> let candidateChildren :: [SelectedBundleRateOrError]
-                       = List.map (\child
-                                      -> let cs :: Either ExternalRateReference [Either BundleRatePlan RatePlan]
-                                             cs
-                                               = case child of
-                                                    Left a
-                                                      -> case bundle_children a of
-                                                           Left b -> Left b
-                                                           Right b -> Right $ List.map Left b
-                                                    Right a
-                                                      -> case rate_children a of
-                                                           Left b -> Left b
-                                                           Right b -> Right $ List.map Right b
-                                             c :: (Either (RootBundleRatePlan, BundleRateUnitId, BundleRatePlan) RatePlan)
-                                             c = case child of
-                                                   Left a
-                                                     -> Left (fromJust1 "err 6667755" $ rootBundleRate, rootUnitId, a)
-                                                   Right a
-                                                     -> Right a
-                                         in  selectCurrentRateOrBestChild (matchStrenght_initial, currentPath, callDuration) (Just c) cs
-                                             -- DEV-NOTE: I'm using a 0 strenght, because I want select the best matching child, before combining with the strenght of current rate
-                                  ) children
-
-
-                     selectChild :: SelectedBundleRateOrError -> SelectedBundleRateOrError -> SelectedBundleRateOrError
-                     selectChild (Left err1) (Left err2) = (Left err1)
-                     selectChild (Left err1) (Right _) = (Left err1)
-                     selectChild (Right _) (Left err2) = (Left err2)
-                     selectChild (Right (Nothing, unselectedRates1)) (Right (result2, unselectedRates2))
-                       = Right (result2, appendIfDebug unselectedRates1 unselectedRates2)
-                     selectChild (Right (result1, unselectedRates1)) (Right (Nothing, unselectedRates2))
-                       = Right (result1, appendIfDebug unselectedRates1 unselectedRates2)
-                     selectChild (Right (Just ((oldStrenght, oldPath, oldDuration), unitId), unselectedRates1)) (Right (Just ((newStrenght, newPath, newDuration), _), unselectedRates2))
-                       = let unselectedRates3 = appendIfDebug unselectedRates1 unselectedRates2
-                         in case match_ord oldStrenght newStrenght of
-                              Just EQ
-                                -> let name1 = ratePathName oldPath
-                                       name2 = ratePathName newPath
-                                   in Left $ createError
-                                               Type_Error
-                                               Domain_RATES
-                                               ("virtual rate conflict - " ++ show rateRole ++ "-" ++ Text.unpack name1 ++ "-" ++ Text.unpack name2)
-                                               ("The " ++ show rateRole ++ " rate \"" ++ Text.unpack name1 ++ "\", conflicts with rate \"" ++ Text.unpack name2 ++ "\", because it matches the CDR with the same strenght, and the system have no hints about which is the best rate to apply. The CDR has calldate is " ++ showLocalTime (cdr_calldate cdr) ++ ". The CDR content, after import, and initial processing is " ++ rate_showDebug env cdr)
-                                               ("All CDRs with a similar format can not be rated. The call report stats will contain the correct totals of all CDRs with errors/not-rated.")                         ("Correct the rate specification, or contact the assistance.")
-
-                              Just LT
-                                -> Right (Just ((newStrenght, newPath, newDuration), unitId), unselectedRates3)
-                              Just GT
-                                -> Right (Just ((oldStrenght, oldPath, oldDuration), unitId), unselectedRates3)
-
-                 in case List.foldl' selectChild (Right (Nothing, [])) candidateChildren of
-                      Left err
-                        -> Left err
-                      Right (Nothing, unselectedRates)
-                        -> let rateName = ratePathName currentPath
-                               (errorMessage1, errorMessage2)
-                                 = if (List.null currentPath)
-                                   then (("There is no applicable " ++ show rateRole ++ " rate "), "")
-                                   else (("The " ++ show rateRole ++ " rate " ++ Text.unpack rateName ++ " is applicable ")
-                                        ,("\n\nbut none of its more specific children rates can be applied.\nFor avoiding ambiguites in rating specifications, one and only one children rate must be selected, but in this case none can be selected.\n\n"))
-
-                           in if isNormalRate
-                              then (Left $ createError
-                                             Type_Error
-                                             Domain_RATES
-                                             ("not applicale children rate - " ++ show rateRole ++ "-" ++ Text.unpack rateName)
-                                             (errorMessage1 ++ " to a CDR like this: \n" ++ rate_showDebug env cdr ++ errorMessage2)
-                                             ("All CDRs with a similar format can not be rated. The call report stats will contain the correct totals of all CDRs with errors/not-rated.")
-                                             ("Improve the rate specification."))
-                              else (Right (Nothing, unselectedRates))
-
-                      Right (Just ((bestChildrenStrenght, bestChildrenPath, bestDuration), unitId), unselectedRates)
-                        -> Right (Just ((match_combineWithChild currentStrenght bestChildrenStrenght, bestChildrenPath, bestDuration), unitId), unselectedRates)
 
   -- | Apply the BundleRate on the current cdr.
   applyBundleRate
@@ -1327,31 +1012,263 @@ mainRatePlan_calcCost isDebug rateRole env bundleState1 mainRatePlan cdr
 
      cost = calcParams_calc rateRole calcParams (cdr { cdr_billsec = Just applicableDuration })
 
-  -- | Given an ExternalRateReference, retrieve the external children.
-  getExternalChildren :: ExternalRateReference -> Either AsterisellError [RatePlan]
-  getExternalChildren externalRateReference
-    = case env_getRate env externalRateReference callDate of
-        Nothing
-          -> Left $ createError
-                      Type_Error
-                      Domain_RATES
-                      ("unknown external rate name - " ++ show rateRole ++ "-" ++ Text.unpack externalRateReference)
-                      ("The " ++ show rateRole ++ " external rate reference \"" ++ Text.unpack externalRateReference ++ "\", does not exists at date " ++ showLocalTime callDate ++ ". The CDR content is " ++ rate_showDebug env cdr)
-                      ("All CDRs with a similar format can not be rated. The call report stats will contain the correct totals of all CDRs with errors/not-rated.")
-                      ("Correct the rate specification, or contact the assistance.")
+-- | Select the specified rate if applicable, or the best of its children, in a recursive way.
+--   This function has "strange" parameters, because in this way I can reuse in many points of the code,
+--   both for bundle rates and normal rats, and in recursive calls.
+selectCurrentRateOrBestChild
+   :: RatingParams
+   -> BundleState
+   -> RateRole
+   -> Bool
+   -> CDR
+   -> (MatchStrenght, ReverseRatePathAndCalcParams, CallDuration)
+      -- ^ the parent path. So this does not comprise current rate
+   -> Maybe (Either (RootBundleRatePlan, BundleRateUnitId, BundleRatePlan) RatePlan)
+      -- ^ the current rate to evaluate. Nothing for root rate.
+   -> Either ExternalRateReference [Either BundleRatePlan RatePlan]
+      -- ^ the children of the current rate to evaluate
+      -- @require children are the children of maybeCurrentRate
+      -- @require if maybeCurrentRate is Nothing, then this is the list of all root rates that are non-bundles
+   -> SelectedBundleRateOrError
+      -- ^ the best inner-most selected rate
 
-        Just (mainRatePlan, _)
-          -> case List.null (mainRatePlan_bundleRates mainRatePlan) of
-               False
-                 -> Left $ createError
-                             Type_Error
-                             Domain_RATES
-                             ("external rate name with bundle params - " ++ show rateRole ++ "-" ++ Text.unpack externalRateReference)
-                             ("The " ++ show rateRole ++ " external rate reference \"" ++ Text.unpack externalRateReference ++ "\", exists at date " ++ showLocalTime callDate ++ ", but it has bundle children, and it can not be embeded correctly in a rate plan.")
-                             ("CDRS can not be rated. The call report stats will contain the correct totals of all CDRs with errors/not-rated.")
-                             ("Correct the rate specification, or contact the assistance.")
-               True
-                 -> Right $ mainRatePlan_normalRates mainRatePlan
+selectCurrentRateOrBestChild env bundleState1 rateRole isDebug cdr (parentStrenght, parentPath, callDuration) maybeCurrentRate currentChildren
+   = case maybeCurrentRate of
+       Nothing
+         -> selectCurrentRateOrBestChild1 True (parentStrenght, parentPath, callDuration) currentChildren
+            -- call this because it is for sure applicable (no rate), and so starts immediately choosing the best child.
+       Just currentBundleOrNormalPlan
+         -> -- test if the current rate is applicable (CDR respect params) and in case search for best children.
+            let (currentRateName, currentRateUserId, currentRateSystemId)
+                  = case currentBundleOrNormalPlan of
+                      Right currentPlan
+                        -> let userId = rate_userId $ rate_params currentPlan
+                               systemId = rate_systemId currentPlan
+                           in  (Text.concat [ratePathName parentPath, "/", userId], userId, systemId)
+                      Left (mainRatePlan, unitId, currentPlan)
+                        -> let userId = rate_userId $ bundle_rateParams currentPlan
+                               systemId = bundle_systemId currentPlan
+                           in  (Text.concat [ratePathName parentPath, "/", userId], userId, systemId)
+
+                currentParams
+                  = case currentBundleOrNormalPlan of
+                      Right currentPlan
+                        -> rate_params currentPlan
+                      Left (mainRatePlan, unitId, currentPlan)
+                        -> bundle_rateParams currentPlan
+
+                -- | Nothing if the BundleRate is not applicable because it does not respect the limits.
+                maybeBundleCallDuration :: Maybe CallDuration
+                maybeBundleCallDuration
+                  = case currentBundleOrNormalPlan of
+                      Right _
+                        -> Just callDuration
+                      Left (mainPlan, bundleRateUnitId, currentPlan)
+                        -> case bundle_canBeApplied mainPlan currentPlan bundleState1 (cdr, bundleRateUnitId, fst callDuration) of
+                             Nothing -> Nothing
+                             Just d -> Just (d, callBillsec - d)
+
+                elseParts
+                  = case currentBundleOrNormalPlan of
+                      Right r -> List.map Right $ rate_elsePart r
+                      Left _ -> []
+
+            in case (maybeBundleCallDuration, rate_match currentParams env cdr) of
+                 (Nothing, _)
+                   -> Right (Nothing, [(currentRateName, "there are no sufficient left resources in the bundle state, associated to the CDR extension")])
+                 (Just _, Nothing)
+                   -> let unselectedRates1 = [(currentRateName, "params are not respected")]
+                          -- if the parent rate is not respected, then children are not checked, and only the else part is checked
+                      in case List.null elseParts of
+                           True
+                             -> Right (Nothing, unselectedRates1)
+
+                           False
+                             -> case selectCurrentRateOrBestChild env bundleState1 rateRole isDebug cdr(parentStrenght, parentPath, callDuration) Nothing (Right elseParts) of
+                                  Left err
+                                    -> Left err
+                                  Right (Nothing, unselectedRates2)
+                                    -> Right (Nothing, appendIfDebug isDebug unselectedRates1 unselectedRates2)
+                                  Right (Just finalResult, unselectedRates2)
+                                    -> Right (Just finalResult, appendIfDebug isDebug unselectedRates1 unselectedRates2)
+
+                 (Just bundleCallDuration, Just (currentStrenght1, currentCalcParams1))
+                   -> let currentStrenght = match_combineWithChild currentStrenght1 parentStrenght
+                          currentPath = (currentRateSystemId, currentRateUserId, currentCalcParams1):parentPath
+                      in  case selectCurrentRateOrBestChild1 True (currentStrenght, currentPath, bundleCallDuration) currentChildren of
+                            Right (Nothing, unselectedRates1)
+                              -> -- in this case a nested external reference rate can be failed, so we must manage the elsePart
+                                 case List.null elseParts of
+                                   True
+                                     -> Right (Nothing, unselectedRates1)
+
+                                   False
+                                     -> case selectCurrentRateOrBestChild env bundleState1 rateRole isDebug cdr (parentStrenght, parentPath, callDuration) Nothing (Right elseParts) of
+                                          Left err
+                                            -> Left err
+                                          Right (Nothing, unselectedRates2)
+                                            -> Right (Nothing, appendIfDebug isDebug unselectedRates1 unselectedRates2)
+                                          Right (Just finalResult, unselectedRates2)
+                                            -> Right (Just finalResult, appendIfDebug isDebug unselectedRates1 unselectedRates2)
+
+                            errorOrResult -> errorOrResult
+  where
+
+    callBillsec = fromJust1 "rp1" $ cdr_billsec cdr
+
+    callDate = cdr_calldate cdr
+
+    rootUnitId
+      = case maybeCurrentRate of
+          Nothing
+            -> fromJust1 "err 724454" $ cdr_organizationUnitId cdr
+          Just (Left (_, r, _))
+            -> r
+          Just (Right _)
+            -> fromJust1 "err 724455" $ cdr_organizationUnitId cdr
+
+    rootBundleRate :: Maybe RootBundleRatePlan
+    rootBundleRate = case maybeCurrentRate of
+                       Just (Left (a, _, _)) -> Just a
+                       _ -> Nothing
+
+    -- | Given an ExternalRateReference, retrieve the external children.
+    getExternalChildren :: ExternalRateReference -> Either AsterisellError [RatePlan]
+    getExternalChildren externalRateReference
+      = case env_getRate env externalRateReference callDate of
+          Nothing
+            -> Left $ createError
+                        Type_Error
+                        Domain_RATES
+                        ("unknown external rate name - " ++ show rateRole ++ "-" ++ Text.unpack externalRateReference)
+                        ("The " ++ show rateRole ++ " external rate reference \"" ++ Text.unpack externalRateReference ++ "\", does not exists at date " ++ showLocalTime callDate ++ ". The CDR content is " ++ rate_showDebug env cdr)
+                        ("All CDRs with a similar format can not be rated. The call report stats will contain the correct totals of all CDRs with errors/not-rated.")
+                        ("Correct the rate specification, or contact the assistance.")
+
+          Just (mainRatePlan, _)
+            -> case List.null (mainRatePlan_bundleRates mainRatePlan) of
+                 False
+                   -> Left $ createError
+                               Type_Error
+                               Domain_RATES
+                               ("external rate name with bundle params - " ++ show rateRole ++ "-" ++ Text.unpack externalRateReference)
+                               ("The " ++ show rateRole ++ " external rate reference \"" ++ Text.unpack externalRateReference ++ "\", exists at date " ++ showLocalTime callDate ++ ", but it has bundle children, and it can not be embeded correctly in a rate plan.")
+                               ("CDRS can not be rated. The call report stats will contain the correct totals of all CDRs with errors/not-rated.")
+                               ("Correct the rate specification, or contact the assistance.")
+                 True
+                   -> Right $ mainRatePlan_normalRates mainRatePlan
+
+    -- | Search the best child, assuming that the current rate is applicable.
+    selectCurrentRateOrBestChild1
+      :: Bool
+         -- ^ True if we are evaluating a normal rate, False if we are evaluating an external referenced rate
+      -> SelectedBundleRate
+          -- ^ the current rate strenght, and path, before processing the child
+      -> Either ExternalRateReference [Either BundleRatePlan RatePlan]
+         -- ^ the children of the current rate
+      -> SelectedBundleRateOrError
+         -- ^ the best child, with all the info completed, also respect parent path
+
+    selectCurrentRateOrBestChild1 isNormalRate (currentStrenght, currentPath, callDuration) currentChildren
+      = case currentChildren of
+          Left externalRateRef
+            -> case getExternalChildren externalRateRef of
+                 Left err
+                   -> Left err
+                 Right children
+                   -> selectCurrentRateOrBestChild1 False (currentStrenght, currentPath, callDuration) (Right $ List.map Right children)
+          Right []
+            -> if isNormalRate
+               then (Right $ (Just ((currentStrenght, currentPath, callDuration), rootUnitId), []))
+                    -- if there are no children, then the current rate is already applicable and the virtual best child
+               else (Right (Nothing, []))
+                    -- in case of external reference rate, there should be at least a child for testing applicability
+          Right children
+            -> let candidateChildren :: [SelectedBundleRateOrError]
+                     = List.map (\child
+                                    -> let cs :: Either ExternalRateReference [Either BundleRatePlan RatePlan]
+                                           cs
+                                             = case child of
+                                                  Left a
+                                                    -> case bundle_children a of
+                                                         Left b -> Left b
+                                                         Right b -> Right $ List.map Left b
+                                                  Right a
+                                                    -> case rate_children a of
+                                                         Left b -> Left b
+                                                         Right b -> Right $ List.map Right b
+                                           c :: (Either (RootBundleRatePlan, BundleRateUnitId, BundleRatePlan) RatePlan)
+                                           c = case child of
+                                                 Left a
+                                                   -> Left (fromJust1 "err 6667755" $ rootBundleRate, rootUnitId, a)
+                                                 Right a
+                                                   -> Right a
+                                       in  selectCurrentRateOrBestChild env bundleState1 rateRole isDebug cdr (matchStrenght_initial, currentPath, callDuration) (Just c) cs
+                                           -- DEV-NOTE: I'm using a 0 strenght, because I want select the best matching child, before combining with the strenght of current rate
+                                ) children
+
+
+                   selectChild :: SelectedBundleRateOrError -> SelectedBundleRateOrError -> SelectedBundleRateOrError
+                   selectChild (Left err1) (Left err2) = (Left err1)
+                   selectChild (Left err1) (Right _) = (Left err1)
+                   selectChild (Right _) (Left err2) = (Left err2)
+                   selectChild (Right (Nothing, unselectedRates1)) (Right (result2, unselectedRates2))
+                     = Right (result2, appendIfDebug isDebug unselectedRates1 unselectedRates2)
+                   selectChild (Right (result1, unselectedRates1)) (Right (Nothing, unselectedRates2))
+                     = Right (result1, appendIfDebug isDebug unselectedRates1 unselectedRates2)
+                   selectChild (Right (Just ((oldStrenght, oldPath, oldDuration), unitId), unselectedRates1)) (Right (Just ((newStrenght, newPath, newDuration), _), unselectedRates2))
+                     = let unselectedRates3 = appendIfDebug isDebug unselectedRates1 unselectedRates2
+                       in case match_ord oldStrenght newStrenght of
+                            Just EQ
+                              -> let name1 = ratePathName oldPath
+                                     name2 = ratePathName newPath
+                                 in Left $ createError
+                                             Type_Error
+                                             Domain_RATES
+                                             ("virtual rate conflict - " ++ show rateRole ++ "-" ++ Text.unpack name1 ++ "-" ++ Text.unpack name2)
+                                             ("The " ++ show rateRole ++ " rate \"" ++ Text.unpack name1 ++ "\", conflicts with rate \"" ++ Text.unpack name2 ++ "\", because it matches the CDR with the same strenght, and the system have no hints about which is the best rate to apply. The CDR has calldate is " ++ showLocalTime (cdr_calldate cdr) ++ ". The CDR content, after import, and initial processing is " ++ rate_showDebug env cdr)
+                                             ("All CDRs with a similar format can not be rated. The call report stats will contain the correct totals of all CDRs with errors/not-rated.")                         ("Correct the rate specification, or contact the assistance.")
+
+                            Just LT
+                              -> Right (Just ((newStrenght, newPath, newDuration), unitId), unselectedRates3)
+                            Just GT
+                              -> Right (Just ((oldStrenght, oldPath, oldDuration), unitId), unselectedRates3)
+
+               in case List.foldl' selectChild (Right (Nothing, [])) candidateChildren of
+                    Left err
+                      -> Left err
+                    Right (Nothing, unselectedRates)
+                      -> let rateName = ratePathName currentPath
+                             (errorMessage1, errorMessage2)
+                               = if (List.null currentPath)
+                                 then (("There is no applicable " ++ show rateRole ++ " rate "), "")
+                                 else (("The " ++ show rateRole ++ " rate " ++ Text.unpack rateName ++ " is applicable ")
+                                      ,("\n\nbut none of its more specific children rates can be applied.\nFor avoiding ambiguites in rating specifications, one and only one children rate must be selected, but in this case none can be selected.\n\n"))
+
+                         in if isNormalRate
+                            then (Left $ createError
+                                           Type_Error
+                                           Domain_RATES
+                                           ("not applicale children rate - " ++ show rateRole ++ "-" ++ Text.unpack rateName)
+                                           (errorMessage1 ++ " to a CDR like this: \n" ++ rate_showDebug env cdr ++ errorMessage2)
+                                           ("All CDRs with a similar format can not be rated. The call report stats will contain the correct totals of all CDRs with errors/not-rated.")
+                                           ("Improve the rate specification."))
+                            else (Right (Nothing, unselectedRates))
+
+                    Right (Just ((bestChildrenStrenght, bestChildrenPath, bestDuration), unitId), unselectedRates)
+                      -> Right (Just ((match_combineWithChild currentStrenght bestChildrenStrenght, bestChildrenPath, bestDuration), unitId), unselectedRates)
+
+-- | The rate name to use for debug info.
+ratePathName :: ReverseRatePathAndCalcParams -> Text.Text
+ratePathName rs
+  = Text.concat $ List.concatMap (\(_,n, _) -> ["/", n]) (List.reverse rs)
+{-# INLINE ratePathName #-}
+
+-- | Reduce the load on the system, collecting info only in debug mode. Haskell lazy feature, can reduce the needing for this,
+--   but I'm using it as safety measure.
+appendIfDebug :: Bool -> [DiscardedRate] -> [DiscardedRate] -> [DiscardedRate]
+appendIfDebug isDebug a b = if isDebug then (a ++ b) else []
+{-# INLINE appendIfDebug #-}
 
 debug_showRateSystemIds :: [RatePlan] -> String
 debug_showRateSystemIds rs = List.concat $ List.intersperse ", " $ List.map show $ List.map rate_systemId rs
@@ -1371,12 +1288,98 @@ type RatePlanIdMap a = IMap.IntMap a
 ratePlanIdMap_empty :: RatePlanIdMap a
 ratePlanIdMap_empty = IMap.empty
 
+type BundleStateByRatePlan = RatePlanIdMap (NextScheduledLocalTime, CompleteUserRateRefName, UnitIdMap BundleRecord)
+
 -- | Store a state for each BundleRate, and for each UnitId.
 --   The state is modified every time a CDR is processed.
-type BundleState = RatePlanIdMap (NextScheduledLocalTime, CompleteUserRateRefName, UnitIdMap [BundleRecord])
+type BundleState
+       = (Maybe NextScheduledLocalTime
+          -- ^ the (cached) minimum NextScheduledLocalTime of all RatePlanId
+         , BundleStateByRatePlan)
 
 bundleState_empty :: BundleState
-bundleState_empty = IMap.empty
+bundleState_empty = (Nothing, IMap.empty)
+
+-- | Used for activating the real BundleState, after the specified calldate.
+bundleState_fake :: NextScheduledLocalTime -> BundleState
+bundleState_fake callDate = (Just callDate, IMap.empty)
+
+-- | A BundleState can be partitioned, for indipendent rating processing.
+type BundlePartition
+       = (Int
+           -- ^ total partitions
+         ,Int
+           -- ^ this partition: from 0 to total partitions - 1
+         )
+
+-- | Create a single partition, containing all data.
+bundlePartition_all :: BundlePartition
+bundlePartition_all = (1, 0)
+
+bundlePartition_contains :: BundlePartition -> Int -> Bool
+bundlePartition_contains (totSplits, currSplit) toTest = mod toTest totSplits == currSplit
+{-# INLINE bundlePartition_contains #-}
+
+bundlePartition_containsUnitId :: RatingParams -> BundlePartition -> TimeFrame -> UnitId -> Bool
+bundlePartition_containsUnitId env (totSplits, currSplit) (fromCallDate, toCallDate) unitId
+    = let
+          info = params_organizations env
+          info1 = fromJust1 "ERR 7111" $ info_getDataInfoForUnitId info unitId fromCallDate False
+          callDate1 = structure_from info1
+          rootId = unit_id $ List.head $ info_getDataInfoParentHierarchy info info1 callDate1 True
+
+          allRootIds :: [UnitId]
+            = List.map (\di -> unit_id $ head $ info_getDataInfoParentHierarchy info di (structure_from di) True) $
+                List.filter (\s -> structure_from s > callDate1 && structure_from s < toCallDate) $
+                  fromJust1 "ERR 7112" $ IMap.lookup unitId (info_organizations info)
+
+      in case List.all ((==) rootId) allRootIds of
+           True -> bundlePartition_contains (totSplits, currSplit) rootId 
+           False -> error $ "The organization " ++ Text.unpack (info_getParentHiearchyIds $ info_getDataInfoParentHierarchy info info1 callDate1 False) ++ " changes root parent organization in the billing time-frame from " ++ show fromCallDate ++ " to " ++ show toCallDate ++ ", but this can cause problems in case of bundle-rates because it is not clear how rating it, or how partition parallel rating processing. An organization can change its root parent organization only at the beginning of a new bundle-rate rating time-frame."
+
+
+bundleState_partition :: RatingParams -> Int -> BundleState -> [BundleState]
+bundleState_partition env totSplits (cachedCallDate, bundle)
+  = List.map (splitBundle) [0.. (totSplits - 1)]
+ where
+
+  splitBundle :: Int -> BundleState
+  splitBundle thisSplit
+    = (cachedCallDate, IMap.map (\(x, y, unitIdMap) -> (x, y, splitUnidIdMap thisSplit unitIdMap)) bundle)
+
+  splitUnidIdMap :: Int -> UnitIdMap BundleRecord -> UnitIdMap BundleRecord
+  splitUnidIdMap thisSplit map1
+    = IMap.filterWithKey (\unitId (p, bundleTimeFrame) -> bundlePartition_containsUnitId env (totSplits, thisSplit) bundleTimeFrame unitId) map1
+
+-- | Join indipendent bundle-stats on a unique bundle-state.
+--   @require all bundle-state have the same rate-plan-id, user-ref-name,
+--   and differs only on the content of the UnitIdMap
+--   @require there is at least a bundle-state
+bundleState_join :: [BundleState] -> BundleState
+bundleState_join (bundle:bundles)
+  = List.foldl' joinBundles bundle bundles
+
+ where
+
+  joinBundles :: BundleState -> BundleState -> BundleState
+  joinBundles (cachedDate1, bundle1) (cachedDate2, bundle2)
+    = let cachedDate3 = min cachedDate1 cachedDate2
+          bundle3
+            = IMap.foldlWithKey'
+                (\m1 rateId (t2, refName2, unitMap2)
+                      -> case IMap.lookup rateId m1 of
+                           Nothing
+                             -> IMap.insert rateId (t2, refName2, unitMap2) m1
+                           Just (t1, refName1, unitMap1)
+                             -> IMap.insert
+                                  rateId
+                                  ( assert (t1 == t2) t1
+                                  , assert (refName1 == refName2) refName1
+                                  , assert (IMap.null $ IMap.intersection unitMap1 unitMap2) IMap.union unitMap1 unitMap2)
+                                  m1)
+                bundle1 bundle2
+
+      in (cachedDate3, bundle3)
 
 -- | Associate a BundleRate to its root/main rate, containing some fixed params.
 type MapToRootBundleRate = RatePlanIdMap RootBundleRatePlan
@@ -1406,108 +1409,83 @@ mainRatePlan_deriveMapFromChildrenRateToMainRate mainRatePlan
                   -> List.foldl' (processBundleRate mainRate) result2 children
       in  result3
 
--- TODO consider using a sorted set, for fast lookup, and mantained in synchro every time
--- we add or remove an element, also because this function is called for every CDR
--- MAYBE or use instead a sequence instead of a list (locality of access)
-bundleState_minimumNextScheduledLocalTime :: BundleState -> Maybe NextScheduledLocalTime
-bundleState_minimumNextScheduledLocalTime s
-  = IMap.foldl' (\mT1 (t2, _, _)
-                  -> case mT1 of
-                       Nothing -> Just t2
-                       Just t1 -> Just $ min t1 t2
-               ) Nothing s
+bundleState_updateCachedNextScheduledLocalTime :: BundleState -> BundleState
+bundleState_updateCachedNextScheduledLocalTime (_, s)
+  = let callDate
+          = IMap.foldl' (\mT1 (t2, _, _)
+                            -> case mT1 of
+                                 Nothing -> Just t2
+                                 Just t1 -> Just $ min t1 t2
+                        ) Nothing s
+    in (callDate, s)
 
 bundleState_debugShow :: BundleState -> String
-bundleState_debugShow state1
+bundleState_debugShow (_, state1)
   = IMap.foldlWithKey'  (\s k (d, _, _) -> s ++ ", " ++ show k ++ " -> " ++ showLocalTime d) "" state1
 
--- | Close the time-frames, and open new-time frames, acconding the specified call-date.
---   This is a fast operation to do, and it must be performed for every CDR.
---   This function coordinates all other functions calculating the bundle-rate,
---   and it is the top-down entry.
---   DEV NOTES: the code of this function must be fast, because it is called for each CDR.
-bundleState_serviceCdrs
+-- | Fast test to use before calling `bundleState_serviceCdrs`
+--   Because the income-rate-plan is constant on the entire rating time-frame,
+--   for every closed bundle-rate, there is a corresponding new open bundle-rate.
+bundleState_areThereServiceCdrs :: BundleState -> CallDate -> Bool
+bundleState_areThereServiceCdrs (Nothing, _) callDate = False
+bundleState_areThereServiceCdrs (Just minimumCallDate, _) callDate = callDate >= minimumCallDate
+{-# INLINE bundleState_areThereServiceCdrs #-}
+
+-- | An helper for calling bundleState_updateAndGetServiceCdrs
+bundleState_updateToSomeCallDate
   :: RatingParams
   -> MainRatePlan
+  -> BundlePartition
   -> BundleState
   -> CallDate
-  -- ^ the call date of the next CDR to process.
-  --  It supposes that the CDRS are processed ordered by calldate,
-  --  and so this calldate can be used for determining which bundle rates can be closed.
-  -> ( Maybe CallDate
-       -- ^ the calldate of the previous closed bundle-state if a new BundleState was opened.
-     , BundleState
-     -- ^ open new bundle rates, in case
-     , [ServiceCDR]
-     -- ^ the ServiceCDRs of the closed bundle rates
-     )
+  -> IO BundleState
 
-bundleState_serviceCdrs env mainRatePlan state0 callDate
-  = fRec state0
+bundleState_updateToSomeCallDate env mainRatePlan bundlePartition state1 callDate = do
+  ref <- newIORef (0, callDate, Set.empty, state1, Nothing, Nothing)
+  _ <- bundleState_updateAndGetServiceCdrs env mainRatePlan bundlePartition ref callDate 
+  (_, _, _, state2, _, _) <- readIORef ref
+  return state2
+
+-- | Close the time-frames, and open new-time frames, acconding the specified call-date.
+bundleState_updateAndGetServiceCdrs
+  :: RatingParams
+  -> MainRatePlan
+  -> BundlePartition
+  -> IORef ( CountOfCDRS
+           , CallDate
+           , Set.Set CallDate
+           , BundleState
+           -- ^ the current bundle-state.
+           -- It will be updated with the new state.
+           , Maybe BundleState
+           , Maybe BundleState
+           )
+  -> CallDate
+  -> IO (Chunk ServiceCDR)
+     -- ^ the ServiceCDRs of the  bundle rates
+
+bundleState_updateAndGetServiceCdrs env mainRatePlan bundlePartition statsR callDate = do
+  (countCDRS1, _, serviceDays1, bundleState1, maybeSavedBundleState, maybeDailyBundleState) <- readIORef statsR
+  let   (bundleState2, serviceCDRS) = fRec bundleState1
+  let serviceCDRS' = V.concat serviceCDRS
+  let serviceDays2 = V.foldl' (\s x -> Set.insert (today $ cdr_calldate x) s) serviceDays1 serviceCDRS'
+  modifyIORef' statsR (\_ -> (countCDRS1 + (V.length serviceCDRS'), callDate, serviceDays2, bundleState2, maybeSavedBundleState, maybeSavedBundleState))
+  return serviceCDRS'
 
  where
 
-  fRec :: BundleState -> (Maybe CallDate, BundleState, [ServiceCDR])
-  fRec state1
-    = case bundleState_minimumNextScheduledLocalTime state1 of
-        Nothing
-          -> (Nothing, state1, [])
-        Just minCallDate
-          -> if callDate >= minCallDate
-             then let serviceCdrs2 = generateServiceCDRs state1 minCallDate
-                      state2 = bundleState_initAccordingRatingParams env mainRatePlan (Right minCallDate) state1
-                      (_, state3, serviceCdrs3) = fRec state2
-                      -- call recursively until the calldate is not reached. In this way if there are holes in the rating, procces,
-                      -- the ServiceCDRS are generated for all missing timeframes.
-                  in  (Just minCallDate, state3, serviceCdrs2 ++ serviceCdrs3)
-             else (Nothing, state1, [])
-                  -- the CDR is inside an open time-frame.
-
-  -- | Process a bundle-rate time frame, generating the associated ServiceCDRs.
-  generateServiceCDRs
-    :: BundleState
-    -> NextScheduledLocalTime
-       -- ^ the time frame to process
-    -> [ServiceCDR]
-
-  generateServiceCDRs state1 startCallDate
-    = let
-          -- | Process a bundle rate.
-          processBundleRate :: RootBundleRatePlan -> [ServiceCDR]
-          processBundleRate rate
-            = let rateId = bundle_systemId $ bundle_plan rate
-
-                  (rateNextScheduled, _, _) = fromJust1 "rp7" $ IMap.lookup rateId state1
-
-                  closedServices = bundleState_closeServiceCDRsAccordingRatePlan env mainRatePlan rate state1 (Just startCallDate)
-
-              in  if rateNextScheduled == startCallDate
-                  then closedServices
-                  else []
-                       -- some main bundle-rates can have different time-frames (shorter or longer)
-                       -- than current considered time-frame. So they are skipped, because they will be
-                       -- processed at the next recursive calls of `recursiveSolution`,
-                       -- or because they were already processed.
-
-      in  List.concatMap processBundleRate (mainRatePlan_bundleRates mainRatePlan)
-          -- process each main bundle rate
-
--- | Generate all pending service CDRS for open time-frames of bundle-rates.
---   These ServiceCDRS are related to not yet closed time-frames, so they are temporary/pending.
---   DEV NOTES: this function can be not fast, because it is called only one time, at the end of rating process.
-bundleState_pendingServiceCdrs
-  :: RatingParams
-  -> MainRatePlan
-  -> BundleState
-  -> [ServiceCDR]
-
-bundleState_pendingServiceCdrs env mainRatePlan state0
-  = let
-          processBundleRate :: RootBundleRatePlan -> [ServiceCDR]
-          processBundleRate rate
-            = bundleState_closeServiceCDRsAccordingRatePlan env mainRatePlan rate state0 Nothing
-
-    in  List.concatMap processBundleRate (mainRatePlan_bundleRates mainRatePlan)
+  fRec :: BundleState -> (BundleState, [Chunk ServiceCDR])
+  fRec bundleState1@(minimumCallDate1, state1)
+    = case bundleState_areThereServiceCdrs (minimumCallDate1, state1) callDate of
+        False
+          -> (bundleState1, [])
+        True
+          -> let minCallDate = fromJust minimumCallDate1
+                 (bundleState2, services2) = bundleState_updateAccordingRatingParams env mainRatePlan bundlePartition (Right minCallDate) bundleState1
+                 (bundleState3, services3) = fRec bundleState2
+                 -- call recursively until the calldate is not reached. In this way if there are holes in the rating, procces,
+                 -- the ServiceCDRS are generated for all missing timeframes.
+             in  (bundleState3, services2:services3)
 
 bundleParams_scale :: BundleParams -> Rational -> BundleParams
 bundleParams_scale r p
@@ -1516,8 +1494,10 @@ bundleParams_scale r p
     else r {
              bundle_leftDuration = scaleI (bundle_leftDuration r)
            , bundle_leftCalls = scaleI (bundle_leftCalls r)
+           , bundle_leftCost = case bundle_leftCost r of
+                                 Nothing -> Nothing
+                                 Just c -> Just $ c * p
            , bundle_initialCost = (bundle_initialCost r) * p
-           , bundle_minCost = (bundle_minCost r) * p
          }
  where
 
@@ -1542,7 +1522,7 @@ timeFrame_fromCallDate params callDate
 timeFrame_fromCallDate1 :: BundleRateTimeFrame -> CallDate -> TimeFrame
 timeFrame_fromCallDate1 timeFrame callDate
   = case timeFrame of
-      EveryDaysTimeFrame deltaDays d0
+      EveryDaysTimeFrame deltaDays d0 _
         -> error "Bundles using days as time-frame are implemented, but not yet tested. Contact the assistance for complete activation and support."
            {-
            -- DEV NOTE: this code/timeframe up to date not tested and not supported.
@@ -1558,21 +1538,21 @@ timeFrame_fromCallDate1 timeFrame callDate
            in (utcToLocalTime utc startingCallDateOfCurrentTimeFrame, utcToLocalTime utc endingCallDateOfCurrentTimeFrame)
            -}
 
-      MonthlyTimeFrame dayOfMonth
+      MonthlyTimeFrame dayOfMonth limitTD
         -> let (yyyy, mm, dd) = toGregorian $ localDay callDate
 
                (newYYYY, newMM) = if mm < 12 then (yyyy, mm + 1) else (yyyy + 1, 1)
                (oldYYYY, oldMM) = if mm > 1 then (yyyy, mm - 1) else (yyyy - 1, 12)
 
-               newDate = fromGregorian newYYYY newMM dayOfMonth
-               oldDate = fromGregorian oldYYYY oldMM dayOfMonth
-               currDate = fromGregorian yyyy mm dayOfMonth
+               newDate = toCallDate (fromGregorian newYYYY newMM dayOfMonth) limitTD
+               oldDate = toCallDate (fromGregorian oldYYYY oldMM dayOfMonth) limitTD
+               currDate = toCallDate (fromGregorian yyyy mm dayOfMonth) limitTD
 
-           in if dd < dayOfMonth
-              then (toCallDate oldDate, toCallDate currDate)
-              else (toCallDate currDate, toCallDate newDate)
+           in if callDate < currDate
+              then (oldDate, currDate)
+              else (currDate, newDate)
 
-      WeeklyTimeFrame dayOfWeek
+      WeeklyTimeFrame dayOfWeek limitTD
         -> let (_, _, cdrDayOfWeek) = toWeekDate (localDay callDate)
 
                diffDays = dayOfWeek - cdrDayOfWeek
@@ -1580,26 +1560,28 @@ timeFrame_fromCallDate1 timeFrame callDate
 
                startDate = addDays (toInteger diffDays) (localDay callDate)
 
-               prevDate = addDays (-7) startDate
-               nextDate = addDays 7 startDate
+               prevDate =  toCallDate (addDays (-7) startDate) limitTD
+               nextDate =  toCallDate (addDays 7 startDate) limitTD
+               currDate =  toCallDate startDate limitTD
 
-           in if diffDays <= 0
-              then (toCallDate startDate, toCallDate nextDate)
-              else (toCallDate prevDate, toCallDate startDate)
+           in if callDate < currDate
+              then (prevDate, currDate)
+              else (currDate, nextDate)
 
  where
 
-  toCallDate :: Day -> CallDate
-  toCallDate d = LocalTime {
+  toCallDate :: Day -> TimeOfDay -> CallDate
+  toCallDate d td = LocalTime {
                    localDay = d
-                 , localTimeOfDay = midnight
+                 , localTimeOfDay = td
                  }
+  {-# INLINE toCallDate #-}
 
 -- | Try to apply a bundle rate to a CDR, considering only the bundle limits conditions, and without considering the children rates,
 --   and other rate params.
 --
 --   DEV NOTES: this code must be fast because it is called for each CDR.
---   @require: the CDR calldate is inside the BundleState time-frame, but not necessaril the unit-id
+--   @require: the CDR calldate is inside the BundleState time-frame, but not necessarly the unit-id
 --   @require: BundleState is correctly initializated according the time-frame
 bundle_canBeApplied
   :: RootBundleRatePlan
@@ -1610,12 +1592,12 @@ bundle_canBeApplied
   -> Maybe BundleCallDuration
   -- ^ Nothing if the rate can not be applied, the duration of the call that can be rated from the bundle rate otherwise
 
-bundle_canBeApplied rootBundleRate bundlePlan state1 (cdr, unitId, duration1)
+bundle_canBeApplied rootBundleRate bundlePlan bundleState1@(_, state1) (cdr, unitId, duration1)
   = case IMap.lookup unitId unitRecs of
       Nothing
         -> Nothing
            -- the unit-id has no associated bundle-state
-      Just [(bundleParams, (unitStartingCallDate, unitEndingCallDate))]
+      Just (bundleParams, (unitStartingCallDate, unitEndingCallDate))
         -> case callDate >= unitStartingCallDate of
              False
                -> Nothing
@@ -1631,9 +1613,10 @@ bundle_canBeApplied rootBundleRate bundlePlan state1 (cdr, unitId, duration1)
   rateId = bundle_systemId bundlePlan
 
   (_, _, unitRecs)
-    = case IMap.lookup rateId state1 of
-        Just r -> r
-        Nothing -> error $ "error code b2: rateId " ++ show rateId ++ ",\nfor rate " ++ show bundlePlan ++ "\non state " ++ show state1
+    = let mr = IMap.lookup rateId state1
+      in  case mr of
+            Just r -> r
+            Nothing -> error ("b2: rateId " ++ show rateId ++ ",\nfor rate " ++ show bundlePlan ++ "\non state " ++ show state1) Nothing
 
   canBeSplit = bundle_canSplit rootBundleRate
 
@@ -1658,8 +1641,9 @@ bundle_canBeApplied rootBundleRate bundlePlan state1 (cdr, unitId, duration1)
                   then Just leftDuration
                   else Nothing
 
--- | Create a BundleRecord for a RootBundleRatePlan, and its children.
---   DEV NOTE: it works on children, because they share the same time-frame.
+-- | Create a new BundleRecord for a RootBundleRatePlan, and its children.
+--
+--   DEV NOTE: it works on children, because by requiremnt they share the same time-frame.
 --
 --   Take in consideration the activation date of a UnitId inside a bundle-time frame.
 --   By design, it does not consider the ending date of a UnitId.
@@ -1668,15 +1652,21 @@ bundle_canBeApplied rootBundleRate bundlePlan state1 (cdr, unitId, duration1)
 rootBundleRate_initBundleRecord
   :: RatingParams
   -> MainRatePlan
+  -> BundlePartition
   -> RootBundleRatePlan
   -> NextScheduledLocalTime
   -- ^ the starting date of the time-frame
-  -> BundleState
+  -> (BundleState, Chunk ServiceCDR)
 
-rootBundleRate_initBundleRecord env mainRatePlan rootBundleRate fromCallDate
-  = List.foldl' processBundleRate IMap.empty (rates $ bundle_plan rootBundleRate)
+rootBundleRate_initBundleRecord env mainRatePlan bundlePartition rootBundleRate fromCallDate
+  = let (newBundleState, newServices) =  List.foldl' processBundleRate (IMap.empty, []) (rates $ bundle_plan rootBundleRate)
+    in  (bundleState_updateCachedNextScheduledLocalTime (Nothing, newBundleState), V.fromList newServices)
 
  where
+
+  precision = params_currencyPrecision env
+  rootRateId = bundle_systemId $ bundle_plan rootBundleRate
+  rootName = fromJust1 "rp13" $ IMap.lookup rootRateId $ mainRatePlan_systemIdToUserIdPath mainRatePlan
 
   rates :: BundleRatePlan -> [BundleRatePlan]
   rates p
@@ -1688,7 +1678,7 @@ rootBundleRate_initBundleRecord env mainRatePlan rootBundleRate fromCallDate
           -> [p] ++ List.concatMap (\c -> rates c) children
              -- process both the root bundle rate plan, and its children, and the children of the children
 
-  (bundleFromCallDate, toCallDate) = timeFrame_fromCallDate rootBundleRate fromCallDate
+  timeFrame@(bundleFromCallDate, toCallDate) = timeFrame_fromCallDate rootBundleRate fromCallDate
 
   timeFrameDuration = timeFrame_duration (bundleFromCallDate, toCallDate)
 
@@ -1707,7 +1697,7 @@ rootBundleRate_initBundleRecord env mainRatePlan rootBundleRate fromCallDate
                             Nothing
                               -> []
                             Just l
-                              -> List.map (\d -> unit_id d) l
+                              -> List.filter (bundlePartition_containsUnitId env bundlePartition timeFrame) $ List.map unit_id l
                   in List.foldl' (\s i -> Set.insert i s) s unitIds
 
                ) Set.empty bundlePriceCategoryIds
@@ -1771,13 +1761,13 @@ rootBundleRate_initBundleRecord env mainRatePlan rootBundleRate fromCallDate
 
   -- | Add info to rec1, adding a record for each UnitId respecting the BundleRatePlan.
   --   A BundleRatePlan share with its parent RootBundleRatePlan, the timeframe, and the activated UnitId.
-  processBundleRate :: BundleState -> BundleRatePlan -> BundleState
-  processBundleRate rec1 ratePlan
+  processBundleRate :: (BundleStateByRatePlan, [ServiceCDR]) -> BundleRatePlan -> (BundleStateByRatePlan, [ServiceCDR])
+  processBundleRate (rec1, services1) ratePlan
     = let rateId = bundle_systemId ratePlan
           rateName = fromJust1 "rp10" $ IMap.lookup rateId (mainRatePlan_systemIdToUserIdPath mainRatePlan)
           bundleParams = bundle_bundleParams ratePlan
 
-          createBundleRecord :: CallDate -> [BundleRecord]
+          createBundleRecord :: CallDate -> BundleRecord
           createBundleRecord unitFromCallDate
             = let duration = timeFrame_duration (max unitFromCallDate bundleFromCallDate, toCallDate)
 
@@ -1792,181 +1782,42 @@ rootBundleRate_initBundleRecord env mainRatePlan rootBundleRate fromCallDate
                         True
                           -> bundleParams_scale params1 proportion
 
+              in (params2, (bundleFromCallDate, toCallDate))
 
-              in [(params2, (bundleFromCallDate, toCallDate))]
+         
+          bundleRecords :: UnitIdMap BundleRecord
+          bundleRecords = IMap.map createBundleRecord activatedUnitIds
 
-      in IMap.insert rateId (toCallDate, rateName, IMap.map createBundleRecord activatedUnitIds) rec1
+          services2 :: [ServiceCDR]
+          services2 = Data.Maybe.mapMaybe (\(u,b) -> toServiceCDRS2 u b) $ IMap.toList bundleRecords 
 
--- | Init a BundleState with the initial values according the CallDate.
---
---   BundleState is a map.
---
---   > RateId -> UnitId -> BundleState.
---
---   Update the bundle state in this way:
---   * close time frames closed at NextScheduledLocalTime,
---   * create a new time frame for each new RateId,
---   * create a new time frame for each new UnitId.
---
---   Add an initial BundleState for every RootBundleRatePlan, that is a new rate, or a rate with a closed time-frame.
---   Leave the already present BundleState otherwise.
---
---   The UnitId are initializated in a way proportional to their presence in the bundle time frame,
---   but only related to the date of when they enter in the bundle,
---   not the date from when they leave the time-frame.
---   This is sound, because a UntId can enter in a bundle, use all its resources,
---   then exit, but he must pay all the bundle, because the exit date is not so significative.
---   NOTE: in reality if also the limits of the bundle are proportional to the exit date,
---   it can make sense, as in case of initial entering date.
---   DEV NOTES: this function is called only at the end of a time-frame, so it can be also slow,
---   because it is called some order of magnitude less than CDR processing functions.
-bundleState_initAccordingRatingParams
-  :: RatingParams
-  -> CheckedMainRatePlan
-  -> Either NextScheduledLocalTime NextScheduledLocalTime
-  -- ^ Right for the time frame to close: delete all time frame closed at this date, and open new time frames. This must be exactly the calldate
-  --   of the time frame to close.
-  --
-  --   Left for creating a BundleState from an empty BundleState.
-  --   Usually it is called only the first time Asterisell run.
-  --   Consider as start timeframe the nearest timeframe, containing the specified CallDate, according the time frame of the rate.
-  --   In this way all CDRS from this date, to next dates, can be processed, and they can update the BundleState.
-  -> BundleState
-  -> BundleState
+      in (IMap.insert rateId (toCallDate, rateName, bundleRecords) rec1, services1 ++ services2)
 
-bundleState_initAccordingRatingParams env mainRatePlan referenceCallDate state1
-  = List.foldl' initRootRate state2 (mainRatePlan_bundleRates mainRatePlan)
- where
+  {-# INLINE toServiceCDRS2 #-}
+  toServiceCDRS2 :: UnitId -> BundleRecord -> Maybe ServiceCDR
+  toServiceCDRS2 unitId (bundle, bundleTimeFrame)
+      = generateServiceCDR unitId bundleTimeFrame (bundle_initialCost bundle)
 
- toName :: RateSystemId -> CompleteUserRateRefName
- toName rateId
-   = fromJust1 "rp11" $ IMap.lookup rateId (mainRatePlan_systemIdToUserIdPath mainRatePlan)
-
- -- Remove all closed time bundle-state time-frames, from state1.
- state2 :: BundleState
- state2
-   = case referenceCallDate of
-       Left _
-         -> state1
-       Right endingTimeFrame
-         -> IMap.filter (\(endCallDate, _, unitsState) -> not (endCallDate == endingTimeFrame)) state1
-
- -- | Insert in BundleState a new RootBundleRatePlan.
- initRootRate :: BundleState -> RootBundleRatePlan -> BundleState
- initRootRate state1 bundleRate
-   = let rateId = bundle_systemId $ bundle_plan bundleRate
-
-         endingTimeFrame
-           = case referenceCallDate of
-               Right r
-                 -> r
-               Left d
-                 -> fst $ timeFrame_fromCallDate bundleRate d
-
-     in  case IMap.lookup rateId state1 of
-           Just _
-             -> state1
-           Nothing
-             -> let initState2 = rootBundleRate_initBundleRecord env mainRatePlan bundleRate endingTimeFrame
-                in  IMap.union initState2 state1
-
--- | Generate ServiceCDRs for a BundleRate timeframe that can be considered closed.
---   Group and sum all the service-cdrs associatet to the same organization and RootBundleRatePlan, generating only one service-cdr.
---   In case of services generated for open bundle-rates, it uses as to_calldate, the calldate of the next time frame, for being sure that
---   the service-cdr will be deleted every time a new rating process start. Otherwise service CDRs can be generated repeated:
---   * one time for open bundle rates
---   * another time when the bundle-rate is closed
---   * (see #1341 for more details)
---   DEV NOTE: this function it is not needed to be very fast, because it is called only at the end of the time frame
-bundleState_closeServiceCDRsAccordingRatePlan
-  :: RatingParams
-  -> CheckedMainRatePlan
-  -> RootBundleRatePlan
-  -> BundleState
-  -> Maybe NextScheduledLocalTime
-  -- ^ the calldate of the new timeframe. All the ServiceCDRs until this date must be closed.
-  --   If Nothing generate ServiceCDRS for all open bundle state, because it must be generate
-  --   temporary/pending ServiceCDRS.
-  -> [ServiceCDR]
-  -- ^ the associated ServiceCDRs
-
-bundleState_closeServiceCDRsAccordingRatePlan env mainRatePlan rootBundleRate state1 maybeTimeFrameToClose
-  = Map.elems $ Map.map (fromJust1 "rp12") $ Map.filter (isJust) serviceCDRS
-
-  where
-
-    rootId = bundle_systemId $ bundle_plan rootBundleRate
-    rootName = fromJust1 "rp13" $ IMap.lookup rootId $ mainRatePlan_systemIdToUserIdPath mainRatePlan
-    precision = params_currencyPrecision env
-
-    groupedIncomes :: Map.Map (UnitId, TimeFrame) (MonetaryValue, Int)
-    groupedIncomes
-      = IMap.foldlWithKey' groupFilteringRate Map.empty state1
-
-    groupFilteringRate :: Map.Map (UnitId, TimeFrame) (MonetaryValue, Int) -> RateSystemId -> (NextScheduledLocalTime, CompleteUserRateRefName, UnitIdMap [BundleRecord]) -> Map.Map (UnitId, TimeFrame) (MonetaryValue, Int)
-    groupFilteringRate g1 rateId (nextTimeFrame, completeName, unitRecords)
-      = let closedTimeFrame
-              = case maybeTimeFrameToClose of
-                  Nothing
-                    -> True
-                  Just timeFrameToClose
-                    -> nextTimeFrame == timeFrameToClose
-
-            rootIdOfRateId = bundle_systemId $ bundle_plan $ fromJust1 "rp14" $ IMap.lookup rateId $ mainRatePlan_systemIdToRootBundleRate mainRatePlan
-
-        in if rootIdOfRateId == rootId && closedTimeFrame
-           then IMap.foldlWithKey' (groupByUnit nextTimeFrame) g1 unitRecords
-             -- process each unit-id
-           else g1
-                -- skip this
-
-    groupByUnit :: CallDate -> Map.Map (UnitId, TimeFrame) (MonetaryValue, Int) -> UnitId -> [BundleRecord] -> Map.Map (UnitId, TimeFrame) (MonetaryValue, Int)
-    groupByUnit callTime g1 unitId [(bundle, (startTimeFrame, endTimeFrame))]
-      = let cost1 = (bundle_minCost bundle) - (bundle_appliedCost bundle)
-            cost2 = if cost1 > 0 then cost1 else 0
-            cost3 = cost2 + (bundle_initialCost bundle)
-
-            isExpectedStartTimeFrame1
-              = case maybeTimeFrameToClose of
-                  Nothing
-                    -> True
-                  Just timeFrameToClose
-                    -> timeFrameToClose == startTimeFrame
-
-            isExpectedStartTimeFrame2
-              = callTime == startTimeFrame
-
-            endTimeFrameToUse
-              = case maybeTimeFrameToClose of
-                  Nothing
-                    -> snd $ timeFrame_fromCallDate rootBundleRate endTimeFrame
-                  Just _
-                    -> endTimeFrame
-
-            g2 = Map.insertWith (\(o1, o2) (n1, n2) -> (o1 + n1, o2 + n2)) (unitId, (startTimeFrame, endTimeFrameToUse)) (cost3, 1) g1
-
-        in  Exception.assert (isExpectedStartTimeFrame1 && isExpectedStartTimeFrame2) g2
-
-    serviceCDRS :: Map.Map (UnitId, TimeFrame) (Maybe ServiceCDR)
-      = Map.mapWithKey generateByUnitId groupedIncomes
-
-    generateByUnitId :: (UnitId, TimeFrame) -> (MonetaryValue, Int) -> Maybe ServiceCDR
-    generateByUnitId (unitId, (startTimeFrame, endTimeFrame)) (cost, count)
+  generateServiceCDR :: UnitId -> TimeFrame -> MonetaryValue -> Maybe ServiceCDR
+  generateServiceCDR unitId (startTimeFrame, endTimeFrame) cost
       = let
             externalTelephoneNumber
               = serviceCdr_defaultExternalTelephoneNumber (bundle_serviceCDRType rootBundleRate) (bundle_serviceCDRDescription rootBundleRate)
             -- NOTE: the rate compilation procedure generate a telephone prefix associated to this telephone number.
 
             cdr = (cdr_empty startTimeFrame precision) {
-                    cdr_countOfCalls = count
+                    cdr_countOfCalls = 0
+                  -- NOTE: I'm using 0 because the total of calls is already in normal calls,
+                  -- and if I set a value here, it will be added two times to the totals in call report.
                   , cdr_toCalldate = Just endTimeFrame
+                  , cdr_isServiceCDR = True
                   , cdr_direction = CDR_outgoing
                   , cdr_errorDirection = CDR_none
                   , cdr_isRedirect = False
+                  , cdr_billsec = Just 0
                   , cdr_duration = Just 0
                   -- NOTE: I'm using 0 because the total of calls is already in normal calls,
                   -- and if I set a value here, it will be added two times to the totals in call report.
-                  , cdr_billsec = Just 0
                   , cdr_internalTelephoneNumber = ""
                   , cdr_organizationUnitId = Just $ unitId
                   , cdr_bundleOrganizationUnitId = Nothing
@@ -1989,6 +1840,76 @@ bundleState_closeServiceCDRsAccordingRatePlan env mainRatePlan rootBundleRate st
            then Nothing
            else Just cdr
 
+-- | Update a BundleState:
+--   * close time frames closed at NextScheduledLocalTime,
+--   * create a new time frame for each new RateId,
+--   * create a new time frame for each new UnitId,
+--   * preserve information of unit-ids in not yet closed bundle-states
+--   * generate service-cdrs of the newly opened bundle-rates 
+--
+--   The UnitId are initializated in a way proportional to their presence in the bundle time frame,
+--   but only related to the date of when they enter in the bundle,
+--   not the date from when they leave the time-frame.
+--   This is sound, because a UntId can enter in a bundle, use all its resources,
+--   then exit, but he must pay all the bundle, because the exit date is not so significative.
+--   NOTE: in reality if also the limits of the bundle are proportional to the exit date,
+--   it can make sense, as in case of initial entering date.
+--   DEV-NOTES: this function is called only at the end of a time-frame, so it can be also slow.
+--   DEV-NOTES: this function is used from `bundleState_updateAndGetServiceCdrs`, and should not called directly.
+bundleState_updateAccordingRatingParams
+  :: RatingParams
+  -> CheckedMainRatePlan
+  -> BundlePartition
+  -- ^ init only the unit-ids of this partition
+  -> Either NextScheduledLocalTime NextScheduledLocalTime
+  -- ^ Right for the time frame to close: delete all time frame closed at this date, and open new time frames. This must be exactly the calldate
+  --   of the time frame to close.
+  --
+  --   Left for creating a BundleState from an empty BundleState.
+  --   Usually it is called only the first time Asterisell run.
+  --   Consider as start timeframe the nearest timeframe, containing the specified CallDate, according the time frame of the rate.
+  --   In this way all CDRS from this date, to next dates, can be processed, and they can update the BundleState.
+  -> BundleState
+  -- ^ the bundle state to update, in which there can be open time-frames to preserve
+  -> (BundleState, Chunk ServiceCDR)
+
+bundleState_updateAccordingRatingParams env mainRatePlan bundlePartition referenceCallDate bundleState1@(_, state1)
+  = let (newState, newServices) = List.foldl' initRootRate (bundleState2, []) (mainRatePlan_bundleRates mainRatePlan)
+    in  (bundleState_updateCachedNextScheduledLocalTime newState, V.concat newServices)
+ where
+
+  toName :: RateSystemId -> CompleteUserRateRefName
+  toName rateId
+    = fromJust1 "rp11" $ IMap.lookup rateId (mainRatePlan_systemIdToUserIdPath mainRatePlan)
+
+  -- | Remove all closed time bundle-state time-frames, from state1.
+  bundleState2 :: BundleState
+  bundleState2
+   = case referenceCallDate of
+       Left _
+         -> bundleState1
+       Right endingTimeFrame
+         -> (Nothing, IMap.filter (\(endCallDate, _, unitsState) -> not (endCallDate == endingTimeFrame)) state1)
+
+  -- | Insert in BundleState a new RootBundleRatePlan.
+  initRootRate :: (BundleState, [Chunk ServiceCDR]) -> RootBundleRatePlan -> (BundleState, [Chunk ServiceCDR])
+  initRootRate (bundleState1@(_, state1), services1) bundleRate
+   = let rateId = bundle_systemId $ bundle_plan bundleRate
+
+         endingTimeFrame
+           = case referenceCallDate of
+               Right r
+                 -> r
+               Left d
+                 -> fst $ timeFrame_fromCallDate bundleRate d
+
+     in  case IMap.lookup rateId state1 of
+           Just _
+             -> ((Nothing, state1), services1)
+           Nothing
+             -> let ((_, initState2), services2) = rootBundleRate_initBundleRecord env mainRatePlan bundlePartition bundleRate endingTimeFrame
+                in  ((Nothing, IMap.union initState2 state1), services2:services1)
+
 -- | Update the bundle-map applying a BundleCallDuration.
 --   DEV NOTES: this code must be fast because it is called for each CDR.
 --   @require BundleCallDuration can be applied enterily to the BundleState, because it is already managed from bundle_canBeApplied function.
@@ -2001,14 +1922,14 @@ bundleState_update
   -> MonetaryValue
   -> BundleState
 
-bundleState_update bundleState1 rateId unitId countOfCalls callDuration cost
-  = IMap.insert rateId (date1, rateName, IMap.insert unitId [(rec2, date2)] units1) bundleState1
+bundleState_update bundleState1@(cachedDate1, state1) rateId unitId countOfCalls callDuration cost
+  = (cachedDate1, IMap.insert rateId (date1, rateName, IMap.insert unitId (rec2, date2) units1) state1)
 
  where
 
-  (date1, rateName, units1) = fromJust1 "rp15" $ IMap.lookup rateId bundleState1
+  (date1, rateName, units1) = fromJust1 "rp15" $ IMap.lookup rateId state1
 
-  [(rec1, date2)] = fromJust1 "rp16" $ IMap.lookup unitId units1
+  (rec1, date2) = fromJust1 "rp16" $ IMap.lookup unitId units1
 
   rec2 = rec1 {
            bundle_leftDuration
@@ -2159,7 +2080,7 @@ calcParams_override x y
   ov (Just x) (Just y) = Just y
 
 calcParams_overrideList :: [CalcParams] -> CalcParams
-calcParams_overrideList [] = error "unexpected condition"
+calcParams_overrideList [] = error "ERR 05777"
 calcParams_overrideList (first:rest)
   = List.foldl' (\old new -> calcParams_override old new) first rest
 
@@ -2196,7 +2117,8 @@ calcParams_calc rateRole params cdr
                                then delta
                                else let (t, r) =  divMod totSec delta
                                         t1 = if r > 0 then t + 1 else t
-                                    in t1 * delta
+                                    in  t1 * delta
+
           totSec <- return $ if totSec < atLeastXSeconds then atLeastXSeconds else totSec
 
           cost <- return $ (costForMinute * fromIntegral totSec) / 60
@@ -2379,14 +2301,14 @@ data InitialRatingParams
       , iparams_defaultTelephonePrefixToNotDisplay :: Maybe Text.Text
         -- ^ telephone numbers starting with these prefix are shortened, not including it,
         -- because it is an implicit prefix.
+      , iparams_organizationToIgnore :: Maybe Text.Text
       , iparams_currencyPrecision :: Int
-      , iparams_debugFileName :: FilePath
+      , iparams_debugFileName :: Maybe FilePath
       , iparams_fromDate :: CallDate
-      , iparams_toDate :: CallDate
+      , iparams_testToDate :: Maybe CallDate
+        -- ^ a date on which limit ar_source_cdr, for unit testing reasons
       , iparams_isRateUnbilledCallsEvent :: Bool
         -- ^ True if the rating operation is associated to a rerate all unbilled calls
-      , iparams_onlyImportedServices :: Bool
-        -- ^ True if it must rate only Imported Service CDRS
       , iparams_dbName :: String
       , iparams_dbUser :: String
       , iparams_dbPasswd :: String
@@ -2404,6 +2326,7 @@ iparams_dbConf p
 
 params_dbConf :: RatingParams -> DBConf
 params_dbConf p = iparams_dbConf $ params_initial p
+{-# INLINE params_dbConf #-}
 
 -- | Extensions to export to an external database.
 type ExtensionsToExport = Trie ()
@@ -2414,28 +2337,29 @@ type ExtensionsToExport = Trie ()
 data RatingParams
   = RatingParams {
       params_initial :: InitialRatingParams
-    , params_isShorterSafeTimeFrame :: Bool
-      -- ^ it is used a shorter time frame, respect the original requested timeframe,
+    , params_isShorterSafeTimeFrame :: Maybe CallDate
+      -- ^ Nothing if all CDRS can be rated.
+      --   A calldate where stop rating, before the original requested timeframe,
       --   because in the original time-frame there were changes in main income or cost rates.
-    , params_bundleStateFromCallDate :: CallDate
-      -- ^ the first bundle state start at this date.
-      -- @ensure less or equal to rate from date
-    , params_bundleStateCanBeSavedFromCallDate :: CallDate
-      -- ^ cdrs can be saved/updated from this date, before this date
-      --   they can be used for calculating the bundle-state, but they are not
-      --   deleted from the DB.
-      -- @ensure less or equal to rate from date
-    , params_bundleStateToCallDate :: CallDate
-      -- ^ the date of when the bundle state will be closed
-    , params_initialBundleState :: Maybe BundleState
+    , params_saveBundleStateImmediatelyAfter :: CallDate
+      -- ^ save the bundle for the first CDR after this date.
+      --   This is a date a little before the last imported CDR,
+      --   in order to not invalidate the bundle, in case there are pending calls,
+      --   not yet imported.
+    , params_lastSavedBundleState :: BundleState
+      -- ^ in case it starts with an empty BundleState, the initial serviceCDRS
+    , params_unbilledCallsFrom :: CallDate
     , params_rateChanges :: DBRateChanges
     , params_rates :: CachedDBRates
     , params_extensionsToExport :: ExtensionsToExport
     , params_rateCategories :: RateCategories
+    , params_ratingCodes :: RatingCodes
     , params_vendors :: Vendors
     , params_channelTypes :: ChannelTypes
     , params_channelDomains :: ChannelDomains
     , params_telephonePrefixes :: TelephonePrefixes
+    , params_idToTelephonePrefix :: IdToTelephonePrefix
+    , params_holidays :: Holidays
     , params_organizations :: Info
     , params_fastLookupCDRImporters :: FastLookupCDRImporters
     , params_services :: ServiceIdMap Service
@@ -2443,71 +2367,103 @@ data RatingParams
     -- ^ @ensure prices are ordered by date in reverse order
     , params_assignedServices :: ServiceIdMap (UnitIdMap [AssignedService])
     -- ^ @ensure assignments are in reverse order of assignment
-  } deriving(Show, Generic, NFData)
+    , params_incomeRate :: MainRatePlan
+    , params_costRate :: MainRatePlan
+      -- ^ from this date, CDRS are not yet billed and they can be freely re-rated
+   } deriving (Show)
+
+calc_saveBundleStateImmediatelyAfter :: CallDate -> CallDate
+calc_saveBundleStateImmediatelyAfter d0
+    = let d1 = localTimeToUTC utc d0
+          seconds = - (60 * 30)
+          d2 = addUTCTime (realToFrac seconds) d1
+      in  utcToLocalTime utc d2
+
+params_peakCodes :: RatingParams -> PeakCodes
+params_peakCodes p = holidays_peakCodes $ params_holidays p
+{-# INLINE params_peakCodes #-}
 
 params_isDebugMode :: RatingParams -> Bool
 params_isDebugMode p = iparams_isDebugMode $ params_initial p
+{-# INLINE params_isDebugMode #-}
 
 params_isVoipReseller :: RatingParams -> Bool
 params_isVoipReseller p = iparams_isVoipReseller $ params_initial p
+{-# INLINE params_isVoipReseller #-}
 
-params_onlyImportedServices :: RatingParams -> Bool
-params_onlyImportedServices p = iparams_onlyImportedServices $ params_initial p
+params_organizationToIgnore :: RatingParams -> Maybe Text.Text
+params_organizationToIgnore p = iparams_organizationToIgnore $ params_initial p
+{-# INLINE params_organizationToIgnore #-}
 
 params_digitsToMask :: RatingParams -> Int
 params_digitsToMask p = iparams_digitsToMask $ params_initial p
+{-# INLINE params_digitsToMask #-}
 
 params_defaultTelephonePrefixToNotDisplay :: RatingParams -> Maybe Text.Text
 params_defaultTelephonePrefixToNotDisplay p = iparams_defaultTelephonePrefixToNotDisplay $ params_initial p
+{-# INLINE params_defaultTelephonePrefixToNotDisplay #-}
 
 params_currencyPrecision :: RatingParams -> Int
 params_currencyPrecision p = iparams_currencyPrecision $ params_initial p
+{-# INLINE params_currencyPrecision #-}
 
-params_debugFileName :: RatingParams -> FilePath
+params_debugFileName :: RatingParams -> Maybe FilePath
 params_debugFileName p = iparams_debugFileName $ params_initial p
+{-# INLINE params_debugFileName #-}
 
 params_fromDate :: RatingParams -> CallDate
 params_fromDate p = iparams_fromDate $ params_initial p
+{-# INLINE params_fromDate #-}
 
-params_toDate :: RatingParams -> CallDate
-params_toDate p = iparams_toDate $ params_initial p
+params_testToDate :: RatingParams -> Maybe CallDate
+params_testToDate p = iparams_testToDate $ params_initial p
+{-# INLINE params_testToDate #-}
 
 params_isRateUnbilledCallsEvent :: RatingParams -> Bool
 params_isRateUnbilledCallsEvent p = iparams_isRateUnbilledCallsEvent $ params_initial p
+{-# INLINE params_isRateUnbilledCallsEvent #-}
 
 params_dbName :: RatingParams -> String
 params_dbName p = iparams_dbName $ params_initial p
+{-# INLINE params_dbName #-}
 
 params_dbUser :: RatingParams -> String
 params_dbUser p = iparams_dbUser $ params_initial p
+{-# INLINE params_dbUser #-}
 
 params_dbPasswd :: RatingParams -> String
 params_dbPasswd p = iparams_dbPasswd $ params_initial p
+{-# INLINE params_dbPasswd #-}
 
 params_configuredRatePlanParsers :: RatingParams -> ConfiguredRatePlanParsers
 params_configuredRatePlanParsers p = iparams_configuredRatePlanParsers $ params_initial p
+{-# INLINE params_configuredRatePlanParsers #-}
 
 ratingParams_empty :: InitialRatingParams -> RatingParams
 ratingParams_empty p = RatingParams {
        params_initial = p
-     , params_isShorterSafeTimeFrame = False
-     , params_bundleStateFromCallDate = iparams_fromDate p
-     , params_bundleStateCanBeSavedFromCallDate = iparams_fromDate p
-     , params_bundleStateToCallDate = iparams_toDate p
-     , params_initialBundleState = Nothing
+     , params_isShorterSafeTimeFrame = Nothing
+     , params_saveBundleStateImmediatelyAfter = iparams_fromDate p
+     , params_lastSavedBundleState = bundleState_empty
      , params_rateChanges = rateChanges_empty
      , params_rates = cachedRates_empty
      , params_extensionsToExport = trie_empty
      , params_rateCategories = rateCategories_empty
+     , params_ratingCodes = Set.empty
      , params_vendors = Map.empty
      , params_channelTypes = Map.empty
      , params_channelDomains = trie_empty
      , params_telephonePrefixes = trie_empty
+     , params_idToTelephonePrefix = IMap.empty
+     , params_holidays = []
      , params_organizations = info_empty
      , params_fastLookupCDRImporters = IMap.empty
      , params_services = IMap.empty
      , params_servicePrices = IMap.empty
      , params_assignedServices = IMap.empty
+     , params_incomeRate = mainRatePlan_empty
+     , params_costRate = mainRatePlan_empty
+     , params_unbilledCallsFrom = iparams_fromDate p
    }
 
 -- ----------------------------------------------
@@ -2516,7 +2472,7 @@ ratingParams_empty p = RatingParams {
 ratingParams_respectCodeContracts :: RatingParams -> Either String ()
 ratingParams_respectCodeContracts env
   = do rateChanges_respectCodeContracts (params_rateChanges env)
-       info_respectCodeContracts (params_organizations env)
+       info_respectCodeContracts (params_organizations env) (params_fromDate env)
        serviceParams_respectCodeContracts env
        return ()
 
@@ -2565,6 +2521,7 @@ mainRatePlan_exportServiceCDRSTelephonePrefixes conn sp = do
                      , tpr_matchOnlyExactDigits = Just $ Text.length prefix
                      , tpr_name = sName
                      , tpr_geographic_location = sName
+                     , tpr_rating_code = ""
                      , tpr_operator_type = sType
                      , tpr_display_priority = 10
                      }
@@ -2614,8 +2571,8 @@ rateChanges_empty = Map.empty
 -- | Add a value only if it is useful for rating the specified time frame.
 --   @require: recent values are inserted before older values (descending order on application date)
 --   @ensure: recent values are near the head of the list
-rateChanges_insertIfInTimeFrame :: DBRateChanges -> CallDate -> CallDate -> DBRateReferenceName -> DBRateId -> CallDate -> DBRateChanges
-rateChanges_insertIfInTimeFrame changes rateCDRSFromCallDate rateCDRSToCallDate rateRef rateId applyRateFromTime
+rateChanges_insertIfInTimeFrame :: DBRateChanges -> CallDate -> DBRateReferenceName -> DBRateId -> CallDate -> DBRateChanges
+rateChanges_insertIfInTimeFrame changes rateCDRSFromCallDate rateRef rateId applyRateFromTime
   = Map.insertWith
      (\newValue oldValue
        -> let (applyRateToTime, _) = List.last oldValue
@@ -2625,14 +2582,9 @@ rateChanges_insertIfInTimeFrame changes rateCDRSFromCallDate rateCDRSToCallDate 
                     -- do nothing because the previous more recent rate was sufficient to rate all the CDRS
                     -- in the rating time-frame, and this is superfluous, because too old
                False
-                 -> case applyRateFromTime >= rateCDRSToCallDate of
-                      True
-                        -> oldValue
-                           -- do nothing because the current rate is outside rating time frame
-                      False
-                        -> oldValue ++ newValue
-                           -- insert the new rate time frame after the previous rate,
-                           -- so most recent rates are in head (NOTE: the input is from recent to old rate)
+                 -> oldValue ++ newValue
+                    -- insert the new rate time frame after the previous rate,
+                    -- so most recent rates are in head (NOTE: the input is from recent to old rate)
 
      ) rateRef [(applyRateFromTime, rateId)] changes
      -- NOTE: new rates are added by default by `insertWith` function.
@@ -2666,192 +2618,343 @@ rateChanges_getRateId rateChanges refName cdrTime
       then Just (i, l)
       else f (Just t) r
 
--- | Load complete RatingParams.
+-- | Load/init complete RatingParams.
+--   DEV-NOTE: decide also how to split the rating time-frame, and how to sanitize the rating time-frame.
+--   DEV-NOTE: it should work when there are main rate plans with bundle-rates, or when there are no saved bundle states.
+--
+--   The idea it is to support efficiently the incremental rating of CDRS, saving the previous calculated bundle-state,
+--   and starting from here.
+--   All other rating requests will be start from the begin of the bundle-state.
+--   Signal errors if the billing-time frame does not contains entirely all the bundle-rates,
+--   and other logical erors in the rate-plan.
+--
 ratePlan_loadRatingParams :: InitialRatingParams -> IO RatingParams
 ratePlan_loadRatingParams p0 =
-  safeBracket
-    (openDBConnection (iparams_dbConf p0) True)
-    (\maybeExc conn -> do
-          case maybeExc of
-            Just exc
-              -> do DB.execute_ conn "ROLLBACK"
-                    return ()
-            Nothing
-              -> do DB.execute_ conn "COMMIT"
-                    return ()
-          DB.close conn)
+  withResource
+    (db_openConnection (iparams_dbConf p0) False)
+    (\conn -> execStateT (mainLoad conn) (ratingParams_empty p0))
+    (db_releaseResource)
+    (\exc -> SomeException $ AsterisellException $ "Error during loading of rating params: " ++ displayException exc)
 
-    (\conn -> do
+  where
 
+   mainLoad :: DB.MySQLConn -> StateT RatingParams IO ()
+   mainLoad conn = do
+      liftIO $ db_openTransaction conn
       let precisionDigits = iparams_currencyPrecision p0
       let configuredRateParsers = iparams_configuredRatePlanParsers p0
       let isDebugMode = iparams_isDebugMode p0
-      let onlyImportedServices = iparams_onlyImportedServices p0
-
-      let p1 = ratingParams_empty p0
 
       --
       -- Load all Rating Params, excepts rates and telephone prefixes.
       -- These params are necessary for loading rates.
       --
 
-      rateCategories <- rateCategories_load conn isDebugMode
-      vendors <- vendors_load  conn isDebugMode
-      channelTypes <- channelTypes_load conn isDebugMode
-      channelsDomains <- channelDomains_load conn isDebugMode
-      extensions <- extensions_load conn isDebugMode 
+      rateCategories <- liftIO $ rateCategories_load conn isDebugMode
+      vendors <- liftIO $ vendors_load  conn isDebugMode
+      channelTypes <- liftIO $ channelTypes_load conn isDebugMode
+      channelsDomains <- liftIO $ channelDomains_load conn isDebugMode
+      extensions <- liftIO $ extensions_load conn isDebugMode (iparams_organizationToIgnore p0)
+      ratingCodes1 <- liftIO $ telephonePrefixes_loadRatingCodes conn isDebugMode
+      holidays1 <- liftIO $ holidays_load conn isDebugMode
+      unbilledCallsFrom <- liftIO $ defaultParams_unbilledCallsFrom conn "0275"
 
-      let p2 = p1 {
+      modify' $ \p -> p {
                  params_rateCategories = rateCategories
                , params_vendors = vendors
                , params_channelTypes = channelTypes
                , params_channelDomains = channelsDomains
                , params_organizations = extensions
+               , params_ratingCodes = ratingCodes1
+               , params_holidays = holidays1
+               , params_unbilledCallsFrom = unbilledCallsFrom
                }
+      p <- get
+      p' <- liftIO $ serviceParams_load conn p
+      put p'
 
-      p3 <- serviceParams_load conn p2
+      --
+      -- Derive (if exists) the bundle time-frame.
+      --
+
+      let ratesToImport1 :: HSet.HashSet Text.Text = HSet.fromList [mainRatePlanRef CostRate, mainRatePlanRef IncomeRate]
+      p <- get
+      p' <- liftIO $ ratePlan_loadRates conn p ratesToImport1
+      put p'
+
+      p <- get
+      (bundleStartAtCallDate, previousBundleStartAtCallDate)
+        <- case env_getRate p (mainRatePlanRef IncomeRate) (params_fromDate p) of
+             Nothing
+               -> liftIO $ throwIO $ AsterisellException $ "The \"main-income-rate\" is missing at date " ++ (show $ fromLocalTimeToMySQLDateTime $ params_fromDate p)
+
+             Just (ratePlan, _)
+               -> let t0 = mainRatePlan_getBundleRateStartCallDate ratePlan (params_fromDate p)
+
+                      -- subtract 1 second
+                      tz = minutesToTimeZone 0
+                      t1 = addUTCTime (-1) (localTimeToUTC tz t0)
+                      t2 = utcToLocalTime tz t1
+
+                      t3 = mainRatePlan_getBundleRateStartCallDate ratePlan t2
+
+                  in  return (t0, t3)
+
+      --
+      -- Check if the Main Rate Plan is well formed.
+      --
+
+      let checkP1 = ratingParams_empty $ p0 { iparams_fromDate = bundleStartAtCallDate }
+      checkP2 <- liftIO $ calcStableTimeFrame conn checkP1
+      when (isJust $ params_isShorterSafeTimeFrame checkP2)
+           (throwIO $ AsterisellException
+                      ("The CDRs must be rated from date " ++  show (fromLocalTimeToMySQLDateTime bundleStartAtCallDate) ++ " (taking in consideration the start of the bundle time-frame), but in this time-frame there are changes in the main income or cost rate plan (note: not the individual referenced CSV rates that can change, but the main rate plan), and Asterisell can not determine which rate plan to use for calculating bundles. Specify a common rate plan in the specified time-frame, that takes in consideration both old customers with the old rating plan, and new customers with different rating categories and different rating plans. At the end of the bigger bundle time-frame, you can load a completely different rating plan, that can ignore old types of rating plans, but until they can be virtually active, you must include them in rating plan of the bundle time-frame."))
+
+      --
+      -- Load main rate plans
+      --
+
+      p <- get
+      incomeRatePlan <- liftIO $ loadMainRatePlan (mainRatePlanRef IncomeRate) p bundleStartAtCallDate
+      costRatePlan <- liftIO $ loadMainRatePlan (mainRatePlanRef CostRate) p bundleStartAtCallDate
+
+      modify' $ \p -> p { params_incomeRate = incomeRatePlan
+                        , params_costRate = costRatePlan }
+
+      --
+      -- Init or load bundle-state, influencing also the rating time-frame,
+      -- in case there is no saved bundle-state, because CDRS must be processed again from the beginning.
+      --
+      -- This code had to work also if there are no bundle-rates.
+      --
+      -- Check also (and signal the error) that all bundle-state starts and ends within the billing-time frame,
+      -- because after a billing time-frame there can not be changes to rated CDRS, and it is all considered read-only,
+      -- and changes in customers can create new service CDRS and so on.
+      -- So this condition is reasonable enough in real usage scenario, and simplify the logic of the code.
+      -- DEV-NOTE: if some customer request, we can improve the code, but it requires times/tests, so I stick with this for now.
+      --
+
+      p <- get
+      -- If there is an already cached and saved bundle_state, use it
+      let query1 = [str| SELECT
+                       |   id
+                       | , to_time
+                       | , data_file
+                       | FROM ar_bundle_state
+                       | WHERE to_time <= ?
+                       | AND to_time > ?
+                       | AND to_time >= ?
+                       | ORDER BY to_time
+                       | DESC LIMIT 1
+                       |]
+
+      let beforeThisCallDateIsAnIllegalRerate
+            = case (params_fromDate p) < unbilledCallsFrom of
+                True -> params_fromDate p
+                        -- ^ it can change already billed CDRS because it is explicitely requested,
+                        -- but in any case not before the date of the request
+                False -> unbilledCallsFrom
+                         -- ^ it can not change CDRS that are already billed to customers,
+                         -- but it is safe rating few CDRS in the past respect the requested date,
+                         -- so we can reuse the incremetal bundle-state.
+
+      let params1 = [toDBLocalTime $ params_fromDate p 
+                     -- ^ consider `<= ?` because the date is exclusive, so all the new CDRS from this date (inclusive)
+                     -- to next dates can be added to the old bundle-state. In other word, it contains all CDRS before to_time.
+                     -- We are saying that the bundle-state can not in the future respect the requested rating date,
+                     -- bun only in the past.$
+                   , toDBLocalTime bundleStartAtCallDate
+                    -- ^ consider `> ?` because otherwise it is better starting with an empty bundle.
+                    -- We are saying that the main bundle is initializated at this date,
+                    -- and if we have a bundle-state too much in the past, we can start with a fresh bundle-state.
+                   , toDBLocalTime beforeThisCallDateIsAnIllegalRerate
+                   ]
+
+      (qsDef, qs) <- liftIO $ DB.query conn query1 params1
+      maybeRow <- liftIO $ S.toList qs
+      liftIO $ DB.skipToEof qs
+      startWithNewBundleState <-
+        case maybeRow of
+         [[_, savedBundleCallDate, content]]
+           -> case (B64.decode $ fromTextToByteString $ fromDBText content) of
+                Left err
+                  -> return True
+                Right content2
+                  -> case (DBS.decode $ LZ.decompress content2) of
+                       Left err
+                         -> return True
+                       Right (b :: BundleState)
+                         -> do modify' $ \p ->  p { params_lastSavedBundleState = b
+                                                  , params_initial = (params_initial p) { iparams_fromDate = fromDBLocalTime savedBundleCallDate }
+                                                  }
+                               return False 
+
+         [] -> return True
+         unexpected -> throwIO $ AsterisellException ("Error 11775 in application code. Unexpected result: " ++ show unexpected ++ ", with column defs " ++ show qsDef)
+
+      -- Start with the previous bundle-state,
+      -- so it will be immediately invalidated during rating,
+      -- and new service CDRS will be generated. 
+      when startWithNewBundleState
+           (case bundleStartAtCallDate >= beforeThisCallDateIsAnIllegalRerate of
+              True -> modify' (\p -> let
+                                          (bs, _) = bundleState_updateAccordingRatingParams
+                                                      p
+                                                      (params_incomeRate p)
+                                                      bundlePartition_all
+                                                      (Left previousBundleStartAtCallDate)
+                                                      bundleState_empty
+
+                                     in p { params_lastSavedBundleState = bs
+                                          , params_initial = (params_initial p) { iparams_fromDate = bundleStartAtCallDate }
+                                          })
+              False -> throwIO $ AsterisellException
+                          ("The CDRs can be rated only from date " ++  show (fromLocalTimeToMySQLDateTime unbilledCallsFrom) ++ ", because previous CDRS are already billed to customers. But there are bundle-rates activated at a previous date " ++ show (fromLocalTimeToMySQLDateTime bundleStartAtCallDate) ++ ", and this requires a rerating of already billed CDRS. The application up to date does not support this configuration, so you had to change the bundle-rates or your billing time-frame. It is required that all bundle-rates starts and ends inside the billing time-frame. Billing time-frame con be bigger than bundle-rates time-frames, but not the contrary."))
 
       --
       -- Adapt rating time-frame of CDRS and BundleState
-      -- to a safe/stable one.
+      -- to a safe/stable one: a rating time-frame in which the main rate-plans do not change,
+      -- so all CDRS in this rating-frame can be rated using the same method.
+      -- In case it is not stable, the rating time-frame can be split.
       --
 
-      p4 <- calcStableTimeFrame conn p3
-      let ratesToImport1 :: HSet.HashSet Text.Text = HSet.fromList ["main-cost-rate", "main-income-rate"]
-      p5 <- ratePlan_loadRates conn p4 ratesToImport1
-
-      p6 <- case env_getRate p5 "main-income-rate" (params_fromDate p5) of
-             Nothing
-               -> throw $ AsterisellException $ "The \"main-income-rate\" is missing at date " ++ (show $ fromLocalTimeToMySQLDateTime $ params_fromDate p5)
-
-             Just (ratePlan, _)
-               -> let (d1, d2) = mainRatePlan_getBundleRateStartCallDate ratePlan (params_fromDate p5)
-                      d3 = mainRatePlan_getBundleRateEndCallDate ratePlan (params_toDate p5)
-                  in  return p5 {
-                                params_bundleStateFromCallDate = d1
-                              , params_bundleStateCanBeSavedFromCallDate = d2
-                              , params_bundleStateToCallDate = d3
-                             }
-
-      let checkP1 = ratingParams_empty $ p0 { iparams_fromDate = params_bundleStateFromCallDate p6
-                                            , iparams_toDate = params_bundleStateToCallDate p6 }
-      checkP2 <- calcStableTimeFrame conn checkP1
-      when (params_isShorterSafeTimeFrame checkP2)
-           (throw $ AsterisellException
-                      ("The CDRs must be rated from date " ++  show (fromLocalTimeToMySQLDateTime $ params_bundleStateFromCallDate p6) ++ " (taking in consideration the start of the bundle time-frame), to date " ++ show (fromLocalTimeToMySQLDateTime $ params_bundleStateToCallDate p6) ++ " (taking in consideration the ending of the bundle time frame), but in this time-frame there are changes in the main income or cost rate plan (note: not the individual referenced CSV rates that can change, but the main rate plan), and Asterisell can not determine which rate plan to use for calculating bundles. Specify a common rate plan in the specified time-frame, that takes in consideration both old customers with the old rating plan, and new customers with different rating categories and different rating plans. At the end of the bigger bundle time-frame, you can load a completely different rating plan, that can ignore old types of rating plans, but until they can be virtually active, you must include them in rating plan of the bundle time-frame."))
-
-      -- If there is an already cached and saved bundle_state, use it
-      p7 <- case onlyImportedServices of
-             True
-               -> return $ p6 { params_bundleStateFromCallDate = params_fromDate p6
-                              , params_bundleStateCanBeSavedFromCallDate = params_fromDate p6
-                              , params_bundleStateToCallDate = params_toDate p6
-                              }
-             False
-               -> do let query1 = [str| SELECT
-                                      |   id
-                                      | , to_time
-                                      | , data_file
-                                      | FROM ar_bundle_state
-                                      | WHERE to_time <= ?
-                                      | AND to_time > ?
-                                      | ORDER BY to_time
-                                      | DESC LIMIT 1
-                                      |]
-
-                     let params1 = [toDBLocalTime $ params_fromDate p6, toDBLocalTime $ params_bundleStateFromCallDate p6]
-                     -- NOTE: consider `<= ?` because the date is exclusive, so all the new CDRS from this date (inclusive)
-                     -- to next dates can be added to the old bundle-state. In other word, it contains all CDRS before to_time.
-                     -- NOTE: consider `> ?` because otherwise it is better starting with an empty bundle.
-
-                     (qsDef, qs) <- DB.query conn query1 params1
-                     maybeRow <- S.toList qs
-                     DB.skipToEof qs
-                     case maybeRow of
-                       [[_, savedBundleCallDate, content]]
-                         -> case  DBS.decode $ LZ.decompress (fromDBByteString content) of
-                              Left err
-                                -> return p6
-                              Right (b :: BundleState)
-                                -> return $ p6 { params_bundleStateFromCallDate = fromDBLocalTime savedBundleCallDate
-                                               , params_bundleStateCanBeSavedFromCallDate = fromDBLocalTime savedBundleCallDate
-                                               }
-                       [] -> return p6
-                       unexpected
-                         -> do throw $ AsterisellException ("Error 11775 in application code. Unexpected result: " ++ show unexpected ++ ", with column defs " ++ show qsDef)
-
+      p <- get
+      p' <- liftIO $ calcStableTimeFrame conn p
+      put p'
 
       --
-      -- Load Rates in the rating time frame.
+      -- Configure `params_saveBundleStateImmediatelyAfter`
       --
 
+      p <- get
+      let lastCallDateQ = "SELECT calldate FROM ar_source_cdr ORDER BY calldate DESC LIMIT 1"
+      (_, lastCallDateDS) <- liftIO $ DB.query_ conn lastCallDateQ 
+      maybeLastCallDate <- liftIO $ S.toList lastCallDateDS
+      liftIO $ DB.skipToEof lastCallDateDS
+      lastCallDate1
+        <- case maybeLastCallDate of
+             [] -> return $ params_fromDate p
+             [[d]] -> return $ fromDBLocalTime d
+
+      let lastCallDate2
+            = case (params_isShorterSafeTimeFrame p) of
+                Nothing -> lastCallDate1
+                Just r -> r
+
+      modify' $ \p -> p { params_saveBundleStateImmediatelyAfter = calc_saveBundleStateImmediatelyAfter lastCallDate2 }
+
+      --
+      -- Load only the CSV rates referencend in main rate plans.
+      --
+
+      p <- get
       let allRatesToImport
-            = List.foldl' mainRatePlan_externalRateReferences ratesToImport1 (IMap.elems $ params_rates p7)
+            = List.foldl' mainRatePlan_externalRateReferences ratesToImport1 (IMap.elems $ params_rates p)
 
-      p8 <- ratePlan_loadRates conn p7 allRatesToImport
+      p' <- liftIO $ ratePlan_loadRates conn p allRatesToImport
+      put $ assert (isRight $ ratingParams_respectCodeContracts p') p'
 
+      p <- get
       (when isDebugMode)
-        (case ratingParams_respectCodeContracts p8 of
-           Left err -> throw $ AsterisellException err
+        (case ratingParams_respectCodeContracts p of
+           Left err -> throwIO $ AsterisellException err
            Right () -> return ())
 
-      cdrImporters <- deriveFastLookupCDRImportes conn 
+      cdrImporters <- liftIO $ deriveFastLookupCDRImportes conn
 
-      let p9 = p8 { params_fastLookupCDRImporters = cdrImporters }
+      modify' $ \p -> p { params_fastLookupCDRImporters = cdrImporters }
 
       --
       -- Update telephone prefix table with info derived from services and rates.
       --
 
-      service_exportServiceCDRSTelephonePrefixes conn p9
-      case env_getRate p9 "main-income-rate" (params_bundleStateFromCallDate p9) of
+      p <- get
+      liftIO $ service_exportServiceCDRSTelephonePrefixes conn p
+      case env_getRate p (mainRatePlanRef IncomeRate) (params_fromDate p) of
              Nothing
-               -> throw $ AsterisellException $ "The \"main-income-rate\" is missing at date " ++ (show $ fromLocalTimeToMySQLDateTime $ params_bundleStateFromCallDate p9)
+               -> throwIO $ AsterisellException $ "The \"main-income-rate\" is missing at date " ++ (show $ fromLocalTimeToMySQLDateTime $ params_fromDate p)
 
              Just (ratePlan, _)
-               -> mainRatePlan_exportServiceCDRSTelephonePrefixes conn ratePlan
+               -> liftIO $ mainRatePlan_exportServiceCDRSTelephonePrefixes conn ratePlan
 
-      telephonePrefixes <- telephonePrefixes_load conn isDebugMode
+      (telephonePrefixes, idToTelephonePrefixes, ratingCodes2)
+          <- liftIO $ telephonePrefixes_load conn isDebugMode
       -- NOTE: doing this only now, we are sure to load the last/updated telephone prefixes
 
-      return $ p9 { params_telephonePrefixes = telephonePrefixes })
+      modify' $ \p -> p { params_telephonePrefixes = telephonePrefixes
+                        , params_ratingCodes = ratingCodes2
+                        , params_idToTelephonePrefix = idToTelephonePrefixes }
 
-  where
+      return ()
 
+   -- | Analyze changes in rate-plans, and find a time-frame in which all CDRS can be calculated using the same main rate-plan.
    calcStableTimeFrame :: DB.MySQLConn -> RatingParams -> IO RatingParams
 
-   calcStableTimeFrame conn p1 
+   calcStableTimeFrame conn p1
      = let fromCallDate = params_fromDate p1
-           toCallDate = params_toDate p1
 
            q = [str| SELECT
                    |   from_time
                    | FROM ar_rate
-                   | WHERE (internal_name = 'main-cost-rate' OR internal_name = 'main-income-rate')
+                   | WHERE (internal_name = ? OR internal_name = ?)
                    | AND from_time > ?
-                   | AND from_time < ?
                    | ORDER BY from_time
                    | LIMIT 1
                    |]
 
-           values = [toDBLocalTime fromCallDate, toDBLocalTime toCallDate]
+           values = [toDBText (mainRatePlanRef CostRate), toDBText (mainRatePlanRef IncomeRate), toDBLocalTime fromCallDate]
 
        in do (_, inS) <- DB.query conn (DB.Query q) values
              mr <- S.read inS
              case mr of
                Nothing
-                 -> return $ p1 { params_isShorterSafeTimeFrame = False }
+                 -> return $ p1 { params_isShorterSafeTimeFrame = Nothing }
                Just [r]
                  -> do DB.skipToEof inS
-                       return $ p1 { params_isShorterSafeTimeFrame = True
-                                   , params_initial = (params_initial p1) { iparams_toDate = fromDBLocalTime r } }
+                       return $ p1 { params_isShorterSafeTimeFrame = Just $ fromDBLocalTime r }
+
+   loadMainRatePlan :: DBRateReferenceName -> RatingParams -> CallDate -> IO MainRatePlan
+   loadMainRatePlan rateRefName env fromDate = do
+     case env_getRate env rateRefName fromDate of
+       Nothing
+         -> liftIO $
+              throwIO $
+                asterisellError_toException $
+                  createError
+                    Type_Critical
+                    Domain_RATES
+                    ("unknown referenced rate - " ++ Text.unpack rateRefName)
+                    ("Unknown rate with name \"" ++ Text.unpack rateRefName ++ "\", active from date " ++ showLocalTime fromDate)
+                    ("All CDRs from the specified calldate, will be not rated. The call report stats will signal the unrated calls.")
+                    ("Add a rate specification, or change the starting/ending dates of current rate specifications.")
+
+       Just (ratePlan, _)
+         -> case mainRatePlan_assignUniqueSystemId ratePlan of
+              Left err
+                -> liftIO $ throwIO $ asterisellError_toException $
+                       createError
+                         Type_Critical
+                         Domain_RATES
+                         ("error in redefinition of rates - " ++ Text.unpack rateRefName ++ " at date " ++ showLocalTime fromDate)
+                         ("The rate with name \"" ++ Text.unpack rateRefName ++ "\", defined for a CDR at date " ++ showLocalTime fromDate ++ ", can not replace correctly pending bundle rates, defined previously. " ++ err)
+                         ("All the CDRs from this date, will be not rated. The call report stats will contain the correct totals of all CDRs with errors/not-rated.")
+                         ("Correct the rate specification.")
+
+              Right checkedRatePlan
+                -> return checkedRatePlan
+                   -- NOTE: assume that the same name is assigned to the same sub-rate, so already saved bundle-state remain consistent
+                   -- In case of redefinition of a main-rate-plan:
+                   -- * a complete rating event is generated on the unbilled time-frame
+                   -- * bundle-states start from the beginning in empty state
+                   -- * this is correct only if bundle-state is initializated at the beginning of the rating time-frame
+
 
 -- | Complete RatingParams with the info about the specified rates.
 ratePlan_loadRates
   :: DB.MySQLConn
   -> RatingParams
      -- @require the time frame is safe: there are no changes in main or income cost rates
-  -> HSet.HashSet Text.Text
+  -> HSet.HashSet DBRateReferenceName
      -- ^ load only the rate with the specified internal name
   -> IO RatingParams
 
@@ -2865,11 +2968,11 @@ ratePlan_loadRates conn p1 ratesToImport = do
                | , internal_name
                | , from_time
                | FROM ar_rate
-               | WHERE from_time < ?
+               | WHERE from_time <= ?
                | ORDER BY from_time DESC
                |]
 
-  (_, inS1) <- DB.query conn (DB.Query q1) [toDBLocalTime $ params_toDate p1]
+  (_, inS1) <- DB.query conn (DB.Query q1) [toDBLocalTime $ params_fromDate p1]
 
   changes :: DBRateChanges
     <- S.fold (\s [rId', rInternalName', rToTime']
@@ -2880,7 +2983,7 @@ ratePlan_loadRates conn p1 ratesToImport = do
                          False
                            -> s
                          True
-                           -> rateChanges_insertIfInTimeFrame s (params_fromDate p1) (params_toDate p1) rInternalName rId rToTime
+                           -> rateChanges_insertIfInTimeFrame s (params_fromDate p1) rInternalName rId rToTime
               ) rateChanges_empty inS1
 
   -- Load the big content only for really used rates.
@@ -2913,7 +3016,7 @@ ratePlan_loadRates conn p1 ratesToImport = do
     maybeR  <- S.read inS2
     case maybeR of
       Nothing
-        -> throw $ AsterisellException
+        -> throwIO $ AsterisellException
                      ("The rate with id \"" ++ (show rateId) ++ "\" is not present in the DB. The CDRs can not be rated. This is an error of the application. If the problem persist, contact the assistance.")
 
       Just [formatName', rateContent']
@@ -2922,19 +3025,19 @@ ratePlan_loadRates conn p1 ratesToImport = do
               rateContent <-
                 case fromMaybeDBValue fromDBByteString rateContent' of
                   Nothing
-                    -> throw $ AsterisellException ("The rate with id  \"" ++ show rateId ++ "\" has no content. Add the content of the rate.")
+                    -> throwIO $ AsterisellException ("The rate with id  \"" ++ show rateId ++ "\" has no content. Add the content of the rate.")
                   Just c
                     -> return c
 
               case configuredRatePlanParsers_get (params_configuredRatePlanParsers p1) formatName of
                 Nothing
-                  -> throw $ AsterisellException
+                  -> throwIO $ AsterisellException
                                ("The rate format \"" ++ (Text.unpack formatName) ++ "\" used for the definition of rate with id " ++ show rateId ++ "\" is unknown, and the rate specification can not be parsed. The call report will not report the CDRs with problems, because this is a critical error preventing the import and rating of all the CDRs in the timeframe. The CDRs can not be rated. Use a correct rate format name, or contact the assistance, for adding the support for this new rate format in the application code.")
 
                 Just rateParser
                   -> do case rateParser p1 rateContent of
                           Left err
-                            -> throw $ AsterisellException
+                            -> throwIO $ AsterisellException
                                          ("Error during parsing of rate id " ++ show rateId ++ ". CDRs will be not rated. Fix the rate specification. Parsing error: " ++ err)
                           Right ratePlan1
                             -> return $ IMap.insert rateId ratePlan1 s
@@ -3134,6 +3237,7 @@ serviceParams_load  conn envParams = do
                   | , is_applied_only_one_time
                   | , schedule_timeframe
                   | , schedule_from
+                  | , schedule_at
                   | FROM ar_service
                   |]
 
@@ -3182,7 +3286,7 @@ serviceParams_load  conn envParams = do
                  Right ()
                      -> return r
                  Left err
-                     -> throw $ AsterisellException $ "Error in application code. Failed code contracts. " ++ err
+                     -> throwIO $ AsterisellException $ "Error in application code. Failed code contracts. " ++ err
 
  where
 
@@ -3195,7 +3299,8 @@ serviceParams_load  conn envParams = do
       , customer_price_change_with_price_list'
       , is_applied_only_one_time'
       , schedule_timeframe'
-      , schedule_from'] = do
+      , schedule_from'
+      , schedule_at' ] = do
 
        let id = fromDBInt id'
        customer_name <- nn "service" id fromDBText customer_name'
@@ -3209,25 +3314,26 @@ serviceParams_load  conn envParams = do
        is_applied_only_one_time <- nn "service" id fromDBBool is_applied_only_one_time'
        schedule_timeframe <- nn "service" id fromDBText schedule_timeframe'
        schedule_from <- nn "service" id fromDBText schedule_from'
+       schedule_at <- nn "service" id fromDBTime schedule_at'
 
        s <- case schedule_timeframe of
               "monthly"
                 -> case fromTextToInt $ schedule_from of
                      Nothing
-                       -> throw $ AsterisellException $ "In service with id " ++ show id ++ "expected a number in field schedule_from, instead of " ++ (show $ schedule_from)
+                       -> throwIO $ AsterisellException $ "In service with id " ++ show id ++ "expected a number in field schedule_from, instead of " ++ (show $ schedule_from)
                      Just i
-                       -> return $ MonthlyTimeFrame i
+                       -> return $ MonthlyTimeFrame i schedule_at
 
               "weekly"
                 -> case schedule_from of
-                     "Monday" -> return $ WeeklyTimeFrame 1
-                     "Tuesday" -> return $ WeeklyTimeFrame 2
-                     "Wednesday" -> return $ WeeklyTimeFrame 3
-                     "Thursday" -> return $ WeeklyTimeFrame 4
-                     "Friday" -> return $ WeeklyTimeFrame 5
-                     "Saturday" -> return $ WeeklyTimeFrame 6
-                     "Sunday" -> return $ WeeklyTimeFrame 7
-                     _ -> throw $ AsterisellException $ "In service with id " ++ show id ++ " expected a day of week like Monday, Tuesday, and so on, in schedule_from, instead of " ++ show schedule_from
+                     "Monday" -> return $ WeeklyTimeFrame 1 schedule_at
+                     "Tuesday" -> return $ WeeklyTimeFrame 2 schedule_at
+                     "Wednesday" -> return $ WeeklyTimeFrame 3 schedule_at
+                     "Thursday" -> return $ WeeklyTimeFrame 4 schedule_at
+                     "Friday" -> return $ WeeklyTimeFrame 5 schedule_at
+                     "Saturday" -> return $ WeeklyTimeFrame 6 schedule_at
+                     "Sunday" -> return $ WeeklyTimeFrame 7 schedule_at
+                     _ -> throwIO $ AsterisellException $ "In service with id " ++ show id ++ " expected a day of week like Monday, Tuesday, and so on, in schedule_from, instead of " ++ show schedule_from
 
        let r = Service {
                 service_id = id
@@ -3241,7 +3347,7 @@ serviceParams_load  conn envParams = do
 
        return $ IMap.insert id r map1
 
-   importService _ _ = throw $ AsterisellException "err 1755 in code: unexpected DB format for ar_service"
+   importService _ _ = throwIO $ AsterisellException "err 1755 in code: unexpected DB format for ar_service"
 
    addToHead [newValue] oldList = newValue:oldList
 
@@ -3266,7 +3372,7 @@ serviceParams_load  conn envParams = do
                 }
         return $ IMap.insertWith (addToHead) id [r] map1
 
-   importServicePrice _ _ _ = throw $ AsterisellException "err 1756 in code: unexpected DB format for ar_service_price"
+   importServicePrice _ _ _ = throwIO $ AsterisellException "err 1756 in code: unexpected DB format for ar_service_price"
 
    importAssignedService
      map1
@@ -3299,7 +3405,7 @@ serviceParams_load  conn envParams = do
                     }
             return $ serviceParams_insertAssignment map1 r
 
-   importAssignedService  _ _ = throw $ AsterisellException "err 1757 in code: unexpected DB format for ar_assigned_service"
+   importAssignedService  _ _ = throwIO $ AsterisellException "err 1757 in code: unexpected DB format for ar_assigned_service"
 
 type ServiceId = Int
 
@@ -3327,7 +3433,6 @@ data CalcService
     } deriving(Show)
 
 -- | Generate all ServiceCDRs until the calldate is not reached.
---   Return also the ServiceCDRs in open timeframes.
 --
 --   DEV-NOTE: there are not so many CDRs of this type (proportional to customers), so they are generated using a list, and not pipes.
 service_generate
@@ -3336,11 +3441,9 @@ service_generate
   -- ^ the initial rating call date (it can be not exactly the beginning of a time-frame)
   -> CallDate
   -- ^ the final rating calldate (it can be not exactly the beginning of a time-frame)
-  -> Bool
-  -- ^ True for generating also ServiceCDRs of open time frames
   -> Either String [ServiceCDR]
 
-service_generate env rateFromDate rateToDate generateAlsoForOpenTimeFrames
+service_generate env rateFromDate rateToDate
   = cdrsOrError
 
  where
@@ -3357,7 +3460,7 @@ service_generate env rateFromDate rateToDate generateAlsoForOpenTimeFrames
           serviceSchedule = service_schedule service
 
           allTimeFrames
-            = timeFrames_allInsideRatingPeriod serviceSchedule rateFromDate rateToDate generateAlsoForOpenTimeFrames
+            = timeFrames_allInsideRatingPeriod serviceSchedule rateFromDate rateToDate
 
           cdrs2OrError = List.foldl' extractError (Right []) $ List.map processServiceInTimeFrame allTimeFrames
 
@@ -3532,6 +3635,7 @@ service_generate env rateFromDate rateToDate generateAlsoForOpenTimeFrames
                                   cdr = (cdr_empty timeFrameStart2 precision) {
                                           cdr_countOfCalls = calcService_nrOfItems c
                                         , cdr_toCalldate = Just timeFrameEnd2
+                                        , cdr_isServiceCDR = True
                                         , cdr_direction = CDR_outgoing
                                         , cdr_errorDirection = CDR_none
                                         , cdr_isRedirect = False
@@ -3591,6 +3695,7 @@ service_exportServiceCDRSTelephonePrefixes conn sp = do
                        tpr_prefix = prefix
                      , tpr_matchOnlyExactDigits = Just $ Text.length prefix
                      , tpr_name = service_name s
+                     , tpr_rating_code = ""
                      , tpr_geographic_location = service_name s
                          , tpr_operator_type = "Service"
                          , tpr_display_priority = 10
@@ -3607,23 +3712,23 @@ service_exportServiceCDRSTelephonePrefixes conn sp = do
 tt_ratePlanTests
   = [ HUnit.TestCase $ HUnit.assertEqual "time frame " secondsInADay (timeFrame_duration (date1, date2))
     , HUnit.TestCase $ HUnit.assertEqual "time frame " (secondsInADay + 60 * 60) (timeFrame_duration (date1, date3))
-    , HUnit.TestCase $ HUnit.assertEqual "time frame " (d "2014-08-05 00:00:00", d "2014-09-05 00:00:00") (timeFrame_fromCallDate (tf (MonthlyTimeFrame 5)) (d "2014-08-06 00:00:00"))
-    , HUnit.TestCase $ HUnit.assertEqual "time frame " (d "2014-08-05 00:00:00", d "2014-09-05 00:00:00") (timeFrame_fromCallDate (tf (MonthlyTimeFrame 5)) (d "2014-08-06 00:00:00"))
-    , HUnit.TestCase $ HUnit.assertEqual "time frame " (d "2014-08-05 00:00:00", d "2014-09-05 00:00:00") (timeFrame_fromCallDate (tf (MonthlyTimeFrame 5)) (d "2014-08-30 00:00:00"))
-    , HUnit.TestCase $ HUnit.assertEqual "time frame " (d "2014-08-05 00:00:00", d "2014-09-05 00:00:00") (timeFrame_fromCallDate (tf (MonthlyTimeFrame 5)) (d "2014-09-04 00:00:00"))
-    , HUnit.TestCase $ HUnit.assertEqual "time frame " (d "2014-08-05 00:00:00", d "2014-09-05 00:00:00") (timeFrame_fromCallDate (tf (MonthlyTimeFrame 5)) (d "2014-09-04 23:59:59"))
-    , HUnit.TestCase $ HUnit.assertEqual "time frame " (d "2014-09-05 00:00:00", d "2014-10-05 00:00:00") (timeFrame_fromCallDate (tf (MonthlyTimeFrame 5)) (d "2014-09-05 00:00:00"))
-    , HUnit.TestCase $ HUnit.assertEqual "time frame " (d "2014-12-05 00:00:00", d "2015-01-05 00:00:00") (timeFrame_fromCallDate (tf (MonthlyTimeFrame 5)) (d "2014-12-05 00:00:00"))
-    , HUnit.TestCase $ HUnit.assertEqual "time frame " (d "2014-12-05 00:00:00", d "2015-01-05 00:00:00") (timeFrame_fromCallDate (tf (MonthlyTimeFrame 5)) (d "2014-12-06 00:00:00"))
+    , HUnit.TestCase $ HUnit.assertEqual "time frame " (d "2014-08-05 00:00:00", d "2014-09-05 00:00:00") (timeFrame_fromCallDate (tf (MonthlyTimeFrame 5 midnight)) (d "2014-08-06 00:00:00"))
+    , HUnit.TestCase $ HUnit.assertEqual "time frame " (d "2014-08-05 00:00:00", d "2014-09-05 00:00:00") (timeFrame_fromCallDate (tf (MonthlyTimeFrame 5 midnight)) (d "2014-08-06 00:00:00"))
+    , HUnit.TestCase $ HUnit.assertEqual "time frame " (d "2014-08-05 00:00:00", d "2014-09-05 00:00:00") (timeFrame_fromCallDate (tf (MonthlyTimeFrame 5 midnight)) (d "2014-08-30 00:00:00"))
+    , HUnit.TestCase $ HUnit.assertEqual "time frame " (d "2014-08-05 00:00:00", d "2014-09-05 00:00:00") (timeFrame_fromCallDate (tf (MonthlyTimeFrame 5 midnight)) (d "2014-09-04 00:00:00"))
+    , HUnit.TestCase $ HUnit.assertEqual "time frame " (d "2014-08-05 00:00:00", d "2014-09-05 00:00:00") (timeFrame_fromCallDate (tf (MonthlyTimeFrame 5 midnight)) (d "2014-09-04 23:59:59"))
+    , HUnit.TestCase $ HUnit.assertEqual "time frame " (d "2014-09-05 00:00:00", d "2014-10-05 00:00:00") (timeFrame_fromCallDate (tf (MonthlyTimeFrame 5 midnight)) (d "2014-09-05 00:00:00"))
+    , HUnit.TestCase $ HUnit.assertEqual "time frame " (d "2014-12-05 00:00:00", d "2015-01-05 00:00:00") (timeFrame_fromCallDate (tf (MonthlyTimeFrame 5 midnight)) (d "2014-12-05 00:00:00"))
+    , HUnit.TestCase $ HUnit.assertEqual "time frame " (d "2014-12-05 00:00:00", d "2015-01-05 00:00:00") (timeFrame_fromCallDate (tf (MonthlyTimeFrame 5 midnight)) (d "2014-12-06 00:00:00"))
 
-    , HUnit.TestCase $ HUnit.assertEqual "time frame " (d "2014-08-11 00:00:00", d "2014-08-18 00:00:00") (timeFrame_fromCallDate (tf (WeeklyTimeFrame 1)) (d "2014-08-11 00:00:00"))
-    , HUnit.TestCase $ HUnit.assertEqual "time frame " (d "2014-08-11 00:00:00", d "2014-08-18 00:00:00") (timeFrame_fromCallDate (tf (WeeklyTimeFrame 1)) (d "2014-08-12 00:00:00"))
-    , HUnit.TestCase $ HUnit.assertEqual "time frame " (d "2014-08-11 00:00:00", d "2014-08-18 00:00:00") (timeFrame_fromCallDate (tf (WeeklyTimeFrame 1)) (d "2014-08-13 00:00:00"))
-    , HUnit.TestCase $ HUnit.assertEqual "time frame " (d "2014-08-11 00:00:00", d "2014-08-18 00:00:00") (timeFrame_fromCallDate (tf (WeeklyTimeFrame 1)) (d "2014-08-17 23:00:00"))
-    , HUnit.TestCase $ HUnit.assertEqual "time frame " (d "2014-08-18 00:00:00", d "2014-08-25 00:00:00") (timeFrame_fromCallDate (tf (WeeklyTimeFrame 1)) (d "2014-08-18 00:00:00"))
-    , HUnit.TestCase $ HUnit.assertEqual "time frame " (d "2014-08-18 00:00:00", d "2014-08-25 00:00:00") (timeFrame_fromCallDate (tf (WeeklyTimeFrame 1)) (d "2014-08-19 00:00:00"))
-    , HUnit.TestCase $ HUnit.assertEqual "time frame " (d "2014-07-28 00:00:00", d "2014-08-04 00:00:00") (timeFrame_fromCallDate (tf (WeeklyTimeFrame 1)) (d "2014-07-28 00:00:00"))
-    , HUnit.TestCase $ HUnit.assertEqual "time frame " (d "2014-07-28 00:00:00", d "2014-08-04 00:00:00") (timeFrame_fromCallDate (tf (WeeklyTimeFrame 1)) (d "2014-08-01 00:00:00"))
+    , HUnit.TestCase $ HUnit.assertEqual "time frame " (d "2014-08-11 00:00:00", d "2014-08-18 00:00:00") (timeFrame_fromCallDate (tf (WeeklyTimeFrame 1 midnight)) (d "2014-08-11 00:00:00"))
+    , HUnit.TestCase $ HUnit.assertEqual "time frame " (d "2014-08-11 00:00:00", d "2014-08-18 00:00:00") (timeFrame_fromCallDate (tf (WeeklyTimeFrame 1 midnight)) (d "2014-08-12 00:00:00"))
+    , HUnit.TestCase $ HUnit.assertEqual "time frame " (d "2014-08-11 00:00:00", d "2014-08-18 00:00:00") (timeFrame_fromCallDate (tf (WeeklyTimeFrame 1 midnight)) (d "2014-08-13 00:00:00"))
+    , HUnit.TestCase $ HUnit.assertEqual "time frame " (d "2014-08-11 00:00:00", d "2014-08-18 00:00:00") (timeFrame_fromCallDate (tf (WeeklyTimeFrame 1 midnight)) (d "2014-08-17 23:00:00"))
+    , HUnit.TestCase $ HUnit.assertEqual "time frame " (d "2014-08-18 00:00:00", d "2014-08-25 00:00:00") (timeFrame_fromCallDate (tf (WeeklyTimeFrame 1 midnight)) (d "2014-08-18 00:00:00"))
+    , HUnit.TestCase $ HUnit.assertEqual "time frame " (d "2014-08-18 00:00:00", d "2014-08-25 00:00:00") (timeFrame_fromCallDate (tf (WeeklyTimeFrame 1 midnight)) (d "2014-08-19 00:00:00"))
+    , HUnit.TestCase $ HUnit.assertEqual "time frame " (d "2014-07-28 00:00:00", d "2014-08-04 00:00:00") (timeFrame_fromCallDate (tf (WeeklyTimeFrame 1 midnight)) (d "2014-07-28 00:00:00"))
+    , HUnit.TestCase $ HUnit.assertEqual "time frame " (d "2014-07-28 00:00:00", d "2014-08-04 00:00:00") (timeFrame_fromCallDate (tf (WeeklyTimeFrame 1 midnight)) (d "2014-08-01 00:00:00"))
     , HUnit.TestCase $ HUnit.assertEqual "CDR calc" cdrO1V (calcParams_calc IncomeRate cpO1 cdrO1)
     ]
  where
@@ -3652,7 +3757,7 @@ tt_ratePlanTests
             , bundle_bundleParams
                 = BundleParams {
                     bundle_initialCost = 0
-                  , bundle_minCost = 0
+                  , bundle_leftCost = Nothing
                   , bundle_leftCalls = Nothing
                   , bundle_leftDuration = Nothing
                   , bundle_appliedCost = 0
@@ -3699,11 +3804,11 @@ ratingParamsForTest precisionDigits
       , iparams_digitsToMask = 0
       , iparams_defaultTelephonePrefixToNotDisplay = Nothing
       , iparams_currencyPrecision = precisionDigits
-      , iparams_debugFileName = ""
+      , iparams_organizationToIgnore = Nothing
+      , iparams_debugFileName = Nothing
       , iparams_fromDate = fromJust $ fromMySQLDateTimeToLocalTime "2000-01-01 00:00:00"
-      , iparams_toDate = fromJust $ fromMySQLDateTimeToLocalTime "2000-02-01 00:00:00"
+      , iparams_testToDate = Nothing
       , iparams_isRateUnbilledCallsEvent = False
-      , iparams_onlyImportedServices = False
       , iparams_dbName = ""
       , iparams_dbUser = ""
       , iparams_dbPasswd = ""
@@ -3758,7 +3863,7 @@ tt_servicesTests
       in ss2
 
   generate p fromDate toDate
-    = service_generate p (fromJust1 "sa1" $ fromMySQLDateTimeToLocalTime fromDate) (fromJust1 "sa2" $ fromMySQLDateTimeToLocalTime toDate) True
+    = service_generate p (fromJust1 "sa1" $ fromMySQLDateTimeToLocalTime fromDate) (fromJust1 "sa2" $ fromMySQLDateTimeToLocalTime toDate) 
 
   isExpectedResult
     :: String
@@ -3794,7 +3899,7 @@ tt_servicesTests
        , service_priceIsProportionalToActivationDate = False
        , service_priceChangeWithPriceList = False
        , service_isAppliedOnlyOneTime = False
-       , service_schedule = MonthlyTimeFrame 1
+       , service_schedule = MonthlyTimeFrame 1 midnight
        }
 
   sp1
@@ -3873,7 +3978,7 @@ tt_servicesTests
        , service_priceIsProportionalToActivationDate = True
        , service_priceChangeWithPriceList = False
        , service_isAppliedOnlyOneTime = False
-       , service_schedule = MonthlyTimeFrame 1
+       , service_schedule = MonthlyTimeFrame 1 midnight
        }
 
   s3_2
@@ -3884,7 +3989,7 @@ tt_servicesTests
        , service_priceIsProportionalToActivationDate = False
        , service_priceChangeWithPriceList = True
        , service_isAppliedOnlyOneTime = False
-       , service_schedule = MonthlyTimeFrame 1
+       , service_schedule = MonthlyTimeFrame 1 midnight
        }
 
   s3_3
@@ -3895,7 +4000,7 @@ tt_servicesTests
        , service_priceIsProportionalToActivationDate = True
        , service_priceChangeWithPriceList = True
        , service_isAppliedOnlyOneTime = False
-       , service_schedule = MonthlyTimeFrame 1
+       , service_schedule = MonthlyTimeFrame 1 midnight
        }
 
   s3_4
@@ -3906,7 +4011,7 @@ tt_servicesTests
        , service_priceIsProportionalToActivationDate = True
        , service_priceChangeWithPriceList = False
        , service_isAppliedOnlyOneTime = True
-       , service_schedule = MonthlyTimeFrame 1
+       , service_schedule = MonthlyTimeFrame 1 midnight
        }
 
   s3_5
@@ -3917,7 +4022,7 @@ tt_servicesTests
        , service_priceIsProportionalToActivationDate = False
        , service_priceChangeWithPriceList = False
        , service_isAppliedOnlyOneTime = False
-       , service_schedule = MonthlyTimeFrame 1
+       , service_schedule = MonthlyTimeFrame 1 midnight
        }
 
   generateCommonSp1 serviceId

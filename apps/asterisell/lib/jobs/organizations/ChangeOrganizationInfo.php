@@ -1,29 +1,13 @@
 <?php
-/* $LICENSE 2014,2017:
- *
- * Copyright (C) 2014,2017 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
- *
- * This file is part of Asterisell.
- *
- * Asterisell is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 3 of the License, or
- * (at your option) any later version.
- *
- * Asterisell is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with Asterisell. If not, see <http://www.gnu.org/licenses/>.
- * $
- */
+// SPDX-License-Identifier: GPL-3.0-or-later
 
 sfLoader::loadHelpers(array('I18N', 'Debug', 'Date', 'Asterisell'));
 
 /**
  * Change organization info hierarchy using an YAML content file.
+ *
+ * @ensure if the content does not change, the output remain the same,
+ * so there are no endless saving of organization info from `BackupOrganization` job.
  */
 class ChangeOrganizationInfo extends JobProcessor
 {
@@ -59,9 +43,10 @@ class ChangeOrganizationInfo extends JobProcessor
 
     /**
      * @param string $yamlContent
+     * @param bool $isNew true for creating new parts also when id is present
      * @throws ArProblemException
      */
-    public function processYAMLContent($yamlContent)
+    public function processYAMLContent($yamlContent, $isNew = false)
     {
         try {
             // strip UTF-8 bump encoding, because it causes some problems during parsinng
@@ -101,13 +86,13 @@ class ChangeOrganizationInfo extends JobProcessor
             $parentId = $this->getRequiredIntOrNullValue($spec, 'parent_id');
             if (array_key_exists('part', $spec)) {
                 $partSpec = $this->getRequiredValue($spec, 'part');
-                $this->processYAMLPart($partSpec, $parentId, $conn);
+                $this->processYAMLPart($partSpec, $parentId, $conn, $isNew);
 
             } else if (array_key_exists('parts', $spec)) {
                 $partsSpec = $this->getRequiredValue($spec, 'parts');
                 foreach ($partsSpec as $listEntry) {
                     $childPart = $this->getRequiredValue($listEntry, 'part');
-                    $this->processYAMLPart($childPart, $parentId, $conn);
+                    $this->processYAMLPart($childPart, $parentId, $conn, $isNew);
                 }
             }
 
@@ -133,9 +118,10 @@ class ChangeOrganizationInfo extends JobProcessor
      * @param array $partSpec
      * @param int|null $parentId the parent of this spec part, null if this is the "virtual" root of the specification
      * @param PDO $conn
+     * @param bool $isNew true for creating new values, also if id is specified
      * @throws ArProblemException
      */
-    public function processYAMLPart($partSpec, $parentId, PDO $conn)
+    public function processYAMLPart($partSpec, $parentId, PDO $conn, $isNew = false)
     {
         // Retrieve basic values that are always expected
 
@@ -143,7 +129,7 @@ class ChangeOrganizationInfo extends JobProcessor
             return;
         }
 
-        $partId = $this->getRequiredIntOrNewValue($partSpec, 'id');
+        $partId = $this->getRequiredIntOrNewValue($partSpec, 'id', $isNew);
 
         $partFromDate = fromUnixTimestampToMySQLTimestamp($this->getRequiredIntOrNullValue($partSpec, 'from_date'));
         $partInternalName = $this->getRequiredStringOrNull($partSpec, 'internal_name');
@@ -273,22 +259,23 @@ class ChangeOrganizationInfo extends JobProcessor
             }
         }
 
-
         // Insert or update the value of the party
 
         if (!is_null($partySpec)) {
 
             if (is_null($originalPartyId)) {
                 $stmt = $conn->prepare('INSERT INTO ar_party(
-                    name, compact_name, external_crm_code, vat,
+                    name, compact_name, note, external_crm_code, vat,
                     is_billable, legal_address, legal_city, legal_zipcode, legal_state_province, legal_country,
                     email, phone, phone2,
                     max_limit_30, migration_field_for_telephone, migration_field_for_adsl,
-                    is_active, ar_reseller_id, payment_iban, payment_bic, payment_sepa, payment_info)
-                    VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);');
+                    is_active, ar_reseller_id, payment_iban, payment_bic, payment_sepa, payment_info,
+                    contract_number, legal_registration_number, contact_name, web_site)
+                    VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?);');
                 $stmt->execute(array(
                     $this->getRequiredValue($partySpec, "name"),
                     $this->getRequiredValue($partySpec, "short_name"),
+                    $this->getRequiredValue($partySpec, "note"),
                     $this->getRequiredValue($partySpec, "crm_code"),
                     $this->getRequiredValue($partySpec, "VAT"),
 
@@ -312,14 +299,19 @@ class ChangeOrganizationInfo extends JobProcessor
                     $this->getRequiredValue($partySpec, "payment_iban"),
                     $this->getRequiredValue($partySpec, "payment_bic"),
                     $this->getRequiredValue($partySpec, "payment_sepa"),
-                    $this->getRequiredValue($partySpec, "payment_info")
-                ));
+                    $this->getRequiredValue($partySpec, "payment_info"),
+                    $this->getRequiredValue($partySpec, "contract_number"),
+                    $this->getRequiredValue($partySpec, "legal_registration_number"),
+                    $this->getRequiredValue($partySpec, "contact_name"),
+                    $this->getRequiredValue($partySpec, "web_site")
+                 ));
 
                 $originalPartyId = $conn->lastInsertId();
             } else {
-                $stmt = $conn->prepare('UPDATE ar_party SET name = ? , compact_name = ? , external_crm_code = ? , vat = ? , is_billable = ? , legal_address = ? , legal_city = ? , legal_zipcode = ? , legal_state_province = ? , legal_country = ? , email = ? , phone = ? , phone2 = ? , max_limit_30 = ? , migration_field_for_telephone = ?, migration_field_for_adsl = ?, is_active = ? , ar_reseller_id = ?, payment_iban = ?, payment_bic = ?, payment_sepa = ?, payment_info = ? WHERE id = ? ;');
+                $stmt = $conn->prepare('UPDATE ar_party SET name = ? , compact_name = ? , note = ?, external_crm_code = ? , vat = ? , is_billable = ? , legal_address = ? , legal_city = ? , legal_zipcode = ? , legal_state_province = ? , legal_country = ? , email = ? , phone = ? , phone2 = ? , max_limit_30 = ? , migration_field_for_telephone = ?, migration_field_for_adsl = ?, is_active = ? , ar_reseller_id = ?, payment_iban = ?, payment_bic = ?, payment_sepa = ?, payment_info = ?, contract_number = ?, legal_registration_number = ?, contact_name = ?, web_site = ? WHERE id = ? ;');
                 $stmt->execute(array($this->getRequiredValue($partySpec, "name"),
                     $this->getRequiredValue($partySpec, "short_name"),
+                    $this->getRequiredValue($partySpec, "note"),
                     $this->getRequiredValue($partySpec, "crm_code"),
                     $this->getRequiredValue($partySpec, "VAT"),
 
@@ -344,6 +336,11 @@ class ChangeOrganizationInfo extends JobProcessor
                     $this->getRequiredValue($partySpec, "payment_bic"),
                     $this->getRequiredValue($partySpec, "payment_sepa"),
                     $this->getRequiredValue($partySpec, "payment_info"),
+
+                    $this->getRequiredValue($partySpec, "contract_number"),
+                    $this->getRequiredValue($partySpec, "legal_registration_number"),
+                    $this->getRequiredValue($partySpec, "contact_name"),
+                    $this->getRequiredValue($partySpec, "web_site"),
 
                     // this is the condition
                     $originalPartyId
@@ -399,14 +396,8 @@ class ChangeOrganizationInfo extends JobProcessor
 
         // Match unit_id
 
-        if (is_null($partId)) {
-            $stmt = $conn->prepare('INSERT INTO ar_organization_unit(internal_name, export_code) VALUES(?,?)');
-            $stmt->execute(array($partInternalName, $exportCode));
-            $originalUnitId = $conn->lastInsertId();
-            $partId = $originalUnitId;
-            $resultStructure_unitId = $partId;
-
-        } else {
+        $originalUnitId = null;
+        if (!is_null($partId)) {
             $stmt = $conn->prepare('SELECT id FROM ar_organization_unit WHERE id = ?');
             $stmt->execute(array($partId));
             $r = null;
@@ -417,9 +408,22 @@ class ChangeOrganizationInfo extends JobProcessor
             $originalUnitId = $r;
 
             if (is_null($originalUnitId)) {
-                throw($this->createErrorInYAML($partSpec, "unknown id \"$partId\""));
+                if ($isNew) {
+                    $partId = null;
+                    // force creation of a new partId
+                } else {
+                    throw($this->createErrorInYAML($partSpec, "unknown id \"$partId\""));
+                }
             }
+        }
 
+        if (is_null($originalUnitId)) {
+            $stmt = $conn->prepare('INSERT INTO ar_organization_unit(internal_name, export_code) VALUES(?,?)');
+            $stmt->execute(array($partInternalName, $exportCode));
+            $originalUnitId = $conn->lastInsertId();
+            $partId = $originalUnitId;
+            $resultStructure_unitId = $partId;
+        } else {
             $stmt = $conn->prepare('UPDATE ar_organization_unit SET internal_name = ?, export_code = ? WHERE id = ?');
             $stmt->execute(array($partInternalName, $exportCode, $originalUnitId));
         }
@@ -458,7 +462,7 @@ class ChangeOrganizationInfo extends JobProcessor
             , $resultStructure_typeId
             , $resultStructure_parentId
             , $resultStructure_from
-            , $resultStructure_exists
+            , (int)$resultStructure_exists
             , $resultStructure_categoryId
             , $resultStructure_partyId
             , $resultStructure_extensionCodes
@@ -492,11 +496,11 @@ class ChangeOrganizationInfo extends JobProcessor
                   extension_user_code = ?
                   WHERE id = ?;');
                 $stmt->execute(array(
-                    $resultStructure_unitId
+                  $resultStructure_unitId
                 , $resultStructure_typeId
                 , $resultStructure_parentId
                 , $resultStructure_from
-                , $resultStructure_exists
+                , (int) $resultStructure_exists
                 , $resultStructure_categoryId
                 , $resultStructure_partyId
                 , $resultStructure_extensionCodes
@@ -518,7 +522,7 @@ class ChangeOrganizationInfo extends JobProcessor
         if (!is_null($partsSpec)) {
             foreach ($partsSpec as $listEntry) {
                 $childPart = $this->getRequiredValue($listEntry, 'part');
-                $this->processYAMLPart($childPart, $partId, $conn);
+                $this->processYAMLPart($childPart, $partId, $conn, $isNew);
             }
         }
     }
@@ -592,14 +596,14 @@ class ChangeOrganizationInfo extends JobProcessor
     /**
      * @param array $spec
      * @param string $name
-     * @return bool
+     * @return int
      * @throws ArProblemException
      */
     protected function getRequiredBoolValue($spec, $name)
     {
         $v = $this->getRequiredValue($spec, $name);
         if (is_bool($v)) {
-            return $v;
+            return (int)$v;
         } else {
             throw($this->createErrorInYAML($spec, "unknown bool value \"$v\", for property $name, it must be \"true\" or \"false\""));
         }
@@ -628,13 +632,14 @@ class ChangeOrganizationInfo extends JobProcessor
     /**
      * @param array $spec
      * @param string $name
+     * @param bool $isNew true for returning null also if an id is specified
      * @return int|null return null if the number is equal to new
      * @throws ArProblemException
      */
-    protected function getRequiredIntOrNewValue($spec, $name)
+    protected function getRequiredIntOrNewValue($spec, $name, $isNew)
     {
         $v = $this->getRequiredValue($spec, $name);
-        if ($v == "new") {
+        if ($v == "new" || $isNew) {
             return null;
         }
 
@@ -869,15 +874,20 @@ class ChangeOrganizationInfo extends JobProcessor
 
                 $r .= $indent3 . 'name: ' . $this->convertString($party->getName())
                     . $indent3 . 'short_name: ' . $this->convertString($party->getCompactName())
+                    . $indent3 . 'note: ' . $this->convertString($party->getNote())
                     . $indent3 . 'is_active: ' . $this->showBool($party->getIsActive())
                     . $indent3 . 'is_billable: ' . $this->showBool($party->getIsBillable())
                     . $indent3 . 'tags: ' . $tags
                     . $indent3 . 'email: ' . $this->convertString($party->getEmail())
+                    . $indent3 . 'web_site: ' . $this->convertString($party->getWebSite())
+                    . $indent3 . 'contact_name: ' . $this->convertString($party->getContactName())
                     . $indent3 . 'telephone1: ' . $this->convertString($party->getPhone())
                     . $indent3 . 'telephone2: ' . $this->convertString($party->getPhone2())
                     . $indent3 . 'reseller_short_code: ' . $this->convertString($resellerCode)
                     . $indent3 . 'VAT: ' . $this->convertString($party->getVat())
+                    . $indent3 . 'legal_registration_number: ' . $this->convertString($party->getLegalRegistrationNumber())
                     . $indent3 . 'crm_code: ' . $this->convertString($party->getExternalCrmCode())
+                    . $indent3 . 'contract_number: ' . $this->convertString($party->getContractNumber())
                     . $indent3 . 'country: ' . $this->convertString($party->getLegalCountry())
                     . $indent3 . 'state_province: ' . $this->convertString($party->getLegalStateProvince())
                     . $indent3 . 'city: ' . $this->convertString($party->getLegalCity())
@@ -953,10 +963,11 @@ class ChangeOrganizationInfo extends JobProcessor
         $indent2 = "\n" . str_repeat('  ', $scope + 1);
         $indent3 = "\n" . str_repeat('  ', $scope + 2);
 
+        // DEV-NOTE: if you change this code, make sure to not depend from the execution time (see @ensure contract of the class)
         $r = $indent1 . 'part: '
             . $indent2 . "id: new_template"
             . $indent2 . "# use \"new\" for adding new content. Leave unchanged for doing nothing: it is considered only demo information."
-            . $indent2 . "from_date: " . fromUnixTimestampToMySQLTimestamp($fromDate)
+            . $indent2 . "from_date: YYYY-MM-DD hh:mm:ss"
             . $indent2 . "# specify from when (inclusive) this info become active. The calls before this date, can not be associated to this organization/extension."
             . $indent2 . "internal_name: \"\""
             . $indent2 . "# Usually this field is completed only in case of automatic processing of unit info. Leave blank. "
@@ -975,15 +986,20 @@ class ChangeOrganizationInfo extends JobProcessor
                 . $indent2 . '# see the Party Form in the Web User Interface for the meaning of these fields.';
             $r .= $indent3 . 'name: '
                 . $indent3 . 'short_name: '
+                . $indent3 . 'note: '
                 . $indent3 . 'is_active: '
                 . $indent3 . 'is_billable: '
                 . $indent3 . 'tags: []'
                 . $indent3 . 'email: '
                 . $indent3 . 'telephone1: '
                 . $indent3 . 'telephone2: '
+                . $indent3 . 'web_site: '
+                . $indent3 . 'contact_name: '
                 . $indent3 . 'reseller_short_code: '
                 . $indent3 . 'VAT: '
+                . $indent3 . 'legal_registration_number: '
                 . $indent3 . 'crm_code: '
+                . $indent3 . 'contract_number: '
                 . $indent3 . 'country: '
                 . $indent3 . 'state_province: '
                 . $indent3 . 'city: '

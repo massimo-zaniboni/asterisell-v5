@@ -11,7 +11,9 @@ data-dir: ""
 copyright: Massimo Zaniboni <massimo.zaniboni@asterisell.com>
 
 executable RateEngine
-  ghc-options: -O2 -threaded -rtsopts
+  ghc-options: -O0 -threaded -rtsopts
+  -- NOTE: these options will be overwritten in production, from management utilities.
+  -- the -O0 is useful for fast compilation times during DEV.
   build-depends: 
              QuickCheck -any
            , base -any
@@ -19,8 +21,11 @@ executable RateEngine
            , system-filepath -any
            , transformers -any 
            , bytestring -any
+           , bytestring-conversion -any
+           , bytestring-trie -any
            , parsec -any
            , attoparsec -any
+           , megaparsec -any
            , containers -any
            , data-default -any
            , mtl -any
@@ -35,6 +40,7 @@ executable RateEngine
            , cassava -any
            , unordered-containers -any
            , hashable -any
+           , hashtables -any
            , heredoc -any
            , cereal -any
            -- TODO see if it is needed
@@ -51,12 +57,13 @@ executable RateEngine
            , mysql-haskell -any
            , io-streams -any
            , streaming -any
-           , streaming-utils -any
            , streaming-bytestring -any
-           , BoundedChan -any
            , zlib -any
-           , unagi-chan -any
            , parallel -any
+           , xeno -any
+           , unix -any
+           , process -any
+           , assert-failure -any
 
   main-is: Main.hs
   buildable: True
@@ -68,11 +75,15 @@ executable RateEngine
                  Asterisell.RateEngine
                  Asterisell.Utils
                  Asterisell.Trie
+                 Asterisell.Params
                  Asterisell.TelephonePrefixes
                  Asterisell.VoIPChannelAndVendor
+                 Asterisell.Holiday
                  Asterisell.RateCategories
                  Asterisell.OrganizationHierarchy
                  Asterisell.CustomerSpecificImporters
                  Asterisell.CustomerSpecificRates
-                 Asterisell.Process
                  Asterisell.DB
+                 Asterisell.CustomOrganizationInfoImporters
+                 Asterisell.CustomPortedTelephoneNumbers
+                

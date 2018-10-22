@@ -7,22 +7,24 @@ generator:
     fields:
       prefix: { name: Telephone Prefix }
       
-      operator_type: { name: Connection Type }
+      operator_type: { name: Connection Type, help: "Connection type, like fixed line, mobile and so on, that will be showed to end users." }
       
-      name: { name: Operator Name }
+      name: { name: Operator Name, help: "Name of the telephone operator, owning/responsible for numbers starting with this prefix, and that will be showed to end users." }
       
       geographic_location: { name: Geographic Location }
 
       match_only_numbers_with_n_digits: { name: "Require exact lenght", help: "This prefix is applicable only if the telephone number has exactly this number of digits. 0 or NULL for disabling this condition. " }
 
+      rating_code: { name: "Rating code", help: "Usually the operator code, or some other common code to use in the \"match-rating-code\" filter, inside the main rating plan."}
+
     list:
       title: Telephone Prefixes
 
-      display: [=prefix, operator_type, geographic_location, name]
+      display: [=prefix, operator_type, geographic_location, name, rating_code]
 
-      filters: [prefix, operator_type, geographic_location, name]
+      filters: [prefix, operator_type, geographic_location, name, rating_code]
       sort: [prefix, asc]
 
     edit:
       title: Telephone Prefix
-      fields: [prefix, match_only_numbers_with_n_digits, operator_type, name, geographic_location]
+      fields: [prefix, match_only_numbers_with_n_digits, operator_type, name, rating_code, geographic_location]

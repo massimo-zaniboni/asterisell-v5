@@ -1,25 +1,6 @@
 <?php
 
-/* $LICENSE 2009, 2010:
- *
- * Copyright (C) 2009, 2010 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
- *
- * This file is part of Asterisell.
- *
- * Asterisell is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 3 of the License, or
- * (at your option) any later version.
- *
- * Asterisell is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with Asterisell. If not, see <http://www.gnu.org/licenses/>.
- * $
- */
+// SPDX-License-Identifier: GPL-3.0-or-later
 
 sfLoader::loadHelpers(array('I18N'));
 
@@ -52,6 +33,7 @@ abstract class DestinationType
     const known_error = 5;
 
     static public $names = array(
+        0 => "unknown",
         1 => "incoming",
         2 => "outgoing",
         3 => "internal",
@@ -61,6 +43,7 @@ abstract class DestinationType
     );
 
     static public $namesWithRedirect = array(
+        0 => "unknown",
         1 => "redirected to incoming",
         2 => "redirected to outgoing",
         3 => "redirected to internal",
@@ -74,6 +57,7 @@ abstract class DestinationType
      * They are displayed mainly in CALL REPORT.
      */
     static public $symbols = array(
+        0 => "?",
         1 => "&larr;",
         2 => "&rarr;",
         3 => "&harr;",
@@ -87,6 +71,7 @@ abstract class DestinationType
      * They are displayed mainly in CALL REPORT.
      */
     static public $symbolsWithRedirect = array(
+        0 => "?",
         1 => "&hellip;&larr;",
         2 => "&hellip;&rarr;",
         3 => "&hellip;&harr;",
@@ -165,74 +150,49 @@ abstract class DestinationType
      * Add to the condition the implicit filters on destination type
      * according "show_incoming/outgoing/internal_calls" settings.
      *
-     * @param Criteria $c
+     * @param bool $isAdmin false if it is a customer
+     * @return array the list of allowed directions to show in call report
      */
-    static public function addCustomerFiltersAccordingConfiguration(Criteria $c)
+    static public function getAllowedDestinations($isAdmin)
     {
         $allowedTypes = array();
 
-        if (sfConfig::get('app_show_incoming_calls')) {
+        if ($isAdmin || sfConfig::get('app_show_incoming_calls')) {
             array_push($allowedTypes, DestinationType::incoming);
         }
 
-        if (sfConfig::get('app_show_outgoing_calls')) {
+        if ($isAdmin || sfConfig::get('app_show_outgoing_calls')) {
             array_push($allowedTypes, DestinationType::outgoing);
         }
 
-        if (sfConfig::get('app_show_internal_calls')) {
+        if ($isAdmin || sfConfig::get('app_show_internal_calls')) {
             array_push($allowedTypes, DestinationType::internal);
         }
 
-        // NOTE: "system" type is never allowed for customers.
-
-        $c2 = NULL;
-        foreach ($allowedTypes as $dt) {
-            /**
-             * @var Criteria $c2
-             */
-            if (is_null($c2)) {
-                $c2 = $c->getNewCriterion(ArCdrPeer::DESTINATION_TYPE, $dt, Criteria::EQUAL);
-            } else {
-                $c2->addOr($c->getNewCriterion(ArCdrPeer::DESTINATION_TYPE, $dt, Criteria::EQUAL));
-            }
+        if ($isAdmin) {
+          array_push($allowedTypes, DestinationType::system);
         }
 
-        if (!is_null($c2)) {
-            $c->add($c2);
-        }
+        return $allowedTypes;
     }
 
     /**
      * Add to the condition the implicit filters on destination type
-     * according the needs of the admin.
+     * according "show_incoming/outgoing/internal_calls" settings.
      *
-     * @param Criteria $c
+     * @param bool $isAdmin
+     * @param array $c
+     * @param array $params
      */
-    static public function addAdminFiltersAccordingConfiguration(Criteria $c)
+    static public function addFiltersAccordingConfiguration($isAdmin, & $c, & $params)
     {
-        $allowedTypes = array();
-
-        array_push($allowedTypes, DestinationType::incoming);
-        array_push($allowedTypes, DestinationType::outgoing);
-        array_push($allowedTypes, DestinationType::internal);
-        array_push($allowedTypes, DestinationType::system);
-
-        $c2 = NULL;
+        $allowedTypes = self::getAllowedDestinations($isAdmin);
+        $r = array();
         foreach ($allowedTypes as $dt) {
-            /**
-             * @var Criteria $c2
-             */
-
-            if (is_null($c2)) {
-                $c2 = $c->getNewCriterion(ArCdrPeer::DESTINATION_TYPE, $dt, Criteria::EQUAL);
-            } else {
-                $c2->addOr($c->getNewCriterion(ArCdrPeer::DESTINATION_TYPE, $dt, Criteria::EQUAL));
-            }
+            $r[] = "destination_type = ?";
+            $params[] = $dt;
         }
-
-        if (!is_null($c2)) {
-            $c->add($c2);
-        }
+        $c[] = '(' . implode(' OR ', $r) . ')';
     }
 
     //

@@ -61,7 +61,5 @@ class root_organizationsActions extends autoRoot_organizationsActions
         // search for a structure with a null parent, now, in the past or in the future.
         // In this way an user can select all the root organizations of future and past.
         $c->add(ArOrganizationUnitHasStructurePeer::AR_PARENT_ORGANIZATION_UNIT_ID, null, Criteria::ISNULL);
-        $c->setDistinct();
-
     }
 }

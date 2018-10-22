@@ -1,30 +1,17 @@
 <?php
 
-/* $LICENSE 2011, 2012, 2013, 2014:
- *
- * Copyright (C) 2011, 2012, 2013, 2014 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
- *
- * This file is part of Asterisell.
- *
- * Asterisell is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 3 of the License, or
- * (at your option) any later version.
- *
- * Asterisell is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with Asterisell. If not, see <http://www.gnu.org/licenses/>.
- * $
- */
+// SPDX-License-Identifier: GPL-3.0-or-later
 
 class InstallDemoData extends InstallationService
 {
 
     const default_cdrs_to_create = 30000;
+
+    /**
+     * @var int how many months of data to generate.
+     * NOTE: if you change this value, update also the `asterisell_instances.py` corresponding value.
+     */
+    const MONTHS_TO_GENERATE = 6;
 
     /**
      * @var null|int
@@ -65,6 +52,8 @@ class InstallDemoData extends InstallationService
         $conn = Propel::getConnection();
         $conn->beginTransaction();
 
+        $internalExtensions = array();
+
         try {
 
             $defaultParamsId = ArParamsPeer::getDefaultParamsId();
@@ -92,7 +81,7 @@ class InstallDemoData extends InstallationService
             $discountedCategoryId = ArRateCategoryPeer::retrieveByInternalName(ArRateCategory::ID_FOR_DISCOUNTED)->getId();
             $defaultVendorId = ArVendorPeer::retrieveByInternalName(ArVendor::ID_FOR_DEFUAULT)->getId();
 
-            // Create organization A
+            // Create complex organization A
 
             $csvData = <<<'CSV'
 "Type";"SIGLA";"Complete Name";"Account Code";
@@ -117,7 +106,7 @@ CSV;
             $createHiearchy = new ConfigureOrganizationHierarchy();
             $createHiearchy->createOrganizationHierarchyFromCSVData($csvData, 'A.');
 
-            // Create organization B
+            // Create complex organization B
 
             $csvData = <<<'CSV'
 "Type";"SIGLA";"Complete Name";"Account Code";
@@ -132,9 +121,28 @@ CSV;
             $createHiearchy = new ConfigureOrganizationHierarchy();
             $createHiearchy->createOrganizationHierarchyFromCSVData($csvData, 'B.');
 
+            // Create many small organizations
+
+            $smallOrganizations = 20;
+            $rateCategory = ArRateCategoryPeer::retrieveByInternalName(ArRateCategory::ID_FOR_NORMAL);
+            $unitType = ArOrganizationUnitTypePeer::retrieveByInternalName(ArOrganizationUnitType::ID_FOR_CUSTOMER);
+            $extensionId = ArOrganizationUnitTypePeer::retrieveByInternalName(ArOrganizationUnitType::ID_FOR_EXTENSION)->getId();
+            for ($i = 1; $i <= $smallOrganizations; $i++) {
+              $name = 'Mario Bross ' . $i;
+              $p = new ArParty();
+              $p->setName($name);
+              $p->setIsBillable(true);
+              $p->setIsActive(true);
+              $p->save();
+
+              $extensionCode = 'mario-bross-' . $i;
+              $unitId = $this->createOrganization(null, $unitType->getId(), $name, $rateCategory->getId(), $p->getId());
+              $this->createExtension($unitId, $extensionCode, $extensionId);
+              $internalExtensions[] = $extensionCode;
+            }
+
             // Create Extensions
 
-            $internalExtensions = array();
 
             $code = '2020';
             $this->createCompleteExtension('Adam Jill', $code, 'A.1.2');
@@ -295,6 +303,8 @@ CSV;
             $this->createResponsibleUser('Billy Barty', 'billy', 'billy', 'B.3');
 
             $params = ArParamsPeer::getDefaultParams();
+
+            $params->setOfficialCalldate(self::getGlobalStartingDateForCDRProcessinng());
             $params->setHtmlNotesOnTheLoginForm('
 This is a demo instance.
 
@@ -481,7 +491,6 @@ rate {
         ';
 
             $incomeRateSpec = '
-
 bundle-rate {
   id: free-60-calls
 
@@ -499,7 +508,6 @@ bundle-rate {
   only-for-calls-with-a-cost: true
 
   set-bundle-initial-cost: 10
-  set-bundle-min-cost: 0
 }
 
 rate {
@@ -608,9 +616,9 @@ rate {
 
             $ar_channels = array(ConfigureCommunicationChannels::SIP_MOBILE_OPERATOR_CHANNEL, ConfigureCommunicationChannels::SIP_FIXED_LINE_OPERATOR_CHANNEL);
             $directions = array('incoming', 'outgoing');
-            $d0 = FixedJobProcessor::getGlobalStartingDateForCDRProcessinng();
-            $startFromDay = (60 * 60 * 24 * 15);
-            $secondsRange = intval(time() - $d0) - $startFromDay;
+            $minDate = FixedJobProcessor::getGlobalStartingDateForCDRProcessinng();
+            $maxDate = strtotime('+' . self::MONTHS_TO_GENERATE . ' months', $minDate);
+            $secondsRange = $maxDate - $minDate;
 
             for ($i = 1; $i <= $recordsToAdd; $i++) {
                 if ($i % 1000 == 0) {
@@ -618,7 +626,7 @@ rate {
                 }
 
                 $secondsToAdd = intval(rand(0, $secondsRange));
-                $date = $d0 + $secondsToAdd + $startFromDay;
+                $date = $minDate + $secondsToAdd;
                 $duration = intval(rand(0, 60 * 5));
 
                 $data = array();

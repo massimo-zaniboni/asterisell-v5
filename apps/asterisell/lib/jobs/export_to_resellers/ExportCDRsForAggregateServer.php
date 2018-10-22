@@ -1,25 +1,6 @@
 <?php
 
-/* $LICENSE 2012:
- *
- * Copyright (C) 2012 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
- *
- * This file is part of Asterisell.
- *
- * Asterisell is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 3 of the License, or
- * (at your option) any later version.
- *
- * Asterisell is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with Asterisell. If not, see <http://www.gnu.org/licenses/>.
- * $
- */
+// SPDX-License-Identifier: GPL-3.0-or-later
 
 sfLoader::loadHelpers(array('I18N', 'Debug', 'Date', 'Asterisell'));
 
@@ -221,7 +202,7 @@ class ExportCDRsForAggregateServer extends DailyStatusJob
                         SUM(ar_cdr.cost) AS cost_of_calls,
                         SUM(ar_cdr.billsec) AS tot_duration,
                         SUM(ar_cdr.cost_saving) AS cost_saving
-                      FROM ar_cdr FORCE INDEX (ar_cdr_calldate_index)
+                      FROM ar_cdr 
                            INNER JOIN ar_communication_channel_type AS ch ON ar_cdr.ar_communication_channel_type_id = ch.id
                            INNER JOIN ar_vendor AS vendor ON ar_cdr.ar_vendor_id = vendor.id
                            LEFT JOIN ar_party AS vendor_party ON vendor.ar_party_id = vendor_party.id
@@ -286,7 +267,7 @@ class ExportCDRsForAggregateServer extends DailyStatusJob
                              SUM(ar_cdr.count_of_calls) AS count_of_calls,
                              SUM(ar_cdr.BILLSEC) AS tot_duration,
                              ar_cdr.error_destination_type AS error_destination_type
-                      FROM ar_cdr FORCE INDEX (ar_cdr_calldate_index)
+                      FROM ar_cdr 
                       WHERE ar_cdr.destination_type = ?
                       AND ar_cdr.calldate >= ?
                       AND ar_cdr.calldate < ?

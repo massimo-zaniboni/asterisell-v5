@@ -24,7 +24,7 @@ import qualified Data.ByteString.Lazy as B
 {-
 The query for v3 is something like
 
-SELECT MAKEDATE(YEAR(calldate), DAYOFYEAR(calldate)), 
+SELECT ANY_VALUE(MAKEDATE(YEAR(calldate), DAYOFYEAR(calldate))), 
        ar_party.name, 
        cdr.destination_type,
        count(cdr.id), 
@@ -44,7 +44,7 @@ GROUP BY YEAR(calldate), DAYOFYEAR(calldate), ar_party.id, cdr.destination_type;
 The query for v5 is something like
 
 CREATE TABLE temp_totals AS (
-SELECT MAKEDATE(YEAR(calldate), DAYOFYEAR(calldate)), 
+SELECT ANY_VALUE(MAKEDATE(YEAR(calldate), DAYOFYEAR(calldate))), 
        billable_ar_organization_unit_id, 
        ar_cdr.destination_type,
        count(ar_cdr.id), 

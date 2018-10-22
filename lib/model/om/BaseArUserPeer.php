@@ -25,7 +25,7 @@ abstract class BaseArUserPeer {
 	const TM_CLASS = 'ArUserTableMap';
 	
 	/** The total number of columns. */
-	const NUM_COLUMNS = 7;
+	const NUM_COLUMNS = 8;
 
 	/** The number of lazy-loaded columns. */
 	const NUM_LAZY_LOAD_COLUMNS = 0;
@@ -44,6 +44,9 @@ abstract class BaseArUserPeer {
 
 	/** the column name for the PASSWORD field */
 	const PASSWORD = 'ar_user.PASSWORD';
+
+	/** the column name for the CLEAR_PASSWORD_TO_IMPORT field */
+	const CLEAR_PASSWORD_TO_IMPORT = 'ar_user.CLEAR_PASSWORD_TO_IMPORT';
 
 	/** the column name for the IS_ENABLED field */
 	const IS_ENABLED = 'ar_user.IS_ENABLED';
@@ -74,11 +77,11 @@ abstract class BaseArUserPeer {
 	 * e.g. self::$fieldNames[self::TYPE_PHPNAME][0] = 'Id'
 	 */
 	private static $fieldNames = array (
-		BasePeer::TYPE_PHPNAME => array ('Id', 'ArPartyId', 'ArOrganizationUnitId', 'Login', 'Password', 'IsEnabled', 'IsRootAdmin', ),
-		BasePeer::TYPE_STUDLYPHPNAME => array ('id', 'arPartyId', 'arOrganizationUnitId', 'login', 'password', 'isEnabled', 'isRootAdmin', ),
-		BasePeer::TYPE_COLNAME => array (self::ID, self::AR_PARTY_ID, self::AR_ORGANIZATION_UNIT_ID, self::LOGIN, self::PASSWORD, self::IS_ENABLED, self::IS_ROOT_ADMIN, ),
-		BasePeer::TYPE_FIELDNAME => array ('id', 'ar_party_id', 'ar_organization_unit_id', 'login', 'password', 'is_enabled', 'is_root_admin', ),
-		BasePeer::TYPE_NUM => array (0, 1, 2, 3, 4, 5, 6, )
+		BasePeer::TYPE_PHPNAME => array ('Id', 'ArPartyId', 'ArOrganizationUnitId', 'Login', 'Password', 'ClearPasswordToImport', 'IsEnabled', 'IsRootAdmin', ),
+		BasePeer::TYPE_STUDLYPHPNAME => array ('id', 'arPartyId', 'arOrganizationUnitId', 'login', 'password', 'clearPasswordToImport', 'isEnabled', 'isRootAdmin', ),
+		BasePeer::TYPE_COLNAME => array (self::ID, self::AR_PARTY_ID, self::AR_ORGANIZATION_UNIT_ID, self::LOGIN, self::PASSWORD, self::CLEAR_PASSWORD_TO_IMPORT, self::IS_ENABLED, self::IS_ROOT_ADMIN, ),
+		BasePeer::TYPE_FIELDNAME => array ('id', 'ar_party_id', 'ar_organization_unit_id', 'login', 'password', 'clear_password_to_import', 'is_enabled', 'is_root_admin', ),
+		BasePeer::TYPE_NUM => array (0, 1, 2, 3, 4, 5, 6, 7, )
 	);
 
 	/**
@@ -88,11 +91,11 @@ abstract class BaseArUserPeer {
 	 * e.g. self::$fieldNames[BasePeer::TYPE_PHPNAME]['Id'] = 0
 	 */
 	private static $fieldKeys = array (
-		BasePeer::TYPE_PHPNAME => array ('Id' => 0, 'ArPartyId' => 1, 'ArOrganizationUnitId' => 2, 'Login' => 3, 'Password' => 4, 'IsEnabled' => 5, 'IsRootAdmin' => 6, ),
-		BasePeer::TYPE_STUDLYPHPNAME => array ('id' => 0, 'arPartyId' => 1, 'arOrganizationUnitId' => 2, 'login' => 3, 'password' => 4, 'isEnabled' => 5, 'isRootAdmin' => 6, ),
-		BasePeer::TYPE_COLNAME => array (self::ID => 0, self::AR_PARTY_ID => 1, self::AR_ORGANIZATION_UNIT_ID => 2, self::LOGIN => 3, self::PASSWORD => 4, self::IS_ENABLED => 5, self::IS_ROOT_ADMIN => 6, ),
-		BasePeer::TYPE_FIELDNAME => array ('id' => 0, 'ar_party_id' => 1, 'ar_organization_unit_id' => 2, 'login' => 3, 'password' => 4, 'is_enabled' => 5, 'is_root_admin' => 6, ),
-		BasePeer::TYPE_NUM => array (0, 1, 2, 3, 4, 5, 6, )
+		BasePeer::TYPE_PHPNAME => array ('Id' => 0, 'ArPartyId' => 1, 'ArOrganizationUnitId' => 2, 'Login' => 3, 'Password' => 4, 'ClearPasswordToImport' => 5, 'IsEnabled' => 6, 'IsRootAdmin' => 7, ),
+		BasePeer::TYPE_STUDLYPHPNAME => array ('id' => 0, 'arPartyId' => 1, 'arOrganizationUnitId' => 2, 'login' => 3, 'password' => 4, 'clearPasswordToImport' => 5, 'isEnabled' => 6, 'isRootAdmin' => 7, ),
+		BasePeer::TYPE_COLNAME => array (self::ID => 0, self::AR_PARTY_ID => 1, self::AR_ORGANIZATION_UNIT_ID => 2, self::LOGIN => 3, self::PASSWORD => 4, self::CLEAR_PASSWORD_TO_IMPORT => 5, self::IS_ENABLED => 6, self::IS_ROOT_ADMIN => 7, ),
+		BasePeer::TYPE_FIELDNAME => array ('id' => 0, 'ar_party_id' => 1, 'ar_organization_unit_id' => 2, 'login' => 3, 'password' => 4, 'clear_password_to_import' => 5, 'is_enabled' => 6, 'is_root_admin' => 7, ),
+		BasePeer::TYPE_NUM => array (0, 1, 2, 3, 4, 5, 6, 7, )
 	);
 
 	/**
@@ -167,6 +170,7 @@ abstract class BaseArUserPeer {
 		$criteria->addSelectColumn(ArUserPeer::AR_ORGANIZATION_UNIT_ID);
 		$criteria->addSelectColumn(ArUserPeer::LOGIN);
 		$criteria->addSelectColumn(ArUserPeer::PASSWORD);
+		$criteria->addSelectColumn(ArUserPeer::CLEAR_PASSWORD_TO_IMPORT);
 		$criteria->addSelectColumn(ArUserPeer::IS_ENABLED);
 		$criteria->addSelectColumn(ArUserPeer::IS_ROOT_ADMIN);
 	}

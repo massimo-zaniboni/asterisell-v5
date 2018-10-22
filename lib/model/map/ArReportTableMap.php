@@ -65,8 +65,8 @@ class ArReportTableMap extends TableMap {
 		$this->addColumn('PHP_CLASS_NAME', 'PhpClassName', 'VARCHAR', false, 1024, null);
 		$this->addColumn('PRODUCED_REPORT_GENERATION_DATE', 'ProducedReportGenerationDate', 'TIMESTAMP', false, null, null);
 		$this->addColumn('REPORT_NAME', 'ReportName', 'VARCHAR', false, 1024, null);
-		$this->addColumn('PRODUCED_REPORT_SHORT_DESCRIPTION', 'ProducedReportShortDescription', 'VARCHAR', false, 2048, null);
-		$this->addColumn('PRODUCED_REPORT_ADDITIONAL_DESCRIPTION', 'ProducedReportAdditionalDescription', 'VARCHAR', false, 2048, null);
+		$this->addColumn('PRODUCED_REPORT_SHORT_DESCRIPTION', 'ProducedReportShortDescription', 'VARCHAR', false, 512, null);
+		$this->addColumn('PRODUCED_REPORT_ADDITIONAL_DESCRIPTION', 'ProducedReportAdditionalDescription', 'VARCHAR', false, 1024, null);
 		$this->addColumn('PRODUCED_REPORT_ALREADY_REVIEWED', 'ProducedReportAlreadyReviewed', 'BOOLEAN', true, null, false);
 		$this->addColumn('PRODUCED_REPORT_IS_DRAFT', 'ProducedReportIsDraft', 'BOOLEAN', true, null, false);
 		$this->addColumn('PRODUCED_REPORT_MUST_BE_REGENERATED', 'ProducedReportMustBeRegenerated', 'BOOLEAN', true, null, false);
@@ -74,13 +74,13 @@ class ArReportTableMap extends TableMap {
 		$this->addColumn('PRODUCED_REPORT_FILE_TYPE_SUFFIX', 'ProducedReportFileTypeSuffix', 'VARCHAR', true, 25, 'pdf');
 		$this->addColumn('PRODUCED_REPORT_DOCUMENT', 'ProducedReportDocument', 'BLOB', false, null, null);
 		$this->addColumn('PRODUCED_REPORT_DOCUMENT_CHECKSUM', 'ProducedReportDocumentChecksum', 'VARCHAR', false, 1024, null);
-		$this->addColumn('REPORT_MAIL_SUBJECT', 'ReportMailSubject', 'VARCHAR', false, 1024, null);
-		$this->addColumn('REPORT_MAIL_BODY', 'ReportMailBody', 'VARCHAR', false, 5024, null);
+		$this->addColumn('REPORT_MAIL_SUBJECT', 'ReportMailSubject', 'VARCHAR', false, 512, null);
+		$this->addColumn('REPORT_MAIL_BODY', 'ReportMailBody', 'VARCHAR', false, 2048, null);
 		$this->addColumn('REPORT_ATTACHMENT_FILE_NAME', 'ReportAttachmentFileName', 'VARCHAR', false, 255, null);
 		$this->addColumn('REPORT_ATTACHMENT_FILE_NAME_ADD_REPORT_DATE', 'ReportAttachmentFileNameAddReportDate', 'BOOLEAN', true, null, false);
 		$this->addColumn('INTERNAL_NAME', 'InternalName', 'VARCHAR', false, 512, null);
-		$this->addColumn('CACHED_PARENT_ID_HIERARCHY', 'CachedParentIdHierarchy', 'VARCHAR', false, 2024, null);
-		$this->addColumn('LEGAL_NR_PREFIX', 'LegalNrPrefix', 'VARCHAR', true, 255, null);
+		$this->addColumn('CACHED_PARENT_ID_HIERARCHY', 'CachedParentIdHierarchy', 'VARBINARY', false, 850, null);
+		$this->addColumn('LEGAL_NR_PREFIX', 'LegalNrPrefix', 'VARCHAR', true, 80, '');
 		$this->addColumn('LEGAL_CONSECUTIVE_NR', 'LegalConsecutiveNr', 'INTEGER', false, null, null);
 		$this->addColumn('LEGAL_DATE', 'LegalDate', 'DATE', false, null, null);
 		$this->addColumn('LEGAL_SENDER_NAME', 'LegalSenderName', 'VARCHAR', false, 255, null);
@@ -89,10 +89,10 @@ class ArReportTableMap extends TableMap {
 		$this->addColumn('LEGAL_RECEIVER_NAME', 'LegalReceiverName', 'VARCHAR', false, 255, null);
 		$this->addColumn('LEGAL_RECEIVER_VAT', 'LegalReceiverVat', 'VARCHAR', false, 255, null);
 		$this->addColumn('LEGAL_RECEIVER_ADDRESS', 'LegalReceiverAddress', 'VARCHAR', false, 1024, null);
-		$this->addColumn('TOTAL_WITHOUT_TAX', 'TotalWithoutTax', 'BIGINT', false, null, null);
-		$this->addColumn('TAX', 'Tax', 'BIGINT', false, null, null);
-		$this->addColumn('APPLIED_VAT', 'AppliedVat', 'BIGINT', false, null, null);
-		$this->addColumn('TOTAL_WITH_TAX', 'TotalWithTax', 'BIGINT', false, null, null);
+		$this->addColumn('TOTAL_WITHOUT_TAX', 'TotalWithoutTax', 'BIGINT', true, null, 0);
+		$this->addColumn('TAX', 'Tax', 'BIGINT', true, null, 0);
+		$this->addColumn('APPLIED_VAT', 'AppliedVat', 'BIGINT', true, null, 0);
+		$this->addColumn('TOTAL_WITH_TAX', 'TotalWithTax', 'BIGINT', true, null, 0);
 		// validators
 	} // initialize()
 

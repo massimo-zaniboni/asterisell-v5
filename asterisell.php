@@ -1,24 +1,7 @@
 <?php
 
-/*
- * Copyright (C) 2007-2016 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
- *
- * This file is part of Asterisell.
- *
- * Asterisell is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 3 of the License, or
- * (at your option) any later version.
- *
- * Asterisell is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with Asterisell. If not, see <http://www.gnu.org/licenses/>.
- *
- */
+
+// SPDX-License-Identifier: GPL-3.0-or-later
 
 ////////////////////////////////////
 // INIT ENVIRONMENT AND CALL MAIN //
@@ -84,6 +67,192 @@ $input_line = fopen('php://stdin', 'r');
 $exitCode = main($argc, $argv);
 exit($exitCode);
 
+/**
+ * @return void
+ */
+function displayUsage()
+{
+    $str = <<<HELP
+##
+## Installation/development operations
+##
+
+  php asterisell.php activate
+
+      Clear cache, set directories, and other common and safe management operations.
+
+  php asterisell.php activate users [db-root-user] [db-root-password]
+
+      Create again the MySQL users for accessing the application.
+      NOTE: if a new name is used, then old users had to be deleted manually.
+
+  php asterisell.php make-derived-files
+
+      Internal command.
+
+  php asterisell.php silently-activate
+
+      Internal command.
+
+  php asterisell.php install
+
+      Initial install with empty database.
+
+  php asterisell.php install-demo
+
+      To call after "install" command for installing demo data.
+
+  php asterisell.php install-views-and-procedures
+
+      Install views, procedures, and calls rating procedures, without deleting data. Useful in case of restore from an instance with errors, or for updating of the code.
+
+  php asterisell.php run [upgrade-jobs|db-upgrade-jobs]
+
+      Execute only upgrading jobs. Called from the administrator.
+
+  php asterisell.php data admin <some-password>
+
+      Add an "admin" user, with the specified password.
+
+  php asterisell.php data unbilled YY-MM-DD hh:mm:s
+
+      All CDRS befor this calldate are considered as already billed.
+
+  php asterisell.php data merge-telephone-prefixes
+
+      Add new telephone prefixes to the telephone prefix table, reading them from "scripts/world_prefix_table.csv".
+
+  php asterisell.php dev remove-model <SomeModelClassName>
+
+      Remove from lib directory, the occurrences of the model.
+
+  php asterisell.php dev update-customizations
+
+      Update the description of rate formats, and other settings that are likely to be changed during development.
+
+  php asterisell.php dev support-user <password>
+
+      Create or modify an admin support user, with login "support", and the specified password.
+
+  php asterisell.php debug stress-rerating [MAX-DAYS-IN-THE-PAST] [HOURS]
+
+      Rerate starting from the specified days in the past, simulating new CDRS every specified hours, using random time-frames, and checking for errors in grouped cached CDRS.
+
+  php asterisell.php debug test <test-class> <test-method>
+
+      Called from regression test code for executing certain regression tests.
+
+  php asterisell.php debug some-code-test
+
+      Start some demo code, useful during development.
+
+  php asterisell.php debug regression-test <db-root-user> <db-root-password>
+
+      Execute unit tests on code.
+
+  php asterisell.php debug signal-critical-problem-in-the-code
+
+      Signal in the problem table, a critical problem in the code.
+
+  php asterisell.php run scheduled-jobs
+
+      Start job processor in silent mode, usually called from cron daemon.
+
+##
+## Maintenance operations
+##
+
+  php asterisell.php cron [enable|disable|disable-for-upgrade]
+
+      Enable or disable the cron job processor: the application can be used for viewing old data, but not process new data
+
+  php asterisell.php app [enable|disable]
+
+      Disable application access for normal users, saying that the application is under maintenance.
+
+  php asterisell.php dev list-jobs
+
+      List scheduled jobs with related development notes.
+
+  php asterisell.php cron force-execution-of-all-jobs
+
+      At next job execution also postponed (maintenance) jobs will be executed.
+
+  php asterisell.php run jobs
+
+      Start job processor. Called from the administrator.
+
+  php asterisell.php debug jobs
+
+      Start job processor reporting problems on the command line and in the log/asterisell_dev.log file, and executing the rating engine in debug/test mode.
+      This mode is a lot slower, but it can detect more errors in the code.
+
+  php asterisell.php debug rerate [yyyy-mm-dd]
+
+      Schedule a rerate event. The CDRs will be rated at next execution of jobs.
+      If none calldate is specified, then all not yet billed CDRS are scheduled for rerate.
+
+  php asterisell.php debug rate [yyyy-mm-dd]
+
+      Rate immediately the CDRs from the specified calldate.
+
+  php asterisell.php debug debug-rate [yyyy-mm-dd]
+
+      Rate immediately the CDRs from the specified calldate, generating debug info.
+      NOTE: more accurate info is generated, but it is slower than normal rating.
+
+  php asterisell.php debug reset-rerate-event
+
+      Reset the scheduled rerate events.
+
+##
+## Data operations
+##
+
+  php asterisell.php data backup
+
+      Create a file with the dump of the database.
+
+  php asterisell.php data config-backup
+
+      Make a compact backup of the database, excluding CDRs data.
+
+  php asterisell.php data restore
+
+      Restore the application data, according the content of "data_files/messages/backup" directory.
+      This is the suggested way for restoring data.
+      After the execution of this command the content of the backup directory will be overwritten with new data.
+
+  php asterisell.php data export-organizations <file-name>
+
+      Export organizations to file-name.
+
+  php asterisell.php data import-organizations <file-name> [new]
+
+      Import organizations from an YAML file.
+      Specify "new" for considering all data as new data, also if the part-id is specified.
+
+  php asterisell.php data complete-reseller-export-code <reseller-code>
+
+      Given the code of a reseller, complete the export-code field of the children extensions, with the first value in extensions codes. Only extensions with an empty value are affected.
+      This is a sane default value, that can be used for extensions to export to resellers, in case a batch initialization is needed. These values can be specified individually also in the user interface.
+
+  php asterisell.php data delete-organization <id>
+
+      Given the id of an organization (the unique identifier in a URL like "view/id/123"), delete from the database. Useful in case of infinite loops in definition of an organization, and other bad configurations.
+
+  php asterisell.php data export-cdrs [cdr-provider-code] [cdr-format] [yyyy-mm-[dd]]
+
+      Without params, list the available cdr-provider-codes and cdr-format.
+      Use YYYY-MM for exporting all the CDRs of a month, and YYYY-MM-DD for exporting all the CDRs of a day.
+
+
+HELP;
+
+    echo $str;
+    showMaintananceMode();
+}
+
 ////////////////////
 // DATABASE TESTS //
 ////////////////////
@@ -102,38 +271,12 @@ function isSafeReadConnection()
 
         while ($stm->fetchColumn()) {
         }
+        $stm->closeCursor();
         return TRUE;
     } catch (Exception $e) {
         return FALSE;
     }
 }
-
-/**
- * @return bool TRUE if the database user can alter the database
- */
-function isSafeAlterConnection()
-{
-    try {
-        $connection = Propel::getConnection();
-
-        $s1 = "CREATE TABLE IF NOT EXISTS ar_check_upgrade_script (id INTEGER(1)) ENGINE=InnoDB;";
-        $s2 = "ALTER TABLE ar_check_upgrade_script MODIFY COLUMN id INTEGER(5);";
-        $s3 = "ALTER TABLE ar_check_upgrade_script MODIFY COLUMN id INTEGER(4);";
-
-        $stm = $connection->prepare($s1);
-        $stm->execute();
-
-        $stm = $connection->prepare($s2);
-        $stm->execute();
-
-        $stm = $connection->prepare($s3);
-        $stm->execute();
-        return TRUE;
-    } catch (Exception $e) {
-        return FALSE;
-    }
-}
-
 
 /////////////////////
 // DELETE DATABASE //
@@ -241,6 +384,7 @@ function explicitContinue()
 }
 
 /**
+ * Create an user.
  * @param string $rootUser
  * @param string $rootPassword
  * @param string $database
@@ -251,16 +395,17 @@ function explicitContinue()
  */
 function createMySQLUser($rootUser, $rootPassword, $database, $user, $password, $isAdmin)
 {
-    myExecute("Create database user '$user'", "mysql -u $rootUser --password=$rootPassword mysql -e \"CREATE USER $user@localhost IDENTIFIED BY '$password';\" ");
-    myExecute("Change $user password in case the user was already existing ", "mysql -u $rootUser --password=$rootPassword mysql -e \"SET PASSWORD FOR $user@localhost = PASSWORD('$password');\" ");
+    myExecute("Create database user '$user'", "mysql -u $rootUser --password=$rootPassword mysql -e \"CREATE USER IF NOT EXISTS $user@localhost IDENTIFIED BY '$password';\" ");
+    myExecute("Change $user password in case the user was already existing ", "mysql -u $rootUser --password=$rootPassword mysql -e \"ALTER USER $user@localhost IDENTIFIED BY '$password';\"");
+
     if ($isAdmin) {
-        myExecute("Grant Access", "mysql -u $rootUser --password=$rootPassword mysql -e 'GRANT ALL ON $database.* TO $user@localhost;'");
-        myExecute("Grant Load File Access", "mysql -u $rootUser --password=$rootPassword mysql -e 'GRANT FILE ON *.* TO $user@localhost;'");
+        myExecute("Grant Access", "mysql -u $rootUser --password=$rootPassword mysql -e \"GRANT ALL ON $database.* TO $user@localhost;\"");
+        myExecute("Grant Load File Access", "mysql -u $rootUser --password=$rootPassword mysql -e \"GRANT FILE ON *.* TO $user@localhost;\"");
     } else {
-        myExecute("Grant Access", "mysql -u $rootUser --password=$rootPassword mysql -e 'GRANT SELECT ON $database.* TO $user@localhost;'");
-        myExecute("Grant Access", "mysql -u $rootUser --password=$rootPassword mysql -e 'GRANT SELECT, UPDATE ON $database.ar_report_to_read TO $user@localhost;'");
-        myExecute("Grant Access", "mysql -u $rootUser --password=$rootPassword mysql -e 'GRANT INSERT ON $database.ar_user_change_password_request TO $user@localhost;'");
-        myExecute("Grant Access", "mysql -u $rootUser --password=$rootPassword mysql -e 'REVOKE SELECT ON $database.ar_user_change_password_request FROM $user@localhost;'");
+        myExecute("Grant Access", "mysql -u $rootUser --password=$rootPassword mysql -e \"GRANT SELECT ON $database.* TO $user@localhost;\"");
+        myExecute("Grant Access", "mysql -u $rootUser --password=$rootPassword mysql -e \"GRANT SELECT, UPDATE ON $database.ar_report_to_read TO $user@localhost;\"");
+        myExecute("Grant Access", "mysql -u $rootUser --password=$rootPassword mysql -e \"GRANT INSERT ON $database.ar_user_change_password_request TO $user@localhost;\"");
+        myExecute("Grant Access", "mysql -u $rootUser --password=$rootPassword mysql -e \"REVOKE SELECT ON $database.ar_user_change_password_request FROM $user@localhost;\"");
     }
 }
 
@@ -294,38 +439,44 @@ function makeInstallCreateDatabase($rootUser = null, $rootPassword = null)
     }
 
     myExecute("Drop '$database' database", "mysqladmin -u $rootUser --password=$rootPassword drop --force $database");
-    myExecute("Create '$database' database", "mysql -u$rootUser --password=$rootPassword -e 'CREATE DATABASE $database DEFAULT CHARACTER SET utf8 DEFAULT COLLATE utf8_general_ci;'");
-    myExecute("Init '$database' database", "mysql -u $rootUser --password=$rootPassword $database < data/sql/lib.model.schema.sql");
+    myExecute("Create '$database' database", "mysql -u$rootUser --password=$rootPassword -e 'CREATE DATABASE $database DEFAULT CHARACTER SET utf8mb4 DEFAULT COLLATE utf8mb4_bin;'");
+    myExecute("Init '$database' schema", "mysql -u $rootUser --password=$rootPassword $database < data/sql/lib.model.schema.sql");
+
+    makeInstallCreateUsers($rootUser, $rootPassword);
+}
+
+
+/**
+ * Create admin and customer users.
+ * @param string|null $rootUser
+ * @param string|null $rootPassword
+ * @return void
+ */
+function makeInstallCreateUsers($rootUser = null, $rootPassword = null)
+{
+    global $input_line;
+
+    list($database, $user, $password) = getDatabaseNameUserAndPassword(true);
+
+    $isInteractive = (is_null($rootUser) || is_null($rootPassword));
+
+    if ($isInteractive) {
+        echo "\nEnter the name of MySQL administrator user, or another MySQL user that can create new users: ";
+        $rootUser = trim(fgets($input_line, 1024));
+
+        echo "\nEnter the MySQL password of the administrator user $rootUser:  ";
+        $rootPassword = trim(fgets($input_line, 1024));
+    }
 
     createMySQLUser($rootUser, $rootPassword, $database, $user, $password, true);
 
-    list($database, $user, $password) = getDatabaseNameUserAndPassword(false);
-    createMySQLUser($rootUser, $rootPassword, $database, $user, $password, false);
+    list($customerDatabase, $customerUser, $customerPassword) = getDatabaseNameUserAndPassword(false);
+    createMySQLUser($rootUser, $rootPassword, $customerDatabase, $customerUser, $customerPassword, false);
 
     if ($isInteractive) {
         explicitContinue();
     }
     makeActivate($isInteractive);
-}
-
-/**
- * @param string|null $password null for not installing root user
- * @param bool $isInteractive
- * @return void
- */
-function makeInstallData($password = 'root', $isInteractive = true)
-{
-
-    // this in the first installation of the database, so all upgrades are already applied, and mark them according
-    // this simplify other pass of uprade.
-    JobQueueProcessor::considerUpgradingJobsAsAlreadyAppliedWithoutExecutingThem($isInteractive);
-
-    makeActivate($isInteractive);
-
-    if (!is_null($password)) {
-        addRootUser($password);
-        echo "\user: $password - password: $password \n";
-    }
 }
 
 /**
@@ -339,7 +490,7 @@ function makeDatabaseBackup($isInteractive = true, $onlyConfig = false)
 
     list($database, $user, $password) = getDatabaseNameUserAndPassword();
 
-    $onlyConfigTables = array('ar_cdr', 'ar_current_problem', 'ar_new_problem', 'ar_source_csv_file', 'ar_bundle_state', 'ar_source_cdr', 'ar_remote_file');
+    $onlyConfigTables = BackupConfigurations::getConfigurationTablesToIgnoreInOnlyConfigExport();
 
     $options = ' ';
     if ($onlyConfig) {
@@ -354,23 +505,24 @@ function makeDatabaseBackup($isInteractive = true, $onlyConfig = false)
     } else {
         $fileName .= 'backup-' . date('Y-m-d_H-i-s') . '.sql';
     }
-    $cmd = "mysqldump -u $user --password=$password $database --single-transaction $options > $fileName";
+    $fileName .= '.gz';
 
-    $makeBackup = TRUE;
+    $cmd = "mysqldump -u root --password=$password $database --single-transaction $options | gzip > $fileName";
+    $restoreCmd = "pv $fileName | gunzip | mysql -uroot -p" . $password . " " . $database;
+
     if ($isInteractive) {
-        echo "\nThe database can be backuped using the command\n   > $cmd";
-        echo "\nCould I perform first a backup of the current database, without locking it? [Y/n]";
-        $next_line = trim(fgets($input_line, 1024));
-        if ($next_line === "n" || $next_line === "N") {
-            $makeBackup = FALSE;
-        }
+        echo "\nThe database can be backuped using the command\n\n   > $cmd";
+        echo "\nand restored using the command\n\n   > $restoreCmd \n\n";
     }
 
-    if ($makeBackup) {
-        myExecute("Make backup", $cmd);
-        return $fileName;
-    } else {
+    $r = system($cmd);
+    if ($r === FALSE) {
+        if ($isInteractive) {
+            echo "\nError during execution of command";
+        }
         return null;
+    } else {
+        return $fileName;
     }
 }
 
@@ -399,7 +551,7 @@ function makeDatabaseRestore($askPermission)
 
         // Drop database, and install an empty copy.
         echo "\n\nStart with an empty database.\n\n";
-        manageCommand_install(false, false);
+        manageCommand_install(false, true);
 
         echo "\n\nLoad configurations.\n\n";
         $confRestore = new BackupConfigurations();
@@ -429,6 +581,11 @@ function makeDatabaseRestore($askPermission)
             return $errorMsg;
         }
 
+        echo "\n\nUpdate ar_cached_cdrs and ar_cached_errors tables.\n\n";
+        if (!RateEngineService::executeUpdateAllCachedCDRS()) {
+            return "Error during updating of ar_cached_cdrs and ar_cached_errors table";
+        }
+
         return true;
     } else {
         return false;
@@ -448,14 +605,13 @@ function makeActivateDirs($user, $isAdmin)
         $preCmd = "cd " . getAsterisellCompleteUserDirectory();
     }
 
-    $cmd = $preCmd . ' && chown -R root:' . $user . ' . ';
+    $cmd = $preCmd . ' && chown -R ' . $user . ':' . $user . ' . ';
     myExecute("Fix ownerships", $cmd);
 
     $webWritableDirs = array(
         'cache/',
         'log/',
         'web/',
-        'web/generated_graphs/',
         'web/uploads/assets/'
     );
 
@@ -477,7 +633,7 @@ function makeActivateDirs($user, $isAdmin)
     myExecute("Fix Permissions for web-server not accessible directories", "$preCmd && chmod -R u+rwx,go-rwx scripts/ updates/ data_files/ fabric_data/ development_tools/ symfony-patch/ resource_files/ README LICENSE asterisell.php");
 
     if ($isAdmin) {
-      myExecute("Fix Permissions for web-server only-admin readable directories", "$preCmd && chmod -R g+rx,g-w,u+rwx,o-rwx resource_files/ ");
+        myExecute("Fix Permissions for web-server only-admin readable directories", "$preCmd && chmod -R g+rx,g-w,u+rwx,o-rwx resource_files/ ");
     }
 }
 
@@ -535,6 +691,52 @@ function convert_i18n_messages($isAdmin, $inFileName, $outFileName)
     } else {
         myExecute('i18n support', 'cp -f ' . $inFileName . ' ' . $outFileName);
     }
+}
+
+/**
+ * Signal as already imported some CSV file.
+ * @param string $csvFileName
+ * @return null if it is all ok, the error message otherwise
+ */
+function theseRemoteFilesAreAlreadyProcessed($csvFileName)
+{
+    $conn = Propel::getConnection();
+    $handle = fopen($csvFileName, 'r');
+    if ($handle === FALSE) {
+        return "$csvFileName does not exists";
+    }
+    $nrOfCol = 2;
+    $ln = 0;
+    while (($data = fgetcsv($handle, 64000, ',', "\"", "\"")) !== FALSE) {
+        $ln++;
+        $nr = count($data);
+        if ($nr != $nrOfCol) {
+            return "at line $ln of $csvFileName there are $nr columns instead of expected $nrOfCol (" . print_r($data, TRUE) . ")";
+        } else {
+            $providerName = $data[0];
+            $remoteFileName = $data[1];
+            $stmt = $conn->prepare('SELECT id FROM ar_cdr_provider WHERE internal_name = ?');
+            $stmt->execute(array($providerName));
+            $providerId = null;
+            while (($rs = $stmt->fetch(PDO::FETCH_NUM)) !== false) {
+                $providerId = $rs[0];
+            }
+            $stmt->closeCursor();
+
+            if (is_null($providerId)) {
+                return "unknown provider $providerName at line $ln of $csvFileName";
+            }
+
+            $now = fromUnixTimestampToMySQLTimestamp(strtotime('+0 days'));
+            $stmt = $conn->prepare('INSERT INTO ar_remote_file SET ar_cdr_provider_id = ?, name = ?, receiving_date = ?');
+            $stmt->execute(array($providerId, $remoteFileName, $now));
+            $stmt->closeCursor();
+
+            echo "\n   Virtually imported from $providerName : $remoteFileName";
+        }
+    }
+
+    return null;
 }
 
 /**
@@ -606,7 +808,10 @@ function makeActivate($isInteractive = true, $changePermissions = false, $writeT
             convert_i18n_messages(false, $inFileName, $outFileName2);
         }
     }
-    fclose($dh);
+    closedir($dh);
+
+    myExecute("Publish manual", "ln -s " . getAsterisellCompleteAdminDirectory() . "/doc/manual/out " . getAsterisellCompleteAdminDirectory() . "/web/manual");
+    // NOTE: I'm using the final "/" for not copying the admin directory inside source
 
     makeActivateDirs($user, false);
 }
@@ -723,7 +928,7 @@ function waitCronJob($silent = false, $waitForLock = true)
         }
         $retryCount--;
 
-        $r = $processor->lock(true);
+        $r = $processor->lock();
         if ($r == TRUE) {
             if (!$silent) {
                 echo "\nOk: there are no running Jobs, and other Jobs will be locked.\n";
@@ -816,145 +1021,8 @@ function moveCSVFiles($srcDir, $destDir, $readmeFile)
 //////////////////////
 
 /**
- * @return void
- */
-function displayUsage()
-{
-
-    echo "\nUsage:\n";
-    echo "\nphp asterisell.php help";
-    echo "\n  this help";
-    echo "\n";
-    echo "\nphp asterisell.php activate";
-    echo "\n  clear cache, set directories, and other common and safe management operations";
-    echo "\n";
-    echo "\nphp asterisell.php make-derived-files";
-    echo "\n  internal command";
-    echo "\n";
-    echo "\nphp asterisell.php silently-activate";
-    echo "\n  internal command";
-    echo "\n";
-    echo "\nphp asterisell.php cron [enable|disable|disable-for-upgrade]";
-    echo "\n  enable or disable the cron job processor: the application can be used for viewing old data, but not process new data";
-    echo "\n";
-    echo "\nphp asterisell.php cron force-execution-of-all-jobs";
-    echo "\n  remove locks about jobs started from the administrator on the web";
-    echo "\n";
-    echo "\nphp asterisell.php app [enable|disable]";
-    echo "\n  disable application access for normal users, saying that the application is under maintenance";
-    echo "\n";
-    echo "\nphp asterisell.php install";
-    echo "\n  initial install with empty database";
-    echo "\n";
-    echo "\nphp asterisell.php install-demo";
-    echo "\n  initial install, with demo data";
-    echo "\n";
-    echo "\nphp asterisell.php install-views-and-procedures";
-    echo "\n  install views, procedures, and calls rating procedures, without deleting data. Useful in case of restore from an instance with errors, or for updating of the code.";
-    echo "\n";
-    echo "\nphp asterisell.php data backup";
-    echo "\n  create a file with the dump of the database.";
-    echo "\n";
-    echo "\nphp asterisell.php data config-backup";
-    echo "\n  make a compact backup of the database, excluding CDRs data.";
-    echo "\n";
-    echo "\nphp asterisell.php data restore";
-    echo "\n  restore the application data, according the content of \"data_files/messages/backup\" directory.";
-    echo "\n  This is the suggested way for restoring data.";
-    echo "\n  After the execution of this command the content of the backup directory will be overwritten with new data.";
-    echo "\n";
-    echo "\nphp asterisell.php data admin <some-password>";
-    echo "\n  add an \"admin\" user, with the specified password";
-    echo "\n";
-    echo "\nphp asterisell.php data merge-telephone-prefixes ";
-    echo "\n  add new telephone prefixes to the telephone prefix table, reading them from \"scripts/world_prefix_table.csv\"";
-    echo "\n";
-    echo "\nphp asterisell.php data export-organizations";
-    echo "\n  export organizations to stdout.";
-    echo "\n";
-    echo "\nphp asterisell.php data import-organizations <file-name>";
-    echo "\n  import organizations from an YAML file.";
-    echo "\n";
-    echo "\nphp asterisell.php data complete-reseller-export-code <reseller-code> ";
-    echo "\n  given the code of a reseller, complete the export-code field of the children extensions, with the first value in extensions codes. Only extensions with an empty value are affected. This is a sane default value, that can be used for extensions to export to resellers, in case a batch initialization is needed. These values can be specified individually also in the user interface.";
-    echo "\n";
-    echo "\nphp asterisell.php data delete-organization <id> ";
-    echo "\n  given the id of an organization (the unique identifier in a URL like \"view/id/123\"), delete from the database. Useful in case of infinite loops in definition of an organization, and other bad configurations.";
-    echo "\n";
-    echo "\nphp asterisell.php data export-cdrs [cdr-provider-code] [cdr-format] [yyyy-mm-[dd]]";
-    echo "\n  without params, list the available cdr-provider-codes and cdr-format.";
-    echo "\n  Use yyyy-mm for exporting all the CDRs of a month, and yyyy-mm-dd for exporting all the CDRs of a day.";
-    echo "\n";
-    echo "\nphp asterisell.php dev remove-model <SomeModelClassName>";
-    echo "\n  remove from lib directory, the occurrences of the model.";
-    echo "\n";
-    echo "\nphp asterisell.php dev list-jobs";
-    echo "\n  list scheduled jobs with related development notes";
-    echo "\n";
-    echo "\nphp asterisell.php dev update-customizations";
-    echo "\n  update the description of rate formats, and other settings that are likely to be changed during development";
-    echo "\n";
-    echo "\nphp asterisell.php dev support-user <password>";
-    echo "\n  create or modify an admin support user, with login \"support\", and the specified password.";
-    echo "\n";
-    echo "\nphp asterisell.php debug rerate [yyyy-mm-dd] [yyyy-mm-dd]";
-    echo "\n  schedule a rerate event. The CDRs will be rated at next execution of jobs.";
-    echo "\n  If none calldate is specified, then all not yet billed CDRS are scheduled for rerate.";
-    echo "\n  If both the initial and ending calldate are specifed, then all CDRS within the two calldates are scheduled for rerating.";
-    echo "\n  The ending calldate is optional: if not specified all calls are rated, starting from the initial calldate.";
-    echo "\n";
-    echo "\nphp asterisell.php debug rate [yyyy-mm-dd] [yyyy-mm-dd]";
-    echo "\n  rate immediately the CDRs in the specified time-frame.";
-    echo "\n  The syntax is the same of rerate command.";
-    echo "\n";
-    echo "\nphp asterisell.php debug debug-rate [yyyy-mm-dd] [yyyy-mm-dd]";
-    echo "\n  rate immediately the CDRs in the specified time-frame, generating debug info.";
-    echo "\n  The syntax is the same of rerate command.";
-    echo "\n";
-    echo "\nphp asterisell.php debug reset-rerate-event ";
-    echo "\n  reset the scheduled rerate event.";
-    echo "\n";
-    echo "\nphp asterisell.php debug merge-rules <yyyy-mm-dd> <hh:mm:ss> <days>";
-    echo "\n  merge the calls, generating only debug information, without rating the calls,";
-    echo "\n  starting from the specified timestamp, for the specified days.";
-    echo "\n";
-    echo "\nphp asterisell.php debug signal-critical-problem-in-the-code";
-    echo "\n  signal in the problem table, a critical problem in the code.";
-    echo "\n";
-    echo "\nphp asterisell.php debug reload-organizations";
-    echo "\n  force a reload of organization data from external servers.";
-    echo "\n";
-    echo "\nphp asterisell.php run scheduled-jobs";
-    echo "\n  start job processor in silent mode, usually called from cron daemon";
-    echo "\n";
-    echo "\nphp asterisell.php run jobs";
-    echo "\n  Start job processor. Called from the administrator.";
-    echo "\n";
-    echo "\nphp asterisell.php run [upgrade-jobs|db-upgrade-jobs]";
-    echo "\n  Execute only upgrading jobs. Called from the administrator.";
-    echo "\n";
-    echo "\nphp asterisell.php debug jobs";
-    echo "\n  start job processor reporting problems on the command line and in the log/asterisell_dev.log file,";
-    echo "\n  and executing the rating engine in debug/test mode. ";
-    echo "\n  This mode is a lot slower, but it can detect more errors in the code.";
-    echo "\n";
-    echo "\nphp asterisell.php debug regression-test";
-    echo "\n  start some functional test on the code";
-    echo "\n";
-    echo "\nphp asterisell.php debug stress-rerating [MAX-DAYS-IN-THE-PAST] [TIMES]";
-    echo "\n  rerate different time-frames, searching for differences.";
-    echo "\n";
-    echo "\nphp asterisell.php debug some-code-test";
-    echo "\n  start some demo code, useful during development";
-    echo "\n";
-    echo "\n";
-    showMaintananceMode();
-
-}
-
-/**
  * @param int $argc
- * @param string[] $argv
+ * @param array $argv
  * @return int exit code
  */
 function main($argc, $argv)
@@ -991,10 +1059,27 @@ function main($argc, $argv)
         $option3 = trim($argv[5]);
     }
 
-    // these commands do not test for database connections
+    // NOTE: these commands do not test for database connections
     $isThereDatabaseConnection = false;
     if ($mainCommand === "install") {
-        manageCommand_install(false);
+        $dbRootUser = null;
+        $dbRootPassword = null;
+        $ask = false;
+        if (!isEmptyOrNull($subCommand)) {
+            $dbRootUser = $subCommand;
+        } else {
+            $ask = true;
+        }
+
+        if (!isEmptyOrNull($option1)) {
+            $dbRootPassword = $option1;
+        } else {
+            $ask = true;
+        }
+        if ($ask) {
+          explicitConfirmForDeletion();
+        }
+        manageCommand_install(false, $dbRootUser, $dbRootPassword);
     } else if ($mainCommand == 'install-views-and-procedures') {
         $job = new InitWithDefaultMySQLStoredProcedures();
         $job->process();
@@ -1002,14 +1087,39 @@ function main($argc, $argv)
     } else if ($mainCommand === "install-demo") {
         $dbRootUser = null;
         $dbRootPassword = null;
+        $ask = false;
         if (!isEmptyOrNull($subCommand)) {
             $dbRootUser = $subCommand;
+        } else {
+            $ask = true;
         }
 
         if (!isEmptyOrNull($option1)) {
             $dbRootPassword = $option1;
+        } else {
+            $ask = true;
         }
-        manageCommand_install(true, true, $dbRootUser, $dbRootPassword);
+
+        if ($ask) {
+          explicitConfirmForDeletion();
+        }
+
+        list($database, $user, $password) = getDatabaseNameUserAndPassword();
+
+        // Test if the passwords are correct, as security measure, before deleting all data
+        $retVal = 0;
+        $cmd = 'mysql -u' . $dbRootUser . ' -p' . $dbRootPassword . ' ' . $database . ' -e "SELECT 0 FROM ar_cdr;"';
+        system($cmd, $retVal);
+        if ($retVal != 0) {
+            echo "\nPassword not valid.";
+            exit(1);
+        }
+
+        require_once('scripts/installation/InstallDemoData.php');
+        $job = new InstallDemoData();
+        $job->setCdrsToCreate(30000);
+        $job->process();
+
     } else if ($mainCommand == "dev") {
         $exitCode = manageCommand_dev($subCommand, $option1, $option2, $option3);
     } else if ($mainCommand === "make-derived-files") {
@@ -1018,7 +1128,6 @@ function main($argc, $argv)
         makeActivate(false, true, false);
     } else if ($mainCommand === 'manage') {
         manageCommand_manage($subCommand);
-
     } else if ($mainCommand === "help" || $mainCommand == "") {
         displayUsage();
         return (1);
@@ -1026,16 +1135,6 @@ function main($argc, $argv)
         // test database connection, because all other commands require a safe connection
 
         $connectionError = "\nERROR: MySQL database user have no alter table privileges, or read privileges.\nCheck your database configurations inside `config/databases.yml` file.\nProbably Asterisell is not installed. In this case the command to do is `php asterisell.php install`, but it is better following installation instructions of the manual.\n";
-
-        if (!isSafeAlterConnection()) {
-            // sometimes there are simply caching problems
-            executeSymfonyCC();
-            if (!isSafeAlterConnection()) {
-                // signal that the connection is not ok
-                echo $connectionError;
-                exit(1);
-            }
-        }
 
         if (!isSafeReadConnection()) {
             // signal that the connection is not ok
@@ -1075,21 +1174,36 @@ function main($argc, $argv)
             // all these jobs require a lock into the database
 
             $lock = waitCronJob();
+            try {
+                if ($mainCommand === "app") {
+                    $exitCode = manageCommand_app($subCommand);
 
-            if ($mainCommand === "app") {
-                $exitCode = manageCommand_app($subCommand);
+                } else if ($mainCommand === "activate") {
+                    if ($subCommand === 'users') {
+                        $dbRootUser = null;
+                        $dbRootPassword = null;
+                        if (!isEmptyOrNull($option1)) {
+                            $dbRootUser = $option1;
+                        }
+                        if (!isEmptyOrNull($option2)) {
+                            $dbRootPassword = $option2;
+                        }
+                        makeInstallCreateUsers($dbRootUser, $dbRootPassword);
+                    }
+                    makeActivate();
+                } else if ($mainCommand === "data") {
+                    $exitCode = manageCommand_data($subCommand, $option1, $option2, $option3);
+                } else if ($mainCommand === "debug") {
+                    $exitCode = manageCommand_debug($lock, $subCommand, $option1, $option2, $option3);
+                } else {
+                    displayUsage();
+                }
 
-            } else if ($mainCommand === "activate") {
-                makeActivate();
-            } else if ($mainCommand === "data") {
-                $exitCode = manageCommand_data($subCommand, $option1, $option2, $option3);
-            } else if ($mainCommand === "debug") {
-                $exitCode = manageCommand_debug($lock, $subCommand, $option1, $option2, $option3);
-            } else {
-                displayUsage();
+                unlockCronJob($lock);
+            } catch (Exception $e) {
+                unlockCronJob($lock);
+                throw($e);
             }
-
-            unlockCronJob($lock);
         }
     }
 
@@ -1117,9 +1231,9 @@ function manageCommand_run($subCommand)
 {
 
     if ($subCommand === "jobs") {
-        // NOTE execute always these jobs, because they are run from administrator
+        // NOTE: execute these jobs, also if in maintainance, because they are run from administrator
+        // NOTE: it will be blocked if there is another job already waiting
         runJobProcessorQueue(false, false);
-
     } else if ($subCommand === "scheduled-jobs") {
         if (!AsterisellUser::isCronLockedForMaintanance()) {
             runJobProcessorQueue(true, false);
@@ -1137,6 +1251,9 @@ function manageCommand_run($subCommand)
             $job->unlock();
 
             $isOk = JobQueueProcessor::applyNewUpgradingJobs(true, $isDBUpgrade);
+            $unitInfo = OrganizationUnitInfo::getInstance();
+            // NOTE: doing so organization-info caching is written on the DB,
+            // and it can be used immediately from customers connections.
             if ($isOk === FALSE) {
                 echo "\nError during upgrade phase.\n";
                 exit(1);
@@ -1156,14 +1273,9 @@ function manageCommand_run($subCommand)
     return (0);
 }
 
-function manageCommand_install($loadDemoData = false, $acquireLockOnJobProcessor = true, $dbRootUser = null, $dbRootPassword = null)
+function manageCommand_install($acquireLockOnJobProcessor = true, $dbRootUser = null, $dbRootPassword = null)
 {
-
-    $isInteractive = !$loadDemoData;
-
-    if ($isInteractive) {
-        explicitConfirmForDeletion();
-    }
+    $isInteractive = true;
 
     makeInstallCreateDatabase($dbRootUser, $dbRootPassword);
     executeSymfonyCC();
@@ -1176,27 +1288,15 @@ function manageCommand_install($loadDemoData = false, $acquireLockOnJobProcessor
         $lock = null;
     }
 
-    if ($loadDemoData) {
-        $initialUser = 'root';
-    } else {
-        $initialUser = null;
-    }
-    makeInstallData($initialUser, $isInteractive);
+    // this in the first installation of the database, so all upgrades are already applied, and mark them according
+    // this simplify other pass of uprade.
+    JobQueueProcessor::considerUpgradingJobsAsAlreadyAppliedWithoutExecutingThem($isInteractive);
+    makeActivate($isInteractive);
     JobQueueProcessor::applyInitialConfigurationJobsToTheDatabase(true);
-
-    if ($loadDemoData) {
-        require_once('scripts/installation/InstallationService.php');
-        require_once('scripts/installation/InstallDemoData.php');
-
-        $job = new InstallDemoData();
-        $job->setCdrsToCreate(30000);
-        $job->process();
-    }
 
     if ($acquireLockOnJobProcessor) {
         unlockCronJob($lock);
     }
-
 }
 
 function manageCommand_manage($subCommand)
@@ -1225,6 +1325,23 @@ function manageCommand_data($subCommand, $option1, $option2 = '', $option3 = '')
 
     if ($subCommand === "admin") {
         addRootUser($password);
+    } else if ($subCommand == "unbilled") {
+        if (isEmptyOrNull($option1)) {
+            displayUsage();
+            return(1);
+        } else {
+            $d = $option1;
+        }
+
+        if (!isEmptyOrNull($option2)) {
+            $d .= ' ' . $option2;
+        }
+
+        $ud = fromMySQLTimestampToUnixTimestamp($d);
+
+        $p = ArParamsPeer::getDefaultParams();
+        $p->setOfficialCalldate($ud);
+        $p->save();
     } else if ($subCommand === "merge-telephone-prefixes") {
         $job = new LoadWorldTelephonePrefixesFromCSVFile();
         $job->loadAllPrefixes(true);
@@ -1250,10 +1367,15 @@ function manageCommand_data($subCommand, $option1, $option2 = '', $option3 = '')
             return (1);
         }
 
+        $isNew = false;
+        if (!isEmptyOrNull($option2) && strcmp($option2, "new") == 0) {
+            $isNew = true;
+        }
+
         $yamlContent = file_get_contents($fileName);
         $job = new ChangeOrganizationInfo();
         try {
-            $job->processYAMLContent($yamlContent);
+            $job->processYAMLContent($yamlContent, $isNew);
             echo "\nFile imported correctly.\n";
         } catch (ArProblemException $e) {
             echo "\nError importing the file: " . ArProblemException::getLastErrorDescription();
@@ -1262,9 +1384,13 @@ function manageCommand_data($subCommand, $option1, $option2 = '', $option3 = '')
     } else if ($subCommand == "export-organizations") {
         $yamlJob = new ChangeOrganizationInfo();
         $yaml = $yamlJob->getYAMLContent(null, null, null);
-
-        echo $yaml;
-        echo "\n";
+        if (isEmptyOrNull($option1)) {
+          echo $yaml;
+          echo "\n";
+        } else {
+            file_put_contents($option1, $yaml);
+            echo "\nWritten to file $option1";
+        }
     } else if ($subCommand == "complete-reseller-export-code") {
         if (!isEmptyOrNull($option1)) {
             $resellerCode = $option1;
@@ -1272,7 +1398,7 @@ function manageCommand_data($subCommand, $option1, $option2 = '', $option3 = '')
             if (is_null($resellerId)) {
                 echo "\nUnknown reseller code \"$resellerCode\"";
             } else {
-              completeResellerExportCodeId($resellerId);
+                completeResellerExportCodeId($resellerId);
             }
         } else {
             echo "\nNeeded a reseller code";
@@ -1348,7 +1474,6 @@ function manageCommand_data($subCommand, $option1, $option2 = '', $option3 = '')
                 return (1);
             }
 
-
             $job = new ImportDataFiles();
             $fileName = $job->exportStatusFile('exported', False, $cdrProviderName, $cdrProviderName, $logicalTypeName, $formatName, $statusYYYY, $statusMM, $statusDD);
 
@@ -1414,25 +1539,46 @@ function manageCommand_debug(JobQueueProcessor $lock, $subCommand, $option1, $op
         // NOTE: debug mode is also tested at the init of this script and used for setting DEV mode.
         runJobProcessorQueue(false, true);
     } else if ($subCommand == 'regression-test') {
-        require_once('scripts/installation/InstallationService.php');
+        $dbRootUser = null;
+        $dbRootPassword = null;
+        $ask = false;
+        if (!isEmptyOrNull($option1)) {
+            $dbRootUser = $option1;
+        } else {
+            $ask = true;
+        }
+
+        if (!isEmptyOrNull($option2)) {
+            $dbRootPassword = $option2;
+        } else {
+            $ask = true;
+        }
+
+        if ($ask) {
+           echo "\nMissing root and password.\n";
+           exit(1);
+        }
+
+        list($database, $user, $password) = getDatabaseNameUserAndPassword();
+
         require_once('scripts/installation/CommonTests.php');
+        manageCommand_install(false, $dbRootUser, $dbRootPassword);
+        $job = new CommonTests();
+        $job->process();
 
         $lock->unlock();
 
-        manageCommand_install(false, true);
+        echo "\n\nAll tests were executely correctly\n";
 
-        $job = new CommonTests();
-        $job->process();
     } else if ($subCommand == 'stress-rerating') {
-
-        explicitConfirmForDeletion(true);
-
+        $lock->unlock();
         $job = new ManageRateEvent();
         $r = $job->stressRerating($option1, $option2, true);
         if ($r) {
             echo "\nThere were no errors after various rerating attempts.\n";
         } else {
             echo "\n!!! There are errors after various rerating attempts. !!!\n";
+            echo "\n!!! The database is left in an inconsistent state. Rerate manually all the CDRS. !!!\n";
             return (1);
         }
 
@@ -1443,22 +1589,14 @@ function manageCommand_debug(JobQueueProcessor $lock, $subCommand, $option1, $op
             FixedJobProcessor::rerateCallsFromOfficialCalldate(false);
         } else {
             $callDate1 = null;
-            $callDate2 = null;
 
             $callDate1 = fromMySQLTimestampToUnixTimestamp($option1);
             if (is_null($callDate1)) {
                 $allOk = false;
             }
 
-            if (!isEmptyOrNull($option2)) {
-                $callDate2 = fromMySQLTimestampToUnixTimestamp($option2);
-                if (is_null($callDate2)) {
-                    $allOk = false;
-                }
-            }
-
             if ($allOk) {
-                FixedJobProcessor::rerateCalls($callDate1, $callDate2);
+                FixedJobProcessor::rerateCalls($callDate1);
             }
         }
 
@@ -1483,14 +1621,22 @@ function manageCommand_debug(JobQueueProcessor $lock, $subCommand, $option1, $op
         }
     } else if ($subCommand == 'reset-rerate-event') {
         FixedJobProcessor::signalAsDoneRerateCallsFromOfficialCalldate(null, true);
-        FixedJobProcessor::rerateCalls(null, null);
+        FixedJobProcessor::rerateCalls(null);
     } else if ($subCommand == 'some-code-test') {
         someCodeToTest();
-    } else if ($subCommand == 'reload-organizations') {
-        echo "\nReading organization hierarchy from remote server, and loading on local database.\n";
-        $extensionJob = new ITCImportExtensions();
-        $log = $extensionJob->processAtDate(false, true, true);
-        echo "\nDone: $log\n";
+    } else if ($subCommand == 'test') {
+        $jobClass = $option1;
+
+        /**
+         * @var FixedJobProcessor $job
+         */
+        $job = new $jobClass();
+        $job->setDebugMode(true);
+        $job->regressionTestParam = $option2;
+
+        echo "\nStart regression test " . $jobClass . ": " . $option2;
+
+        $job->process();
     } else if ($subCommand == 'signal-critical-problem-in-the-code') {
         ArProblemException::createWithoutGarbageCollection(
             ArProblemType::TYPE_CRITICAL,
@@ -1501,38 +1647,6 @@ function manageCommand_debug(JobQueueProcessor $lock, $subCommand, $option1, $op
             "Current Jobs were interrupted. If the problem persist, no new CDRs can be rated. The JobLog contains a detail of job forcing an interruption of the job chain/sequence.",
             "This is an error in the application code. Contact the assistance.",
             null);
-    } else if ($subCommand === "merge-rules") {
-        $fromDate = strtotime($option1 . ' ' . $option2);
-        if ($fromDate == false) {
-            echo "ERROR: \"$option1 $option2\" is not a recognized timestamp format.\n";
-        }
-
-        $toDate = strtotime('+' . $option3 . ' days', $fromDate);
-
-        JobQueueProcessor::$IS_INTERACTIVE = true;
-
-        ArProblemException::beginLogTransaction();
-
-        try {
-
-            $debugFileName = 'debug_info.html';
-            $completeDebugFileName = normalizeFileNamePath(getAsterisellCompleteRootDirectory() . '/web/' . $debugFileName);
-
-            $merge = new ITCMergeAndRateCDRs();
-            $merge->mergeCDRs($fromDate, $toDate, "/tmp/asterisell_temp_merge.csv", true, $completeDebugFileName);
-
-            @chmod($completeDebugFileName, 0666);
-
-            echo "\nGenerated file \"$completeDebugFileName\".";
-            echo "\nIt can be accessed, using the URL \"$debugFileName\"";
-            echo "\n";
-
-        } catch (ArProblemException $e) {
-            echo "\n   !!! PROBLEM SIGNALED ON THE ERROR TABLE";
-            echo "\n";
-        }
-
-        ArProblemException::commitLogTransaction();
     } else {
         displayUsage();
     }
@@ -1592,7 +1706,16 @@ function manageCommand_dev($subCommand, $option1 = '', $option2 = '', $option3 =
         $user->save();
 
         echo "\nCreated user $login with password $password\n";
-
+    } else if ($subCommand === 'reinstall_dev') {
+        JobQueueProcessor::applyInitialConfigurationJobsToTheDatabase(true);
+    } else if ($subCommand === 'these-remote-files-are-already-processed') {
+        $r = theseRemoteFilesAreAlreadyProcessed($option1);
+        if (is_null($r)) {
+            return (0);
+        } else {
+            echo "\n\n" . $r;
+            return (1);
+        }
     } else {
         displayUsage();
         return (1);

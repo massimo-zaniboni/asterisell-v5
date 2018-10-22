@@ -49,7 +49,6 @@ class ArVendorTableMap extends TableMap {
 	public function buildRelations()
 	{
     $this->addRelation('ArParty', 'ArParty', RelationMap::MANY_TO_ONE, array('ar_party_id' => 'id', ), null, null);
-    $this->addRelation('ArCdr', 'ArCdr', RelationMap::ONE_TO_MANY, array('id' => 'ar_vendor_id', ), null, null);
     $this->addRelation('ArRate', 'ArRate', RelationMap::ONE_TO_MANY, array('id' => 'ar_vendor_id', ), null, null);
     $this->addRelation('ArVendorDomain', 'ArVendorDomain', RelationMap::ONE_TO_MANY, array('id' => 'ar_vendor_id', ), null, null);
     $this->addRelation('ArReport', 'ArReport', RelationMap::ONE_TO_MANY, array('id' => 'ar_vendor_id', ), null, null);

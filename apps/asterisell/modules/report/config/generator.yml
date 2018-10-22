@@ -41,7 +41,7 @@ generator:
         produced_report_additional_description: { name: "Description", help: "It will be compiled from the system, after report genaration. ", type: textarea_tag, params: disabled=true size=80x5 }
         is_template: { name: "Used as template", help: "True for using as template for scheduled reports. The report must be generated in any case, in order to complete the calculated fields. Template reports are not visible to users, because they are used only as template for generating other scheduled reports."}
 
-        filter_on_end_time: { name: Applicable at , }
+        filter_on_end_time: { name: "Applicable at ,"}
 
         filter_on_organization: { name: "Organization", filter_criteria_disabled: true }
         select_organization: { name: "Organization", help: "Reports are generated for the specified organization."  }

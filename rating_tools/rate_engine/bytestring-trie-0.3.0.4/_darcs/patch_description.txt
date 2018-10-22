@@ -1,0 +1,14 @@
+Support for stackage lts-12.0
+
+# Please enter the patch name in the first line, and
+# optionally, a long description in the following lines.
+#
+# Lines starting with '#' will be ignored.
+#
+#
+# This patch contains the following changes:
+#
+# M ./CHANGELOG +2
+# M ./bytestring-trie.cabal -27 +15
+# M ./src/Data/Trie/ArrayMapped/Internal.hs -4 +4
+# M ./src/Data/Trie/BigEndianPatricia/Internal.hs -53 +55

@@ -1,576 +1,507 @@
-{-# Language OverloadedStrings, ScopedTypeVariables, BangPatterns, DeriveGeneric, DeriveAnyClass #-}
+{-# Language OverloadedStrings, ScopedTypeVariables, BangPatterns, DeriveGeneric, DeriveAnyClass, FlexibleInstances, TypeSynonymInstances #-}
 
-{- $LICENSE 2013, 2014, 2015, 2016
- * Copyright (C) 2013-2016 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
- *
- * This file is part of Asterisell.
- *
- * Asterisell is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 3 of the License, or
- * (at your option) any later version.
- *
- * Asterisell is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with Asterisell. If not, see <http://www.gnu.org/licenses/>.
- * $
--}
+-- SPDX-License-Identifier: GPL-3.0-or-later
 
 
 module Asterisell.Trie (
   CharMatchStrenght,
   ExtensionCode,
-  IsExtensionalMatch,
-  ExtensionCodeAsText,
+  Extension,
+  ExtensionAsText,
   Trie,
-  trie_toKeyValueList,
-  trie_getMatch,
-  trie_getMatch_initial,
+  IsExtensionalMatch,
+  trie_match,
   trie_empty,
-  trie_add,
-  trie_addWith,
-  trie_addExtensionCode,
-  trie_addExtensionCodeWith,
-  trie_addExtensionCodes,
-  trie_addExtensionCodesAsText,
-  trie_addExtensionCodeAsText,
-  trie_addExtensionCodeAsTextWith,
+  trie_insert,
+  trie_insertWith,
+  trie_insertExtension,
+  trie_insertExtensionWith,
+  trie_insertExtensions,
+  trie_insertExtensionsAsText,
+  trie_insertExtensionAsText,
+  trie_insertExtensionAsTextWith,
   tt_trie_test,
-  trie_size,
   trie_lookup,
-  trie_addUniqueExtensionCode,
-  charsMatch_valid,
-  extensionCode_toCharsMatch
+  trie_insertUnique,
+  extension_toExtensionCode
 ) where
 
+import Asterisell.Utils
+
+import qualified Data.Trie.BigEndianPatricia.Base as Trie
+import qualified Data.Trie.BigEndianPatricia.Internal as TrieInternal
+import qualified Data.Trie.BigEndianPatricia.Convenience as Trie
 import Data.List as L
 import Data.Char
 import Data.Either
 import Control.Monad.State.Strict
 import Data.Ratio
-
+import Data.Maybe
+import qualified Data.Attoparsec.ByteString as P
+import Data.ByteString as BS
+import Data.ByteString.Internal as BS (c2w, w2c)
 import Data.Default
 import qualified Data.Map.Strict as Map
+import qualified Data.IntMap.Strict as IntMap
 import qualified Test.HUnit as HUnit
 import qualified Data.Text as Text
 import GHC.Generics
 import Control.DeepSeq
 
--- | A character that can be matched.
---
-data CharMatch
-  = CharMatch_Char Char
-  | CharMatch_AnyChar
-  -- ^ the "X" symbol matching exactly one (any) char
-  | CharMatch_AllChars
-  -- ^ match zero or more chars.
-  -- NOTE: strings without "*" are an exact match, and not a prefix match.
- deriving(Eq, Ord, Generic, NFData)
-
-instance Show CharMatch where
-  show (CharMatch_Char c) 
-    = case c of
-        '?' -> "\\?"
-        '*' -> "\\*"
-        ',' -> "\\,"
-        '\\' -> "\\"
-        _ -> show c
-
-  show (CharMatch_AnyChar) = "?"
-  show (CharMatch_AllChars) = "*"
-
-type CharsMatch = [CharMatch]
-
--- | Maps strings to values.
---   The value is returned only if the search string match
---   exactly the trie prefix (takin in account "X" and "X*" special match),
---   and if there is a value associated to the value.
---
-data Trie a
-  = Trie (Maybe a) (Map.Map CharMatch (Trie a))
- deriving (Eq, Generic, Generic1)
-
-instance (NFData a) => NFData (Trie a)
-
-instance (Show a) => Show (Trie a) where
-
-  show (Trie ma mt)
-    = show ma ++ "(" ++ show mt ++ ")"
-
-trie_size :: Trie a -> Int
-trie_size (Trie _ map1)
-  = 1 + Map.foldl' (\r t -> r + trie_size t) 0 map1
-
--- | Expand a Trie to a list of key and values.
---
-trie_toKeyValueList :: Trie a -> [(CharsMatch, a)]
-trie_toKeyValueList trie
-  = toList [] trie
- where
-
-  toList keyPrefix (Trie maybeValue nextKeys)
-    = let thisResult
-            = case maybeValue of
-                Just value
-                  -> [(keyPrefix, value)]
-                Nothing
-                  -> []
-
-          explore currentResults nextKey nextTrie
-            = currentResults ++ (toList (keyPrefix ++ [nextKey]) nextTrie)
-
-      in thisResult ++ Map.foldlWithKey' explore [] nextKeys
-
-trie_empty :: Trie a
-trie_empty = Trie Nothing Map.empty
-
--- | The main function, inserting the values inside the trie, in the proper format for the search.
-trie_addWith :: Trie a -> CharsMatch -> a -> (a -> a -> a) -> Trie a
-
-trie_addWith (Trie Nothing nextTrie) [] value withFun 
-  = Trie (Just value) nextTrie
-
-trie_addWith (Trie (Just value0) nextTrie) [] value withFun 
-  = Trie (Just $ withFun value value0) nextTrie
-
-trie_addWith (Trie maybeOldValue tries) (c:r) value withFun
-  = let nextTrie
-          = case Map.lookup c tries of
-              Nothing
-                -> trie_empty
-              Just nextTrieOnC
-                -> nextTrieOnC
-    in (Trie maybeOldValue (Map.insert c (trie_addWith nextTrie r value withFun) tries))
-
-trie_add :: Trie a -> CharsMatch -> a -> Trie a
-trie_add trie match value 
-  = let  myReplace v1 v0 = v1 
-    in   trie_addWith trie match value myReplace
-
 -- | An extension code where:
 --     * "X" stays for the any-char,
---     * "X*" stays for one or more chars,
+--     * multiple "XX" are allowed at the end
 --     * "*" stays for zero or more chars,
---     * "\X" stays for "X"
---     * "\*" stays for "*"
---     * "1X3" is valid
---     * "1X*3" is not valid.
-type ExtensionCode = String
+--     * "X" and "*" have special meaning only if used at the end, while if they are used in the middle they are normal literals
+--     * "ABX*D" is the exact literal
+--     * "ABX*" is "ABX" followed by zero or more chars
+--     * "AB*X" is "AB*" followed by any char
+--     * "AB**" is "AB*" followed by zero or more chars
+type Extension = BS.ByteString
 
-type ExtensionCodeAsText = Text.Text
+type ExtensionAsText = Text.Text
 
-extensionCode_toCharsMatch :: ExtensionCode -> CharsMatch
+-- | True if the extension match is not an exact match,
+--   but it is matching a generic extension specification.
+type IsExtensionalMatch = Bool
 
-extensionCode_toCharsMatch [] 
-  = []
+-- | The prefix and the generic "X" suffix len, 0 for no other part, or Nothing for "*"
+type ExtensionCode = (BS.ByteString, Maybe Int)
 
-extensionCode_toCharsMatch ('\\':c:r) 
-  = (CharMatch_Char c):(extensionCode_toCharsMatch r)
+-- | Convert an extension to code.
+extension_toExtensionCode :: Extension -> ExtensionCode
+extension_toExtensionCode e1
+  = case BS.null e1 of
+      True
+        -> (BS.empty, Just 0)
+      False
+        -> let e2 = BS.reverse e1
+               h = BS.head e2
+           in if h == c2w '*'
+              then (BS.init e1, Nothing)
+              else if h == c2w 'X'
+                   then let anyChar = BS.takeWhile ((==) (c2w 'X')) e2
+                            suffixLen = BS.length anyChar
+                        in (BS.take ((BS.length e1) - suffixLen) e1, Just suffixLen)
+                   else (e1, Just 0)
 
-extensionCode_toCharsMatch (c:r)
-  = let cm = case c of
-               'X' -> CharMatch_AnyChar
-               '*' -> CharMatch_AllChars
-               _ -> CharMatch_Char c
-    in cm:(extensionCode_toCharsMatch r)
+-- | Store numbers like: "123", "123XX", "123*"
+--   but not like "12X1", "123X*", "12*3"
+type Trie a
+       = Trie.Trie
+           (IntMap.IntMap a
+           -- ^ the values associated to the "X" parts, with some exact length
+           , Maybe a
+           -- ^ the value associated to the "*" part, with variable length,
+           -- having less priority of the exact len part
+           )
 
--- | Nothing if the CharsMatch  is valid, the reason of the problem otherwise.
-charsMatch_valid :: CharsMatch -> Maybe String
-charsMatch_valid chars
-  = let (_, l) = L.break (\c -> (c == CharMatch_AllChars)) chars
-    in if L.null l
-       then Nothing
-       else if (L.null $ L.tail l)
-            then Nothing
-            else Just $ "After \"*\" there can not be other chars."     
+trie_empty :: Trie a
+trie_empty = Trie.empty
+
+type CharMatchStrenght = Int
+
+-- | Used for matching a telephone number with the best matching entry,
+--   or for matching an extension with an organization.
+--   String with exact len, and exact characters are preferred to strings with "*" parts.
+trie_match :: Trie a -> BS.ByteString -> Maybe (CharMatchStrenght, IsExtensionalMatch, a)
+trie_match trie initialTarget
+    = match True initialTarget
+ where
+
+  match canUseExactMatch target
+    = case Trie.match trie target of
+        Nothing
+          -> Nothing
+        Just (prefix, (exactLenMap, genericLenValue), targetSuffix)
+          -> let 
+                 genericMatchResult
+                   = case genericLenValue of
+                       Just v
+                         -> Just $ (BS.length prefix, True, v)
+                       Nothing
+                         -> match False (BS.init prefix)
+                            -- NOTE: "35678" is not matched by "356X" but from "35*", so try a shorter version 
+
+                 targetSuffixLen = BS.length targetSuffix
+
+             in case canUseExactMatch of
+                  True
+                    -> case IntMap.lookup targetSuffixLen exactLenMap of
+                         Just v  -> Just $ (BS.length prefix + targetSuffixLen, targetSuffixLen /= 0, v)
+                         Nothing -> genericMatchResult
+                  False
+                    -> genericMatchResult
 
 -- | Exact lookup of the associated value.
 trie_lookup :: Trie a -> ExtensionCode -> Maybe a
-trie_lookup trie code
-  = f trie (extensionCode_toCharsMatch code)
+trie_lookup trie (prefix, suffix)
+  = case Trie.lookup prefix trie of
+      Nothing -> Nothing
+      Just (exactLenMap, genericLenValue)
+        -> case suffix of
+             Nothing
+               -> genericLenValue
+             Just l
+               -> IntMap.lookup l exactLenMap
+
+trie_insertWith
+    :: Trie a
+    -> ExtensionCode
+    -> a
+    -> (a -> a -> a)
+    -- ^ how merge the new value with the old value
+    -> Trie a
+
+trie_insertWith trie (prefix, maybeSuffix) x withFun
+  = Trie.insertWith' mergeWith prefix y trie
+
  where
 
-  f (Trie Nothing _) [] = Nothing
-  f (Trie (Just r) _) [] = Just r
-  f (Trie _ (map1)) (c:rest)
-    = case Map.lookup c map1 of
-        Nothing
-          -> Nothing
-        Just trie2
-          -> f trie2 rest
+   y = case maybeSuffix of
+         Nothing -> (IntMap.empty, Just x)
+         Just l -> (IntMap.singleton l x, Nothing)
 
-trie_addExtensionCode :: Trie a -> ExtensionCode -> a -> Trie a
-trie_addExtensionCode trie key value
-  = trie_add trie (extensionCode_toCharsMatch key) value
+   mergeWith (newExactLenMap, newGenericLenValue) (oldExactLenMap, oldGenericLenValue)
+     = (IntMap.unionWith (withFun) newExactLenMap oldExactLenMap
+       , case (newGenericLenValue, oldGenericLenValue) of
+           (Just newValue, Nothing) -> Just newValue
+           (Nothing, Just oldValue) -> Just oldValue
+           (Just newValue, Just oldValue) -> Just $ withFun newValue oldValue
+           (Nothing, Nothing) -> Nothing
+       )
 
-trie_addUniqueExtensionCode
-  :: Trie a
+trie_insert :: Trie a -> ExtensionCode -> a -> Trie a
+trie_insert trie key x = trie_insertWith trie key x (\newValue oldValue -> newValue)
+{-# INLINE trie_insert #-}
+
+trie_insertUnique
+  :: (Eq a)
+  => Trie a
   -> ExtensionCode
   -- ^ the extension code to add
   -> a
   -- ^ the associated value
   -> Maybe (Trie a)
   -- ^ Nothing if the ExtensionCode is in conflict with an already defined ExtensionCode.
-  --   Consider as conflict also "3" and "3*"
+  --   It is a conflict if the extension code is the same, but the value different.
  
-trie_addUniqueExtensionCode trie key value
+trie_insertUnique trie key value
   = case trie_lookup trie key of
-      Just _
-        -> Nothing
+      Just oldValue
+        -> case value == oldValue of
+             True -> Just trie
+             False -> Nothing
       Nothing
-        -> case trie_lookup trie (key ++ "*") of
-             Just _
-               -> Nothing
-             Nothing
-               -> Just $ trie_addExtensionCode trie key value
-                  
-trie_addExtensionCodeWith :: Trie a -> ExtensionCode -> a -> (a -> a -> a) -> Trie a
-trie_addExtensionCodeWith trie key value withFun
-  = trie_addWith trie (extensionCode_toCharsMatch key) value withFun
+        -> Just $ trie_insert trie key value 
 
-trie_addExtensionCodes :: Trie a -> [(ExtensionCode, a)] -> Trie a
-trie_addExtensionCodes initialTrie codes
-  = foldl' f initialTrie codes
+trie_insertExtension :: Trie a -> Extension -> a -> Trie a
+trie_insertExtension trie key value
+  = trie_insert trie (extension_toExtensionCode key) value
+
+trie_insertExtensionWith :: Trie a -> Extension -> a -> (a -> a -> a) -> Trie a
+trie_insertExtensionWith trie key value withFun
+  = trie_insertWith trie (extension_toExtensionCode key) value withFun
+
+trie_insertExtensions :: Trie a -> [(Extension, a)] -> Trie a
+trie_insertExtensions initialTrie codes
+  = L.foldl' f initialTrie codes
+ where
+   f t (c, v) = trie_insertExtension t c v
+
+trie_insertExtensionAsText :: Trie a -> Text.Text -> a -> Trie a
+trie_insertExtensionAsText trie key value
+  = trie_insertExtension trie (fromTextToByteString key) value
+
+trie_insertExtensionAsTextWith :: Trie a -> Text.Text -> a -> ( a-> a -> a) -> Trie a
+trie_insertExtensionAsTextWith trie key value withFun
+  = trie_insertExtensionWith trie (fromTextToByteString key) value withFun
+
+trie_insertExtensionsAsText :: Trie a -> [(Text.Text, a)] -> Trie a
+trie_insertExtensionsAsText initialTrie codes
+  = L.foldl' f initialTrie codes
  where
 
-   f t (c, v) = trie_addExtensionCode t c v
-
-trie_addExtensionCodeAsText :: Trie a -> ExtensionCodeAsText -> a -> Trie a
-trie_addExtensionCodeAsText trie key value
-  = trie_addExtensionCode trie (Text.unpack key) value
-
-trie_addExtensionCodeAsTextWith :: Trie a -> ExtensionCodeAsText -> a -> ( a-> a -> a) -> Trie a
-trie_addExtensionCodeAsTextWith trie key value withFun
-  = trie_addExtensionCodeWith trie (Text.unpack key) value withFun
-
-trie_addExtensionCodesAsText :: Trie a -> [(ExtensionCodeAsText, a)] -> Trie a
-trie_addExtensionCodesAsText initialTrie codes
-  = foldl' f initialTrie codes
- where
-
-   f t (c, v) = trie_addExtensionCodeAsText t c v
-
-type CharMatchStrenght = Int
-
--- | True if it is matched a strinng without "*" and "X" wildchars.
-type IsExtensionalMatch = Bool
-
-trie_getMatch_initial :: (CharMatchStrenght, IsExtensionalMatch)
-trie_getMatch_initial = (0, True)
-
--- | The matching value inside the trie.
---   Used usually for matching a telephone number with the best matching entry,
---   or for matching an extension with an organization.
---
---   Note that "123" match stronger than "1*".
-trie_getMatch :: (CharMatchStrenght, IsExtensionalMatch) -> Trie a -> [Char] -> Maybe ((CharMatchStrenght, IsExtensionalMatch), a)
-
-trie_getMatch (s, ie) (Trie (Just value) _) []
-  = Just ((s, ie), value)
-
-trie_getMatch (s, ie) (Trie Nothing tries) []
-  = case Map.lookup (CharMatch_AllChars) tries of
-      Just (Trie (Just r) _) -> Just ((s, False), r)
-      Just (Trie Nothing _) -> Nothing
-      Nothing -> Nothing
-
-trie_getMatch (s, ie) (Trie _ tries) (c:r)
-  = let path1 
-          = case Map.lookup (CharMatch_Char c) tries of
-              Just nextTrie
-                -> trie_getMatch (s + 1, ie) nextTrie r
-                   -- NOTE: this can be Nothing in the end if the path has no success.
-              Nothing
-                -> Nothing
-
-        path2 
-          = case Map.lookup (CharMatch_AnyChar) tries of
-              Just nextTrie
-                -> trie_getMatch (s + 1, False) nextTrie r
-              Nothing
-                -> case Map.lookup (CharMatch_AllChars) tries of
-                     Just (Trie Nothing _)
-                       -> Nothing
-                     Just (Trie (Just value) _)
-                       -> Just ((s, False), value)
-                     Nothing
-                       -> Nothing
-
-        bestPath Nothing Nothing = Nothing
-        bestPath Nothing (Just r) = Just r
-        bestPath (Just r) Nothing = Just r
-        bestPath (Just ((s1, ie1), value1)) (Just ((s2, ie2), value2)) 
-          = if s1 >= s2
-            then Just ((s1, ie1), value1)
-            else Just ((s2, ie2), value2)
-
-     in bestPath path1 path2
+   f t (c, v) = trie_insertExtensionAsText t c v
 
 tt_trie_test
   = tests
  where
 
-  trie1 = trie_addExtensionCodes
+  trie1 = trie_insertExtensions
             trie_empty
             [("123", 1),
              ("1234*", 2),
+             ("1234", 3),
              ("125X", 3),
-             ("125X6*", 4),
-             ("1\\X5\\*\\\\,", 5),
              ("456*", 6),
              ("556*", 7),
              ("5*", 8),
              ("6*", 9),
              ("617*", 10),
              ("623X", 11),
-             ("623\\XX*", 12),
-             ("1\\\\", 41),    
-             ("1\\X", 42),    
-             ("1\\X\\*1", 43), 
-             ("1X\\*", 44),   
-
+             ("623XA", 12),
+             ("1X*1", 43),
              ("812", 81),
-             ("81X", 82),
-             ("81X2", 83)
+             ("81X", 82)
             ]
 
-  name1 = "trie_getMatch"
+  name1 = "trie_match"
 
-  tests = [HUnit.TestCase (HUnit.assertEqual
+  tests = [
+           HUnit.TestCase
+             (HUnit.assertEqual
+                "code 1"
+                ("123", Just 0)
+                (extension_toExtensionCode "123"))
+          ,HUnit.TestCase
+             (HUnit.assertEqual
+                "code 2"
+                ("123", Just 1)
+                (extension_toExtensionCode "123X"))
+          ,HUnit.TestCase
+             (HUnit.assertEqual
+                "code 3"
+                ("123", Just 2)
+                (extension_toExtensionCode "123XX"))
+          ,HUnit.TestCase
+             (HUnit.assertEqual
+                "code 4"
+                ("123", Nothing)
+                (extension_toExtensionCode "123*"))
+          ,HUnit.TestCase
+             (HUnit.assertEqual
+                "code 5"
+                ("123XA", Just 0)
+                (extension_toExtensionCode "123XA"))
+          ,HUnit.TestCase
+             (HUnit.assertEqual
+                "code 7"
+                ("123X", Nothing)
+                (extension_toExtensionCode "123X*"))
+          ,HUnit.TestCase
+             (HUnit.assertEqual
+                "code 8"
+                ("123X11", Just 0)
+                (extension_toExtensionCode "123X11"))
+          ,HUnit.TestCase
+             (HUnit.assertEqual
+                "code 9"
+                ("123*", Just 1)
+                (extension_toExtensionCode "123*X"))
+          ,HUnit.TestCase
+             (HUnit.assertEqual
+                "code 10"
+                ("123*1", Just 0)
+                (extension_toExtensionCode "123*1"))
+
+          ,HUnit.TestCase (HUnit.assertEqual
                          "t1"
-                         (Just ((3, True), 1))
-                         (trie_getMatch trie_getMatch_initial trie1 "123")
+                         (Just (3, False, 1))
+                         (trie_match trie1 "123")
                       )
 
           ,HUnit.TestCase (HUnit.assertEqual
                          "t2-1"
-                         (Just ((4, False), 2))
-                         (trie_getMatch trie_getMatch_initial trie1 "12340")
+                         (Just (4, True, 2))
+                         (trie_match trie1 "12340")
                       )
 
           ,HUnit.TestCase (HUnit.assertEqual
                          "t2-2"
-                         (Just ((4, False), 2))
-                         (trie_getMatch trie_getMatch_initial trie1 "1234")
+                         (Just (4, False, 3))
+                         (trie_match trie1 "1234")
                       )
 
           ,HUnit.TestCase (HUnit.assertEqual
                          "t3"
-                         (Just ((4, False), 2))
-                         (trie_getMatch trie_getMatch_initial trie1 "1234567")
+                         (Just (4, True, 2))
+                         (trie_match trie1 "1234567")
                       )
 
           ,HUnit.TestCase (HUnit.assertEqual
                          "t4"
-                         (Just ((4, False), 3))
-                         (trie_getMatch trie_getMatch_initial trie1 "1256")
+                         (Just (4, True, 3))
+                         (trie_match trie1 "1256")
                       )
 
           ,HUnit.TestCase (HUnit.assertEqual
                          "t5-1"
-                         (Just ((4, False), 3))
-                         (trie_getMatch trie_getMatch_initial trie1 "1256")
+                         (Just (4, True, 3))
+                         (trie_match trie1 "1256")
                       )
 
           ,HUnit.TestCase (HUnit.assertEqual
                          "t5-2"
-                         (Just ((5, False), 4))
-                         (trie_getMatch trie_getMatch_initial trie1 "12566")
+                         Nothing
+                         (trie_match trie1 "12566")
                       )
 
           ,HUnit.TestCase (HUnit.assertEqual
                          "t5-3"
-                         (Just ((5, False), 4))
-                         (trie_getMatch trie_getMatch_initial trie1 "125667")
-                      )
-
-          ,HUnit.TestCase (HUnit.assertEqual
-                         "t6"
-                         (Just ((5, False), 4))
-                         (trie_getMatch trie_getMatch_initial trie1 "12566353")
+                         Nothing
+                         (trie_match trie1 "125667")
                       )
 
           ,HUnit.TestCase (HUnit.assertEqual
                          "t7"
                          (Nothing)
-                         (trie_getMatch trie_getMatch_initial trie1 "1238")
-                      )
-
-          ,HUnit.TestCase (HUnit.assertEqual
-                         "t8"
-                         (Just ((6, True), 5))
-                         (trie_getMatch trie_getMatch_initial trie1 "1X5*\\,")
+                         (trie_match trie1 "1238")
                       )
 
           ,HUnit.TestCase (HUnit.assertEqual
                          "t9"
-                         (Just ((3, False), 6))
-                         (trie_getMatch trie_getMatch_initial trie1 "4567")
+                         (Just (3, True, 6))
+                         (trie_match trie1 "4567")
                       )
 
           ,HUnit.TestCase (HUnit.assertEqual
                          name1
-                         (Just ((3, False), 6))
-                         (trie_getMatch trie_getMatch_initial trie1 "45678")
+                         (Just (3, True, 6))
+                         (trie_match trie1 "45678")
                       )
 
           ,HUnit.TestCase (HUnit.assertEqual
                          name1
-                         (Just ((1, False), 8))
-                         (trie_getMatch trie_getMatch_initial trie1 "51")
+                         (Just (1, True, 8))
+                         (trie_match trie1 "51")
                       )
 
           ,HUnit.TestCase (HUnit.assertEqual
                          name1
-                         (Just ((3, False), 6))
-                         (trie_getMatch trie_getMatch_initial trie1 "4567")
+                         (Just (3, True, 6))
+                         (trie_match trie1 "4567")
                       )
  
           ,HUnit.TestCase (HUnit.assertEqual
                          name1
-                         (Just ((3, False), 10))
-                         (trie_getMatch trie_getMatch_initial trie1 "6178")
+                         (Just (3, True, 10))
+                         (trie_match trie1 "6178")
                       )
 
           ,HUnit.TestCase (HUnit.assertEqual
                          name1
-                         (Just ((3, False), 10))
-                         (trie_getMatch trie_getMatch_initial trie1 "6178666")
+                         (Just (3, True, 10))
+                         (trie_match trie1 "6178666")
                       )
          
           ,HUnit.TestCase (HUnit.assertEqual
                          "backtrack"
-                         (Just ((3, False), 10))
-                         (trie_getMatch trie_getMatch_initial trie1 "617")
+                         (Just (3, True, 10))
+                         (trie_match trie1 "617")
                       )
 
           ,HUnit.TestCase (HUnit.assertEqual
                          "backtrack"
-                         (Just ((3, False), 10))
-                         (trie_getMatch trie_getMatch_initial trie1 "6171")
+                         (Just (3, True, 10))
+                         (trie_match trie1 "6171")
                       )
 
           ,HUnit.TestCase (HUnit.assertEqual
                          "backtrack"
-                         (Just ((4, False), 11))
-                         (trie_getMatch trie_getMatch_initial trie1 "6231")
+                         (Just (4, True, 11))
+                         (trie_match trie1 "6231")
                       )
 
           ,HUnit.TestCase (HUnit.assertEqual
                          "backtrack with fail"
-                         (Just ((1, False), 9))
-                         (trie_getMatch trie_getMatch_initial trie1 "623")
+                         (Just (1, True, 9))
+                         (trie_match trie1 "623")
                       )
 
           ,HUnit.TestCase (HUnit.assertEqual
                          "backtrack with fail"
-                         (Just ((1, False), 9))
-                         (trie_getMatch trie_getMatch_initial trie1 "625")
+                         (Just (1, True, 9))
+                         (trie_match trie1 "62344")
                       )
 
           ,HUnit.TestCase (HUnit.assertEqual
                          "backtrack with fail"
-                         (Just ((1, False), 9))
-                         (trie_getMatch trie_getMatch_initial trie1 "618")
+                         (Just (1, True, 9))
+                         (trie_match trie1 "618")
                       )
 
           ,HUnit.TestCase (HUnit.assertEqual
                          "backtrack with fail"
-                         (Just ((1, False), 9))
-                         (trie_getMatch trie_getMatch_initial trie1 "619")
+                         (Just (1, True, 9))
+                         (trie_match trie1 "619")
                       )
 
           ,HUnit.TestCase (HUnit.assertEqual
                          "backtrack with fail"
-                         (Just ((1, False), 9))
-                         (trie_getMatch trie_getMatch_initial trie1 "6753")
+                         (Just (1, True, 9))
+                         (trie_match trie1 "6753")
                       )
 
          ,HUnit.TestCase (HUnit.assertEqual
                          "backtrack with fail"
-                         (Just ((1, False), 9))
-                         (trie_getMatch trie_getMatch_initial trie1 "62")
-                      )
-
-         ,HUnit.TestCase (HUnit.assertEqual
-                         "recognize quotes"
-                         (Just ((2, True), 41))
-                         (trie_getMatch trie_getMatch_initial trie1 "1\\")
+                         (Just (1, True, 9))
+                         (trie_match trie1 "62")
                       )
 
         ,HUnit.TestCase (HUnit.assertEqual
-                         "recognize quotes"
-                         (Just ((2, True), 42))
-                         (trie_getMatch trie_getMatch_initial trie1 "1X")
-                      )
-
-        ,HUnit.TestCase (HUnit.assertEqual
-                         "recognize quotes"
+                         "recognize quotes 3"
                          Nothing
-                         (trie_getMatch trie_getMatch_initial trie1 "1B")
+                         (trie_match trie1 "1B")
                       )
 
         ,HUnit.TestCase (HUnit.assertEqual
-                         "recognize quotes"
-                         (Just ((4, True), 43))
-                         (trie_getMatch trie_getMatch_initial trie1 "1X*1")
+                         "recognize quotes 4"
+                         (Just (4, False, 43))
+                         (trie_match trie1 "1X*1")
                       )
 
         ,HUnit.TestCase (HUnit.assertEqual
-                         "recognize quotes"
-                         (Just ((3, False), 44))
-                         (trie_getMatch trie_getMatch_initial trie1 "1B*")
-                      )
-
-        ,HUnit.TestCase (HUnit.assertEqual
-                         "recognize quotes"
+                         "recognize quotes 5"
                          Nothing
-                         (trie_getMatch trie_getMatch_initial trie1 "1B*A")
+                         (trie_match trie1 "1B*")
                       )
 
         ,HUnit.TestCase (HUnit.assertEqual
-                         "recognize quotes"
+                         "recognize quotes 6"
                          Nothing
-                         (trie_getMatch trie_getMatch_initial trie1 "1XA")
+                         (trie_match trie1 "1B*A")
+                      )
+
+        ,HUnit.TestCase (HUnit.assertEqual
+                         "recognize quotes 7"
+                         Nothing
+                         (trie_match trie1 "1XA")
                       )
 
        ,HUnit.TestCase (HUnit.assertEqual
                          "priority 1"
-                         (Just ((3, True), 81))
-                         (trie_getMatch trie_getMatch_initial trie1 "812")
+                         (Just (3, False, 81))
+                         (trie_match trie1 "812")
                       )
 
        ,HUnit.TestCase (HUnit.assertEqual
                          "priority 2"
-                         (Just ((3, False), 82))
-                         (trie_getMatch trie_getMatch_initial trie1 "813")
+                         (Just (3, True, 82))
+                         (trie_match trie1 "813")
                        )
 
        ,HUnit.TestCase (HUnit.assertEqual
                          "priority 3"
-                         (Just ((4, False), 83))
-                         (trie_getMatch trie_getMatch_initial trie1 "8122")
+                         Nothing
+                         (trie_match trie1 "8122")
                        )
 
        ,HUnit.TestCase (HUnit.assertEqual
                          "priority 4"
                          Nothing
-                         (trie_getMatch trie_getMatch_initial trie1 "81222")
+                         (trie_match trie1 "81222")
                        )
 
        ,HUnit.TestCase (HUnit.assertEqual
                          "priority 5"
-                         (Just ((5, False), 12))
-                         (trie_getMatch trie_getMatch_initial trie1 "623XA")
+                         (Just (5, False, 12))
+                         (trie_match trie1 "623XA")
                        )
 
        ,HUnit.TestCase (HUnit.assertEqual
                          "priority 6"
-                         (Just ((5, False), 12))
-                         (trie_getMatch trie_getMatch_initial trie1 "623XANA")
+                         (Just (4, True, 11))
+                         (trie_match trie1 "6231")
                        )
           ]

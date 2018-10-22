@@ -16,6 +16,10 @@ export_excel:
   url:   /export_excel.csv
   param: {module: report, action: exportToExcel}
 
+manual:
+  url:   /manual/*
+  param: {module: report, action: exportToExcel}
+
 # default rules
 homepage:
   url:   /

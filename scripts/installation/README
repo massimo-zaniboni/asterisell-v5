@@ -2,7 +2,8 @@ In this directory there are files that are used during initial installation,
 or for regression tests.
 
 These files are not loaded at run-time, from the application, but only
-during the initial installation phase.
+during the initial installation phase, otherwise too much code is loaded for serving requests,
+during normal application execution.
 
 So there is an explicit include in "asterisell.php" management console.
 

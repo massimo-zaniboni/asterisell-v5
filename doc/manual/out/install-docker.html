@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+   <head><meta charset="UTF-8" />
+      <title>Installing Docker</title><link href="res/webhelp.css" rel="stylesheet" type="text/css" /><meta content="Docker is used only for the Instances configuration tool." name="description" />
+      <meta content="XMLmind DITA Converter 3.3.0" name="generator" />
+   <script charset="UTF-8" defer="defer" src="_wh/snowball_en.min.js" type="text/javascript"></script><link href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/themes/smoothness/jquery-ui.css" rel="stylesheet" type="text/css" /><link href="_wh/wh.css" rel="stylesheet" type="text/css" /><script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js" type="text/javascript">
+    </script><script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js" type="text/javascript">
+    </script><script charset="UTF-8" src="_wh/wh.min.js" type="text/javascript">
+    </script><script charset="UTF-8" defer="defer" src="_wh/search.js" type="text/javascript">
+    </script></head>
+   
+<body>
+    
+
+    <div id="wh-body">
+      <div id="wh-navigation">
+        <ul id="wh-tabs">
+          <li id="wh-toc-tab"><a href="#wh-toc-pane"><span>Contents</span></a></li>
+          
+          <li id="wh-search-tab"><a href="#wh-search-pane"><span>Search</span></a></li>
+        </ul>
+        <div id="wh-toc-pane">
+          <div id="wh-toc-form">
+            <span id="wh-toc-control"><a href="#">Collapse 
+            All</a><a href="#">Expand All</a></span>
+            <button id="wh-toc-previous">Previous</button>
+            <button id="wh-toc-next">Next</button>
+            <button id="wh-toc-print">Print</button>
+          </div>
+          <script charset="UTF-8" src="_wh/toc.js" type="text/javascript">
+          </script>
+        </div>
+        
+        <div id="wh-search-pane">
+          <div id="wh-search-form">
+            <input id="wh-search-field" type="text" /><button id="wh-search-button">Search</button><span id="wh-highlight-group"><input checked="checked" id="wh-highlight-toggle" type="checkbox" /><label for="wh-highlight-toggle" id="wh-highlight-icon"><span class="ui-icon ui-icon-flag"></span></label></span>
+          </div>
+          <div id="wh-search-results">
+          </div>
+        </div>
+      </div>
+      <div id="wh-separator">
+      </div>
+      <div id="wh-content">
+      
+      <header class="page-navigation-header">
+         <table class="page-navigation-layout" style="width: 100%;">
+            <tr>
+               <td style="text-align: left;vertical-align: top;"><a class="navigation-link" href="manual.html" title="First page: Asterisell Manual"><img alt="First page" class="navigation-icon" height="16" src="res/first.png" width="16" /></a></td>
+               <td style="text-align: left;vertical-align: top;"><a class="navigation-link" href="system-requirements.html" title="Previous page: Requirements"><img alt="Previous page" class="navigation-icon" height="16" src="res/previous.png" width="16" /></a></td>
+               <td style="width: 25%;text-align: left;vertical-align: top;"><span class="page-navigation-previous">Requirements</span></td>
+               <td style="width: 40%;text-align: center;vertical-align: top;"><span class="page-navigation-current">Installing Docker</span> <span class="page-navigation-page">(4 / 71)</span></td>
+               <td style="width: 25%;text-align: right;vertical-align: top;"><span class="page-navigation-next">Download Asterisell</span></td>
+               <td style="text-align: right;vertical-align: top;"><a class="navigation-link" href="repository.html" title="Next page: Download Asterisell"><img alt="Next page" class="navigation-icon" height="16" src="res/next.png" width="16" /></a></td>
+               <td style="text-align: right;vertical-align: top;"><a class="navigation-link" href="about.html" title="Last page: About"><img alt="Last page" class="navigation-icon" height="16" src="res/last.png" width="16" /></a></td>
+            </tr>
+         </table>
+      </header>
+      <section class="topic" id="Installing_Docker">
+         <h2 class="section2-title">Installing Docker</h2>
+         <p class="shortdesc">Docker is used only for the <a class="xref" href="manual-6.html#Instances_configuration_tool">Instances configuration tool</a>.
+         </p>
+         <div class="body">
+            <div class="p">Install it following the guidelines of your Linux distribution.</div>
+            <section class="section" id="Installing_Docker__I_knewyg_">
+               <h3 class="section-title">Some hints</h3>
+               <div class="div role-h3">XFS file system</div>
+               <div class="p">If you are using XFS, make sure that the <code class="codeph">ftype</code> option is set to its default value <code class="codeph">1</code>, using
+               </div><pre class="pre">xfs_info /var/ | grep ftype 
+</pre><div class="div role-h3">On CentOS 7</div>
+               <div class="p">CentOS 7 supports better Docker, if the OverlayFS storage mode is enabled, as specified
+                  in <a class="xref" href="http://www.projectatomic.io/blog/2015/06/notes-on-fedora-centos-and-docker-storage-drivers/">http://www.projectatomic.io/blog/2015/06/notes-on-fedora-centos-and-docker-storage-drivers/</a></div>
+               <div class="p">For enabling this mode</div><pre class="pre">  yum install docker
+</pre><div class="p">Edit the file <code class="codeph">/etc/sysconfig/docker</code>, and change the line <code class="codeph">OPTIONS='--selinux-enabled</code> to <code class="codeph">OPTIONS='--selinux-enabled=false'</code>, to disable SELinux within our containers.
+               </div>
+               <div class="p">Edit the file <code class="codeph">/etc/sysconfig/docker-storage-setup</code> and set <code class="codeph">STORAGE_DRIVER=overlay</code> replacing the previous option.
+               </div>
+               <div class="p">Then start the Docker service.</div><pre class="pre">  systemctl enable docker.service
+  systemctl start docker.service
+  systemctl status docker.service
+
+  # Check it is all ok
+  systemctl
+  systemctl status docker.service
+</pre><div class="div role-h3">On Debian 9</div>
+               <div class="p">Install Docker following the instructions on <a class="xref" href="https://www.docker.com">https://www.docker.com</a></div>
+               <div class="p">Set the <code class="codeph">overlay2</code> storage engine, because otherwise there can be errors during creation of the image.
+                  First create/update the file <code class="codeph">/etc/docker/daemon.json</code> with
+               </div><pre class="pre">    {
+      &quot;storage-driver&quot;: &quot;overlay2&quot;
+    }
+</pre><div class="p">Then restart the Docker service:</div><pre class="pre">   systemctl restart docker
+
+   systemctl enable docker
+   # enable at boot-time
+</pre><div class="p">Check if <code class="codeph">storage-driver: overlay2</code> is activated:
+               </div><pre class="pre">   docker info
+</pre></section>
+         </div>
+      </section>
+      <footer class="page-navigation-footer">
+         <table class="page-navigation-layout" style="width: 100%;">
+            <tr>
+               <td style="text-align: left;vertical-align: top;"><a class="navigation-link" href="manual.html" title="First page: Asterisell Manual"><img alt="First page" class="navigation-icon" height="16" src="res/first.png" width="16" /></a></td>
+               <td style="text-align: left;vertical-align: top;"><a class="navigation-link" href="system-requirements.html" title="Previous page: Requirements"><img alt="Previous page" class="navigation-icon" height="16" src="res/previous.png" width="16" /></a></td>
+               <td style="width: 25%;text-align: left;vertical-align: top;"><span class="page-navigation-previous">Requirements</span></td>
+               <td style="width: 40%;text-align: center;vertical-align: top;"><span class="page-navigation-current">Installing Docker</span> <span class="page-navigation-page">(4 / 71)</span></td>
+               <td style="width: 25%;text-align: right;vertical-align: top;"><span class="page-navigation-next">Download Asterisell</span></td>
+               <td style="text-align: right;vertical-align: top;"><a class="navigation-link" href="repository.html" title="Next page: Download Asterisell"><img alt="Next page" class="navigation-icon" height="16" src="res/next.png" width="16" /></a></td>
+               <td style="text-align: right;vertical-align: top;"><a class="navigation-link" href="about.html" title="Last page: About"><img alt="Last page" class="navigation-icon" height="16" src="res/last.png" width="16" /></a></td>
+            </tr>
+         </table>
+      </footer>
+   </div>
+    </div>
+
+    
+  </body></html>

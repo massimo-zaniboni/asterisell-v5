@@ -36,7 +36,8 @@ class ArReport extends BaseArReport
     /**
      * @return string the complete report legal/invoice code
      */
-    public function getCompleteLegalCode() {
+    public function getCompleteLegalCode()
+    {
         $r = '';
         $t = $this->getLegalNrPrefix();
         if (!isEmptyOrNull($t)) {
@@ -49,7 +50,7 @@ class ArReport extends BaseArReport
         }
 
         return $r;
-     }
+    }
 
     /**
      * @param      string $d new value
@@ -116,7 +117,27 @@ class ArReport extends BaseArReport
         return TRUE;
     }
 
-    public function getDocumentContent()
+    /**
+     * @return bool true if the report contains old CDRS,
+     * and it must be regenerated with new rated CDRS.
+     */
+    public function mustBeRegenerated()
+    {
+        $conn = Propel::getConnection();
+        $stm = $conn->prepare('SELECT produced_report_must_be_regenerated FROM ar_report WHERE  id = ?');
+
+        $mustBeRegenerated = false;
+        $stm->execute(array($this->getId()));
+        while (($rs = $stm->fetch(PDO::FETCH_NUM)) !== false) {
+            $mustBeRegenerated = ($rs[0] == 1);
+        }
+        $stm->closeCursor();
+
+        return $mustBeRegenerated;
+    }
+
+    public
+    function getDocumentContent()
     {
         $d = $this->getProducedReportDocument();
         if (is_null($d)) {
@@ -134,7 +155,8 @@ class ArReport extends BaseArReport
     /**
      * @return ReportGenerator|null
      */
-    public function getReportGenerator()
+    public
+    function getReportGenerator()
     {
         $className = $this->getPhpClassName();
         if (!isEmptyOrNull($className)) {
@@ -155,7 +177,9 @@ class ArReport extends BaseArReport
     /**
      * @return ArReportSet
      */
-    public function getArReportSet() {
+    public
+    function getArReportSet()
+    {
         $id = $this->getArReportSetId();
         return ArReportSetPeer::retrieveByPK($id);
     }
@@ -163,7 +187,9 @@ class ArReport extends BaseArReport
     /**
      * @return ArReportSet
      */
-    public function getAboutArReportSet() {
+    public
+    function getAboutArReportSet()
+    {
         $id = $this->getAboutArReportSetId();
         return ArReportSetPeer::retrieveByPK($id);
     }
@@ -176,7 +202,8 @@ class ArReport extends BaseArReport
      * @throws ArProblemException
      * precondition ! is_null($this->getId())
      */
-    public function generateDocument(PropelPDO $conn, $store = null, $schedulerId = null)
+    public
+    function generateDocument(PropelPDO $conn, $store = null, $schedulerId = null)
     {
         $generator = $this->getReportGenerator();
         if (!is_null($generator)) {
@@ -191,7 +218,8 @@ class ArReport extends BaseArReport
         }
     }
 
-    public function save(PropelPDO $conn = null)
+    public
+    function save(PropelPDO $conn = null)
     {
         if (is_null($this->getArReportOrderOfChildrenId())) {
             $this->setArReportOrderOfChildrenId(ArReportOrderOfChildren::getDefaultOrder());

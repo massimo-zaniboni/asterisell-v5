@@ -62,14 +62,11 @@ abstract class BaseArTelephonePrefix extends BaseObject  implements Persistent {
 	protected $display_priority_level;
 
 	/**
-	 * @var        array ArCdr[] Collection to store aggregation of ArCdr objects.
+	 * The value for the rating_code field.
+	 * Note: this column has a database default value of: ''
+	 * @var        string
 	 */
-	protected $collArCdrs;
-
-	/**
-	 * @var        Criteria The criteria used to select the current contents of collArCdrs.
-	 */
-	private $lastArCdrCriteria = null;
+	protected $rating_code;
 
 	/**
 	 * Flag to prevent endless save loop, if this object is referenced
@@ -98,6 +95,7 @@ abstract class BaseArTelephonePrefix extends BaseObject  implements Persistent {
 	public function applyDefaultValues()
 	{
 		$this->display_priority_level = 0;
+		$this->rating_code = '';
 	}
 
 	/**
@@ -178,6 +176,16 @@ abstract class BaseArTelephonePrefix extends BaseObject  implements Persistent {
 	public function getDisplayPriorityLevel()
 	{
 		return $this->display_priority_level;
+	}
+
+	/**
+	 * Get the [rating_code] column value.
+	 * 
+	 * @return     string
+	 */
+	public function getRatingCode()
+	{
+		return $this->rating_code;
 	}
 
 	/**
@@ -321,6 +329,26 @@ abstract class BaseArTelephonePrefix extends BaseObject  implements Persistent {
 	} // setDisplayPriorityLevel()
 
 	/**
+	 * Set the value of [rating_code] column.
+	 * 
+	 * @param      string $v new value
+	 * @return     ArTelephonePrefix The current object (for fluent API support)
+	 */
+	public function setRatingCode($v)
+	{
+		if ($v !== null) {
+			$v = (string) $v;
+		}
+
+		if ($this->rating_code !== $v || $this->isNew()) {
+			$this->rating_code = $v;
+			$this->modifiedColumns[] = ArTelephonePrefixPeer::RATING_CODE;
+		}
+
+		return $this;
+	} // setRatingCode()
+
+	/**
 	 * Indicates whether the columns in this object are only set to default values.
 	 *
 	 * This method can be used in conjunction with isModified() to indicate whether an object is both
@@ -331,6 +359,10 @@ abstract class BaseArTelephonePrefix extends BaseObject  implements Persistent {
 	public function hasOnlyDefaultValues()
 	{
 			if ($this->display_priority_level !== 0) {
+				return false;
+			}
+
+			if ($this->rating_code !== '') {
 				return false;
 			}
 
@@ -363,6 +395,7 @@ abstract class BaseArTelephonePrefix extends BaseObject  implements Persistent {
 			$this->geographic_location = ($row[$startcol + 4] !== null) ? (string) $row[$startcol + 4] : null;
 			$this->operator_type = ($row[$startcol + 5] !== null) ? (string) $row[$startcol + 5] : null;
 			$this->display_priority_level = ($row[$startcol + 6] !== null) ? (int) $row[$startcol + 6] : null;
+			$this->rating_code = ($row[$startcol + 7] !== null) ? (string) $row[$startcol + 7] : null;
 			$this->resetModified();
 
 			$this->setNew(false);
@@ -372,7 +405,7 @@ abstract class BaseArTelephonePrefix extends BaseObject  implements Persistent {
 			}
 
 			// FIXME - using NUM_COLUMNS may be clearer.
-			return $startcol + 7; // 7 = ArTelephonePrefixPeer::NUM_COLUMNS - ArTelephonePrefixPeer::NUM_LAZY_LOAD_COLUMNS).
+			return $startcol + 8; // 8 = ArTelephonePrefixPeer::NUM_COLUMNS - ArTelephonePrefixPeer::NUM_LAZY_LOAD_COLUMNS).
 
 		} catch (Exception $e) {
 			throw new PropelException("Error populating ArTelephonePrefix object", $e);
@@ -433,9 +466,6 @@ abstract class BaseArTelephonePrefix extends BaseObject  implements Persistent {
 		$this->hydrate($row, 0, true); // rehydrate
 
 		if ($deep) {  // also de-associate any related objects?
-
-			$this->collArCdrs = null;
-			$this->lastArCdrCriteria = null;
 
 		} // if (deep)
 	}
@@ -567,14 +597,6 @@ abstract class BaseArTelephonePrefix extends BaseObject  implements Persistent {
 				$this->resetModified(); // [HL] After being saved an object is no longer 'modified'
 			}
 
-			if ($this->collArCdrs !== null) {
-				foreach ($this->collArCdrs as $referrerFK) {
-					if (!$referrerFK->isDeleted()) {
-						$affectedRows += $referrerFK->save($con);
-					}
-				}
-			}
-
 			$this->alreadyInSave = false;
 
 		}
@@ -646,14 +668,6 @@ abstract class BaseArTelephonePrefix extends BaseObject  implements Persistent {
 			}
 
 
-				if ($this->collArCdrs !== null) {
-					foreach ($this->collArCdrs as $referrerFK) {
-						if (!$referrerFK->validate($columns)) {
-							$failureMap = array_merge($failureMap, $referrerFK->getValidationFailures());
-						}
-					}
-				}
-
 
 			$this->alreadyInValidation = false;
 		}
@@ -708,6 +722,9 @@ abstract class BaseArTelephonePrefix extends BaseObject  implements Persistent {
 			case 6:
 				return $this->getDisplayPriorityLevel();
 				break;
+			case 7:
+				return $this->getRatingCode();
+				break;
 			default:
 				return null;
 				break;
@@ -736,6 +753,7 @@ abstract class BaseArTelephonePrefix extends BaseObject  implements Persistent {
 			$keys[4] => $this->getGeographicLocation(),
 			$keys[5] => $this->getOperatorType(),
 			$keys[6] => $this->getDisplayPriorityLevel(),
+			$keys[7] => $this->getRatingCode(),
 		);
 		return $result;
 	}
@@ -788,6 +806,9 @@ abstract class BaseArTelephonePrefix extends BaseObject  implements Persistent {
 			case 6:
 				$this->setDisplayPriorityLevel($value);
 				break;
+			case 7:
+				$this->setRatingCode($value);
+				break;
 		} // switch()
 	}
 
@@ -819,6 +840,7 @@ abstract class BaseArTelephonePrefix extends BaseObject  implements Persistent {
 		if (array_key_exists($keys[4], $arr)) $this->setGeographicLocation($arr[$keys[4]]);
 		if (array_key_exists($keys[5], $arr)) $this->setOperatorType($arr[$keys[5]]);
 		if (array_key_exists($keys[6], $arr)) $this->setDisplayPriorityLevel($arr[$keys[6]]);
+		if (array_key_exists($keys[7], $arr)) $this->setRatingCode($arr[$keys[7]]);
 	}
 
 	/**
@@ -837,6 +859,7 @@ abstract class BaseArTelephonePrefix extends BaseObject  implements Persistent {
 		if ($this->isColumnModified(ArTelephonePrefixPeer::GEOGRAPHIC_LOCATION)) $criteria->add(ArTelephonePrefixPeer::GEOGRAPHIC_LOCATION, $this->geographic_location);
 		if ($this->isColumnModified(ArTelephonePrefixPeer::OPERATOR_TYPE)) $criteria->add(ArTelephonePrefixPeer::OPERATOR_TYPE, $this->operator_type);
 		if ($this->isColumnModified(ArTelephonePrefixPeer::DISPLAY_PRIORITY_LEVEL)) $criteria->add(ArTelephonePrefixPeer::DISPLAY_PRIORITY_LEVEL, $this->display_priority_level);
+		if ($this->isColumnModified(ArTelephonePrefixPeer::RATING_CODE)) $criteria->add(ArTelephonePrefixPeer::RATING_CODE, $this->rating_code);
 
 		return $criteria;
 	}
@@ -903,19 +926,7 @@ abstract class BaseArTelephonePrefix extends BaseObject  implements Persistent {
 
 		$copyObj->setDisplayPriorityLevel($this->display_priority_level);
 
-
-		if ($deepCopy) {
-			// important: temporarily setNew(false) because this affects the behavior of
-			// the getter/setter methods for fkey referrer objects.
-			$copyObj->setNew(false);
-
-			foreach ($this->getArCdrs() as $relObj) {
-				if ($relObj !== $this) {  // ensure that we don't try to copy a reference to ourselves
-					$copyObj->addArCdr($relObj->copy($deepCopy));
-				}
-			}
-
-		} // if ($deepCopy)
+		$copyObj->setRatingCode($this->rating_code);
 
 
 		$copyObj->setNew(true);
@@ -963,301 +974,6 @@ abstract class BaseArTelephonePrefix extends BaseObject  implements Persistent {
 	}
 
 	/**
-	 * Clears out the collArCdrs collection (array).
-	 *
-	 * This does not modify the database; however, it will remove any associated objects, causing
-	 * them to be refetched by subsequent calls to accessor method.
-	 *
-	 * @return     void
-	 * @see        addArCdrs()
-	 */
-	public function clearArCdrs()
-	{
-		$this->collArCdrs = null; // important to set this to NULL since that means it is uninitialized
-	}
-
-	/**
-	 * Initializes the collArCdrs collection (array).
-	 *
-	 * By default this just sets the collArCdrs collection to an empty array (like clearcollArCdrs());
-	 * however, you may wish to override this method in your stub class to provide setting appropriate
-	 * to your application -- for example, setting the initial array to the values stored in database.
-	 *
-	 * @return     void
-	 */
-	public function initArCdrs()
-	{
-		$this->collArCdrs = array();
-	}
-
-	/**
-	 * Gets an array of ArCdr objects which contain a foreign key that references this object.
-	 *
-	 * If this collection has already been initialized with an identical Criteria, it returns the collection.
-	 * Otherwise if this ArTelephonePrefix has previously been saved, it will retrieve
-	 * related ArCdrs from storage. If this ArTelephonePrefix is new, it will return
-	 * an empty collection or the current collection, the criteria is ignored on a new object.
-	 *
-	 * @param      PropelPDO $con
-	 * @param      Criteria $criteria
-	 * @return     array ArCdr[]
-	 * @throws     PropelException
-	 */
-	public function getArCdrs($criteria = null, PropelPDO $con = null)
-	{
-		if ($criteria === null) {
-			$criteria = new Criteria(ArTelephonePrefixPeer::DATABASE_NAME);
-		}
-		elseif ($criteria instanceof Criteria)
-		{
-			$criteria = clone $criteria;
-		}
-
-		if ($this->collArCdrs === null) {
-			if ($this->isNew()) {
-			   $this->collArCdrs = array();
-			} else {
-
-				$criteria->add(ArCdrPeer::AR_TELEPHONE_PREFIX_ID, $this->id);
-
-				ArCdrPeer::addSelectColumns($criteria);
-				$this->collArCdrs = ArCdrPeer::doSelect($criteria, $con);
-			}
-		} else {
-			// criteria has no effect for a new object
-			if (!$this->isNew()) {
-				// the following code is to determine if a new query is
-				// called for.  If the criteria is the same as the last
-				// one, just return the collection.
-
-
-				$criteria->add(ArCdrPeer::AR_TELEPHONE_PREFIX_ID, $this->id);
-
-				ArCdrPeer::addSelectColumns($criteria);
-				if (!isset($this->lastArCdrCriteria) || !$this->lastArCdrCriteria->equals($criteria)) {
-					$this->collArCdrs = ArCdrPeer::doSelect($criteria, $con);
-				}
-			}
-		}
-		$this->lastArCdrCriteria = $criteria;
-		return $this->collArCdrs;
-	}
-
-	/**
-	 * Returns the number of related ArCdr objects.
-	 *
-	 * @param      Criteria $criteria
-	 * @param      boolean $distinct
-	 * @param      PropelPDO $con
-	 * @return     int Count of related ArCdr objects.
-	 * @throws     PropelException
-	 */
-	public function countArCdrs(Criteria $criteria = null, $distinct = false, PropelPDO $con = null)
-	{
-		if ($criteria === null) {
-			$criteria = new Criteria(ArTelephonePrefixPeer::DATABASE_NAME);
-		} else {
-			$criteria = clone $criteria;
-		}
-
-		if ($distinct) {
-			$criteria->setDistinct();
-		}
-
-		$count = null;
-
-		if ($this->collArCdrs === null) {
-			if ($this->isNew()) {
-				$count = 0;
-			} else {
-
-				$criteria->add(ArCdrPeer::AR_TELEPHONE_PREFIX_ID, $this->id);
-
-				$count = ArCdrPeer::doCount($criteria, false, $con);
-			}
-		} else {
-			// criteria has no effect for a new object
-			if (!$this->isNew()) {
-				// the following code is to determine if a new query is
-				// called for.  If the criteria is the same as the last
-				// one, just return count of the collection.
-
-
-				$criteria->add(ArCdrPeer::AR_TELEPHONE_PREFIX_ID, $this->id);
-
-				if (!isset($this->lastArCdrCriteria) || !$this->lastArCdrCriteria->equals($criteria)) {
-					$count = ArCdrPeer::doCount($criteria, false, $con);
-				} else {
-					$count = count($this->collArCdrs);
-				}
-			} else {
-				$count = count($this->collArCdrs);
-			}
-		}
-		return $count;
-	}
-
-	/**
-	 * Method called to associate a ArCdr object to this object
-	 * through the ArCdr foreign key attribute.
-	 *
-	 * @param      ArCdr $l ArCdr
-	 * @return     void
-	 * @throws     PropelException
-	 */
-	public function addArCdr(ArCdr $l)
-	{
-		if ($this->collArCdrs === null) {
-			$this->initArCdrs();
-		}
-		if (!in_array($l, $this->collArCdrs, true)) { // only add it if the **same** object is not already associated
-			array_push($this->collArCdrs, $l);
-			$l->setArTelephonePrefix($this);
-		}
-	}
-
-
-	/**
-	 * If this collection has already been initialized with
-	 * an identical criteria, it returns the collection.
-	 * Otherwise if this ArTelephonePrefix is new, it will return
-	 * an empty collection; or if this ArTelephonePrefix has previously
-	 * been saved, it will retrieve related ArCdrs from storage.
-	 *
-	 * This method is protected by default in order to keep the public
-	 * api reasonable.  You can provide public methods for those you
-	 * actually need in ArTelephonePrefix.
-	 */
-	public function getArCdrsJoinArOrganizationUnit($criteria = null, $con = null, $join_behavior = Criteria::LEFT_JOIN)
-	{
-		if ($criteria === null) {
-			$criteria = new Criteria(ArTelephonePrefixPeer::DATABASE_NAME);
-		}
-		elseif ($criteria instanceof Criteria)
-		{
-			$criteria = clone $criteria;
-		}
-
-		if ($this->collArCdrs === null) {
-			if ($this->isNew()) {
-				$this->collArCdrs = array();
-			} else {
-
-				$criteria->add(ArCdrPeer::AR_TELEPHONE_PREFIX_ID, $this->id);
-
-				$this->collArCdrs = ArCdrPeer::doSelectJoinArOrganizationUnit($criteria, $con, $join_behavior);
-			}
-		} else {
-			// the following code is to determine if a new query is
-			// called for.  If the criteria is the same as the last
-			// one, just return the collection.
-
-			$criteria->add(ArCdrPeer::AR_TELEPHONE_PREFIX_ID, $this->id);
-
-			if (!isset($this->lastArCdrCriteria) || !$this->lastArCdrCriteria->equals($criteria)) {
-				$this->collArCdrs = ArCdrPeer::doSelectJoinArOrganizationUnit($criteria, $con, $join_behavior);
-			}
-		}
-		$this->lastArCdrCriteria = $criteria;
-
-		return $this->collArCdrs;
-	}
-
-
-	/**
-	 * If this collection has already been initialized with
-	 * an identical criteria, it returns the collection.
-	 * Otherwise if this ArTelephonePrefix is new, it will return
-	 * an empty collection; or if this ArTelephonePrefix has previously
-	 * been saved, it will retrieve related ArCdrs from storage.
-	 *
-	 * This method is protected by default in order to keep the public
-	 * api reasonable.  You can provide public methods for those you
-	 * actually need in ArTelephonePrefix.
-	 */
-	public function getArCdrsJoinArVendor($criteria = null, $con = null, $join_behavior = Criteria::LEFT_JOIN)
-	{
-		if ($criteria === null) {
-			$criteria = new Criteria(ArTelephonePrefixPeer::DATABASE_NAME);
-		}
-		elseif ($criteria instanceof Criteria)
-		{
-			$criteria = clone $criteria;
-		}
-
-		if ($this->collArCdrs === null) {
-			if ($this->isNew()) {
-				$this->collArCdrs = array();
-			} else {
-
-				$criteria->add(ArCdrPeer::AR_TELEPHONE_PREFIX_ID, $this->id);
-
-				$this->collArCdrs = ArCdrPeer::doSelectJoinArVendor($criteria, $con, $join_behavior);
-			}
-		} else {
-			// the following code is to determine if a new query is
-			// called for.  If the criteria is the same as the last
-			// one, just return the collection.
-
-			$criteria->add(ArCdrPeer::AR_TELEPHONE_PREFIX_ID, $this->id);
-
-			if (!isset($this->lastArCdrCriteria) || !$this->lastArCdrCriteria->equals($criteria)) {
-				$this->collArCdrs = ArCdrPeer::doSelectJoinArVendor($criteria, $con, $join_behavior);
-			}
-		}
-		$this->lastArCdrCriteria = $criteria;
-
-		return $this->collArCdrs;
-	}
-
-
-	/**
-	 * If this collection has already been initialized with
-	 * an identical criteria, it returns the collection.
-	 * Otherwise if this ArTelephonePrefix is new, it will return
-	 * an empty collection; or if this ArTelephonePrefix has previously
-	 * been saved, it will retrieve related ArCdrs from storage.
-	 *
-	 * This method is protected by default in order to keep the public
-	 * api reasonable.  You can provide public methods for those you
-	 * actually need in ArTelephonePrefix.
-	 */
-	public function getArCdrsJoinArCommunicationChannelType($criteria = null, $con = null, $join_behavior = Criteria::LEFT_JOIN)
-	{
-		if ($criteria === null) {
-			$criteria = new Criteria(ArTelephonePrefixPeer::DATABASE_NAME);
-		}
-		elseif ($criteria instanceof Criteria)
-		{
-			$criteria = clone $criteria;
-		}
-
-		if ($this->collArCdrs === null) {
-			if ($this->isNew()) {
-				$this->collArCdrs = array();
-			} else {
-
-				$criteria->add(ArCdrPeer::AR_TELEPHONE_PREFIX_ID, $this->id);
-
-				$this->collArCdrs = ArCdrPeer::doSelectJoinArCommunicationChannelType($criteria, $con, $join_behavior);
-			}
-		} else {
-			// the following code is to determine if a new query is
-			// called for.  If the criteria is the same as the last
-			// one, just return the collection.
-
-			$criteria->add(ArCdrPeer::AR_TELEPHONE_PREFIX_ID, $this->id);
-
-			if (!isset($this->lastArCdrCriteria) || !$this->lastArCdrCriteria->equals($criteria)) {
-				$this->collArCdrs = ArCdrPeer::doSelectJoinArCommunicationChannelType($criteria, $con, $join_behavior);
-			}
-		}
-		$this->lastArCdrCriteria = $criteria;
-
-		return $this->collArCdrs;
-	}
-
-	/**
 	 * Resets all collections of referencing foreign keys.
 	 *
 	 * This method is a user-space workaround for PHP's inability to garbage collect objects
@@ -1269,14 +985,8 @@ abstract class BaseArTelephonePrefix extends BaseObject  implements Persistent {
 	public function clearAllReferences($deep = false)
 	{
 		if ($deep) {
-			if ($this->collArCdrs) {
-				foreach ((array) $this->collArCdrs as $o) {
-					$o->clearAllReferences($deep);
-				}
-			}
 		} // if ($deep)
 
-		$this->collArCdrs = null;
 	}
 
 } // BaseArTelephonePrefix

@@ -1,25 +1,5 @@
 {-# LANGUAGE ScopedTypeVariables, BangPatterns, OverloadedStrings, QuasiQuotes, TypeSynonymInstances, FlexibleInstances, DeriveGeneric #-}
 
-{- $LICENSE 2013, 2014, 2015, 2016, 2017
- * Copyright (C) 2013-2017 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
- *
- * This file is part of Asterisell.
- *
- * Asterisell is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 3 of the License, or
- * (at your option) any later version.
- *
- * Asterisell is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with Asterisell. If not, see <http://www.gnu.org/licenses/>.
- * $
--}
-
 
 -- | Define rate plans specific for customers/operators.
 --   Usually they are CSV files specifying rates in a compact way.
@@ -48,16 +28,19 @@ import Asterisell.OrganizationHierarchy
 import Asterisell.RatePlan
 import Asterisell.CustomerSpecificImporters
 import Asterisell.MainRatePlan
+import Asterisell.Holiday
 
-import Prelude hiding (concat, takeWhile)
-import Control.Applicative ((<$>), (<|>), (<*>), (<*), (*>), many)
+import Control.Applicative ((<$>), (<|>), (<*>))
 import Control.Monad (void)
-import Data.Attoparsec.Text as Parser
-import Data.Attoparsec.Combinator
+import Text.Megaparsec as P
+import Text.Megaparsec.Char as P
+import Text.Megaparsec.Error as P
 import qualified Data.Text as Text
+import qualified Data.ByteString as BS
 import qualified Data.Text.Encoding as Text
 import Data.Maybe
 import Data.Map.Strict as Map
+import qualified Data.Set as Set
 import Control.Monad (when)
 import Debug.Trace
 import Text.Heredoc
@@ -66,36 +49,96 @@ import Data.List as List
 import qualified Test.HUnit as HUnit
 
 -- -------------------------------------------
--- CSV Parsing 
+-- CSV Parsing.
 
--- | Parse a line of a CSV file, and return the prefixes recognized
---   (with specified explicitely the `*` and `X` generic match parts)
---   and the associated calc params.
---   The parser is in UTF8 format.
---   The new line must be not consumed/recognized from this parser.
---   NOTE: if possible do not use slow AttoParsec combinators.
-type CSVLineParser = RatingParams -> Parser.Parser [(Text.Text, CalcParams)]
+parser_skipLine :: Parser ()
+parser_skipLine = do
+   let isNotNL c = c /= '\n' && c /= '\r'
+   _ <- P.takeWhileP Nothing isNotNL
+   (P.eof <|> parse_nl)
+   return ()
 
-createRatePlanParserFromCSVLineParser :: CSVLineParser -> Bool -> [(Text.Text, CalcParams)] -> RatePlanParser
-createRatePlanParserFromCSVLineParser lineParser skipHeader initialRates envParams rateContent
+parser_cost :: Char -> Char -> Parser MonetaryValue
+parser_cost decimalSeparator fieldSeparator
+    = do cost1 <- parseCSVString fieldSeparator
+         let cost2 = if decimalSeparator == '.'
+                     then cost1
+                     else Text.map (\c -> if c == decimalSeparator then '.' else c) cost1
+
+         case fromTextToRational cost2 of
+           Nothing -> fail $ "\"" ++ Text.unpack cost1 ++ "\" is not a valid monetary value using \"" ++ show decimalSeparator ++ "\" as decimal separator."
+           Just v -> return v
+
+parse_nl :: Parser ()
+parse_nl = do _ <- P.eol
+              return ()
+
+parse_knownIdentifier :: String -> Set.Set Text.Text -> Char -> Parser Text.Text
+parse_knownIdentifier idType allowedIds fieldSeparator = do
+  s <- parseCSVString fieldSeparator
+  case Set.member s allowedIds of
+    True -> return s
+    False -> fail $ "Unrecognized " ++ idType ++ " " ++ Text.unpack s
+                      ++ ". Expected values are: " ++ List.concat (List.intersperse ", " (List.map Text.unpack $ Set.toList allowedIds))
+
+parse_communicationChannel :: RatingParams -> Char -> Parser Int
+parse_communicationChannel env fieldSeparator = do
+  s <- parse_knownIdentifier "communication channel" (Map.keysSet $ params_channelTypes env) fieldSeparator
+  return $ fromJust $ Map.lookup s (params_channelTypes env) 
+
+parse_ratingCode :: RatingParams -> Char -> Parser Text.Text
+parse_ratingCode env fieldSeparator = do
+  parse_knownIdentifier "prefix table rating code" (params_ratingCodes env) fieldSeparator
+
+parse_peakCode :: RatingParams -> Char -> Parser Text.Text
+parse_peakCode env fieldSeparator = do
+  parse_knownIdentifier "holiday table peak-code" (params_peakCodes env) fieldSeparator
+
+-- | Build a `RatePlanParser`, ensuring that all the content of the rate is parsed.
+parser_ratePlan :: (RatingParams -> Parser MainRatePlan) -> RatePlanParser
+parser_ratePlan rateParser env rateContent
   = case Text.decodeUtf8' rateContent of
       Left err
         -> Left $ "The rate content is not in UTF8 format: " ++ show err ++ ". Convert the rate in UTF8 format, and update it in Asterisell database."
       Right rateContentT
-        -> parseOnly mainParser rateContentT
+        -> let pr = runParser
+                     (do r <- rateParser env
+                         P.eof
+                         return r
+                     ) "" rateContentT
+           in case pr of
+                Right prr -> Right prr
+                Left err -> Left $ P.parseErrorPretty err 
+
+-- | Parse a line of a CSV file, and return the text to use as input for the matching-fun,
+ --  and the calc params to use in case the CDR match this text.
+--   The text can be a telephone prefix, an operator-code, a peak-code, and so on.
+--
+--   It is used for specifying only the relevant part of parsers with a common structure,
+--   and then passing as parameter a `CSVLineParser` function.
+--
+--   The parser is in UTF8 format.
+--   The new line must be not consumed/recognized from this parser.
+--   NOTE: if possible do not use slow MegaParsec combinators.
+type CSVLineParser = RatingParams -> Parser [(Text.Text, CalcParams)]
+
+createRatePlanParserFromCSVLineParserWithMatchFun
+    :: CSVLineParser
+    -> Bool
+    -> [(Text.Text, CalcParams)]
+    -> (Trie CalcParams -> RatingParams -> CDR -> Maybe (MatchStrenght, CalcParams))
+       -- ^ the match fun to use for building the rate
+    -> RatePlanParser
+
+createRatePlanParserFromCSVLineParserWithMatchFun lineParser skipHeader initialRates deriveRateMatchFun
+  = parser_ratePlan mainParser
+
  where
 
-   isNotNL c = c /= '\n' && c /= '\r'
+   mainParser envParams
+     = do when skipHeader parser_skipLine
 
-   skipLine = return () <$> Parser.takeWhile isNotNL *> endOfLine
-
-   mainParser 
-     = do l1 <- case skipHeader of
-                  True -> do skipLine
-                             return 2
-                  False -> return 1
-
-          trie <- parseAllLines l1 (trie_update trie_empty initialRates)
+          trie <- parseAllLines envParams (trie_update trie_empty initialRates)
 
           let rateParams = RateParams {
                              rate_userId = ""
@@ -114,28 +157,57 @@ createRatePlanParserFromCSVLineParser lineParser skipHeader initialRates envPara
                  , mainRatePlan_normalRates = [ratePlan]
                  }
 
-   parseAllLines :: Int -> Trie CalcParams -> Parser (Trie CalcParams)
-   parseAllLines lineCount trie1
-     = (do endOfInput
+   parseAllLines :: RatingParams -> Trie CalcParams -> Parser (Trie CalcParams)
+   parseAllLines envParams trie1
+     = (do P.eof 
            return trie1) <|>
-       (do prefixesAndParams <- lineParser envParams <?> "at line " ++ show lineCount
+       (do prefixesAndParams <- lineParser envParams 
            let trie2 = trie_update trie1 prefixesAndParams
-           endOfInput <|> endOfLine
-           parseAllLines (lineCount + 1) trie2)
+           P.eof <|> parse_nl 
+           parseAllLines envParams trie2)
 
    trie_update trie1 prefixesAndParams
-     = List.foldl' (\trie (prefix, params) -> trie_addExtensionCode trie (Text.unpack prefix) params) trie1 prefixesAndParams
+     = List.foldl' (\trie (prefix, params) -> trie_insertExtension trie (fromTextToByteString prefix) params) trie1 prefixesAndParams
 
-   deriveRateMatchFun trie env cdr
-     = case trie_getMatch trie_getMatch_initial trie (Text.unpack $ fromJust1 "c1"  $ cdr_externalTelephoneNumberWithAppliedPortability cdr) of
-         Nothing
-           -> Nothing
-         Just ((m, _), calcParams)
-           -> Just (MatchStrenght { matchStrenght_telephoneNumber = m }, calcParams)
+
+-- | Like `createRatePlanParserFromCSVLineParserWithMatchFun` using a match fun on telephone prefix.
+createRatePlanParserOnTelephonePrefixFromCSVLineParser :: CSVLineParser -> Bool -> [(Text.Text, CalcParams)] -> RatePlanParser
+createRatePlanParserOnTelephonePrefixFromCSVLineParser lineParser skipHeader initialRates
+  =  let deriveRateMatchFun trie env cdr
+           = case trie_match trie (fromTextToByteString $ fromJust1 "c1"  $ cdr_externalTelephoneNumberWithAppliedPortability cdr) of
+               Nothing
+                 -> Nothing
+               Just (m, _, calcParams)
+                 -> Just (MatchStrenght { matchStrenght_telephoneNumber = m }, calcParams)
+     in createRatePlanParserFromCSVLineParserWithMatchFun lineParser skipHeader initialRates deriveRateMatchFun
+
+-- | Like `createRatePlanParserFromCSVLineParserWithMatchFun` using a match fun on rating-code telephone prefix recognition.
+--   In case rating-codes are specified as `some-code*`, then the max matching lenght is returned,
+--   like in case of telephone prefixes.
+createRatePlanParserOnRatingCodeFromCSVLineParser
+    :: CSVLineParser
+    -> Bool
+    -> Bool
+       -- ^ True for forcing the maximum possible match strenght, instead of the prefix len one.
+    -> [(Text.Text, CalcParams)]
+    -> RatePlanParser
+
+createRatePlanParserOnRatingCodeFromCSVLineParser lineParser skipHeader useMaxStrength initialRates
+  =  let deriveRateMatchFun trie env cdr
+           = case trie_match trie (fromTextToByteString $ cdr_ratingCode cdr) of
+               Nothing
+                 -> Nothing
+               Just (m, _, calcParams)
+                 -> let strenght = case useMaxStrength of
+                                     True -> Text.length $ fromJust1 "c2" $ cdr_externalTelephoneNumberWithAppliedPortability cdr
+                                     False -> m
+
+                   in Just (MatchStrenght { matchStrenght_telephoneNumber = strenght }, calcParams)
+     in createRatePlanParserFromCSVLineParserWithMatchFun lineParser skipHeader initialRates deriveRateMatchFun
 
 -- | Use a shorter name.
 createP :: CSVLineParser -> Bool -> RatePlanParser
-createP lp useHeader = createRatePlanParserFromCSVLineParser lp useHeader []
+createP lp useHeader = createRatePlanParserOnTelephonePrefixFromCSVLineParser lp useHeader []
 
 -- | Parse a CSV file in a StdFormat with cost-by-minute.
 parse_csvStdFormat
@@ -164,7 +236,7 @@ parse_csvStdFormat fieldSeparator decimalSeparator rowsToIgnoreStart rowsToIgnor
   prefix1 <- parseCSVString fieldSeparator
   let prefix = if useNormalPrefixes then (Text.snoc prefix1 '*') else prefix1
   char fieldSeparator
-  costByMinute <- parseCost decimalSeparator fieldSeparator
+  costByMinute <- parser_cost decimalSeparator fieldSeparator
   minimumBillableSeconds
     <- case thereIsMinimumBillableSeconds of
          True
@@ -179,7 +251,7 @@ parse_csvStdFormat fieldSeparator decimalSeparator rowsToIgnoreStart rowsToIgnor
            -> do return Nothing
          True
            -> do char fieldSeparator
-                 v <- parseCost decimalSeparator fieldSeparator
+                 v <- parser_cost decimalSeparator fieldSeparator
                  return $ Just $ RateCost_cost v
 
   whenRoundNextMinute
@@ -204,17 +276,6 @@ parse_csvStdFormat fieldSeparator decimalSeparator rowsToIgnoreStart rowsToIgnor
           }
 
   return [(prefix, calcParams)]
-
-
-parseCost decimalSeparator fieldSeparator
-    = do cost1 <- parseCSVString fieldSeparator
-         let cost2 = if decimalSeparator == '.'
-                     then cost1
-                     else Text.map (\c -> if c == decimalSeparator then '.' else c) cost1
-
-         case fromTextToRational cost2 of
-           Nothing -> fail $ "\"" ++ Text.unpack cost1 ++ "\" is not a valid monetary value using \"" ++ show decimalSeparator ++ "\" as decimal separator."
-           Just v -> return v
 
 -- -------------------------------------------
 -- Implement Specific Rates
@@ -243,7 +304,7 @@ parse_twtNngFormat decimalSeparator env
          prefix1 <- parseCSVString ','
          char ','
 
-         costByMinute <- parseCost decimalSeparator ','
+         costByMinute <- parser_cost decimalSeparator ','
 
          let calcParams
                  = calcParams_empty {
@@ -270,7 +331,7 @@ parse_twtNngFormat5ColPrefixFirst decimalSeparator env
          skipCSVField ','
          char ','
 
-         costByMinute <- parseCost decimalSeparator ','
+         costByMinute <- parser_cost decimalSeparator ','
          char ','
 
          skipCSVField ','
@@ -306,25 +367,25 @@ parse_gammaFormat9Col env
          skipCSVField ','
          char ','
 
-         costByMinute1 <- parseCost '.' ','
+         costByMinute1 <- parser_cost '.' ','
          char ','
 
-         costByMinute2 <- parseCost '.' ','
+         costByMinute2 <- parser_cost '.' ','
          char ','
 
-         costByMinute3 <- parseCost '.' ','
+         costByMinute3 <- parser_cost '.' ','
          char ','
 
-         setupCost1 <- parseCost '.' ','
+         setupCost1 <- parser_cost '.' ','
          char ','
 
-         setupCost2 <- parseCost '.' ','
+         setupCost2 <- parser_cost '.' ','
          char ','
 
-         setupCost3 <- parseCost '.' ','
+         setupCost3 <- parser_cost '.' ','
          char ','
 
-         minimumCharge <- parseCost '.' ','
+         minimumCharge <- parser_cost '.' ','
 
          let calcParams costByMinute setupCost
                  = calcParams_empty {
@@ -364,7 +425,7 @@ parse_gammaItemRentalFormat6Col env
          skipCSVField ','
          char ','
 
-         cost <- parseCost '.' ','
+         cost <- parser_cost '.' ','
          char ','
 
          -- skip applied field
@@ -397,7 +458,7 @@ parse_csvWith3ColsPDR fieldSeparator decimalSeparator env
          skipCSVField fieldSeparator
          char fieldSeparator
 
-         costByMinute <- parseCost decimalSeparator fieldSeparator
+         costByMinute <- parser_cost decimalSeparator fieldSeparator
 
          let calcParams
                  = calcParams_empty {
@@ -420,23 +481,23 @@ parse_digitelNNGFormat env
 
          let prefixT = makeDigitelNNGPrefix True prefix
          let prefixF = makeDigitelNNGPrefix False prefix
-         
+
          -- skip descrition
          skipCSVField ','
          char ','
 
-         costByMinute1 <- parseCost ',' ','
+         costByMinute1 <- parser_cost ',' ','
          char ','
 
-         costByMinute2 <- parseCost ',' ','
+         costByMinute2 <- parser_cost ',' ','
          char ','
 
-         initialCost <- parseCost ',' ','
+         initialCost <- parser_cost ',' ','
          char ','
 
          minimuLen <- parseInt
 
-         let calcParams costByMinute 
+         let calcParams costByMinute
                  = calcParams_empty {
                        calcParams_costForMinute = Just costByMinute
                    ,   calcParams_atLeastXSeconds = Just $ minimuLen
@@ -445,19 +506,203 @@ parse_digitelNNGFormat env
 
          return [(prefixT, calcParams costByMinute1 )
                 ,(prefixF, calcParams costByMinute2)
-                ] 
+                ]
 
 freeCall = calcParams_empty
 
 makeDigitelNNGPrefix :: Bool -> Text.Text -> Text.Text
 makeDigitelNNGPrefix isPeak prefix
     = Text.concat [const_digitelNNGTimeBandPrefix isPeak, "39", prefix, "*"]
- 
+
+
+-- | Store in a compact way the matching conditions.
+data ECNMatch
+        = ECNMatch {
+            ecn_peakCodes :: StringIndexDictionary
+          , ecn_operators :: StringIndexDictionary
+          , ecn_match :: Map.Map (Int
+                                  -- ^ communication channel
+                                 , Int
+                                   -- ^ operator
+                                 , Maybe Int
+                                   -- ^ Nothing for peak code, the off-peak code
+                                 )
+                                 CalcParams
+          }
+
+ecn_empty :: ECNMatch
+
+ecn_empty = ECNMatch {
+              ecn_peakCodes = sdict_empty
+            , ecn_operators = sdict_empty
+            , ecn_match = Map.empty
+            }
+
+ecn_insert
+    :: ECNMatch
+    -> Int -- ^ communication channel
+    -> Text.Text -- ^ operator
+    -> Maybe Text.Text -- ^ peak code, Nothing for peak calls
+    -> CalcParams
+    -> ECNMatch
+
+ecn_insert m1 chI op mpk cp
+   = let (pkI, m2)
+             = case mpk of
+                Just n -> let (m2', i) = sdict_insert (ecn_peakCodes m1) n
+                          in  (Just i, m1 { ecn_peakCodes = m2'})
+                Nothing -> (Nothing, m1)
+
+         (opI, m3)
+           = let (m3', i) = sdict_insert (ecn_operators m2) op
+             in  (i, m2 { ecn_operators = m3'})
+
+         m4' = Map.insert (chI, opI, pkI) cp (ecn_match m3)
+
+     in  m3 { ecn_match = m4' }
+
+ecn_toMatchFun :: ECNMatch -> MatchFun
+
+ecn_toMatchFun m env cdr
+  = let
+        m1 = ecn_match m
+        channelI = fromJust1 "c55" $ cdr_communicationChannelTypeId cdr
+        (_, operatorI) = sdict_insert (ecn_operators m) (cdr_ratingCode cdr)
+        peakCodesN = Set.toList $ holidays_match (params_holidays env) (cdr_calldate cdr)
+        peakCodesI = List.map (\c -> Just $ snd $ sdict_insert (ecn_peakCodes m) c) peakCodesN
+        peakCodesI'
+          = case List.null peakCodesI of
+              True -> [Nothing]
+              False -> peakCodesI
+        solutions = List.foldl'
+                      (\r pc
+                          -> case Map.lookup (channelI, operatorI, pc) m1 of
+                               Nothing -> r
+                               Just x -> x:r
+                      ) [] peakCodesI'
+
+    in case solutions of
+         []  -> Nothing
+         [calcParams] -> Just (matchStrenght_initial, calcParams)
+         _ -> error
+                ("These peak-codes "
+                        ++ List.concat (List.intersperse ", " (List.map Text.unpack peakCodesN))
+                        ++ " defined in Holiday table are not distinct, but they are used in a rate CSV file,"
+                        ++ " and so it is not clear which cost apply.") Nothing
+
+-- | Parse a CSV file in a ECN-like format:
+--   * description (not used)
+--   * communication-channel to match
+--   * operator code (rating-code in telephone-prefix table) to match
+--   * cost by minute of peak calls (the default calls not matching any peak-code in the holiday table)
+--   * cost by minute of calls matching some specified peak-code as specified in the holiday table
+--   * continue with more cost by minute on peak-code
+--
+--  The headers are parsed in this way:
+--  * free text
+--  * free text
+--  * free text
+--  * "peak"
+--  * other name of offpeak-code in holiday table
+--  * other name of offpeak-code in holiday table
+--  * ...
+--
+--  Every peak and offpeak code column will contain the cost for calls
+--  having the calltime in this time-frame.
+--
+parse_ecnNationalCallsFormat
+  :: FieldSeparator
+  -> DecimalSeparator
+  -> RatePlanParser
+
+parse_ecnNationalCallsFormat fieldSeparator decimalSeparator
+  = parser_ratePlan $ \envParams -> (do
+
+      _ <- parseCSVString fieldSeparator
+      _ <- P.char fieldSeparator
+
+      _ <- parseCSVString fieldSeparator
+      _ <- P.char fieldSeparator
+
+      _ <- parseCSVString fieldSeparator
+      _ <- P.char fieldSeparator
+
+      _ <- P.try $ P.string "peak"
+
+      offPeakCodes <- P.many $ do _ <- P.char fieldSeparator
+                                  parse_peakCode envParams fieldSeparator
+
+      P.eof <|> parse_nl
+
+      ecn <- parseAllLines envParams offPeakCodes ecn_empty
+
+      let rateParams = RateParams {
+                         rate_userId = ""
+                       , rate_match = ecn_toMatchFun ecn
+                       }
+
+      let ratePlan = RatePlan {
+                        rate_systemId = 0
+                      , rate_params = rateParams
+                      , rate_children = Right []
+                      , rate_elsePart = []
+                      }
+
+      return mainRatePlan_empty {
+                 mainRatePlan_bundleRates = []
+               , mainRatePlan_normalRates = [ratePlan]
+               }
+
+      )
+
+ where
+
+   parseAllLines :: RatingParams -> [Text.Text] -> ECNMatch -> Parser ECNMatch
+   parseAllLines env offPeakNames m1
+     = (do P.eof
+           return m1) <|>
+       (do m2 <- parseLine env offPeakNames m1 
+           parseAllLines env offPeakNames m2)
+
+   parseLine :: RatingParams -> [Text.Text] -> ECNMatch -> Parser ECNMatch
+   parseLine env offPeakCodes m1 = do
+
+      -- skip description
+      _ <- parseCSVString fieldSeparator
+      _ <- P.char fieldSeparator
+
+      channelI <- parse_communicationChannel env fieldSeparator
+      _ <- P.char fieldSeparator
+
+      operatorCode <- parse_ratingCode env fieldSeparator
+      _ <- P.char fieldSeparator
+
+      peakCost :: MonetaryValue
+        <- parser_cost decimalSeparator fieldSeparator
+
+      offPeakCosts :: [MonetaryValue]
+        <- P.count
+             (List.length offPeakCodes)
+             (do _ <- char fieldSeparator
+                 parser_cost decimalSeparator fieldSeparator)
+
+      (P.eof <|> parse_nl)
+
+      let peakNames = [Nothing] ++ List.map Just offPeakCodes
+
+      let m2 = List.foldl'
+                 (\m (pN, pC)
+                      -> ecn_insert m channelI operatorCode pN (calcParams_empty {calcParams_costForMinute = Just pC }))
+                 m1
+                 (List.zip peakNames (peakCost:offPeakCosts))
+
+      return m2
+
 -- -------------------------------------------
 -- Define Supported Rates
 
 -- | The default rate parsers to use for importing rates.
---   NOTE: the parsers are configured on a separate module for each type of parser.
+--   DEV-NOTE: update also `apps/asterisell/lib/jobs/admin/InitRateFormats.php`
 configuredRateParsers :: ConfiguredRatePlanParsers
 configuredRateParsers
   = Map.fromList $
@@ -467,6 +712,8 @@ configuredRateParsers
       , ("csv-header-4col", createP (parse_csvStdFormat ',' '.' 2 0 True False False False ) True )
       , ("csv-header-3col-italian", createP (parse_csvStdFormat ',' ',' 1 0 True False False False ) True )
       , ("csv-header-4col-costOnCall", createP (parse_csvStdFormat ',' '.' 1 0 True False True False ) True )
+      , ("csv-header-4col-rating-code-costOnCall"
+        , createRatePlanParserOnRatingCodeFromCSVLineParser (parse_csvStdFormat ',' '.' 1 0 False False True False) True True [])
       , ("csv-header-5col-costOnCall", createP (parse_csvStdFormat ',' '.' 2 0 True False True False ) True )
       , ("csv-header-6col-costOnCall", createP (parse_csvStdFormat ',''.' 3 0 True False True False ) True )
       , ("csv-twt-header-7col", createP (parse_csvStdFormat ',' '.' 1 4 True False False False ) True )
@@ -479,11 +726,12 @@ configuredRateParsers
       , ("csv-gamma-item-rental-6col", createP parse_gammaItemRentalFormat6Col True)
       , ("csv-header-3col-pref-descr-rate-it", createP (parse_csvWith3ColsPDR ';' ',') True)
       , ("csv-header-3col-pref-descr-rate", createP (parse_csvWith3ColsPDR ',' '.') True)
-      , ("csv-digitel-nng", createRatePlanParserFromCSVLineParser
+      , ("csv-digitel-nng", createRatePlanParserOnTelephonePrefixFromCSVLineParser
                               parse_digitelNNGFormat
                               True
                               [(makeDigitelNNGPrefix True "800", freeCall)
                               ,(makeDigitelNNGPrefix False "800", freeCall)])
+      , ("csv-ecn", parse_ecnNationalCallsFormat ',' '.')
       ]
 
 -- --------------------------------

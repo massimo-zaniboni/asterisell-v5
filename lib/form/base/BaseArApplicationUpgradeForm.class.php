@@ -22,7 +22,7 @@ abstract class BaseArApplicationUpgradeForm extends BaseFormPropel
 
     $this->setValidators(array(
       'id'                => new sfValidatorChoice(array('choices' => array($this->getObject()->getId()), 'empty_value' => $this->getObject()->getId(), 'required' => false)),
-      'upg_key'           => new sfValidatorString(array('max_length' => 24000, 'required' => false)),
+      'upg_key'           => new sfValidatorString(array('max_length' => 2048, 'required' => false)),
       'upg_output'        => new sfValidatorString(array('required' => false)),
       'installation_date' => new sfValidatorDateTime(array('required' => false)),
     ));

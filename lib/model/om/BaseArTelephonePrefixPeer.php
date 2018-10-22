@@ -25,7 +25,7 @@ abstract class BaseArTelephonePrefixPeer {
 	const TM_CLASS = 'ArTelephonePrefixTableMap';
 	
 	/** The total number of columns. */
-	const NUM_COLUMNS = 7;
+	const NUM_COLUMNS = 8;
 
 	/** The number of lazy-loaded columns. */
 	const NUM_LAZY_LOAD_COLUMNS = 0;
@@ -51,6 +51,9 @@ abstract class BaseArTelephonePrefixPeer {
 	/** the column name for the DISPLAY_PRIORITY_LEVEL field */
 	const DISPLAY_PRIORITY_LEVEL = 'ar_telephone_prefix.DISPLAY_PRIORITY_LEVEL';
 
+	/** the column name for the RATING_CODE field */
+	const RATING_CODE = 'ar_telephone_prefix.RATING_CODE';
+
 	/**
 	 * An identiy map to hold any loaded instances of ArTelephonePrefix objects.
 	 * This must be public so that other peer classes can access this when hydrating from JOIN
@@ -74,11 +77,11 @@ abstract class BaseArTelephonePrefixPeer {
 	 * e.g. self::$fieldNames[self::TYPE_PHPNAME][0] = 'Id'
 	 */
 	private static $fieldNames = array (
-		BasePeer::TYPE_PHPNAME => array ('Id', 'Prefix', 'MatchOnlyNumbersWithNDigits', 'Name', 'GeographicLocation', 'OperatorType', 'DisplayPriorityLevel', ),
-		BasePeer::TYPE_STUDLYPHPNAME => array ('id', 'prefix', 'matchOnlyNumbersWithNDigits', 'name', 'geographicLocation', 'operatorType', 'displayPriorityLevel', ),
-		BasePeer::TYPE_COLNAME => array (self::ID, self::PREFIX, self::MATCH_ONLY_NUMBERS_WITH_N_DIGITS, self::NAME, self::GEOGRAPHIC_LOCATION, self::OPERATOR_TYPE, self::DISPLAY_PRIORITY_LEVEL, ),
-		BasePeer::TYPE_FIELDNAME => array ('id', 'prefix', 'match_only_numbers_with_n_digits', 'name', 'geographic_location', 'operator_type', 'display_priority_level', ),
-		BasePeer::TYPE_NUM => array (0, 1, 2, 3, 4, 5, 6, )
+		BasePeer::TYPE_PHPNAME => array ('Id', 'Prefix', 'MatchOnlyNumbersWithNDigits', 'Name', 'GeographicLocation', 'OperatorType', 'DisplayPriorityLevel', 'RatingCode', ),
+		BasePeer::TYPE_STUDLYPHPNAME => array ('id', 'prefix', 'matchOnlyNumbersWithNDigits', 'name', 'geographicLocation', 'operatorType', 'displayPriorityLevel', 'ratingCode', ),
+		BasePeer::TYPE_COLNAME => array (self::ID, self::PREFIX, self::MATCH_ONLY_NUMBERS_WITH_N_DIGITS, self::NAME, self::GEOGRAPHIC_LOCATION, self::OPERATOR_TYPE, self::DISPLAY_PRIORITY_LEVEL, self::RATING_CODE, ),
+		BasePeer::TYPE_FIELDNAME => array ('id', 'prefix', 'match_only_numbers_with_n_digits', 'name', 'geographic_location', 'operator_type', 'display_priority_level', 'rating_code', ),
+		BasePeer::TYPE_NUM => array (0, 1, 2, 3, 4, 5, 6, 7, )
 	);
 
 	/**
@@ -88,11 +91,11 @@ abstract class BaseArTelephonePrefixPeer {
 	 * e.g. self::$fieldNames[BasePeer::TYPE_PHPNAME]['Id'] = 0
 	 */
 	private static $fieldKeys = array (
-		BasePeer::TYPE_PHPNAME => array ('Id' => 0, 'Prefix' => 1, 'MatchOnlyNumbersWithNDigits' => 2, 'Name' => 3, 'GeographicLocation' => 4, 'OperatorType' => 5, 'DisplayPriorityLevel' => 6, ),
-		BasePeer::TYPE_STUDLYPHPNAME => array ('id' => 0, 'prefix' => 1, 'matchOnlyNumbersWithNDigits' => 2, 'name' => 3, 'geographicLocation' => 4, 'operatorType' => 5, 'displayPriorityLevel' => 6, ),
-		BasePeer::TYPE_COLNAME => array (self::ID => 0, self::PREFIX => 1, self::MATCH_ONLY_NUMBERS_WITH_N_DIGITS => 2, self::NAME => 3, self::GEOGRAPHIC_LOCATION => 4, self::OPERATOR_TYPE => 5, self::DISPLAY_PRIORITY_LEVEL => 6, ),
-		BasePeer::TYPE_FIELDNAME => array ('id' => 0, 'prefix' => 1, 'match_only_numbers_with_n_digits' => 2, 'name' => 3, 'geographic_location' => 4, 'operator_type' => 5, 'display_priority_level' => 6, ),
-		BasePeer::TYPE_NUM => array (0, 1, 2, 3, 4, 5, 6, )
+		BasePeer::TYPE_PHPNAME => array ('Id' => 0, 'Prefix' => 1, 'MatchOnlyNumbersWithNDigits' => 2, 'Name' => 3, 'GeographicLocation' => 4, 'OperatorType' => 5, 'DisplayPriorityLevel' => 6, 'RatingCode' => 7, ),
+		BasePeer::TYPE_STUDLYPHPNAME => array ('id' => 0, 'prefix' => 1, 'matchOnlyNumbersWithNDigits' => 2, 'name' => 3, 'geographicLocation' => 4, 'operatorType' => 5, 'displayPriorityLevel' => 6, 'ratingCode' => 7, ),
+		BasePeer::TYPE_COLNAME => array (self::ID => 0, self::PREFIX => 1, self::MATCH_ONLY_NUMBERS_WITH_N_DIGITS => 2, self::NAME => 3, self::GEOGRAPHIC_LOCATION => 4, self::OPERATOR_TYPE => 5, self::DISPLAY_PRIORITY_LEVEL => 6, self::RATING_CODE => 7, ),
+		BasePeer::TYPE_FIELDNAME => array ('id' => 0, 'prefix' => 1, 'match_only_numbers_with_n_digits' => 2, 'name' => 3, 'geographic_location' => 4, 'operator_type' => 5, 'display_priority_level' => 6, 'rating_code' => 7, ),
+		BasePeer::TYPE_NUM => array (0, 1, 2, 3, 4, 5, 6, 7, )
 	);
 
 	/**
@@ -169,6 +172,7 @@ abstract class BaseArTelephonePrefixPeer {
 		$criteria->addSelectColumn(ArTelephonePrefixPeer::GEOGRAPHIC_LOCATION);
 		$criteria->addSelectColumn(ArTelephonePrefixPeer::OPERATOR_TYPE);
 		$criteria->addSelectColumn(ArTelephonePrefixPeer::DISPLAY_PRIORITY_LEVEL);
+		$criteria->addSelectColumn(ArTelephonePrefixPeer::RATING_CODE);
 	}
 
 	/**

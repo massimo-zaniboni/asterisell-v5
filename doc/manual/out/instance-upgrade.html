@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+   <head><meta charset="UTF-8" />
+      <title>Instance upgrade</title><link href="res/webhelp.css" rel="stylesheet" type="text/css" /><meta content="XMLmind DITA Converter 3.3.0" name="generator" />
+   <script charset="UTF-8" defer="defer" src="_wh/snowball_en.min.js" type="text/javascript"></script><link href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/themes/smoothness/jquery-ui.css" rel="stylesheet" type="text/css" /><link href="_wh/wh.css" rel="stylesheet" type="text/css" /><script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js" type="text/javascript">
+    </script><script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js" type="text/javascript">
+    </script><script charset="UTF-8" src="_wh/wh.min.js" type="text/javascript">
+    </script><script charset="UTF-8" defer="defer" src="_wh/search.js" type="text/javascript">
+    </script></head>
+   
+<body>
+    
+
+    <div id="wh-body">
+      <div id="wh-navigation">
+        <ul id="wh-tabs">
+          <li id="wh-toc-tab"><a href="#wh-toc-pane"><span>Contents</span></a></li>
+          
+          <li id="wh-search-tab"><a href="#wh-search-pane"><span>Search</span></a></li>
+        </ul>
+        <div id="wh-toc-pane">
+          <div id="wh-toc-form">
+            <span id="wh-toc-control"><a href="#">Collapse 
+            All</a><a href="#">Expand All</a></span>
+            <button id="wh-toc-previous">Previous</button>
+            <button id="wh-toc-next">Next</button>
+            <button id="wh-toc-print">Print</button>
+          </div>
+          <script charset="UTF-8" src="_wh/toc.js" type="text/javascript">
+          </script>
+        </div>
+        
+        <div id="wh-search-pane">
+          <div id="wh-search-form">
+            <input id="wh-search-field" type="text" /><button id="wh-search-button">Search</button><span id="wh-highlight-group"><input checked="checked" id="wh-highlight-toggle" type="checkbox" /><label for="wh-highlight-toggle" id="wh-highlight-icon"><span class="ui-icon ui-icon-flag"></span></label></span>
+          </div>
+          <div id="wh-search-results">
+          </div>
+        </div>
+      </div>
+      <div id="wh-separator">
+      </div>
+      <div id="wh-content">
+      
+      <header class="page-navigation-header">
+         <table class="page-navigation-layout" style="width: 100%;">
+            <tr>
+               <td style="text-align: left;vertical-align: top;"><a class="navigation-link" href="manual.html" title="First page: Asterisell Manual"><img alt="First page" class="navigation-icon" height="16" src="res/first.png" width="16" /></a></td>
+               <td style="text-align: left;vertical-align: top;"><a class="navigation-link" href="managing-instances.html" title="Previous page: Managing instances"><img alt="Previous page" class="navigation-icon" height="16" src="res/previous.png" width="16" /></a></td>
+               <td style="width: 25%;text-align: left;vertical-align: top;"><span class="page-navigation-previous">Managing instances</span></td>
+               <td style="width: 40%;text-align: center;vertical-align: top;"><span class="page-navigation-current">Instance upgrade</span> <span class="page-navigation-page">(16 / 71)</span></td>
+               <td style="width: 25%;text-align: right;vertical-align: top;"><span class="page-navigation-next">Call reporting mode</span></td>
+               <td style="text-align: right;vertical-align: top;"><a class="navigation-link" href="call-reporting-mode.html" title="Next page: Call reporting mode"><img alt="Next page" class="navigation-icon" height="16" src="res/next.png" width="16" /></a></td>
+               <td style="text-align: right;vertical-align: top;"><a class="navigation-link" href="about.html" title="Last page: About"><img alt="Last page" class="navigation-icon" height="16" src="res/last.png" width="16" /></a></td>
+            </tr>
+         </table>
+      </header>
+      <section class="topic" id="Instance_upgrade">
+         <h2 class="section2-title">Instance upgrade</h2>
+         <div class="body">
+            <section class="section" id="Instance_upgrade__I_7jd8i8_">
+               <h3 class="section-title">Git repository upgrade</h3>
+               <div class="p">Instances can be upgraded to a new version of Asterisell, using the <a class="xref" href="manual-6.html#Instances_configuration_tool">Instances configuration tool</a> and Git. The Git repository allows for:
+               </div>
+               <ul class="ul">
+                  <li class="li">incremental updates</li>
+                  <li class="li">merging local customizations with upstream updates</li>
+               </ul>
+               <div class="p">The Git commands to execute are something like</div><pre class="pre">    cd INSTANCE_MANAGEMENT_TOOL_DIR
+    
+    # view pending local changes
+    git status
+    
+    # add new files
+    git add SOME_NEW_FILE
+    
+    # save local customizations
+    git commit -a -m &quot;Custom settings.&quot;
+    
+    # download a new version and merge
+    git pull
+</pre><div class="p">In case there are conflicts to merge, Git signal them to you. Then you must:</div>
+               <ul class="ul">
+                  <li class="li"><code class="codeph">git status</code> for seeing the files with problems
+                  </li>
+                  <li class="li">edit one of the file with problems, searching for strings like <code class="codeph">&gt;&gt;&gt;&gt;&gt;</code> inserted from Git
+                  </li>
+                  <li class="li"><code class="codeph">git add &lt;file-with-problem&gt;</code> for signaling that the problems in file are fixed
+                  </li>
+                  <li class="li"><code class="codeph">git status</code> for seeing if there are other files with problems
+                  </li>
+                  <li class="li"><code class="codeph">git commit -a -m &quot;Resolved conflicts.&quot;</code> for merging the changes, when all the files are fixed
+                  </li>
+               </ul>
+            </section>
+            <section class="section" id="Instance_upgrade__I_1ame5p_">
+               <h3 class="section-title">Instances upgrade</h3><pre class="pre">fab upgrade_app:HOST/INSTANCE
+</pre></section>
+         </div>
+      </section>
+      <footer class="page-navigation-footer">
+         <table class="page-navigation-layout" style="width: 100%;">
+            <tr>
+               <td style="text-align: left;vertical-align: top;"><a class="navigation-link" href="manual.html" title="First page: Asterisell Manual"><img alt="First page" class="navigation-icon" height="16" src="res/first.png" width="16" /></a></td>
+               <td style="text-align: left;vertical-align: top;"><a class="navigation-link" href="managing-instances.html" title="Previous page: Managing instances"><img alt="Previous page" class="navigation-icon" height="16" src="res/previous.png" width="16" /></a></td>
+               <td style="width: 25%;text-align: left;vertical-align: top;"><span class="page-navigation-previous">Managing instances</span></td>
+               <td style="width: 40%;text-align: center;vertical-align: top;"><span class="page-navigation-current">Instance upgrade</span> <span class="page-navigation-page">(16 / 71)</span></td>
+               <td style="width: 25%;text-align: right;vertical-align: top;"><span class="page-navigation-next">Call reporting mode</span></td>
+               <td style="text-align: right;vertical-align: top;"><a class="navigation-link" href="call-reporting-mode.html" title="Next page: Call reporting mode"><img alt="Next page" class="navigation-icon" height="16" src="res/next.png" width="16" /></a></td>
+               <td style="text-align: right;vertical-align: top;"><a class="navigation-link" href="about.html" title="Last page: About"><img alt="Last page" class="navigation-icon" height="16" src="res/last.png" width="16" /></a></td>
+            </tr>
+         </table>
+      </footer>
+   </div>
+    </div>
+
+    
+  </body></html>

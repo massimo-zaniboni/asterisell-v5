@@ -21,7 +21,6 @@ generator:
        title: Party TAGS
        display: [=internal_name, name_for_customer]
        filters: [internal_name, name_for_customer]
-       sort: [internal_name]
 
     edit:
       title: Party TAGS

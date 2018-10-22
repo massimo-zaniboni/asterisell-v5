@@ -1,25 +1,6 @@
 <?php
 
-/* $LICENSE 2009, 2010, 2012, 2015, 2017:
- *
- * Copyright (C) 2009, 2010, 2012, 2015, 2017 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
- *
- * This file is part of Asterisell.
- *
- * Asterisell is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 3 of the License, or
- * (at your option) any later version.
- *
- * Asterisell is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with Asterisell. If not, see <http://www.gnu.org/licenses/>.
- * $
- */
+// SPDX-License-Identifier: GPL-3.0-or-later
 
 sfLoader::loadHelpers(array('I18N', 'Debug', 'Date', 'Asterisell'));
 
@@ -48,6 +29,11 @@ abstract class FixedJobProcessor
     {
         return $this->debugMode;
     }
+
+    /**
+     * @var null|string configurable by admin tools, for executing regression tests on demand
+     */
+    public $regressionTestParam = null;
 
     //
     // Customizable Interface
@@ -84,7 +70,7 @@ abstract class FixedJobProcessor
     //
 
     /**
-     * @param int $fromDate1
+     * @param int|null $fromDate1
      * @param int|null $fromDate2 null for the minimum fromDate (no interval)
      * @return int the minimum calldate
      */
@@ -92,6 +78,8 @@ abstract class FixedJobProcessor
     {
         if (is_null($fromDate2)) {
             return $fromDate1;
+        } else if (is_null($fromDate1)) {
+            return $fromDate2;
         } else if ($fromDate1 < $fromDate2) {
             return $fromDate1;
         } else {
@@ -99,19 +87,21 @@ abstract class FixedJobProcessor
         }
     }
 
-    /**
-     * @param int|null $d1
-     * @param int|null $d2 null for accepting all the calldates (the maximum value possible)
-     * @return int|null the maximum calldate
+     /**
+     * @param int|null $fromDate1
+     * @param int|null $fromDate2 null for the minimum fromDate (no interval)
+     * @return int the minimum calldate
      */
-    static function getMaxToDate($d1, $d2)
+    static function getMaxFromDate($fromDate1, $fromDate2)
     {
-        if (is_null($d1) || is_null($d2)) {
-            return null;
-        } else if ($d1 < $d2) {
-            return $d2;
+        if (is_null($fromDate2)) {
+            return $fromDate1;
+        } else if (is_null($fromDate1)) {
+            return $fromDate2;
+        } else if ($fromDate1 > $fromDate2) {
+            return $fromDate1;
         } else {
-            return $d1;
+            return $fromDate2;
         }
     }
 
@@ -230,10 +220,9 @@ abstract class FixedJobProcessor
      * Note: these fields are not used from system jobs, so there is no conflict
      * Note: use an explicit SQL command, for avoinding caching.
      * @param int|null $fromDate null for deleting a rerating event
-     * @param int|null $toDate
      * @param PDO|null $conn
      */
-    static public function rerateCalls($fromDate, $toDate, $conn = null)
+    static public function rerateCalls($fromDate, $conn = null)
     {
         if (is_null($conn)) {
             $conn = Propel::getConnection();
@@ -241,38 +230,11 @@ abstract class FixedJobProcessor
 
         $query = 'UPDATE ar_params
                   SET scheduled_rerate_from_specific_calldate = ?,
-                      scheduled_rerate_to_specific_calldate = ?,
                       wait_for_scheduled_rerate = 0
                   WHERE is_default = 1';
 
         $stm = $conn->prepare($query);
-        $stm->execute(array(fromUnixTimestampToMySQLTimestamp($fromDate), fromUnixTimestampToMySQLTimestamp($toDate)));
-        $stm->closeCursor();
-    }
-
-    /**
-     * Schedule a user request for rerating imported service calls.
-     * NOTE: use an explicit SQL command, for avoinding caching.
-     * NOTE: usually this command is not needed, because service CDRS are automatically scheduled from
-     * the rating engine during importing of service CDRS. So it is used usually in debug sessions,
-     * and for maintanance jobs.
-     * @param int $fromDate
-     * @param int $toDate
-     * @param PDO|null $conn
-     */
-    static public function rerateImportedServicesCalls($fromDate, $toDate, $conn = null)
-    {
-        if (is_null($conn)) {
-            $conn = Propel::getConnection();
-        }
-
-        $query = 'UPDATE ar_params
-                  SET scheduled_imported_services_rerate_from_specific_calldate = ?,
-                      scheduled_imported_services_rerate_to_specific_calldate = ?
-                  WHERE is_default = 1';
-
-        $stm = $conn->prepare($query);
-        $stm->execute(array(fromUnixTimestampToMySQLTimestamp($fromDate), fromUnixTimestampToMySQLTimestamp($toDate)));
+        $stm->execute(array(fromUnixTimestampToMySQLTimestamp($fromDate)));
         $stm->closeCursor();
     }
 
@@ -288,10 +250,7 @@ abstract class FixedJobProcessor
         }
 
         $query = 'UPDATE ar_params
-                  SET new_imported_cdrs_from_calldate = NULL,
-                      new_imported_cdrs_to_calldate = NULL,
-                      scheduled_imported_services_rerate_from_specific_calldate = NULL,
-                      scheduled_imported_services_rerate_to_specific_calldate = NULL
+                  SET new_imported_cdrs_from_calldate = NULL
                   WHERE is_default = 1';
 
         $stm = $conn->prepare($query);
@@ -333,7 +292,7 @@ abstract class FixedJobProcessor
         $stm = $conn->prepare($query);
         $stm->execute();
         $r = null;
-        while ((($rs = $stm->fetch(PDO::FETCH_NUM)) !== false)) {
+        while (($rs = $stm->fetch(PDO::FETCH_NUM)) !== false) {
             $r = fromMySQLTimestampToUnixTimestamp($rs[0]);
         }
         $stm->closeCursor();
@@ -344,7 +303,7 @@ abstract class FixedJobProcessor
     /**
      * Note: use an explicit command, for avoinding caching.
      * @param PDO|null $conn
-     * @return array list(int|null, int|null) the user requested rerate time frame
+     * @return int|null the user requested rerate time frame
      */
     static public function getRerateTimeFrame($conn = null)
     {
@@ -352,26 +311,25 @@ abstract class FixedJobProcessor
             $conn = Propel::getConnection();
         }
 
-        $query = 'SELECT scheduled_rerate_from_specific_calldate, scheduled_rerate_to_specific_calldate FROM ar_params WHERE is_default = 1 LIMIT 1';
+        $query = 'SELECT scheduled_rerate_from_specific_calldate FROM ar_params WHERE is_default = 1 LIMIT 1';
 
         $stm = $conn->prepare($query);
         $stm->execute();
         $r1 = null;
-        $r2 = null;
         while ((($rs = $stm->fetch(PDO::FETCH_NUM)) !== false)) {
             $r1 = fromMySQLTimestampToUnixTimestamp($rs[0]);
-            $r2 = fromMySQLTimestampToUnixTimestamp($rs[1]);
         }
         $stm->closeCursor();
 
-        return array($r1, $r2);
+        return $r1;
     }
 
 
     /**
      * Note: use an explicit command, for avoiding caching.
      * @param PDO|null $conn
-     * @return bool true if it must wait another cron job processor passage before rerating
+     * @return bool true if it must wait another cron job processor passage before rerating,
+     * because params were changed during application maintanance
      */
     static public function getWaitForScheduledRerate($conn = null)
     {
@@ -384,7 +342,7 @@ abstract class FixedJobProcessor
         $stm = $conn->prepare($query);
         $stm->execute();
         $r = false;
-        while ((($rs = $stm->fetch(PDO::FETCH_NUM)) !== false)) {
+        while (($rs = $stm->fetch(PDO::FETCH_NUM)) !== false) {
             if ($rs[0] == 1) {
                 $r = true;
             } else {
@@ -437,7 +395,7 @@ abstract class FixedJobProcessor
         $stm = $conn->prepare($query);
         $stm->execute();
         $r = false;
-        while ((($rs = $stm->fetch(PDO::FETCH_NUM)) !== false)) {
+        while (($rs = $stm->fetch(PDO::FETCH_NUM)) !== false) {
             $r = ($rs[0] > 0);
         }
         $stm->closeCursor();
@@ -529,7 +487,7 @@ abstract class FixedJobProcessor
         $stm = $conn->prepare($query);
         $stm->execute();
         $r = false;
-        while ((($rs = $stm->fetch(PDO::FETCH_NUM)) !== false)) {
+        while (($rs = $stm->fetch(PDO::FETCH_NUM)) !== false) {
             $v = $rs[0];
             if ($manageRateEventCall) {
                 // the process call it, before another start, so in this case it must be considered a +1
@@ -569,7 +527,7 @@ abstract class FixedJobProcessor
         $stm = $conn->prepare($query);
         $stm->execute();
         $r = false;
-        while ((($rs = $stm->fetch(PDO::FETCH_NUM)) !== false)) {
+        while (($rs = $stm->fetch(PDO::FETCH_NUM)) !== false) {
             if ($rs[1] > 1) {
                 $r = 2;
             } else if ($rs[0] == 0) {
@@ -620,7 +578,7 @@ abstract class FixedJobProcessor
             // Signal only that the process is blockeid, without describing the rating time-frame.
             return self::getRatingProcessStatusDescription($status);
         } else {
-            list($userRateFromDate, $userRateToDate) = self::getRerateTimeFrame($conn);
+            $userRateFromDate = self::getRerateTimeFrame($conn);
             if (self::getRerateFromOfficialCallDate($conn)) {
                 $unbilledCallsFrom = self::getOfficialCallDate($conn);
             } else {
@@ -639,11 +597,7 @@ abstract class FixedJobProcessor
                 } else {
                     $msg .= 'Request a rerate ';
                 }
-                $msg .= 'from ' . fromUnixTimestampToSymfonyStrTimestamp($userRateFromDate);
-                if (!is_null($userRateToDate)) {
-                    $msg .= ' to ' . fromUnixTimestampToSymfonyStrTimestamp($userRateToDate);
-                }
-                $msg .= ' . ';
+                $msg .= 'from ' . fromUnixTimestampToSymfonyStrTimestamp($userRateFromDate) . '.';
             }
 
             if (!is_null($unbilledCallsFrom)) {
@@ -677,14 +631,12 @@ abstract class FixedJobProcessor
     static public function thereAreNewImportedCDRs($conn = null)
     {
         list($d1, $d2) = self::getNewImportedCdrsCallDate($conn);
-        list($d3, $d4) = self::getScheduledImportedServicesRatingEvent($conn);
-
-        return !(is_null($d1) && is_null($d3));
+        return !(is_null($d1));
     }
 
     /**
      * @param PDO|null $conn
-     * @return array list(int|null, int|null) the requested (if exists) rating event on new imported cdrs
+     * @return int|null the requested (if exists) rating event on new imported cdrs
      */
     static public function getNewImportedCdrsCallDate($conn = null)
     {
@@ -694,45 +646,17 @@ abstract class FixedJobProcessor
         $eventFromDate = null;
         $eventToDate = null;
 
-        $query = 'SELECT new_imported_cdrs_from_calldate,  new_imported_cdrs_to_calldate FROM ar_params WHERE is_default = 1 LIMIT 1';
+        $query = 'SELECT new_imported_cdrs_from_calldate FROM ar_params WHERE is_default = 1 LIMIT 1';
 
         $stm = $conn->prepare($query);
         $stm->execute();
         $r1 = null;
-        $r2 = null;
-        while ((($rs = $stm->fetch(PDO::FETCH_NUM)) !== false)) {
+        while (($rs = $stm->fetch(PDO::FETCH_NUM)) !== false) {
             $r1 = fromMySQLTimestampToUnixTimestamp($rs[0]);
-            $r2 = fromMySQLTimestampToUnixTimestamp($rs[1]);
         }
         $stm->closeCursor();
 
-        return array($r1, $r2);
-    }
-
-    /**
-     * @return array list(int|null, int|null) the requested (if exists) rating event on imported service cdrs
-     */
-    static public function getScheduledImportedServicesRatingEvent()
-    {
-
-        $conn = Propel::getConnection();
-
-        $eventFromDate = null;
-        $eventToDate = null;
-
-        $query = 'SELECT scheduled_imported_services_rerate_from_specific_calldate, scheduled_imported_services_rerate_to_specific_calldate FROM ar_params WHERE is_default = 1 LIMIT 1';
-
-        $stm = $conn->prepare($query);
-        $stm->execute();
-        $r1 = null;
-        $r2 = null;
-        while ((($rs = $stm->fetch(PDO::FETCH_NUM)) !== false)) {
-            $r1 = fromMySQLTimestampToUnixTimestamp($rs[0]);
-            $r2 = fromMySQLTimestampToUnixTimestamp($rs[1]);
-        }
-        $stm->closeCursor();
-
-        return array($r1, $r2);
+        return $r1;
     }
 
     /**
@@ -750,7 +674,7 @@ abstract class FixedJobProcessor
         $stm = $conn->prepare($query);
         $stm->execute();
         $r = false;
-        while ((($rs = $stm->fetch(PDO::FETCH_NUM)) !== false)) {
+        while (($rs = $stm->fetch(PDO::FETCH_NUM)) !== false) {
             $r = $rs[0];
         }
         $stm->closeCursor();
@@ -1336,4 +1260,48 @@ abstract class FixedJobProcessor
             }
         }
     }
+
+    const RATE_ENGINE_CHANGED_DAYS_JOB_NAME = 'external_haskell_rating_engine';
+
+    /**
+     * @return int|null
+     */
+    static public function getRateEngineChangedDaysJobId()
+    {
+        static $id = null;
+
+        if (is_null($id)) {
+            $conn = Propel::getConnection();
+            $stm = $conn->prepare('SELECT id FROM ar_daily_status_job WHERE NAME = ?');
+            $stm->execute(array(self::RATE_ENGINE_CHANGED_DAYS_JOB_NAME));
+            while (($rs = $stm->fetch(PDO::FETCH_NUM)) !== false) {
+                $id = $rs[0];
+            }
+            $stm->closeCursor();
+        }
+
+        return $id;
+    }
+
+    /**
+     * @param PDO $conn
+     * @param int $fromDate the timeframe with new/updated CDRs
+     */
+    static public function invalidatePendingReports($conn, $fromDate)
+    {
+        $conn->beginTransaction();
+
+        $query = 'UPDATE ar_report
+                  SET    produced_report_must_be_regenerated = 1
+                  WHERE  produced_report_already_reviewed = 0
+                  AND    (? > from_date AND ? < to_date)
+                  OR     (? <= from_date)';
+
+        $fromDateS = fromUnixTimestampToMySQLTimestamp($fromDate);
+        $stm = $conn->prepare($query);
+        $stm->execute(array($fromDateS, $fromDateS, $fromDateS));
+
+        self::commitTransactionOrSignalProblem_static($conn, 'invalidate pending reports');
+    }
+
 }

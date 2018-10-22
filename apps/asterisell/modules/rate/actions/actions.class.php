@@ -1,25 +1,6 @@
 <?php
 
-/* $LICENSE 2009, 2010, 2011, 2012, 2014:
- *
- * Copyright (C) 2009, 2010, 2011, 2012, 2014 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
- *
- * This file is part of Asterisell.
- *
- * Asterisell is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 3 of the License, or
- * (at your option) any later version.
- *
- * Asterisell is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with Asterisell. If not, see <http://www.gnu.org/licenses/>.
- * $
- */
+// SPDX-License-Identifier: GPL-3.0-or-later
 
 sfLoader::loadHelpers(array('I18N', 'Debug', 'Date', 'Number', 'Form', 'Asterisell'));
 
@@ -31,9 +12,10 @@ class rateActions extends autoRateActions
      */
     protected function addSortCriteria($c)
     {
-        // force a sort on ID for viewing all the calls in the LIMIT pagination
+        // use always this order, for being sure to modify the correct rate
+        $c->addDescendingOrderByColumn(ArRatePeer::FROM_TIME);
 
-        parent::addSortCriteria($c);
+        // force a sort on ID for viewing all the calls in the LIMIT pagination
         $c->addAscendingOrderByColumn(ArRatePeer::ID);
     }
 
@@ -208,4 +190,12 @@ class rateActions extends autoRateActions
     }
 
 
+    protected function addFiltersCriteria($c)
+    {
+
+       if (isset($this->filters['filter_on_name_list']) && !isEmptyOrNull($this->filters['filter_on_name_list'])) {
+         $c->add(ArRatePeer::INTERNAL_NAME, $this->filters['filter_on_name_list'], Criteria::LIKE);
+       }
+       parent::addFiltersCriteria($c);
+    }
 }

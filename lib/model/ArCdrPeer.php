@@ -1,24 +1,6 @@
 <?php
 
-/*
-* Copyright (C) 2010 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
-*
-*   This file is part of Asterisell.
-*
-*   Asterisell is free software; you can redistribute it and/or modify
-*   it under the terms of the GNU General Public License as published by
-*   the Free Software Foundation; either version 3 of the License, or
-*   (at your option) any later version.
-*
-*   Asterisell is distributed in the hope that it will be useful,
-*   but WITHOUT ANY WARRANTY; without even the implied warranty of
-*   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-*   GNU General Public License for more details.
-*
-*   You should have received a copy of the GNU General Public License
-*   along with Asterisell. If not, see <http://www.gnu.org/licenses/>.
-*    
-*/
+// SPDX-License-Identifier: GPL-3.0-or-later
 
 /**
  * Subclass for performing query and update operations on the 'cdr' table.
@@ -64,4 +46,22 @@ class ArCdrPeer extends BaseArCdrPeer
         }
     }
 
+  	/**
+	 * Retrieve object using using composite pkey values.
+	 * @param      int $calldate
+	 * @param      int $is_service_cdr
+	 * @param      int $id
+	 * @param      PropelPDO $con
+	 * @return     ArCdr
+	 */
+	public static function retrieveByPK1($calldate, $is_service_cdr, $id, PropelPDO $con = null) {
+     	if ($con === null) {
+			$con = Propel::getConnection();
+		}
+		$criteria = new Criteria();
+		$criteria->add(ArCdrPeer::CALLDATE, fromUnixTimestampToMySQLTimestamp($calldate));
+		$criteria->add(ArCdrPeer::IS_SERVICE_CDR, $is_service_cdr);
+		$criteria->add(ArCdrPeer::ID, $id);
+		return ArCdrPeer::doSelectOne($criteria, $con);
+	}
 }

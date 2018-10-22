@@ -29,7 +29,7 @@ foreach ($params as $param) {
 
     list($title, $toReview) = $param;
 
-    $stm->execute(array($reportSetId, $toReview));
+    $stm->execute(array($reportSetId, (int)$toReview));
 
     echo htmlspecialchars($title) . ': <ul>';
 

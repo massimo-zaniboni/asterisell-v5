@@ -50,7 +50,6 @@ class ArPhysicalFormatTableMap extends TableMap {
 	{
     $this->addRelation('ArLogicalSource', 'ArLogicalSource', RelationMap::MANY_TO_ONE, array('ar_logical_source_id' => 'id', ), null, null);
     $this->addRelation('ArSourceCsvFile', 'ArSourceCsvFile', RelationMap::ONE_TO_MANY, array('id' => 'ar_physical_format_id', ), null, null);
-    $this->addRelation('ArSourceCdr', 'ArSourceCdr', RelationMap::ONE_TO_MANY, array('id' => 'ar_physical_format_id', ), null, null);
 	} // buildRelations()
 
 	/**

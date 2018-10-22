@@ -1,26 +1,7 @@
 {-# Language BangPatterns, OverloadedStrings, ScopedTypeVariables  #-}
 {-# LANGUAGE QuasiQuotes, TypeSynonymInstances, FlexibleInstances, DeriveGeneric, DeriveAnyClass #-}
 
-{- $LICENSE 2013, 2014, 2015, 2016, 2017
- * Copyright (C) 2013-2017 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
- *
- * This file is part of Asterisell.
- *
- * Asterisell is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 3 of the License, or
- * (at your option) any later version.
- *
- * Asterisell is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with Asterisell. If not, see <http://www.gnu.org/licenses/>.
- * $
--}
-
+-- SPDX-License-Identifier: GPL-3.0-or-later
 
 -- | Import info about vendors, and channels.
 --
@@ -50,6 +31,7 @@ import Asterisell.Error
 import Control.Applicative ((<$>), (<|>), (<*>), (<*), (*>), many)
 import Control.Monad (void)
 import qualified Data.Text as Text
+import qualified Data.ByteString as BS
 import Data.Map.Strict as Map
 import Data.Maybe
 import Data.List as List
@@ -111,7 +93,7 @@ vendors_load conn isDebugMode = do
         internal_name <- nn "vendor" id fromDBText internal_name'
         return $ Map.insert internal_name id map1
 
-  importVendor _ _ = throw $ AsterisellException "err 1602 in code: unexpected DB format for ar_vendor table"
+  importVendor _ _ = throwIO $ AsterisellException "err 1602 in code: unexpected DB format for ar_vendor table"
 
 channelTypes_load :: DB.MySQLConn -> Bool -> IO ChannelTypes
 channelTypes_load conn isDebugMode = do
@@ -137,7 +119,7 @@ channelTypes_load conn isDebugMode = do
         internal_name <- nn "ar_communication_channel_type" id fromDBText internal_name'
         return $ Map.insert internal_name id map1
 
-  importChannel _ _ = throw $ AsterisellException "err 1602 in code: unexpected DB format for ar_channel_type table"
+  importChannel _ _ = throwIO $ AsterisellException "err 1602 in code: unexpected DB format for ar_channel_type table"
 
 channelDomains_load :: DB.MySQLConn -> Bool -> IO ChannelDomains
 channelDomains_load conn isDebugMode = do
@@ -178,7 +160,7 @@ channelDomains_load conn isDebugMode = do
                      Just n -> n
            ar_vendor_id <- nn "vendor_domain" id fromDBInt ar_vendor_id'
            ar_communication_channel_type_id <- nn "vendor_domain" id fromDBInt ar_communication_channel_type_id'
-           domain'' <- nn "vendor_domain" id fromDBText domain'
+           domain'' <- nn "vendor_domain" id fromDBByteString domain'
            is_prefix <- nn "vendor_domain" id fromDBBool is_prefix'
            is_suffix <- nn "vendor_domain" id fromDBBool is_suffix'
            from_d <- nn "vendor_domain" id fromDBLocalTime from_d'
@@ -186,30 +168,28 @@ channelDomains_load conn isDebugMode = do
 
            let domain
                  = case is_prefix of
-                     True -> Text.append domain'' "*"
+                     True -> BS.append domain'' "*"
                      False -> domain''
 
            case is_suffix of
-             True -> (throw $ AsterisellException $ "Suffix Vendor Domains are not any more supported, in table ar_vendor_domain, in id " ++ show id)
+             True -> (throwIO $ AsterisellException $ "Suffix Vendor Domains are not any more supported, in table ar_vendor_domain, in id " ++ show id)
              False -> return ()
 
            let value = (ar_vendor_id, ar_communication_channel_type_id, is_prefix, from_d, to_d)
 
-           return $ trie_addExtensionCodeWith map1 (Text.unpack domain) [value] (++)
+           return $ trie_insertExtensionWith map1 domain [value] (++)
 
-  importVendorDomain _ _ = throw $ AsterisellException "err 1608 in code: unexpected DB format for ar_vendor_domain"
+  importVendorDomain _ _ = throwIO $ AsterisellException "err 1608 in code: unexpected DB format for ar_vendor_domain"
 
-channelDomains_match :: ChannelDomains -> Text.Text -> LocalTime -> [(VendorId, ChannelTypeId)]
+channelDomains_match :: ChannelDomains -> BS.ByteString -> LocalTime -> [(VendorId, ChannelTypeId)]
 channelDomains_match trie domain date
   = candidateResults
  where
 
-  domain1 = Text.unpack domain
-
   mySearch d
-    = case trie_getMatch trie_getMatch_initial trie d of
+    = case trie_match trie d of
         Nothing -> []
-        Just (_, r) -> r
+        Just (_, _, r) -> r
 
   insideDate (_, _, _, fromTime, maybeToTime)
     = (date >= fromTime) && (isNothing maybeToTime || date < (fromJust maybeToTime))
@@ -218,4 +198,4 @@ channelDomains_match trie domain date
     = (vendorId, channelTypeId)
 
   candidateResults
-    =  List.map toResult $ List.filter insideDate (mySearch domain1)
+    =  List.map toResult $ List.filter insideDate (mySearch domain)

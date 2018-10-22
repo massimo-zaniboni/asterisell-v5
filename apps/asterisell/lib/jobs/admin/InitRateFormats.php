@@ -1,25 +1,6 @@
 <?php
 
-/* $LICENSE 2014:
- *
- * Copyright (C) 2014 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
- *
- * This file is part of Asterisell.
- *
- * Asterisell is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 3 of the License, or
- * (at your option) any later version.
- *
- * Asterisell is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with Asterisell. If not, see <http://www.gnu.org/licenses/>.
- * $
- */
+// SPDX-License-Identifier: GPL-3.0-or-later
 
 sfLoader::loadHelpers(array('I18N', 'Debug', 'Date', 'Asterisell', 'Markdown'));
 
@@ -42,6 +23,7 @@ class InitRateFormats extends AdminJobProcessor
     const REFERENCE_CSV_WITH_HEADER_3COL_IT = 'csv-header-3col-italian';
     const REFERENCE_CSV_WITH_HEADER_4COL = 'csv-header-4col';
     const REFERENCE_CSV_WITH_HEADER_4COL_COST_ON_CALL = 'csv-header-4col-costOnCall';
+    const REFERENCE_CSV_WITH_HEADER_4COL_RATING_CODE_COST_ON_CALL = 'csv-header-4col-rating-code-costOnCall';
     const REFERENCE_CSV_WITH_HEADER_5COL_COST_ON_CALL = 'csv-header-5col-costOnCall';
     const REFERENCE_CSV_WITH_HEADER_6COL_COST_ON_CALL = 'csv-header-6col-costOnCall';
     const REFERENCE_CSV_WITH_HEADER_7COL_TWT = 'csv-twt-header-7col';
@@ -55,6 +37,7 @@ class InitRateFormats extends AdminJobProcessor
     const REFERENCE_CSV_WITH_HEADER_3COL_PDR_IT = 'csv-header-3col-pref-descr-rate-it';
     const REFERENCE_CSV_WITH_HEADER_3COL_PDR = 'csv-header-3col-pref-descr-rate';
     const REFERENCE_CSV_DIGITEL_NNG = 'csv-digitel-nng';
+    const REFERENCE_CSV_ECN = 'csv-ecn';
 
     public function isCDRTableModified()
     {
@@ -95,7 +78,7 @@ class InitRateFormats extends AdminJobProcessor
         $r->setShortDescription("Complete rate plan, using nested rules");
         $r->setDetailedDescription(fromMarkdownToHtml('
 
-See application manual for the description of the rate plan specification language, at https://support.asterisell.com/projects/public-asterisell/wiki/Rate_Plan_Specification_Language
+See application manual for the description of the rate plan specification language, at https://www.asterisell.com
 
 An example of rate specification:
 
@@ -179,6 +162,7 @@ An example of rate specification:
 "Afghanistan","Telecom",93,"0.1175","0.01"
         ') . '</pre>');
         $r->save();
+
 
         $r = $this->createRateFormat(self::REFERENCE_CSV_WITH_HEADER_5COL_COST_ON_CALL);
         $r->setOrderName('50-CALL');
@@ -308,6 +292,24 @@ Prefix,Description,Rate
 113,"Soccorso Pubblica Emergenza",0,0,0,0
 114,"Emergenza Infanzia",0,0,0,0
 115,"Vigili del Fuoco",0,0,0,0
+        ') . '</pre>');
+        $r->save();
+
+        $r = $this->createRateFormat(self::REFERENCE_CSV_ECN);
+        $r->setOrderName('91-CALL');
+        $r->setShortDescription("ECN format, with variable number of off-peak codes");
+        $r->setDetailedDescription('The "peak" and other off-peak code names in the header line must match the off-peak codes defined in the holiday table. Something like: <pre>' . htmlentities('
+"Description","Communication channel","Operator code as defined in prefix-table","peak","off-peak"
+Acme,national,D057,0.50,0.30
+        ') . '</pre>');
+        $r->save();
+
+        $r = $this->createRateFormat(self::REFERENCE_CSV_WITH_HEADER_4COL_RATING_CODE_COST_ON_CALL);
+        $r->setOrderName('RATING-CODE-10');
+        $r->setShortDescription("CSV file, with header. Rows are: operator name, rating-code, cost by minute, cost on call.");
+        $r->setDetailedDescription('Something like: <pre>' . htmlentities('
+"OPERATOR","RATING-CODE","RATE BY MINUTE","COST ON CALL"
+"Vodacom","D001",0.1175,0
         ') . '</pre>');
         $r->save();
 

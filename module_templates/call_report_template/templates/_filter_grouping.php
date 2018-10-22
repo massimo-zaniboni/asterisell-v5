@@ -19,6 +19,7 @@ $options = array();
 $options[0] = __("calls");
 $options[1] = __("extensions");
 $options[2] = __("customers");
+$options[3] = __("call details");
 
 $defaultChoice = 0;
 if (isset($filters['grouping'])) {

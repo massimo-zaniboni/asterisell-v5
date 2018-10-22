@@ -1,0 +1,57 @@
+==================================================================
+https://keybase.io/mzan
+--------------------------------------------------------------------
+
+I hereby claim:
+
+  * I am an admin of https://www.asterisell.com
+  * I am mzan (https://keybase.io/mzan) on keybase.
+  * I have a public key ASBZ_ZEDaPMhxVv0x2rVLqzfaHiJZ0dwR9IlGXFitic-uwo
+
+To do so, I am signing this object:
+
+{
+    "body": {
+        "key": {
+            "eldest_kid": "012059fd910368f321c55bf4c76ad52eacdf68788967477047d225197162b6273ebb0a",
+            "host": "keybase.io",
+            "kid": "012059fd910368f321c55bf4c76ad52eacdf68788967477047d225197162b6273ebb0a",
+            "uid": "b28afe03210df1ed3dd356b2ed436719",
+            "username": "mzan"
+        },
+        "service": {
+            "hostname": "www.asterisell.com",
+            "protocol": "https:"
+        },
+        "type": "web_service_binding",
+        "version": 1
+    },
+    "client": {
+        "name": "keybase.io go client",
+        "version": "1.0.20"
+    },
+    "ctime": 1490449915,
+    "expire_in": 504576000,
+    "merkle_root": {
+        "ctime": 1490449894,
+        "hash": "61eeb7628be80ac17a2cca019e57bf7c1d36a76a35281bf210d28f6991d7999785d5aedc45b9fef8a47422292c4eb1c96d5bb1ad3f014eae4f3f16ea8649b824",
+        "seqno": 977756
+    },
+    "prev": "906fa3b4c9df0fcb86177e466da1a32773c84be307e00e44f9fef69de654c15a",
+    "seqno": 13,
+    "tag": "signature"
+}
+
+which yields the signature:
+
+hKRib2R5hqhkZXRhY2hlZMOpaGFzaF90eXBlCqNrZXnEIwEgWf2RA2jzIcVb9Mdq1S6s32h4iWdHcEfSJRlxYrYnPrsKp3BheWxvYWTFAvd7ImJvZHkiOnsia2V5Ijp7ImVsZGVzdF9raWQiOiIwMTIwNTlmZDkxMDM2OGYzMjFjNTViZjRjNzZhZDUyZWFjZGY2ODc4ODk2NzQ3NzA0N2QyMjUxOTcxNjJiNjI3M2ViYjBhIiwiaG9zdCI6ImtleWJhc2UuaW8iLCJraWQiOiIwMTIwNTlmZDkxMDM2OGYzMjFjNTViZjRjNzZhZDUyZWFjZGY2ODc4ODk2NzQ3NzA0N2QyMjUxOTcxNjJiNjI3M2ViYjBhIiwidWlkIjoiYjI4YWZlMDMyMTBkZjFlZDNkZDM1NmIyZWQ0MzY3MTkiLCJ1c2VybmFtZSI6Im16YW4ifSwic2VydmljZSI6eyJob3N0bmFtZSI6Ind3dy5hc3RlcmlzZWxsLmNvbSIsInByb3RvY29sIjoiaHR0cHM6In0sInR5cGUiOiJ3ZWJfc2VydmljZV9iaW5kaW5nIiwidmVyc2lvbiI6MX0sImNsaWVudCI6eyJuYW1lIjoia2V5YmFzZS5pbyBnbyBjbGllbnQiLCJ2ZXJzaW9uIjoiMS4wLjIwIn0sImN0aW1lIjoxNDkwNDQ5OTE1LCJleHBpcmVfaW4iOjUwNDU3NjAwMCwibWVya2xlX3Jvb3QiOnsiY3RpbWUiOjE0OTA0NDk4OTQsImhhc2giOiI2MWVlYjc2MjhiZTgwYWMxN2EyY2NhMDE5ZTU3YmY3YzFkMzZhNzZhMzUyODFiZjIxMGQyOGY2OTkxZDc5OTk3ODVkNWFlZGM0NWI5ZmVmOGE0NzQyMjI5MmM0ZWIxYzk2ZDViYjFhZDNmMDE0ZWFlNGYzZjE2ZWE4NjQ5YjgyNCIsInNlcW5vIjo5Nzc3NTZ9LCJwcmV2IjoiOTA2ZmEzYjRjOWRmMGZjYjg2MTc3ZTQ2NmRhMWEzMjc3M2M4NGJlMzA3ZTAwZTQ0ZjlmZWY2OWRlNjU0YzE1YSIsInNlcW5vIjoxMywidGFnIjoic2lnbmF0dXJlIn2jc2lnxEDHKfUTc1zw/YPeykVreuK3OZt2g1cqKiSsBqfXAQ7PbFl0qBVUosyHTiBB5gW0StKVWw0ZFO0tiasggKBCq9gJqHNpZ190eXBlIKRoYXNogqR0eXBlCKV2YWx1ZcQgZNR6ghgf6glauJOpp3b9d3a3u4aAvwLf3bDMWw38KsOjdGFnzQICp3ZlcnNpb24B
+
+And finally, I am proving ownership of this host by posting or
+appending to this document.
+
+View my publicly-auditable identity here: https://keybase.io/mzan
+
+==================================================================
+
+
+

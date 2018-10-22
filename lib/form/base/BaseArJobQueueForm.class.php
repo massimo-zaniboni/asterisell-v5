@@ -27,9 +27,9 @@ abstract class BaseArJobQueueForm extends BaseFormPropel
 
     $this->setValidators(array(
       'id'                         => new sfValidatorChoice(array('choices' => array($this->getObject()->getId()), 'empty_value' => $this->getObject()->getId(), 'required' => false)),
-      'is_part_of'                 => new sfValidatorInteger(array('min' => -2147483648, 'max' => 2147483647)),
+      'is_part_of'                 => new sfValidatorInteger(array('min' => -2147483648, 'max' => 2147483647, 'required' => false)),
       'state'                      => new sfValidatorInteger(array('min' => -2147483648, 'max' => 2147483647)),
-      'created_at'                 => new sfValidatorDateTime(array('required' => false)),
+      'created_at'                 => new sfValidatorDateTime(),
       'start_at'                   => new sfValidatorDateTime(array('required' => false)),
       'end_at'                     => new sfValidatorDateTime(array('required' => false)),
       'description'                => new sfValidatorString(array('max_length' => 12000)),

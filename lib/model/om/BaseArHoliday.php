@@ -49,6 +49,42 @@ abstract class BaseArHoliday extends BaseObject  implements Persistent {
 	protected $day_of_week;
 
 	/**
+	 * The value for the from_hour field.
+	 * @var        int
+	 */
+	protected $from_hour;
+
+	/**
+	 * The value for the from_minutes field.
+	 * @var        int
+	 */
+	protected $from_minutes;
+
+	/**
+	 * The value for the to_hour field.
+	 * @var        int
+	 */
+	protected $to_hour;
+
+	/**
+	 * The value for the to_minutes field.
+	 * @var        int
+	 */
+	protected $to_minutes;
+
+	/**
+	 * The value for the peak_code field.
+	 * @var        string
+	 */
+	protected $peak_code;
+
+	/**
+	 * The value for the name field.
+	 * @var        string
+	 */
+	protected $name;
+
+	/**
 	 * Flag to prevent endless save loop, if this object is referenced
 	 * by another object which falls in this transaction.
 	 * @var        boolean
@@ -114,6 +150,66 @@ abstract class BaseArHoliday extends BaseObject  implements Persistent {
 	public function getDayOfWeek()
 	{
 		return $this->day_of_week;
+	}
+
+	/**
+	 * Get the [from_hour] column value.
+	 * 
+	 * @return     int
+	 */
+	public function getFromHour()
+	{
+		return $this->from_hour;
+	}
+
+	/**
+	 * Get the [from_minutes] column value.
+	 * 
+	 * @return     int
+	 */
+	public function getFromMinutes()
+	{
+		return $this->from_minutes;
+	}
+
+	/**
+	 * Get the [to_hour] column value.
+	 * 
+	 * @return     int
+	 */
+	public function getToHour()
+	{
+		return $this->to_hour;
+	}
+
+	/**
+	 * Get the [to_minutes] column value.
+	 * 
+	 * @return     int
+	 */
+	public function getToMinutes()
+	{
+		return $this->to_minutes;
+	}
+
+	/**
+	 * Get the [peak_code] column value.
+	 * 
+	 * @return     string
+	 */
+	public function getPeakCode()
+	{
+		return $this->peak_code;
+	}
+
+	/**
+	 * Get the [name] column value.
+	 * 
+	 * @return     string
+	 */
+	public function getName()
+	{
+		return $this->name;
 	}
 
 	/**
@@ -217,6 +313,126 @@ abstract class BaseArHoliday extends BaseObject  implements Persistent {
 	} // setDayOfWeek()
 
 	/**
+	 * Set the value of [from_hour] column.
+	 * 
+	 * @param      int $v new value
+	 * @return     ArHoliday The current object (for fluent API support)
+	 */
+	public function setFromHour($v)
+	{
+		if ($v !== null) {
+			$v = (int) $v;
+		}
+
+		if ($this->from_hour !== $v) {
+			$this->from_hour = $v;
+			$this->modifiedColumns[] = ArHolidayPeer::FROM_HOUR;
+		}
+
+		return $this;
+	} // setFromHour()
+
+	/**
+	 * Set the value of [from_minutes] column.
+	 * 
+	 * @param      int $v new value
+	 * @return     ArHoliday The current object (for fluent API support)
+	 */
+	public function setFromMinutes($v)
+	{
+		if ($v !== null) {
+			$v = (int) $v;
+		}
+
+		if ($this->from_minutes !== $v) {
+			$this->from_minutes = $v;
+			$this->modifiedColumns[] = ArHolidayPeer::FROM_MINUTES;
+		}
+
+		return $this;
+	} // setFromMinutes()
+
+	/**
+	 * Set the value of [to_hour] column.
+	 * 
+	 * @param      int $v new value
+	 * @return     ArHoliday The current object (for fluent API support)
+	 */
+	public function setToHour($v)
+	{
+		if ($v !== null) {
+			$v = (int) $v;
+		}
+
+		if ($this->to_hour !== $v) {
+			$this->to_hour = $v;
+			$this->modifiedColumns[] = ArHolidayPeer::TO_HOUR;
+		}
+
+		return $this;
+	} // setToHour()
+
+	/**
+	 * Set the value of [to_minutes] column.
+	 * 
+	 * @param      int $v new value
+	 * @return     ArHoliday The current object (for fluent API support)
+	 */
+	public function setToMinutes($v)
+	{
+		if ($v !== null) {
+			$v = (int) $v;
+		}
+
+		if ($this->to_minutes !== $v) {
+			$this->to_minutes = $v;
+			$this->modifiedColumns[] = ArHolidayPeer::TO_MINUTES;
+		}
+
+		return $this;
+	} // setToMinutes()
+
+	/**
+	 * Set the value of [peak_code] column.
+	 * 
+	 * @param      string $v new value
+	 * @return     ArHoliday The current object (for fluent API support)
+	 */
+	public function setPeakCode($v)
+	{
+		if ($v !== null) {
+			$v = (string) $v;
+		}
+
+		if ($this->peak_code !== $v) {
+			$this->peak_code = $v;
+			$this->modifiedColumns[] = ArHolidayPeer::PEAK_CODE;
+		}
+
+		return $this;
+	} // setPeakCode()
+
+	/**
+	 * Set the value of [name] column.
+	 * 
+	 * @param      string $v new value
+	 * @return     ArHoliday The current object (for fluent API support)
+	 */
+	public function setName($v)
+	{
+		if ($v !== null) {
+			$v = (string) $v;
+		}
+
+		if ($this->name !== $v) {
+			$this->name = $v;
+			$this->modifiedColumns[] = ArHolidayPeer::NAME;
+		}
+
+		return $this;
+	} // setName()
+
+	/**
 	 * Indicates whether the columns in this object are only set to default values.
 	 *
 	 * This method can be used in conjunction with isModified() to indicate whether an object is both
@@ -253,6 +469,12 @@ abstract class BaseArHoliday extends BaseObject  implements Persistent {
 			$this->month = ($row[$startcol + 2] !== null) ? (int) $row[$startcol + 2] : null;
 			$this->year = ($row[$startcol + 3] !== null) ? (int) $row[$startcol + 3] : null;
 			$this->day_of_week = ($row[$startcol + 4] !== null) ? (int) $row[$startcol + 4] : null;
+			$this->from_hour = ($row[$startcol + 5] !== null) ? (int) $row[$startcol + 5] : null;
+			$this->from_minutes = ($row[$startcol + 6] !== null) ? (int) $row[$startcol + 6] : null;
+			$this->to_hour = ($row[$startcol + 7] !== null) ? (int) $row[$startcol + 7] : null;
+			$this->to_minutes = ($row[$startcol + 8] !== null) ? (int) $row[$startcol + 8] : null;
+			$this->peak_code = ($row[$startcol + 9] !== null) ? (string) $row[$startcol + 9] : null;
+			$this->name = ($row[$startcol + 10] !== null) ? (string) $row[$startcol + 10] : null;
 			$this->resetModified();
 
 			$this->setNew(false);
@@ -262,7 +484,7 @@ abstract class BaseArHoliday extends BaseObject  implements Persistent {
 			}
 
 			// FIXME - using NUM_COLUMNS may be clearer.
-			return $startcol + 5; // 5 = ArHolidayPeer::NUM_COLUMNS - ArHolidayPeer::NUM_LAZY_LOAD_COLUMNS).
+			return $startcol + 11; // 11 = ArHolidayPeer::NUM_COLUMNS - ArHolidayPeer::NUM_LAZY_LOAD_COLUMNS).
 
 		} catch (Exception $e) {
 			throw new PropelException("Error populating ArHoliday object", $e);
@@ -573,6 +795,24 @@ abstract class BaseArHoliday extends BaseObject  implements Persistent {
 			case 4:
 				return $this->getDayOfWeek();
 				break;
+			case 5:
+				return $this->getFromHour();
+				break;
+			case 6:
+				return $this->getFromMinutes();
+				break;
+			case 7:
+				return $this->getToHour();
+				break;
+			case 8:
+				return $this->getToMinutes();
+				break;
+			case 9:
+				return $this->getPeakCode();
+				break;
+			case 10:
+				return $this->getName();
+				break;
 			default:
 				return null;
 				break;
@@ -599,6 +839,12 @@ abstract class BaseArHoliday extends BaseObject  implements Persistent {
 			$keys[2] => $this->getMonth(),
 			$keys[3] => $this->getYear(),
 			$keys[4] => $this->getDayOfWeek(),
+			$keys[5] => $this->getFromHour(),
+			$keys[6] => $this->getFromMinutes(),
+			$keys[7] => $this->getToHour(),
+			$keys[8] => $this->getToMinutes(),
+			$keys[9] => $this->getPeakCode(),
+			$keys[10] => $this->getName(),
 		);
 		return $result;
 	}
@@ -645,6 +891,24 @@ abstract class BaseArHoliday extends BaseObject  implements Persistent {
 			case 4:
 				$this->setDayOfWeek($value);
 				break;
+			case 5:
+				$this->setFromHour($value);
+				break;
+			case 6:
+				$this->setFromMinutes($value);
+				break;
+			case 7:
+				$this->setToHour($value);
+				break;
+			case 8:
+				$this->setToMinutes($value);
+				break;
+			case 9:
+				$this->setPeakCode($value);
+				break;
+			case 10:
+				$this->setName($value);
+				break;
 		} // switch()
 	}
 
@@ -674,6 +938,12 @@ abstract class BaseArHoliday extends BaseObject  implements Persistent {
 		if (array_key_exists($keys[2], $arr)) $this->setMonth($arr[$keys[2]]);
 		if (array_key_exists($keys[3], $arr)) $this->setYear($arr[$keys[3]]);
 		if (array_key_exists($keys[4], $arr)) $this->setDayOfWeek($arr[$keys[4]]);
+		if (array_key_exists($keys[5], $arr)) $this->setFromHour($arr[$keys[5]]);
+		if (array_key_exists($keys[6], $arr)) $this->setFromMinutes($arr[$keys[6]]);
+		if (array_key_exists($keys[7], $arr)) $this->setToHour($arr[$keys[7]]);
+		if (array_key_exists($keys[8], $arr)) $this->setToMinutes($arr[$keys[8]]);
+		if (array_key_exists($keys[9], $arr)) $this->setPeakCode($arr[$keys[9]]);
+		if (array_key_exists($keys[10], $arr)) $this->setName($arr[$keys[10]]);
 	}
 
 	/**
@@ -690,6 +960,12 @@ abstract class BaseArHoliday extends BaseObject  implements Persistent {
 		if ($this->isColumnModified(ArHolidayPeer::MONTH)) $criteria->add(ArHolidayPeer::MONTH, $this->month);
 		if ($this->isColumnModified(ArHolidayPeer::YEAR)) $criteria->add(ArHolidayPeer::YEAR, $this->year);
 		if ($this->isColumnModified(ArHolidayPeer::DAY_OF_WEEK)) $criteria->add(ArHolidayPeer::DAY_OF_WEEK, $this->day_of_week);
+		if ($this->isColumnModified(ArHolidayPeer::FROM_HOUR)) $criteria->add(ArHolidayPeer::FROM_HOUR, $this->from_hour);
+		if ($this->isColumnModified(ArHolidayPeer::FROM_MINUTES)) $criteria->add(ArHolidayPeer::FROM_MINUTES, $this->from_minutes);
+		if ($this->isColumnModified(ArHolidayPeer::TO_HOUR)) $criteria->add(ArHolidayPeer::TO_HOUR, $this->to_hour);
+		if ($this->isColumnModified(ArHolidayPeer::TO_MINUTES)) $criteria->add(ArHolidayPeer::TO_MINUTES, $this->to_minutes);
+		if ($this->isColumnModified(ArHolidayPeer::PEAK_CODE)) $criteria->add(ArHolidayPeer::PEAK_CODE, $this->peak_code);
+		if ($this->isColumnModified(ArHolidayPeer::NAME)) $criteria->add(ArHolidayPeer::NAME, $this->name);
 
 		return $criteria;
 	}
@@ -751,6 +1027,18 @@ abstract class BaseArHoliday extends BaseObject  implements Persistent {
 		$copyObj->setYear($this->year);
 
 		$copyObj->setDayOfWeek($this->day_of_week);
+
+		$copyObj->setFromHour($this->from_hour);
+
+		$copyObj->setFromMinutes($this->from_minutes);
+
+		$copyObj->setToHour($this->to_hour);
+
+		$copyObj->setToMinutes($this->to_minutes);
+
+		$copyObj->setPeakCode($this->peak_code);
+
+		$copyObj->setName($this->name);
 
 
 		$copyObj->setNew(true);

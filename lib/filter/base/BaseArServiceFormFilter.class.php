@@ -25,6 +25,7 @@ abstract class BaseArServiceFormFilter extends BaseFormFilterPropel
       'schedule_timeframe'                         => new sfWidgetFormFilterInput(),
       'was_compiled'                               => new sfWidgetFormChoice(array('choices' => array('' => 'yes or no', 1 => 'yes', 0 => 'no'))),
       'schedule_from'                              => new sfWidgetFormFilterInput(),
+      'schedule_at'                                => new sfWidgetFormFilterDate(array('from_date' => new sfWidgetFormDate(), 'to_date' => new sfWidgetFormDate())),
     ));
 
     $this->setValidators(array(
@@ -41,6 +42,7 @@ abstract class BaseArServiceFormFilter extends BaseFormFilterPropel
       'schedule_timeframe'                         => new sfValidatorPass(array('required' => false)),
       'was_compiled'                               => new sfValidatorChoice(array('required' => false, 'choices' => array('', 1, 0))),
       'schedule_from'                              => new sfValidatorPass(array('required' => false)),
+      'schedule_at'                                => new sfValidatorDateRange(array('required' => false, 'from_date' => new sfValidatorDate(array('required' => false)), 'to_date' => new sfValidatorDate(array('required' => false)))),
     ));
 
     $this->widgetSchema->setNameFormat('ar_service_filters[%s]');
@@ -72,6 +74,7 @@ abstract class BaseArServiceFormFilter extends BaseFormFilterPropel
       'schedule_timeframe'                         => 'Text',
       'was_compiled'                               => 'Boolean',
       'schedule_from'                              => 'Text',
+      'schedule_at'                                => 'Date',
     );
   }
 }

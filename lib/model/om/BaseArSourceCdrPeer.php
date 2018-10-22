@@ -25,10 +25,13 @@ abstract class BaseArSourceCdrPeer {
 	const TM_CLASS = 'ArSourceCdrTableMap';
 	
 	/** The total number of columns. */
-	const NUM_COLUMNS = 6;
+	const NUM_COLUMNS = 5;
 
 	/** The number of lazy-loaded columns. */
 	const NUM_LAZY_LOAD_COLUMNS = 0;
+
+	/** the column name for the CALLDATE field */
+	const CALLDATE = 'ar_source_cdr.CALLDATE';
 
 	/** the column name for the ID field */
 	const ID = 'ar_source_cdr.ID';
@@ -38,12 +41,6 @@ abstract class BaseArSourceCdrPeer {
 
 	/** the column name for the AR_PHYSICAL_FORMAT_ID field */
 	const AR_PHYSICAL_FORMAT_ID = 'ar_source_cdr.AR_PHYSICAL_FORMAT_ID';
-
-	/** the column name for the CALLDATE field */
-	const CALLDATE = 'ar_source_cdr.CALLDATE';
-
-	/** the column name for the IS_IMPORTED_SERVICE_CDR field */
-	const IS_IMPORTED_SERVICE_CDR = 'ar_source_cdr.IS_IMPORTED_SERVICE_CDR';
 
 	/** the column name for the CONTENT field */
 	const CONTENT = 'ar_source_cdr.CONTENT';
@@ -71,11 +68,11 @@ abstract class BaseArSourceCdrPeer {
 	 * e.g. self::$fieldNames[self::TYPE_PHPNAME][0] = 'Id'
 	 */
 	private static $fieldNames = array (
-		BasePeer::TYPE_PHPNAME => array ('Id', 'ArCdrProviderId', 'ArPhysicalFormatId', 'Calldate', 'IsImportedServiceCdr', 'Content', ),
-		BasePeer::TYPE_STUDLYPHPNAME => array ('id', 'arCdrProviderId', 'arPhysicalFormatId', 'calldate', 'isImportedServiceCdr', 'content', ),
-		BasePeer::TYPE_COLNAME => array (self::ID, self::AR_CDR_PROVIDER_ID, self::AR_PHYSICAL_FORMAT_ID, self::CALLDATE, self::IS_IMPORTED_SERVICE_CDR, self::CONTENT, ),
-		BasePeer::TYPE_FIELDNAME => array ('id', 'ar_cdr_provider_id', 'ar_physical_format_id', 'calldate', 'is_imported_service_cdr', 'content', ),
-		BasePeer::TYPE_NUM => array (0, 1, 2, 3, 4, 5, )
+		BasePeer::TYPE_PHPNAME => array ('Calldate', 'Id', 'ArCdrProviderId', 'ArPhysicalFormatId', 'Content', ),
+		BasePeer::TYPE_STUDLYPHPNAME => array ('calldate', 'id', 'arCdrProviderId', 'arPhysicalFormatId', 'content', ),
+		BasePeer::TYPE_COLNAME => array (self::CALLDATE, self::ID, self::AR_CDR_PROVIDER_ID, self::AR_PHYSICAL_FORMAT_ID, self::CONTENT, ),
+		BasePeer::TYPE_FIELDNAME => array ('calldate', 'id', 'ar_cdr_provider_id', 'ar_physical_format_id', 'content', ),
+		BasePeer::TYPE_NUM => array (0, 1, 2, 3, 4, )
 	);
 
 	/**
@@ -85,11 +82,11 @@ abstract class BaseArSourceCdrPeer {
 	 * e.g. self::$fieldNames[BasePeer::TYPE_PHPNAME]['Id'] = 0
 	 */
 	private static $fieldKeys = array (
-		BasePeer::TYPE_PHPNAME => array ('Id' => 0, 'ArCdrProviderId' => 1, 'ArPhysicalFormatId' => 2, 'Calldate' => 3, 'IsImportedServiceCdr' => 4, 'Content' => 5, ),
-		BasePeer::TYPE_STUDLYPHPNAME => array ('id' => 0, 'arCdrProviderId' => 1, 'arPhysicalFormatId' => 2, 'calldate' => 3, 'isImportedServiceCdr' => 4, 'content' => 5, ),
-		BasePeer::TYPE_COLNAME => array (self::ID => 0, self::AR_CDR_PROVIDER_ID => 1, self::AR_PHYSICAL_FORMAT_ID => 2, self::CALLDATE => 3, self::IS_IMPORTED_SERVICE_CDR => 4, self::CONTENT => 5, ),
-		BasePeer::TYPE_FIELDNAME => array ('id' => 0, 'ar_cdr_provider_id' => 1, 'ar_physical_format_id' => 2, 'calldate' => 3, 'is_imported_service_cdr' => 4, 'content' => 5, ),
-		BasePeer::TYPE_NUM => array (0, 1, 2, 3, 4, 5, )
+		BasePeer::TYPE_PHPNAME => array ('Calldate' => 0, 'Id' => 1, 'ArCdrProviderId' => 2, 'ArPhysicalFormatId' => 3, 'Content' => 4, ),
+		BasePeer::TYPE_STUDLYPHPNAME => array ('calldate' => 0, 'id' => 1, 'arCdrProviderId' => 2, 'arPhysicalFormatId' => 3, 'content' => 4, ),
+		BasePeer::TYPE_COLNAME => array (self::CALLDATE => 0, self::ID => 1, self::AR_CDR_PROVIDER_ID => 2, self::AR_PHYSICAL_FORMAT_ID => 3, self::CONTENT => 4, ),
+		BasePeer::TYPE_FIELDNAME => array ('calldate' => 0, 'id' => 1, 'ar_cdr_provider_id' => 2, 'ar_physical_format_id' => 3, 'content' => 4, ),
+		BasePeer::TYPE_NUM => array (0, 1, 2, 3, 4, )
 	);
 
 	/**
@@ -159,11 +156,10 @@ abstract class BaseArSourceCdrPeer {
 	 */
 	public static function addSelectColumns(Criteria $criteria)
 	{
+		$criteria->addSelectColumn(ArSourceCdrPeer::CALLDATE);
 		$criteria->addSelectColumn(ArSourceCdrPeer::ID);
 		$criteria->addSelectColumn(ArSourceCdrPeer::AR_CDR_PROVIDER_ID);
 		$criteria->addSelectColumn(ArSourceCdrPeer::AR_PHYSICAL_FORMAT_ID);
-		$criteria->addSelectColumn(ArSourceCdrPeer::CALLDATE);
-		$criteria->addSelectColumn(ArSourceCdrPeer::IS_IMPORTED_SERVICE_CDR);
 		$criteria->addSelectColumn(ArSourceCdrPeer::CONTENT);
 	}
 
@@ -288,7 +284,7 @@ abstract class BaseArSourceCdrPeer {
 	{
 		if (Propel::isInstancePoolingEnabled()) {
 			if ($key === null) {
-				$key = (string) $obj->getId();
+				$key = serialize(array((string) $obj->getCalldate(), (string) $obj->getId(), (string) $obj->getArCdrProviderId(), (string) $obj->getArPhysicalFormatId()));
 			} // if key === null
 			self::$instances[$key] = $obj;
 		}
@@ -308,10 +304,10 @@ abstract class BaseArSourceCdrPeer {
 	{
 		if (Propel::isInstancePoolingEnabled() && $value !== null) {
 			if (is_object($value) && $value instanceof ArSourceCdr) {
-				$key = (string) $value->getId();
-			} elseif (is_scalar($value)) {
+				$key = serialize(array((string) $value->getCalldate(), (string) $value->getId(), (string) $value->getArCdrProviderId(), (string) $value->getArPhysicalFormatId()));
+			} elseif (is_array($value) && count($value) === 4) {
 				// assume we've been passed a primary key
-				$key = (string) $value;
+				$key = serialize(array((string) $value[0], (string) $value[1], (string) $value[2], (string) $value[3]));
 			} else {
 				$e = new PropelException("Invalid value passed to removeInstanceFromPool().  Expected primary key or ArSourceCdr object; got " . (is_object($value) ? get_class($value) . ' object.' : var_export($value,true)));
 				throw $e;
@@ -372,10 +368,10 @@ abstract class BaseArSourceCdrPeer {
 	public static function getPrimaryKeyHashFromRow($row, $startcol = 0)
 	{
 		// If the PK cannot be derived from the row, return NULL.
-		if ($row[$startcol] === null) {
+		if ($row[$startcol] === null && $row[$startcol + 1] === null && $row[$startcol + 2] === null && $row[$startcol + 3] === null) {
 			return null;
 		}
-		return (string) $row[$startcol];
+		return serialize(array((string) $row[$startcol], (string) $row[$startcol + 1], (string) $row[$startcol + 2], (string) $row[$startcol + 3]));
 	}
 
 	/**
@@ -409,627 +405,6 @@ abstract class BaseArSourceCdrPeer {
 		$stmt->closeCursor();
 		return $results;
 	}
-
-	/**
-	 * Returns the number of rows matching criteria, joining the related ArCdrProvider table
-	 *
-	 * @param      Criteria $criteria
-	 * @param      boolean $distinct Whether to select only distinct columns; deprecated: use Criteria->setDistinct() instead.
-	 * @param      PropelPDO $con
-	 * @param      String    $join_behavior the type of joins to use, defaults to Criteria::LEFT_JOIN
-	 * @return     int Number of matching rows.
-	 */
-	public static function doCountJoinArCdrProvider(Criteria $criteria, $distinct = false, PropelPDO $con = null, $join_behavior = Criteria::LEFT_JOIN)
-	{
-		// we're going to modify criteria, so copy it first
-		$criteria = clone $criteria;
-
-		// We need to set the primary table name, since in the case that there are no WHERE columns
-		// it will be impossible for the BasePeer::createSelectSql() method to determine which
-		// tables go into the FROM clause.
-		$criteria->setPrimaryTableName(ArSourceCdrPeer::TABLE_NAME);
-
-		if ($distinct && !in_array(Criteria::DISTINCT, $criteria->getSelectModifiers())) {
-			$criteria->setDistinct();
-		}
-
-		if (!$criteria->hasSelectClause()) {
-			ArSourceCdrPeer::addSelectColumns($criteria);
-		}
-		
-		$criteria->clearOrderByColumns(); // ORDER BY won't ever affect the count
-		
-		// Set the correct dbName
-		$criteria->setDbName(self::DATABASE_NAME);
-
-		if ($con === null) {
-			$con = Propel::getConnection(ArSourceCdrPeer::DATABASE_NAME, Propel::CONNECTION_READ);
-		}
-
-		$criteria->addJoin(ArSourceCdrPeer::AR_CDR_PROVIDER_ID, ArCdrProviderPeer::ID, $join_behavior);
-
-		$stmt = BasePeer::doCount($criteria, $con);
-
-		if ($row = $stmt->fetch(PDO::FETCH_NUM)) {
-			$count = (int) $row[0];
-		} else {
-			$count = 0; // no rows returned; we infer that means 0 matches.
-		}
-		$stmt->closeCursor();
-		return $count;
-	}
-
-
-	/**
-	 * Returns the number of rows matching criteria, joining the related ArPhysicalFormat table
-	 *
-	 * @param      Criteria $criteria
-	 * @param      boolean $distinct Whether to select only distinct columns; deprecated: use Criteria->setDistinct() instead.
-	 * @param      PropelPDO $con
-	 * @param      String    $join_behavior the type of joins to use, defaults to Criteria::LEFT_JOIN
-	 * @return     int Number of matching rows.
-	 */
-	public static function doCountJoinArPhysicalFormat(Criteria $criteria, $distinct = false, PropelPDO $con = null, $join_behavior = Criteria::LEFT_JOIN)
-	{
-		// we're going to modify criteria, so copy it first
-		$criteria = clone $criteria;
-
-		// We need to set the primary table name, since in the case that there are no WHERE columns
-		// it will be impossible for the BasePeer::createSelectSql() method to determine which
-		// tables go into the FROM clause.
-		$criteria->setPrimaryTableName(ArSourceCdrPeer::TABLE_NAME);
-
-		if ($distinct && !in_array(Criteria::DISTINCT, $criteria->getSelectModifiers())) {
-			$criteria->setDistinct();
-		}
-
-		if (!$criteria->hasSelectClause()) {
-			ArSourceCdrPeer::addSelectColumns($criteria);
-		}
-		
-		$criteria->clearOrderByColumns(); // ORDER BY won't ever affect the count
-		
-		// Set the correct dbName
-		$criteria->setDbName(self::DATABASE_NAME);
-
-		if ($con === null) {
-			$con = Propel::getConnection(ArSourceCdrPeer::DATABASE_NAME, Propel::CONNECTION_READ);
-		}
-
-		$criteria->addJoin(ArSourceCdrPeer::AR_PHYSICAL_FORMAT_ID, ArPhysicalFormatPeer::ID, $join_behavior);
-
-		$stmt = BasePeer::doCount($criteria, $con);
-
-		if ($row = $stmt->fetch(PDO::FETCH_NUM)) {
-			$count = (int) $row[0];
-		} else {
-			$count = 0; // no rows returned; we infer that means 0 matches.
-		}
-		$stmt->closeCursor();
-		return $count;
-	}
-
-
-	/**
-	 * Selects a collection of ArSourceCdr objects pre-filled with their ArCdrProvider objects.
-	 * @param      Criteria  $criteria
-	 * @param      PropelPDO $con
-	 * @param      String    $join_behavior the type of joins to use, defaults to Criteria::LEFT_JOIN
-	 * @return     array Array of ArSourceCdr objects.
-	 * @throws     PropelException Any exceptions caught during processing will be
-	 *		 rethrown wrapped into a PropelException.
-	 */
-	public static function doSelectJoinArCdrProvider(Criteria $criteria, $con = null, $join_behavior = Criteria::LEFT_JOIN)
-	{
-		$criteria = clone $criteria;
-
-		// Set the correct dbName if it has not been overridden
-		if ($criteria->getDbName() == Propel::getDefaultDB()) {
-			$criteria->setDbName(self::DATABASE_NAME);
-		}
-
-		ArSourceCdrPeer::addSelectColumns($criteria);
-		$startcol = (ArSourceCdrPeer::NUM_COLUMNS - ArSourceCdrPeer::NUM_LAZY_LOAD_COLUMNS);
-		ArCdrProviderPeer::addSelectColumns($criteria);
-
-		$criteria->addJoin(ArSourceCdrPeer::AR_CDR_PROVIDER_ID, ArCdrProviderPeer::ID, $join_behavior);
-
-		$stmt = BasePeer::doSelect($criteria, $con);
-		$results = array();
-
-		while ($row = $stmt->fetch(PDO::FETCH_NUM)) {
-			$key1 = ArSourceCdrPeer::getPrimaryKeyHashFromRow($row, 0);
-			if (null !== ($obj1 = ArSourceCdrPeer::getInstanceFromPool($key1))) {
-				// We no longer rehydrate the object, since this can cause data loss.
-				// See http://propel.phpdb.org/trac/ticket/509
-				// $obj1->hydrate($row, 0, true); // rehydrate
-			} else {
-
-				$cls = ArSourceCdrPeer::getOMClass(false);
-
-				$obj1 = new $cls();
-				$obj1->hydrate($row);
-				ArSourceCdrPeer::addInstanceToPool($obj1, $key1);
-			} // if $obj1 already loaded
-
-			$key2 = ArCdrProviderPeer::getPrimaryKeyHashFromRow($row, $startcol);
-			if ($key2 !== null) {
-				$obj2 = ArCdrProviderPeer::getInstanceFromPool($key2);
-				if (!$obj2) {
-
-					$cls = ArCdrProviderPeer::getOMClass(false);
-
-					$obj2 = new $cls();
-					$obj2->hydrate($row, $startcol);
-					ArCdrProviderPeer::addInstanceToPool($obj2, $key2);
-				} // if obj2 already loaded
-				
-				// Add the $obj1 (ArSourceCdr) to $obj2 (ArCdrProvider)
-				$obj2->addArSourceCdr($obj1);
-
-			} // if joined row was not null
-
-			$results[] = $obj1;
-		}
-		$stmt->closeCursor();
-		return $results;
-	}
-
-
-	/**
-	 * Selects a collection of ArSourceCdr objects pre-filled with their ArPhysicalFormat objects.
-	 * @param      Criteria  $criteria
-	 * @param      PropelPDO $con
-	 * @param      String    $join_behavior the type of joins to use, defaults to Criteria::LEFT_JOIN
-	 * @return     array Array of ArSourceCdr objects.
-	 * @throws     PropelException Any exceptions caught during processing will be
-	 *		 rethrown wrapped into a PropelException.
-	 */
-	public static function doSelectJoinArPhysicalFormat(Criteria $criteria, $con = null, $join_behavior = Criteria::LEFT_JOIN)
-	{
-		$criteria = clone $criteria;
-
-		// Set the correct dbName if it has not been overridden
-		if ($criteria->getDbName() == Propel::getDefaultDB()) {
-			$criteria->setDbName(self::DATABASE_NAME);
-		}
-
-		ArSourceCdrPeer::addSelectColumns($criteria);
-		$startcol = (ArSourceCdrPeer::NUM_COLUMNS - ArSourceCdrPeer::NUM_LAZY_LOAD_COLUMNS);
-		ArPhysicalFormatPeer::addSelectColumns($criteria);
-
-		$criteria->addJoin(ArSourceCdrPeer::AR_PHYSICAL_FORMAT_ID, ArPhysicalFormatPeer::ID, $join_behavior);
-
-		$stmt = BasePeer::doSelect($criteria, $con);
-		$results = array();
-
-		while ($row = $stmt->fetch(PDO::FETCH_NUM)) {
-			$key1 = ArSourceCdrPeer::getPrimaryKeyHashFromRow($row, 0);
-			if (null !== ($obj1 = ArSourceCdrPeer::getInstanceFromPool($key1))) {
-				// We no longer rehydrate the object, since this can cause data loss.
-				// See http://propel.phpdb.org/trac/ticket/509
-				// $obj1->hydrate($row, 0, true); // rehydrate
-			} else {
-
-				$cls = ArSourceCdrPeer::getOMClass(false);
-
-				$obj1 = new $cls();
-				$obj1->hydrate($row);
-				ArSourceCdrPeer::addInstanceToPool($obj1, $key1);
-			} // if $obj1 already loaded
-
-			$key2 = ArPhysicalFormatPeer::getPrimaryKeyHashFromRow($row, $startcol);
-			if ($key2 !== null) {
-				$obj2 = ArPhysicalFormatPeer::getInstanceFromPool($key2);
-				if (!$obj2) {
-
-					$cls = ArPhysicalFormatPeer::getOMClass(false);
-
-					$obj2 = new $cls();
-					$obj2->hydrate($row, $startcol);
-					ArPhysicalFormatPeer::addInstanceToPool($obj2, $key2);
-				} // if obj2 already loaded
-				
-				// Add the $obj1 (ArSourceCdr) to $obj2 (ArPhysicalFormat)
-				$obj2->addArSourceCdr($obj1);
-
-			} // if joined row was not null
-
-			$results[] = $obj1;
-		}
-		$stmt->closeCursor();
-		return $results;
-	}
-
-
-	/**
-	 * Returns the number of rows matching criteria, joining all related tables
-	 *
-	 * @param      Criteria $criteria
-	 * @param      boolean $distinct Whether to select only distinct columns; deprecated: use Criteria->setDistinct() instead.
-	 * @param      PropelPDO $con
-	 * @param      String    $join_behavior the type of joins to use, defaults to Criteria::LEFT_JOIN
-	 * @return     int Number of matching rows.
-	 */
-	public static function doCountJoinAll(Criteria $criteria, $distinct = false, PropelPDO $con = null, $join_behavior = Criteria::LEFT_JOIN)
-	{
-		// we're going to modify criteria, so copy it first
-		$criteria = clone $criteria;
-
-		// We need to set the primary table name, since in the case that there are no WHERE columns
-		// it will be impossible for the BasePeer::createSelectSql() method to determine which
-		// tables go into the FROM clause.
-		$criteria->setPrimaryTableName(ArSourceCdrPeer::TABLE_NAME);
-
-		if ($distinct && !in_array(Criteria::DISTINCT, $criteria->getSelectModifiers())) {
-			$criteria->setDistinct();
-		}
-
-		if (!$criteria->hasSelectClause()) {
-			ArSourceCdrPeer::addSelectColumns($criteria);
-		}
-		
-		$criteria->clearOrderByColumns(); // ORDER BY won't ever affect the count
-		
-		// Set the correct dbName
-		$criteria->setDbName(self::DATABASE_NAME);
-
-		if ($con === null) {
-			$con = Propel::getConnection(ArSourceCdrPeer::DATABASE_NAME, Propel::CONNECTION_READ);
-		}
-
-		$criteria->addJoin(ArSourceCdrPeer::AR_CDR_PROVIDER_ID, ArCdrProviderPeer::ID, $join_behavior);
-
-		$criteria->addJoin(ArSourceCdrPeer::AR_PHYSICAL_FORMAT_ID, ArPhysicalFormatPeer::ID, $join_behavior);
-
-		$stmt = BasePeer::doCount($criteria, $con);
-
-		if ($row = $stmt->fetch(PDO::FETCH_NUM)) {
-			$count = (int) $row[0];
-		} else {
-			$count = 0; // no rows returned; we infer that means 0 matches.
-		}
-		$stmt->closeCursor();
-		return $count;
-	}
-
-	/**
-	 * Selects a collection of ArSourceCdr objects pre-filled with all related objects.
-	 *
-	 * @param      Criteria  $criteria
-	 * @param      PropelPDO $con
-	 * @param      String    $join_behavior the type of joins to use, defaults to Criteria::LEFT_JOIN
-	 * @return     array Array of ArSourceCdr objects.
-	 * @throws     PropelException Any exceptions caught during processing will be
-	 *		 rethrown wrapped into a PropelException.
-	 */
-	public static function doSelectJoinAll(Criteria $criteria, $con = null, $join_behavior = Criteria::LEFT_JOIN)
-	{
-		$criteria = clone $criteria;
-
-		// Set the correct dbName if it has not been overridden
-		if ($criteria->getDbName() == Propel::getDefaultDB()) {
-			$criteria->setDbName(self::DATABASE_NAME);
-		}
-
-		ArSourceCdrPeer::addSelectColumns($criteria);
-		$startcol2 = (ArSourceCdrPeer::NUM_COLUMNS - ArSourceCdrPeer::NUM_LAZY_LOAD_COLUMNS);
-
-		ArCdrProviderPeer::addSelectColumns($criteria);
-		$startcol3 = $startcol2 + (ArCdrProviderPeer::NUM_COLUMNS - ArCdrProviderPeer::NUM_LAZY_LOAD_COLUMNS);
-
-		ArPhysicalFormatPeer::addSelectColumns($criteria);
-		$startcol4 = $startcol3 + (ArPhysicalFormatPeer::NUM_COLUMNS - ArPhysicalFormatPeer::NUM_LAZY_LOAD_COLUMNS);
-
-		$criteria->addJoin(ArSourceCdrPeer::AR_CDR_PROVIDER_ID, ArCdrProviderPeer::ID, $join_behavior);
-
-		$criteria->addJoin(ArSourceCdrPeer::AR_PHYSICAL_FORMAT_ID, ArPhysicalFormatPeer::ID, $join_behavior);
-
-		$stmt = BasePeer::doSelect($criteria, $con);
-		$results = array();
-
-		while ($row = $stmt->fetch(PDO::FETCH_NUM)) {
-			$key1 = ArSourceCdrPeer::getPrimaryKeyHashFromRow($row, 0);
-			if (null !== ($obj1 = ArSourceCdrPeer::getInstanceFromPool($key1))) {
-				// We no longer rehydrate the object, since this can cause data loss.
-				// See http://propel.phpdb.org/trac/ticket/509
-				// $obj1->hydrate($row, 0, true); // rehydrate
-			} else {
-				$cls = ArSourceCdrPeer::getOMClass(false);
-
-				$obj1 = new $cls();
-				$obj1->hydrate($row);
-				ArSourceCdrPeer::addInstanceToPool($obj1, $key1);
-			} // if obj1 already loaded
-
-			// Add objects for joined ArCdrProvider rows
-
-			$key2 = ArCdrProviderPeer::getPrimaryKeyHashFromRow($row, $startcol2);
-			if ($key2 !== null) {
-				$obj2 = ArCdrProviderPeer::getInstanceFromPool($key2);
-				if (!$obj2) {
-
-					$cls = ArCdrProviderPeer::getOMClass(false);
-
-					$obj2 = new $cls();
-					$obj2->hydrate($row, $startcol2);
-					ArCdrProviderPeer::addInstanceToPool($obj2, $key2);
-				} // if obj2 loaded
-
-				// Add the $obj1 (ArSourceCdr) to the collection in $obj2 (ArCdrProvider)
-				$obj2->addArSourceCdr($obj1);
-			} // if joined row not null
-
-			// Add objects for joined ArPhysicalFormat rows
-
-			$key3 = ArPhysicalFormatPeer::getPrimaryKeyHashFromRow($row, $startcol3);
-			if ($key3 !== null) {
-				$obj3 = ArPhysicalFormatPeer::getInstanceFromPool($key3);
-				if (!$obj3) {
-
-					$cls = ArPhysicalFormatPeer::getOMClass(false);
-
-					$obj3 = new $cls();
-					$obj3->hydrate($row, $startcol3);
-					ArPhysicalFormatPeer::addInstanceToPool($obj3, $key3);
-				} // if obj3 loaded
-
-				// Add the $obj1 (ArSourceCdr) to the collection in $obj3 (ArPhysicalFormat)
-				$obj3->addArSourceCdr($obj1);
-			} // if joined row not null
-
-			$results[] = $obj1;
-		}
-		$stmt->closeCursor();
-		return $results;
-	}
-
-
-	/**
-	 * Returns the number of rows matching criteria, joining the related ArCdrProvider table
-	 *
-	 * @param      Criteria $criteria
-	 * @param      boolean $distinct Whether to select only distinct columns; deprecated: use Criteria->setDistinct() instead.
-	 * @param      PropelPDO $con
-	 * @param      String    $join_behavior the type of joins to use, defaults to Criteria::LEFT_JOIN
-	 * @return     int Number of matching rows.
-	 */
-	public static function doCountJoinAllExceptArCdrProvider(Criteria $criteria, $distinct = false, PropelPDO $con = null, $join_behavior = Criteria::LEFT_JOIN)
-	{
-		// we're going to modify criteria, so copy it first
-		$criteria = clone $criteria;
-
-		// We need to set the primary table name, since in the case that there are no WHERE columns
-		// it will be impossible for the BasePeer::createSelectSql() method to determine which
-		// tables go into the FROM clause.
-		$criteria->setPrimaryTableName(ArSourceCdrPeer::TABLE_NAME);
-		
-		if ($distinct && !in_array(Criteria::DISTINCT, $criteria->getSelectModifiers())) {
-			$criteria->setDistinct();
-		}
-
-		if (!$criteria->hasSelectClause()) {
-			ArSourceCdrPeer::addSelectColumns($criteria);
-		}
-		
-		$criteria->clearOrderByColumns(); // ORDER BY should not affect count
-		
-		// Set the correct dbName
-		$criteria->setDbName(self::DATABASE_NAME);
-
-		if ($con === null) {
-			$con = Propel::getConnection(ArSourceCdrPeer::DATABASE_NAME, Propel::CONNECTION_READ);
-		}
-	
-		$criteria->addJoin(ArSourceCdrPeer::AR_PHYSICAL_FORMAT_ID, ArPhysicalFormatPeer::ID, $join_behavior);
-
-		$stmt = BasePeer::doCount($criteria, $con);
-
-		if ($row = $stmt->fetch(PDO::FETCH_NUM)) {
-			$count = (int) $row[0];
-		} else {
-			$count = 0; // no rows returned; we infer that means 0 matches.
-		}
-		$stmt->closeCursor();
-		return $count;
-	}
-
-
-	/**
-	 * Returns the number of rows matching criteria, joining the related ArPhysicalFormat table
-	 *
-	 * @param      Criteria $criteria
-	 * @param      boolean $distinct Whether to select only distinct columns; deprecated: use Criteria->setDistinct() instead.
-	 * @param      PropelPDO $con
-	 * @param      String    $join_behavior the type of joins to use, defaults to Criteria::LEFT_JOIN
-	 * @return     int Number of matching rows.
-	 */
-	public static function doCountJoinAllExceptArPhysicalFormat(Criteria $criteria, $distinct = false, PropelPDO $con = null, $join_behavior = Criteria::LEFT_JOIN)
-	{
-		// we're going to modify criteria, so copy it first
-		$criteria = clone $criteria;
-
-		// We need to set the primary table name, since in the case that there are no WHERE columns
-		// it will be impossible for the BasePeer::createSelectSql() method to determine which
-		// tables go into the FROM clause.
-		$criteria->setPrimaryTableName(ArSourceCdrPeer::TABLE_NAME);
-		
-		if ($distinct && !in_array(Criteria::DISTINCT, $criteria->getSelectModifiers())) {
-			$criteria->setDistinct();
-		}
-
-		if (!$criteria->hasSelectClause()) {
-			ArSourceCdrPeer::addSelectColumns($criteria);
-		}
-		
-		$criteria->clearOrderByColumns(); // ORDER BY should not affect count
-		
-		// Set the correct dbName
-		$criteria->setDbName(self::DATABASE_NAME);
-
-		if ($con === null) {
-			$con = Propel::getConnection(ArSourceCdrPeer::DATABASE_NAME, Propel::CONNECTION_READ);
-		}
-	
-		$criteria->addJoin(ArSourceCdrPeer::AR_CDR_PROVIDER_ID, ArCdrProviderPeer::ID, $join_behavior);
-
-		$stmt = BasePeer::doCount($criteria, $con);
-
-		if ($row = $stmt->fetch(PDO::FETCH_NUM)) {
-			$count = (int) $row[0];
-		} else {
-			$count = 0; // no rows returned; we infer that means 0 matches.
-		}
-		$stmt->closeCursor();
-		return $count;
-	}
-
-
-	/**
-	 * Selects a collection of ArSourceCdr objects pre-filled with all related objects except ArCdrProvider.
-	 *
-	 * @param      Criteria  $criteria
-	 * @param      PropelPDO $con
-	 * @param      String    $join_behavior the type of joins to use, defaults to Criteria::LEFT_JOIN
-	 * @return     array Array of ArSourceCdr objects.
-	 * @throws     PropelException Any exceptions caught during processing will be
-	 *		 rethrown wrapped into a PropelException.
-	 */
-	public static function doSelectJoinAllExceptArCdrProvider(Criteria $criteria, $con = null, $join_behavior = Criteria::LEFT_JOIN)
-	{
-		$criteria = clone $criteria;
-
-		// Set the correct dbName if it has not been overridden
-		// $criteria->getDbName() will return the same object if not set to another value
-		// so == check is okay and faster
-		if ($criteria->getDbName() == Propel::getDefaultDB()) {
-			$criteria->setDbName(self::DATABASE_NAME);
-		}
-
-		ArSourceCdrPeer::addSelectColumns($criteria);
-		$startcol2 = (ArSourceCdrPeer::NUM_COLUMNS - ArSourceCdrPeer::NUM_LAZY_LOAD_COLUMNS);
-
-		ArPhysicalFormatPeer::addSelectColumns($criteria);
-		$startcol3 = $startcol2 + (ArPhysicalFormatPeer::NUM_COLUMNS - ArPhysicalFormatPeer::NUM_LAZY_LOAD_COLUMNS);
-
-		$criteria->addJoin(ArSourceCdrPeer::AR_PHYSICAL_FORMAT_ID, ArPhysicalFormatPeer::ID, $join_behavior);
-
-
-		$stmt = BasePeer::doSelect($criteria, $con);
-		$results = array();
-
-		while ($row = $stmt->fetch(PDO::FETCH_NUM)) {
-			$key1 = ArSourceCdrPeer::getPrimaryKeyHashFromRow($row, 0);
-			if (null !== ($obj1 = ArSourceCdrPeer::getInstanceFromPool($key1))) {
-				// We no longer rehydrate the object, since this can cause data loss.
-				// See http://propel.phpdb.org/trac/ticket/509
-				// $obj1->hydrate($row, 0, true); // rehydrate
-			} else {
-				$cls = ArSourceCdrPeer::getOMClass(false);
-
-				$obj1 = new $cls();
-				$obj1->hydrate($row);
-				ArSourceCdrPeer::addInstanceToPool($obj1, $key1);
-			} // if obj1 already loaded
-
-				// Add objects for joined ArPhysicalFormat rows
-
-				$key2 = ArPhysicalFormatPeer::getPrimaryKeyHashFromRow($row, $startcol2);
-				if ($key2 !== null) {
-					$obj2 = ArPhysicalFormatPeer::getInstanceFromPool($key2);
-					if (!$obj2) {
-	
-						$cls = ArPhysicalFormatPeer::getOMClass(false);
-
-					$obj2 = new $cls();
-					$obj2->hydrate($row, $startcol2);
-					ArPhysicalFormatPeer::addInstanceToPool($obj2, $key2);
-				} // if $obj2 already loaded
-
-				// Add the $obj1 (ArSourceCdr) to the collection in $obj2 (ArPhysicalFormat)
-				$obj2->addArSourceCdr($obj1);
-
-			} // if joined row is not null
-
-			$results[] = $obj1;
-		}
-		$stmt->closeCursor();
-		return $results;
-	}
-
-
-	/**
-	 * Selects a collection of ArSourceCdr objects pre-filled with all related objects except ArPhysicalFormat.
-	 *
-	 * @param      Criteria  $criteria
-	 * @param      PropelPDO $con
-	 * @param      String    $join_behavior the type of joins to use, defaults to Criteria::LEFT_JOIN
-	 * @return     array Array of ArSourceCdr objects.
-	 * @throws     PropelException Any exceptions caught during processing will be
-	 *		 rethrown wrapped into a PropelException.
-	 */
-	public static function doSelectJoinAllExceptArPhysicalFormat(Criteria $criteria, $con = null, $join_behavior = Criteria::LEFT_JOIN)
-	{
-		$criteria = clone $criteria;
-
-		// Set the correct dbName if it has not been overridden
-		// $criteria->getDbName() will return the same object if not set to another value
-		// so == check is okay and faster
-		if ($criteria->getDbName() == Propel::getDefaultDB()) {
-			$criteria->setDbName(self::DATABASE_NAME);
-		}
-
-		ArSourceCdrPeer::addSelectColumns($criteria);
-		$startcol2 = (ArSourceCdrPeer::NUM_COLUMNS - ArSourceCdrPeer::NUM_LAZY_LOAD_COLUMNS);
-
-		ArCdrProviderPeer::addSelectColumns($criteria);
-		$startcol3 = $startcol2 + (ArCdrProviderPeer::NUM_COLUMNS - ArCdrProviderPeer::NUM_LAZY_LOAD_COLUMNS);
-
-		$criteria->addJoin(ArSourceCdrPeer::AR_CDR_PROVIDER_ID, ArCdrProviderPeer::ID, $join_behavior);
-
-
-		$stmt = BasePeer::doSelect($criteria, $con);
-		$results = array();
-
-		while ($row = $stmt->fetch(PDO::FETCH_NUM)) {
-			$key1 = ArSourceCdrPeer::getPrimaryKeyHashFromRow($row, 0);
-			if (null !== ($obj1 = ArSourceCdrPeer::getInstanceFromPool($key1))) {
-				// We no longer rehydrate the object, since this can cause data loss.
-				// See http://propel.phpdb.org/trac/ticket/509
-				// $obj1->hydrate($row, 0, true); // rehydrate
-			} else {
-				$cls = ArSourceCdrPeer::getOMClass(false);
-
-				$obj1 = new $cls();
-				$obj1->hydrate($row);
-				ArSourceCdrPeer::addInstanceToPool($obj1, $key1);
-			} // if obj1 already loaded
-
-				// Add objects for joined ArCdrProvider rows
-
-				$key2 = ArCdrProviderPeer::getPrimaryKeyHashFromRow($row, $startcol2);
-				if ($key2 !== null) {
-					$obj2 = ArCdrProviderPeer::getInstanceFromPool($key2);
-					if (!$obj2) {
-	
-						$cls = ArCdrProviderPeer::getOMClass(false);
-
-					$obj2 = new $cls();
-					$obj2->hydrate($row, $startcol2);
-					ArCdrProviderPeer::addInstanceToPool($obj2, $key2);
-				} // if $obj2 already loaded
-
-				// Add the $obj1 (ArSourceCdr) to the collection in $obj2 (ArCdrProvider)
-				$obj2->addArSourceCdr($obj1);
-
-			} // if joined row is not null
-
-			$results[] = $obj1;
-		}
-		$stmt->closeCursor();
-		return $results;
-	}
-
 	/**
 	 * Returns the TableMap related to this peer.
 	 * This method is not needed for general use but a specific application could have a need.
@@ -1091,10 +466,6 @@ abstract class BaseArSourceCdrPeer {
 			$criteria = $values->buildCriteria(); // build Criteria from ArSourceCdr object
 		}
 
-		if ($criteria->containsKey(ArSourceCdrPeer::ID) && $criteria->keyContainsValue(ArSourceCdrPeer::ID) ) {
-			throw new PropelException('Cannot insert a value for auto-increment primary key ('.ArSourceCdrPeer::ID.')');
-		}
-
 
 		// Set the correct dbName
 		$criteria->setDbName(self::DATABASE_NAME);
@@ -1133,8 +504,17 @@ abstract class BaseArSourceCdrPeer {
 		if ($values instanceof Criteria) {
 			$criteria = clone $values; // rename for clarity
 
+			$comparison = $criteria->getComparison(ArSourceCdrPeer::CALLDATE);
+			$selectCriteria->add(ArSourceCdrPeer::CALLDATE, $criteria->remove(ArSourceCdrPeer::CALLDATE), $comparison);
+
 			$comparison = $criteria->getComparison(ArSourceCdrPeer::ID);
 			$selectCriteria->add(ArSourceCdrPeer::ID, $criteria->remove(ArSourceCdrPeer::ID), $comparison);
+
+			$comparison = $criteria->getComparison(ArSourceCdrPeer::AR_CDR_PROVIDER_ID);
+			$selectCriteria->add(ArSourceCdrPeer::AR_CDR_PROVIDER_ID, $criteria->remove(ArSourceCdrPeer::AR_CDR_PROVIDER_ID), $comparison);
+
+			$comparison = $criteria->getComparison(ArSourceCdrPeer::AR_PHYSICAL_FORMAT_ID);
+			$selectCriteria->add(ArSourceCdrPeer::AR_PHYSICAL_FORMAT_ID, $criteria->remove(ArSourceCdrPeer::AR_PHYSICAL_FORMAT_ID), $comparison);
 
 		} else { // $values is ArSourceCdr object
 			$criteria = $values->buildCriteria(); // gets full criteria
@@ -1207,10 +587,20 @@ abstract class BaseArSourceCdrPeer {
 			$criteria = $values->buildPkeyCriteria();
 		} else { // it's a primary key, or an array of pks
 			$criteria = new Criteria(self::DATABASE_NAME);
-			$criteria->add(ArSourceCdrPeer::ID, (array) $values, Criteria::IN);
-			// invalidate the cache for this object(s)
-			foreach ((array) $values as $singleval) {
-				ArSourceCdrPeer::removeInstanceFromPool($singleval);
+			// primary key is composite; we therefore, expect
+			// the primary key passed to be an array of pkey values
+			if (count($values) == count($values, COUNT_RECURSIVE)) {
+				// array is not multi-dimensional
+				$values = array($values);
+			}
+			foreach ($values as $value) {
+				$criterion = $criteria->getNewCriterion(ArSourceCdrPeer::CALLDATE, $value[0]);
+				$criterion->addAnd($criteria->getNewCriterion(ArSourceCdrPeer::ID, $value[1]));
+				$criterion->addAnd($criteria->getNewCriterion(ArSourceCdrPeer::AR_CDR_PROVIDER_ID, $value[2]));
+				$criterion->addAnd($criteria->getNewCriterion(ArSourceCdrPeer::AR_PHYSICAL_FORMAT_ID, $value[3]));
+				$criteria->addOr($criterion);
+				// we can invalidate the cache for this single PK
+				ArSourceCdrPeer::removeInstanceFromPool($value);
 			}
 		}
 
@@ -1272,56 +662,32 @@ abstract class BaseArSourceCdrPeer {
 	}
 
 	/**
-	 * Retrieve a single object by pkey.
-	 *
-	 * @param      int $pk the primary key.
-	 * @param      PropelPDO $con the connection to use
+	 * Retrieve object using using composite pkey values.
+	 * @param      string $calldate
+	 * @param      int $id
+	 * @param      int $ar_cdr_provider_id
+	 * @param      int $ar_physical_format_id
+	 * @param      PropelPDO $con
 	 * @return     ArSourceCdr
 	 */
-	public static function retrieveByPK($pk, PropelPDO $con = null)
-	{
-
-		if (null !== ($obj = ArSourceCdrPeer::getInstanceFromPool((string) $pk))) {
-			return $obj;
+	public static function retrieveByPK($calldate, $id, $ar_cdr_provider_id, $ar_physical_format_id, PropelPDO $con = null) {
+		$key = serialize(array((string) $calldate, (string) $id, (string) $ar_cdr_provider_id, (string) $ar_physical_format_id));
+ 		if (null !== ($obj = ArSourceCdrPeer::getInstanceFromPool($key))) {
+ 			return $obj;
 		}
 
 		if ($con === null) {
 			$con = Propel::getConnection(ArSourceCdrPeer::DATABASE_NAME, Propel::CONNECTION_READ);
 		}
-
 		$criteria = new Criteria(ArSourceCdrPeer::DATABASE_NAME);
-		$criteria->add(ArSourceCdrPeer::ID, $pk);
-
+		$criteria->add(ArSourceCdrPeer::CALLDATE, $calldate);
+		$criteria->add(ArSourceCdrPeer::ID, $id);
+		$criteria->add(ArSourceCdrPeer::AR_CDR_PROVIDER_ID, $ar_cdr_provider_id);
+		$criteria->add(ArSourceCdrPeer::AR_PHYSICAL_FORMAT_ID, $ar_physical_format_id);
 		$v = ArSourceCdrPeer::doSelect($criteria, $con);
 
-		return !empty($v) > 0 ? $v[0] : null;
+		return !empty($v) ? $v[0] : null;
 	}
-
-	/**
-	 * Retrieve multiple objects by pkey.
-	 *
-	 * @param      array $pks List of primary keys
-	 * @param      PropelPDO $con the connection to use
-	 * @throws     PropelException Any exceptions caught during processing will be
-	 *		 rethrown wrapped into a PropelException.
-	 */
-	public static function retrieveByPKs($pks, PropelPDO $con = null)
-	{
-		if ($con === null) {
-			$con = Propel::getConnection(ArSourceCdrPeer::DATABASE_NAME, Propel::CONNECTION_READ);
-		}
-
-		$objs = null;
-		if (empty($pks)) {
-			$objs = array();
-		} else {
-			$criteria = new Criteria(ArSourceCdrPeer::DATABASE_NAME);
-			$criteria->add(ArSourceCdrPeer::ID, $pks, Criteria::IN);
-			$objs = ArSourceCdrPeer::doSelect($criteria, $con);
-		}
-		return $objs;
-	}
-
 	// symfony behavior
 	
 	/**

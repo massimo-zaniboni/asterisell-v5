@@ -1,0 +1,16 @@
+Asterisell-5.9
+--------------
+:date: 2017-11-24
+
+This is a maintenance release:
+
+* improvements to the installation procedure, and to the documentation
+* bug-fixes to problems introduced from the previous version (v5.8), that changed a lot of things
+* minor improvements to the user-interface
+
+New features:
+
+* support for archiving of CDRS input files, in case they are needed for legal reasons
+* a job for importing from an FTPS external archive
+
+

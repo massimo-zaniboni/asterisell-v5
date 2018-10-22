@@ -34,41 +34,41 @@ class ArCdrTableMap extends TableMap {
 		$this->setPhpName('ArCdr');
 		$this->setClassname('ArCdr');
 		$this->setPackage('lib.model');
-		$this->setUseIdGenerator(true);
+		$this->setUseIdGenerator(false);
 		// columns
-		$this->addPrimaryKey('ID', 'Id', 'INTEGER', true, null, null);
-		$this->addColumn('CALLDATE', 'Calldate', 'TIMESTAMP', true, null, null);
+		$this->addPrimaryKey('CALLDATE', 'Calldate', 'TIMESTAMP', true, null, null);
+		$this->addPrimaryKey('ID', 'Id', 'INTEGER', true, null, 0);
+		$this->addPrimaryKey('IS_SERVICE_CDR', 'IsServiceCdr', 'BOOLEAN', true, null, false);
 		$this->addColumn('TO_CALLDATE', 'ToCalldate', 'TIMESTAMP', false, null, null);
-		$this->addColumn('IS_IMPORTED_SERVICE_CDR', 'IsImportedServiceCdr', 'BOOLEAN', true, null, false);
 		$this->addColumn('COUNT_OF_CALLS', 'CountOfCalls', 'INTEGER', true, null, 1);
-		$this->addColumn('DESTINATION_TYPE', 'DestinationType', 'INTEGER', true, 1, 0);
+		$this->addColumn('DESTINATION_TYPE', 'DestinationType', 'SMALLINT', true, null, 0);
 		$this->addColumn('IS_REDIRECT', 'IsRedirect', 'BOOLEAN', true, null, false);
-		$this->addColumn('DURATION', 'Duration', 'INTEGER', true, null, null);
-		$this->addColumn('BILLSEC', 'Billsec', 'INTEGER', true, null, null);
-		$this->addForeignKey('AR_ORGANIZATION_UNIT_ID', 'ArOrganizationUnitId', 'INTEGER', 'ar_organization_unit', 'ID', false, null, null);
-		$this->addColumn('CACHED_PARENT_ID_HIERARCHY', 'CachedParentIdHierarchy', 'VARCHAR', false, 850, null);
+		$this->addColumn('DURATION', 'Duration', 'INTEGER', true, null, 0);
+		$this->addColumn('BILLSEC', 'Billsec', 'INTEGER', true, null, 0);
+		$this->addColumn('AR_ORGANIZATION_UNIT_ID', 'ArOrganizationUnitId', 'INTEGER', false, null, null);
+		$this->addColumn('CACHED_PARENT_ID_HIERARCHY', 'CachedParentIdHierarchy', 'VARBINARY', false, 850, null);
 		$this->addColumn('BILLABLE_AR_ORGANIZATION_UNIT_ID', 'BillableArOrganizationUnitId', 'INTEGER', false, null, null);
 		$this->addColumn('BUNDLE_AR_ORGANIZATION_UNIT_ID', 'BundleArOrganizationUnitId', 'INTEGER', false, null, null);
 		$this->addColumn('INCOME', 'Income', 'BIGINT', false, null, null);
 		$this->addColumn('COST_SAVING', 'CostSaving', 'BIGINT', false, null, null);
-		$this->addForeignKey('AR_VENDOR_ID', 'ArVendorId', 'INTEGER', 'ar_vendor', 'ID', false, null, null);
-		$this->addForeignKey('AR_COMMUNICATION_CHANNEL_TYPE_ID', 'ArCommunicationChannelTypeId', 'INTEGER', 'ar_communication_channel_type', 'ID', false, null, null);
+		$this->addColumn('AR_VENDOR_ID', 'ArVendorId', 'INTEGER', false, null, null);
+		$this->addColumn('AR_COMMUNICATION_CHANNEL_TYPE_ID', 'ArCommunicationChannelTypeId', 'INTEGER', false, null, null);
 		$this->addColumn('COST', 'Cost', 'BIGINT', false, null, null);
 		$this->addColumn('EXPECTED_COST', 'ExpectedCost', 'BIGINT', false, null, null);
-		$this->addForeignKey('AR_TELEPHONE_PREFIX_ID', 'ArTelephonePrefixId', 'INTEGER', 'ar_telephone_prefix', 'ID', false, null, null);
+		$this->addColumn('AR_TELEPHONE_PREFIX_ID', 'ArTelephonePrefixId', 'INTEGER', false, null, null);
 		$this->addColumn('CACHED_EXTERNAL_TELEPHONE_NUMBER', 'CachedExternalTelephoneNumber', 'VARCHAR', false, 1024, null);
 		$this->addColumn('EXTERNAL_TELEPHONE_NUMBER_WITH_APPLIED_PORTABILITY', 'ExternalTelephoneNumberWithAppliedPortability', 'VARCHAR', false, 1024, null);
 		$this->addColumn('CACHED_MASKED_EXTERNAL_TELEPHONE_NUMBER', 'CachedMaskedExternalTelephoneNumber', 'VARCHAR', false, 1024, null);
-		$this->addColumn('ERROR_DESTINATION_TYPE', 'ErrorDestinationType', 'INTEGER', true, 1, 0);
+		$this->addColumn('ERROR_DESTINATION_TYPE', 'ErrorDestinationType', 'SMALLINT', true, null, 0);
 		$this->addColumn('AR_PROBLEM_DUPLICATION_KEY', 'ArProblemDuplicationKey', 'VARCHAR', false, 255, null);
-		$this->addColumn('DEBUG_COST_RATE', 'DebugCostRate', 'VARCHAR', false, 2048, null);
-		$this->addColumn('DEBUG_INCOME_RATE', 'DebugIncomeRate', 'VARCHAR', false, 2048, null);
-		$this->addColumn('DEBUG_RESIDUAL_INCOME_RATE', 'DebugResidualIncomeRate', 'VARCHAR', false, 2048, null);
+		$this->addColumn('DEBUG_COST_RATE', 'DebugCostRate', 'VARCHAR', false, 512, null);
+		$this->addColumn('DEBUG_INCOME_RATE', 'DebugIncomeRate', 'VARCHAR', false, 512, null);
+		$this->addColumn('DEBUG_RESIDUAL_INCOME_RATE', 'DebugResidualIncomeRate', 'VARCHAR', false, 512, null);
 		$this->addColumn('DEBUG_RESIDUAL_CALL_DURATION', 'DebugResidualCallDuration', 'INTEGER', false, null, null);
 		$this->addColumn('DEBUG_BUNDLE_LEFT_CALLS', 'DebugBundleLeftCalls', 'INTEGER', false, null, null);
 		$this->addColumn('DEBUG_BUNDLE_LEFT_DURATION', 'DebugBundleLeftDuration', 'INTEGER', false, null, null);
 		$this->addColumn('DEBUG_BUNDLE_LEFT_COST', 'DebugBundleLeftCost', 'BIGINT', false, null, null);
-		$this->addColumn('DEBUG_RATING_DETAILS', 'DebugRatingDetails', 'VARCHAR', false, 10000, null);
+		$this->addColumn('DEBUG_RATING_DETAILS', 'DebugRatingDetails', 'VARCHAR', false, 5000, null);
 		// validators
 	} // initialize()
 
@@ -77,10 +77,6 @@ class ArCdrTableMap extends TableMap {
 	 */
 	public function buildRelations()
 	{
-    $this->addRelation('ArOrganizationUnit', 'ArOrganizationUnit', RelationMap::MANY_TO_ONE, array('ar_organization_unit_id' => 'id', ), null, null);
-    $this->addRelation('ArVendor', 'ArVendor', RelationMap::MANY_TO_ONE, array('ar_vendor_id' => 'id', ), null, null);
-    $this->addRelation('ArCommunicationChannelType', 'ArCommunicationChannelType', RelationMap::MANY_TO_ONE, array('ar_communication_channel_type_id' => 'id', ), null, null);
-    $this->addRelation('ArTelephonePrefix', 'ArTelephonePrefix', RelationMap::MANY_TO_ONE, array('ar_telephone_prefix_id' => 'id', ), null, null);
 	} // buildRelations()
 
 	/**

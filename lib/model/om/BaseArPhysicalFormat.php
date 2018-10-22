@@ -58,16 +58,6 @@ abstract class BaseArPhysicalFormat extends BaseObject  implements Persistent {
 	private $lastArSourceCsvFileCriteria = null;
 
 	/**
-	 * @var        array ArSourceCdr[] Collection to store aggregation of ArSourceCdr objects.
-	 */
-	protected $collArSourceCdrs;
-
-	/**
-	 * @var        Criteria The criteria used to select the current contents of collArSourceCdrs.
-	 */
-	private $lastArSourceCdrCriteria = null;
-
-	/**
 	 * Flag to prevent endless save loop, if this object is referenced
 	 * by another object which falls in this transaction.
 	 * @var        boolean
@@ -323,9 +313,6 @@ abstract class BaseArPhysicalFormat extends BaseObject  implements Persistent {
 			$this->collArSourceCsvFiles = null;
 			$this->lastArSourceCsvFileCriteria = null;
 
-			$this->collArSourceCdrs = null;
-			$this->lastArSourceCdrCriteria = null;
-
 		} // if (deep)
 	}
 
@@ -476,14 +463,6 @@ abstract class BaseArPhysicalFormat extends BaseObject  implements Persistent {
 				}
 			}
 
-			if ($this->collArSourceCdrs !== null) {
-				foreach ($this->collArSourceCdrs as $referrerFK) {
-					if (!$referrerFK->isDeleted()) {
-						$affectedRows += $referrerFK->save($con);
-					}
-				}
-			}
-
 			$this->alreadyInSave = false;
 
 		}
@@ -569,14 +548,6 @@ abstract class BaseArPhysicalFormat extends BaseObject  implements Persistent {
 
 				if ($this->collArSourceCsvFiles !== null) {
 					foreach ($this->collArSourceCsvFiles as $referrerFK) {
-						if (!$referrerFK->validate($columns)) {
-							$failureMap = array_merge($failureMap, $referrerFK->getValidationFailures());
-						}
-					}
-				}
-
-				if ($this->collArSourceCdrs !== null) {
-					foreach ($this->collArSourceCdrs as $referrerFK) {
 						if (!$referrerFK->validate($columns)) {
 							$failureMap = array_merge($failureMap, $referrerFK->getValidationFailures());
 						}
@@ -808,12 +779,6 @@ abstract class BaseArPhysicalFormat extends BaseObject  implements Persistent {
 			foreach ($this->getArSourceCsvFiles() as $relObj) {
 				if ($relObj !== $this) {  // ensure that we don't try to copy a reference to ourselves
 					$copyObj->addArSourceCsvFile($relObj->copy($deepCopy));
-				}
-			}
-
-			foreach ($this->getArSourceCdrs() as $relObj) {
-				if ($relObj !== $this) {  // ensure that we don't try to copy a reference to ourselves
-					$copyObj->addArSourceCdr($relObj->copy($deepCopy));
 				}
 			}
 
@@ -1115,207 +1080,6 @@ abstract class BaseArPhysicalFormat extends BaseObject  implements Persistent {
 	}
 
 	/**
-	 * Clears out the collArSourceCdrs collection (array).
-	 *
-	 * This does not modify the database; however, it will remove any associated objects, causing
-	 * them to be refetched by subsequent calls to accessor method.
-	 *
-	 * @return     void
-	 * @see        addArSourceCdrs()
-	 */
-	public function clearArSourceCdrs()
-	{
-		$this->collArSourceCdrs = null; // important to set this to NULL since that means it is uninitialized
-	}
-
-	/**
-	 * Initializes the collArSourceCdrs collection (array).
-	 *
-	 * By default this just sets the collArSourceCdrs collection to an empty array (like clearcollArSourceCdrs());
-	 * however, you may wish to override this method in your stub class to provide setting appropriate
-	 * to your application -- for example, setting the initial array to the values stored in database.
-	 *
-	 * @return     void
-	 */
-	public function initArSourceCdrs()
-	{
-		$this->collArSourceCdrs = array();
-	}
-
-	/**
-	 * Gets an array of ArSourceCdr objects which contain a foreign key that references this object.
-	 *
-	 * If this collection has already been initialized with an identical Criteria, it returns the collection.
-	 * Otherwise if this ArPhysicalFormat has previously been saved, it will retrieve
-	 * related ArSourceCdrs from storage. If this ArPhysicalFormat is new, it will return
-	 * an empty collection or the current collection, the criteria is ignored on a new object.
-	 *
-	 * @param      PropelPDO $con
-	 * @param      Criteria $criteria
-	 * @return     array ArSourceCdr[]
-	 * @throws     PropelException
-	 */
-	public function getArSourceCdrs($criteria = null, PropelPDO $con = null)
-	{
-		if ($criteria === null) {
-			$criteria = new Criteria(ArPhysicalFormatPeer::DATABASE_NAME);
-		}
-		elseif ($criteria instanceof Criteria)
-		{
-			$criteria = clone $criteria;
-		}
-
-		if ($this->collArSourceCdrs === null) {
-			if ($this->isNew()) {
-			   $this->collArSourceCdrs = array();
-			} else {
-
-				$criteria->add(ArSourceCdrPeer::AR_PHYSICAL_FORMAT_ID, $this->id);
-
-				ArSourceCdrPeer::addSelectColumns($criteria);
-				$this->collArSourceCdrs = ArSourceCdrPeer::doSelect($criteria, $con);
-			}
-		} else {
-			// criteria has no effect for a new object
-			if (!$this->isNew()) {
-				// the following code is to determine if a new query is
-				// called for.  If the criteria is the same as the last
-				// one, just return the collection.
-
-
-				$criteria->add(ArSourceCdrPeer::AR_PHYSICAL_FORMAT_ID, $this->id);
-
-				ArSourceCdrPeer::addSelectColumns($criteria);
-				if (!isset($this->lastArSourceCdrCriteria) || !$this->lastArSourceCdrCriteria->equals($criteria)) {
-					$this->collArSourceCdrs = ArSourceCdrPeer::doSelect($criteria, $con);
-				}
-			}
-		}
-		$this->lastArSourceCdrCriteria = $criteria;
-		return $this->collArSourceCdrs;
-	}
-
-	/**
-	 * Returns the number of related ArSourceCdr objects.
-	 *
-	 * @param      Criteria $criteria
-	 * @param      boolean $distinct
-	 * @param      PropelPDO $con
-	 * @return     int Count of related ArSourceCdr objects.
-	 * @throws     PropelException
-	 */
-	public function countArSourceCdrs(Criteria $criteria = null, $distinct = false, PropelPDO $con = null)
-	{
-		if ($criteria === null) {
-			$criteria = new Criteria(ArPhysicalFormatPeer::DATABASE_NAME);
-		} else {
-			$criteria = clone $criteria;
-		}
-
-		if ($distinct) {
-			$criteria->setDistinct();
-		}
-
-		$count = null;
-
-		if ($this->collArSourceCdrs === null) {
-			if ($this->isNew()) {
-				$count = 0;
-			} else {
-
-				$criteria->add(ArSourceCdrPeer::AR_PHYSICAL_FORMAT_ID, $this->id);
-
-				$count = ArSourceCdrPeer::doCount($criteria, false, $con);
-			}
-		} else {
-			// criteria has no effect for a new object
-			if (!$this->isNew()) {
-				// the following code is to determine if a new query is
-				// called for.  If the criteria is the same as the last
-				// one, just return count of the collection.
-
-
-				$criteria->add(ArSourceCdrPeer::AR_PHYSICAL_FORMAT_ID, $this->id);
-
-				if (!isset($this->lastArSourceCdrCriteria) || !$this->lastArSourceCdrCriteria->equals($criteria)) {
-					$count = ArSourceCdrPeer::doCount($criteria, false, $con);
-				} else {
-					$count = count($this->collArSourceCdrs);
-				}
-			} else {
-				$count = count($this->collArSourceCdrs);
-			}
-		}
-		return $count;
-	}
-
-	/**
-	 * Method called to associate a ArSourceCdr object to this object
-	 * through the ArSourceCdr foreign key attribute.
-	 *
-	 * @param      ArSourceCdr $l ArSourceCdr
-	 * @return     void
-	 * @throws     PropelException
-	 */
-	public function addArSourceCdr(ArSourceCdr $l)
-	{
-		if ($this->collArSourceCdrs === null) {
-			$this->initArSourceCdrs();
-		}
-		if (!in_array($l, $this->collArSourceCdrs, true)) { // only add it if the **same** object is not already associated
-			array_push($this->collArSourceCdrs, $l);
-			$l->setArPhysicalFormat($this);
-		}
-	}
-
-
-	/**
-	 * If this collection has already been initialized with
-	 * an identical criteria, it returns the collection.
-	 * Otherwise if this ArPhysicalFormat is new, it will return
-	 * an empty collection; or if this ArPhysicalFormat has previously
-	 * been saved, it will retrieve related ArSourceCdrs from storage.
-	 *
-	 * This method is protected by default in order to keep the public
-	 * api reasonable.  You can provide public methods for those you
-	 * actually need in ArPhysicalFormat.
-	 */
-	public function getArSourceCdrsJoinArCdrProvider($criteria = null, $con = null, $join_behavior = Criteria::LEFT_JOIN)
-	{
-		if ($criteria === null) {
-			$criteria = new Criteria(ArPhysicalFormatPeer::DATABASE_NAME);
-		}
-		elseif ($criteria instanceof Criteria)
-		{
-			$criteria = clone $criteria;
-		}
-
-		if ($this->collArSourceCdrs === null) {
-			if ($this->isNew()) {
-				$this->collArSourceCdrs = array();
-			} else {
-
-				$criteria->add(ArSourceCdrPeer::AR_PHYSICAL_FORMAT_ID, $this->id);
-
-				$this->collArSourceCdrs = ArSourceCdrPeer::doSelectJoinArCdrProvider($criteria, $con, $join_behavior);
-			}
-		} else {
-			// the following code is to determine if a new query is
-			// called for.  If the criteria is the same as the last
-			// one, just return the collection.
-
-			$criteria->add(ArSourceCdrPeer::AR_PHYSICAL_FORMAT_ID, $this->id);
-
-			if (!isset($this->lastArSourceCdrCriteria) || !$this->lastArSourceCdrCriteria->equals($criteria)) {
-				$this->collArSourceCdrs = ArSourceCdrPeer::doSelectJoinArCdrProvider($criteria, $con, $join_behavior);
-			}
-		}
-		$this->lastArSourceCdrCriteria = $criteria;
-
-		return $this->collArSourceCdrs;
-	}
-
-	/**
 	 * Resets all collections of referencing foreign keys.
 	 *
 	 * This method is a user-space workaround for PHP's inability to garbage collect objects
@@ -1332,15 +1096,9 @@ abstract class BaseArPhysicalFormat extends BaseObject  implements Persistent {
 					$o->clearAllReferences($deep);
 				}
 			}
-			if ($this->collArSourceCdrs) {
-				foreach ((array) $this->collArSourceCdrs as $o) {
-					$o->clearAllReferences($deep);
-				}
-			}
 		} // if ($deep)
 
 		$this->collArSourceCsvFiles = null;
-		$this->collArSourceCdrs = null;
 			$this->aArLogicalSource = null;
 	}
 

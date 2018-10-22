@@ -41,6 +41,12 @@ class ArHolidayTableMap extends TableMap {
 		$this->addColumn('MONTH', 'Month', 'INTEGER', false, null, null);
 		$this->addColumn('YEAR', 'Year', 'INTEGER', false, null, null);
 		$this->addColumn('DAY_OF_WEEK', 'DayOfWeek', 'INTEGER', false, null, null);
+		$this->addColumn('FROM_HOUR', 'FromHour', 'INTEGER', false, null, null);
+		$this->addColumn('FROM_MINUTES', 'FromMinutes', 'INTEGER', false, null, null);
+		$this->addColumn('TO_HOUR', 'ToHour', 'INTEGER', false, null, null);
+		$this->addColumn('TO_MINUTES', 'ToMinutes', 'INTEGER', false, null, null);
+		$this->addColumn('PEAK_CODE', 'PeakCode', 'VARCHAR', true, 255, null);
+		$this->addColumn('NAME', 'Name', 'VARCHAR', false, 1024, null);
 		// validators
 	} // initialize()
 

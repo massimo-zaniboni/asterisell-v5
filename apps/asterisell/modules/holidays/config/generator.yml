@@ -5,18 +5,24 @@ generator:
     theme:                 default
 
     fields:
-      day_of_month: { name: "Day of month", help: "A number between 1-31" }
-      month: { name: "Month", help: "A number between 1-12" }
-      year: { name: "Year", help: "Empty for holidays repeated every year at the same day and month. An year in YYYY format otherwise." }
-      day_of_week: { name: "Day of week", help: "Empty for holidays associated to a day of the year. A day of the week (for example Sunday) for holidays associated to a day of the week. Usually if this field is specified, then the other fields are empty. The format is 1 for Monday, 2 for Tuesday, and 5 for Sunday. " }
-      human_readable_description: { name: "Description" }
+      day_of_month: { name: "Day of month", help: "From 1 to 31, or null for accepting days of month." }
+      month: { name: "Month", help: "From 1 to 12, or null for accepting all moths." }
+      year: { name: "Year", help: "YYYY, or null for accepting all years." }
+      day_of_week: { name: "Day of week", help: "1 for Monday, 2 for Tuesday, ..., 7 for Sunday, null for accepting every day of week." }
+      from_hour: { name: "From hour", help: "Accept from this hour of the day. From 0 to 23, null for implicit 0." }
+      from_minutes: { name: "From minutes", help: "Accept from this minutes of the day. From 0 to 59, null for implicit 0." }
+      to_hour: { name: "To hour", help: "Accept until this hour of the day. From 0 to 23, null for implicit 23." }
+      to_minutes: { name: "To minutes", help: "Accept unntil this minutes of the day. From 0 to 59, null for implicit 59." }
+      description: { name: "Description" }
+      _human_readable_description: { name: "Description" }
+      name: { name: "Name" }
 
     list:
       title: Holidays
-      display: [=human_readable_description]
-      filters: [year]
+      display: [=human_readable_description, peak_code, name]
+      filters: [peak_code, year, month]
 
     edit:
       title: Holiday
 
-      display: [human_readable_description, day_of_month, month, year, day_of_week]
+      display: [human_readable_description, peak_code, name, year, month, day_of_month, day_of_week, from_hour, from_minutes, to_hour, to_minutes]

@@ -1,0 +1,12 @@
+Asterisell-5.5
+--------------
+:date: 2016-11-02
+
+
+Bug fixes and improvements:
+
+* improved error messages in case of bad CSV files
+* rating code is more robust in the usage of resources like file handles and database connections
+* support of Digitel vendor
+
+

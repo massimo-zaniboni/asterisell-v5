@@ -19,6 +19,12 @@ abstract class BaseArHolidayForm extends BaseFormPropel
       'month'        => new sfWidgetFormInputText(),
       'year'         => new sfWidgetFormInputText(),
       'day_of_week'  => new sfWidgetFormInputText(),
+      'from_hour'    => new sfWidgetFormInputText(),
+      'from_minutes' => new sfWidgetFormInputText(),
+      'to_hour'      => new sfWidgetFormInputText(),
+      'to_minutes'   => new sfWidgetFormInputText(),
+      'peak_code'    => new sfWidgetFormInputText(),
+      'name'         => new sfWidgetFormInputText(),
     ));
 
     $this->setValidators(array(
@@ -27,11 +33,13 @@ abstract class BaseArHolidayForm extends BaseFormPropel
       'month'        => new sfValidatorInteger(array('min' => -2147483648, 'max' => 2147483647, 'required' => false)),
       'year'         => new sfValidatorInteger(array('min' => -2147483648, 'max' => 2147483647, 'required' => false)),
       'day_of_week'  => new sfValidatorInteger(array('min' => -2147483648, 'max' => 2147483647, 'required' => false)),
+      'from_hour'    => new sfValidatorInteger(array('min' => -2147483648, 'max' => 2147483647, 'required' => false)),
+      'from_minutes' => new sfValidatorInteger(array('min' => -2147483648, 'max' => 2147483647, 'required' => false)),
+      'to_hour'      => new sfValidatorInteger(array('min' => -2147483648, 'max' => 2147483647, 'required' => false)),
+      'to_minutes'   => new sfValidatorInteger(array('min' => -2147483648, 'max' => 2147483647, 'required' => false)),
+      'peak_code'    => new sfValidatorString(array('max_length' => 255)),
+      'name'         => new sfValidatorString(array('max_length' => 1024, 'required' => false)),
     ));
-
-    $this->validatorSchema->setPostValidator(
-      new sfValidatorPropelUnique(array('model' => 'ArHoliday', 'column' => array('day_of_month', 'month', 'year', 'day_of_week')))
-    );
 
     $this->widgetSchema->setNameFormat('ar_holiday[%s]');
 

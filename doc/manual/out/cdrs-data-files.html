@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+   <head><meta charset="UTF-8" />
+      <title>CDRS data files</title><link href="res/webhelp.css" rel="stylesheet" type="text/css" /><meta content="At each execution of the Job processor the CDRS data files files inside the container directory /var/www/instance-name/admin/data_files/messages/input are imported inside the TokuDB compressed table ar_source_cdr." name="description" />
+      <meta content="XMLmind DITA Converter 3.3.0" name="generator" />
+   <script charset="UTF-8" defer="defer" src="_wh/snowball_en.min.js" type="text/javascript"></script><link href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/themes/smoothness/jquery-ui.css" rel="stylesheet" type="text/css" /><link href="_wh/wh.css" rel="stylesheet" type="text/css" /><script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js" type="text/javascript">
+    </script><script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js" type="text/javascript">
+    </script><script charset="UTF-8" src="_wh/wh.min.js" type="text/javascript">
+    </script><script charset="UTF-8" defer="defer" src="_wh/search.js" type="text/javascript">
+    </script></head>
+   
+<body>
+    
+
+    <div id="wh-body">
+      <div id="wh-navigation">
+        <ul id="wh-tabs">
+          <li id="wh-toc-tab"><a href="#wh-toc-pane"><span>Contents</span></a></li>
+          
+          <li id="wh-search-tab"><a href="#wh-search-pane"><span>Search</span></a></li>
+        </ul>
+        <div id="wh-toc-pane">
+          <div id="wh-toc-form">
+            <span id="wh-toc-control"><a href="#">Collapse 
+            All</a><a href="#">Expand All</a></span>
+            <button id="wh-toc-previous">Previous</button>
+            <button id="wh-toc-next">Next</button>
+            <button id="wh-toc-print">Print</button>
+          </div>
+          <script charset="UTF-8" src="_wh/toc.js" type="text/javascript">
+          </script>
+        </div>
+        
+        <div id="wh-search-pane">
+          <div id="wh-search-form">
+            <input id="wh-search-field" type="text" /><button id="wh-search-button">Search</button><span id="wh-highlight-group"><input checked="checked" id="wh-highlight-toggle" type="checkbox" /><label for="wh-highlight-toggle" id="wh-highlight-icon"><span class="ui-icon ui-icon-flag"></span></label></span>
+          </div>
+          <div id="wh-search-results">
+          </div>
+        </div>
+      </div>
+      <div id="wh-separator">
+      </div>
+      <div id="wh-content">
+      
+      <header class="page-navigation-header">
+         <table class="page-navigation-layout" style="width: 100%;">
+            <tr>
+               <td style="text-align: left;vertical-align: top;"><a class="navigation-link" href="manual.html" title="First page: Asterisell Manual"><img alt="First page" class="navigation-icon" height="16" src="res/first.png" width="16" /></a></td>
+               <td style="text-align: left;vertical-align: top;"><a class="navigation-link" href="key-concepts-3.html" title="Previous page: Key concepts"><img alt="Previous page" class="navigation-icon" height="16" src="res/previous.png" width="16" /></a></td>
+               <td style="width: 25%;text-align: left;vertical-align: top;"><span class="page-navigation-previous">Key concepts</span></td>
+               <td style="width: 40%;text-align: center;vertical-align: top;"><span class="page-navigation-current">CDRS data files</span> <span class="page-navigation-page">(69 / 71)</span></td>
+               <td style="width: 25%;text-align: right;vertical-align: top;"><span class="page-navigation-next">Code development</span></td>
+               <td style="text-align: right;vertical-align: top;"><a class="navigation-link" href="coding-notes.html" title="Next page: Code development"><img alt="Next page" class="navigation-icon" height="16" src="res/next.png" width="16" /></a></td>
+               <td style="text-align: right;vertical-align: top;"><a class="navigation-link" href="about.html" title="Last page: About"><img alt="Last page" class="navigation-icon" height="16" src="res/last.png" width="16" /></a></td>
+            </tr>
+         </table>
+      </header>
+      <section class="topic" id="CDRS_data_files">
+         <h2 class="section2-title">CDRS data files</h2>
+         <p class="shortdesc">At each execution of the <a class="xref" href="manual-6.html#Job_processor">Job processor</a> the CDRS data files files inside the container directory <code class="codeph">/var/www/instance-name/admin/data_files/messages/input</code> are imported inside the TokuDB compressed table <code class="codeph">ar_source_cdr</code>.
+         </p>
+         <div class="body">
+            <div class="p">They must have a name compatible with some known CDR format, otherwise Asterisell
+               will signal the problem, and it will not import them.
+            </div>
+            <div class="p">If the importer is configured accordingly, they will be also archivied in <code class="codeph">/var/www/instance-name/admin/data_files/messages/archive</code>, but this is not suggested, because they can be always extracted from <code class="codeph">ar_source_cdr</code> table, in nearly their original format, using <code class="codeph">php asterisell.php data export-cdrs</code> command.
+            </div>
+            <div class="p">It is possible importing CDRS moving manually files in this directory, but usually
+               this is done from the import jobs. Importing jobs take care to execute only file-system
+               atomic operations, for moving files. So consistency is guarantee. All DBMS related
+               operations are executed usinng transactions.
+            </div>
+            <section class="section" id="CDRS_data_files__I_2frzd0_">
+               <h3 class="section-title">Data file name format</h3>
+               <div class="p">A CDRs source file has a name like ``file1.some-cdr-provider__logical-type__version,
+                  where:
+               </div>
+               <ul class="ul">
+                  <li class="li"><code class="codeph">file1</code> is some file name to use. It should be distinct, for avoiding clash during importing
+                  </li>
+                  <li class="li"><code class="codeph">some-cdr-provider</code> is a name of a configure cdr-provider. In case there is no configured cdr-provider,
+                     Asterisell signals the problem, and does not import the file. The file will be imported
+                     later, automatically, when the problem is resolved
+                  </li>
+                  <li class="li"><code class="codeph">logical-type</code> is the name of some type of file to import. If the type is not recognized, Asterisell
+                     signals the problem, and the file will be imported later, when the problem is resolved
+                  </li>
+                  <li class="li"><code class="codeph">version</code> is the name of the version of the type used. So the same type, can have different
+                     versions, with slightly different formats
+                  </li>
+               </ul>
+            </section>
+            <section class="section" id="CDRS_data_files__I_1h2yrp_">
+               <h3 class="section-title">Status files</h3>
+               <div class="p">A CDRs status file name is like <code class="codeph">file1.2015-01-01.some-cdr-provider__logical-type__version</code>, where:
+               </div>
+               <ul class="ul">
+                  <li class="li"><code class="codeph">2015-01-01</code> is a status file, with all the calls of the day
+                  </li>
+                  <li class="li"><code class="codeph">2015-01-00</code> is a status file, with all the calls of the month
+                  </li>
+                  <li class="li"><code class="codeph">2015-00-00</code> is a status file, with all the calls of the year
+                  </li>
+                  <li class="li">the other parts of the file name follow the same convention of CDRs file name</li>
+               </ul>
+               <div class="p">When Asterisell import a status file:</div>
+               <ul class="ul">
+                  <li class="li">delete all the calls in the status file time-frame, of the same provider</li>
+                  <li class="li">insert the calls in the status file</li>
+                  <li class="li">the net effect is replacing the calls in the status time frame, with the content of
+                     the status file
+                  </li>
+               </ul>
+            </section>
+            <section class="section" id="CDRS_data_files__I_vx6s13_">
+               <h3 class="section-title">Pseudo CSV file format</h3>
+               <div class="p">Asterisell supports a pseudo CSV-file format:</div>
+               <ul class="ul">
+                  <li class="li">multi lines are not supported</li>
+                  <li class="li">it extracts first a distinct line from a file</li>
+                  <li class="li">it process it like a CSV file line</li>
+               </ul>
+               <div class="p">This format is useful in case there can be errors in the CSV files, because it minimize
+                  the number of unrecognized entries, in case of a missing ending quote.
+               </div>
+            </section>
+         </div>
+      </section>
+      <footer class="page-navigation-footer">
+         <table class="page-navigation-layout" style="width: 100%;">
+            <tr>
+               <td style="text-align: left;vertical-align: top;"><a class="navigation-link" href="manual.html" title="First page: Asterisell Manual"><img alt="First page" class="navigation-icon" height="16" src="res/first.png" width="16" /></a></td>
+               <td style="text-align: left;vertical-align: top;"><a class="navigation-link" href="key-concepts-3.html" title="Previous page: Key concepts"><img alt="Previous page" class="navigation-icon" height="16" src="res/previous.png" width="16" /></a></td>
+               <td style="width: 25%;text-align: left;vertical-align: top;"><span class="page-navigation-previous">Key concepts</span></td>
+               <td style="width: 40%;text-align: center;vertical-align: top;"><span class="page-navigation-current">CDRS data files</span> <span class="page-navigation-page">(69 / 71)</span></td>
+               <td style="width: 25%;text-align: right;vertical-align: top;"><span class="page-navigation-next">Code development</span></td>
+               <td style="text-align: right;vertical-align: top;"><a class="navigation-link" href="coding-notes.html" title="Next page: Code development"><img alt="Next page" class="navigation-icon" height="16" src="res/next.png" width="16" /></a></td>
+               <td style="text-align: right;vertical-align: top;"><a class="navigation-link" href="about.html" title="Last page: About"><img alt="Last page" class="navigation-icon" height="16" src="res/last.png" width="16" /></a></td>
+            </tr>
+         </table>
+      </footer>
+   </div>
+    </div>
+
+    
+  </body></html>

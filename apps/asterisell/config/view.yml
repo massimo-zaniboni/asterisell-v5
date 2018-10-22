@@ -6,7 +6,7 @@ default:
     title:        Asterisell
     robots:       noindex, nofollow
     description:  Asterisell project
-    keywords:     asterisell, asterisk, symfony
+    keywords:     asterisell
     language:     en
 
   stylesheets:    [asterisell, appmenu_style, '/sf/sf_admin/css/main.css', '/css/tree_list.css']

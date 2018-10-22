@@ -1,33 +1,16 @@
 <?php
 
-/* $LICENSE 2012, 2013, 2017:
- *
- * Copyright (C) 2012, 2013, 2017 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
- *
- * This file is part of Asterisell.
- *
- * Asterisell is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 3 of the License, or
- * (at your option) any later version.
- *
- * Asterisell is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with Asterisell. If not, see <http://www.gnu.org/licenses/>.
- * $
- */
+// SPDX-License-Identifier: GPL-3.0-or-later
 
 sfLoader::loadHelpers(array('I18N', 'Debug', 'Date', 'Asterisell'));
 
 /**
- * Calculated the totals of all customers, because a scan of data must be done in any case,
+ * Calculate the totals of all customers, because a scan of data must be done in any case,
  * and it is cheaper doing it only one time for all customers.
  *
  * Consider only billable parties.
+ *
+ * DEV-NOTE: in new code, use InvoiceCalcStore2 instead.
  *
  * Take in consideration the decimal to use in invoices in all phases of calculations,
  * so calculations are not always exact if considering all the DB precision digits,
@@ -212,11 +195,12 @@ class InvoiceCalcStore extends ReportCalcStore
      * @param PropelPDO $conn
      * @param int|null $schedulerId the ID of the scheduler with the postponed invoices to include
      * @param int $fromDate the starting date of the new report-set to calculate
-     * @return void
+     * @return int the older calldate to use as worst case scenario index
      *
      * @require we are calculating the more recent report-set, and not report-set in the past
      */
     public function updatePostponedTmpTable(PropelPDO $conn, $schedulerId, $fromDate) {
+
         // Start with an empty situation
         $stmt = $conn->prepare('TRUNCATE ar_postponed_report_tmp');
         $stmt->execute();
@@ -275,6 +259,7 @@ class InvoiceCalcStore extends ReportCalcStore
         // The result will be put on ar_postponed_report_tmp table.
         //
 
+        $minCalldate = $fromDate;
         $firstPassage = true;
         $again = true;
         $lastFromDate = fromUnixTimestampToMySQLTimestamp($fromDate);
@@ -298,6 +283,7 @@ class InvoiceCalcStore extends ReportCalcStore
 
             } else {
                 $lastFromDate = $rsFromDate;
+                $minCalldate = fromMySQLTimestampToUnixTimestamp($rsFromDate);
 
                 if($firstPassage) {
                     $firstPassage = false;
@@ -332,6 +318,8 @@ class InvoiceCalcStore extends ReportCalcStore
                 }
             }
        }
+
+       return $minCalldate;
    }
 
     public function debugShowTmpTable(PropelPDO $conn) {
@@ -372,7 +360,7 @@ class InvoiceCalcStore extends ReportCalcStore
         $this->fromTime = $from;
         $this->toTime = $to;
 
-        $this->updatePostponedTmpTable($conn, $reportSchedulerId, $from);
+        $minCallDate = $this->updatePostponedTmpTable($conn, $reportSchedulerId, $from);
 
         $conditionOnDirectionArr = array();
         if ($reportParams->getParamShowAlsoInternalCalls()) {
@@ -413,12 +401,13 @@ SELECT
   , SUM(ar_cdr.cost_saving)
   , SUM(ar_cdr.billsec)
   , IFNULL(p.from_date, ?)
-FROM (ar_cdr FORCE INDEX (ar_cdr_calldate_index)
+FROM (ar_cdr
      JOIN ar_telephone_prefix ON ar_cdr.ar_telephone_prefix_id = ar_telephone_prefix.id
      ) LEFT JOIN ar_postponed_report_tmp AS p
      ON p.ar_organization_unit_id = ar_cdr.billable_ar_organization_unit_id
 WHERE '
 . $conditionOnDirection . '
+AND ar_cdr.calldate >= ?
 AND ar_cdr.calldate >= IFNULL(p.from_date, ?)
 AND ar_cdr.calldate < ?
 GROUP BY
@@ -432,7 +421,8 @@ GROUP BY
         // Scan all CDRs in the date range, completing stats
 
         $params = array(
-            fromUnixTimestampToMySQLTimestamp($this->fromTime)
+            fromUnixTimestampToMySQLTimestamp($minCallDate)
+          , fromUnixTimestampToMySQLTimestamp($this->fromTime)
           , fromUnixTimestampToMySQLTimestamp($this->fromTime)
           , fromUnixTimestampToMySQLTimestamp($this->toTime));
 

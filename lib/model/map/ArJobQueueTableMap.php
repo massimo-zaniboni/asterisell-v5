@@ -37,12 +37,12 @@ class ArJobQueueTableMap extends TableMap {
 		$this->setUseIdGenerator(true);
 		// columns
 		$this->addPrimaryKey('ID', 'Id', 'INTEGER', true, null, null);
-		$this->addColumn('IS_PART_OF', 'IsPartOf', 'INTEGER', true, null, null);
+		$this->addColumn('IS_PART_OF', 'IsPartOf', 'INTEGER', false, null, null);
 		$this->addColumn('STATE', 'State', 'INTEGER', true, 1, 0);
-		$this->addColumn('CREATED_AT', 'CreatedAt', 'TIMESTAMP', false, null, null);
+		$this->addColumn('CREATED_AT', 'CreatedAt', 'TIMESTAMP', true, null, null);
 		$this->addColumn('START_AT', 'StartAt', 'TIMESTAMP', false, null, null);
 		$this->addColumn('END_AT', 'EndAt', 'TIMESTAMP', false, null, null);
-		$this->addColumn('DESCRIPTION', 'Description', 'VARCHAR', true, 12000, null);
+		$this->addColumn('DESCRIPTION', 'Description', 'VARCHAR', true, 12000, '');
 		$this->addColumn('PHP_DATA_JOB_SERIALIZATION', 'PhpDataJobSerialization', 'CLOB', false, null, null);
 		$this->addColumn('INTERNAL_NAME', 'InternalName', 'VARCHAR', false, 512, null);
 		// validators

@@ -1,25 +1,6 @@
 <?php
 
-/* $LICENSE 2015:
- *
- * Copyright (C) 2015 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
- *
- * This file is part of Asterisell.
- *
- * Asterisell is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 3 of the License, or
- * (at your option) any later version.
- *
- * Asterisell is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with Asterisell. If not, see <http://www.gnu.org/licenses/>.
- * $
- */
+// SPDX-License-Identifier: GPL-3.0-or-later
 
 sfLoader::loadHelpers(array('I18N', 'Debug', 'Date', 'Asterisell'));
 
@@ -54,12 +35,13 @@ class BackupConfigurations extends DailyBackupJob
     static public function getConfigurationTablesToIgnore()
     {
         return array(
-          'ar_cdr'         // saved from other backup job
-        , 'ar_source_cdr'  // saved from other backup job
-
-        , 'ar_current_problem' // regenerated
-        , 'ar_new_problem' // regenerated
-        , 'ar_bundle_state' // regenerated. In any case the rerating is never done for old CDRs
+          'ar_cdr'                // saved from other backup job
+        , 'ar_source_cdr'         // saved from other backup job
+        , 'ar_cached_grouped_cdr' // regenerated
+        , 'ar_cached_errors'      // regenerated
+        , 'ar_current_problem'    // regenerated
+        , 'ar_new_problem'        // regenerated
+        , 'ar_bundle_state'       // regenerated. In any case the rerating is never done for old CDRs
         , 'ar_organization_backup_of_changes' // can be retrieved from past backups
         , 'ar_report_to_read' // consider all reports as already read
         , 'ar_user_can_view_report' // regenerated
@@ -72,6 +54,16 @@ class BackupConfigurations extends DailyBackupJob
         , 'ar_cached_organization_info' // regenerated
         );
     }
+
+    /**
+     * @return array the tables to not load
+     */
+    static public function getConfigurationTablesToIgnoreInOnlyConfigExport()
+    {
+        $arr = self::getConfigurationTablesToIgnore();
+        array_push($arr, 'ar_source_csv_file', 'ar_remote_file');
+        return $arr;
+   }
 
     /**
      * @return array the tables to not load

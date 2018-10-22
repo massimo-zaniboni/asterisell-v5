@@ -25,7 +25,7 @@ abstract class BaseArPartyPeer {
 	const TM_CLASS = 'ArPartyTableMap';
 	
 	/** The total number of columns. */
-	const NUM_COLUMNS = 25;
+	const NUM_COLUMNS = 30;
 
 	/** The number of lazy-loaded columns. */
 	const NUM_LAZY_LOAD_COLUMNS = 0;
@@ -39,11 +39,20 @@ abstract class BaseArPartyPeer {
 	/** the column name for the COMPACT_NAME field */
 	const COMPACT_NAME = 'ar_party.COMPACT_NAME';
 
+	/** the column name for the NOTE field */
+	const NOTE = 'ar_party.NOTE';
+
 	/** the column name for the EXTERNAL_CRM_CODE field */
 	const EXTERNAL_CRM_CODE = 'ar_party.EXTERNAL_CRM_CODE';
 
+	/** the column name for the CONTRACT_NUMBER field */
+	const CONTRACT_NUMBER = 'ar_party.CONTRACT_NUMBER';
+
 	/** the column name for the VAT field */
 	const VAT = 'ar_party.VAT';
+
+	/** the column name for the LEGAL_REGISTRATION_NUMBER field */
+	const LEGAL_REGISTRATION_NUMBER = 'ar_party.LEGAL_REGISTRATION_NUMBER';
 
 	/** the column name for the IS_BILLABLE field */
 	const IS_BILLABLE = 'ar_party.IS_BILLABLE';
@@ -66,6 +75,9 @@ abstract class BaseArPartyPeer {
 	/** the column name for the EMAIL field */
 	const EMAIL = 'ar_party.EMAIL';
 
+	/** the column name for the CONTACT_NAME field */
+	const CONTACT_NAME = 'ar_party.CONTACT_NAME';
+
 	/** the column name for the PHONE field */
 	const PHONE = 'ar_party.PHONE';
 
@@ -74,6 +86,9 @@ abstract class BaseArPartyPeer {
 
 	/** the column name for the FAX field */
 	const FAX = 'ar_party.FAX';
+
+	/** the column name for the WEB_SITE field */
+	const WEB_SITE = 'ar_party.WEB_SITE';
 
 	/** the column name for the MAX_LIMIT_30 field */
 	const MAX_LIMIT_30 = 'ar_party.MAX_LIMIT_30';
@@ -128,11 +143,11 @@ abstract class BaseArPartyPeer {
 	 * e.g. self::$fieldNames[self::TYPE_PHPNAME][0] = 'Id'
 	 */
 	private static $fieldNames = array (
-		BasePeer::TYPE_PHPNAME => array ('Id', 'Name', 'CompactName', 'ExternalCrmCode', 'Vat', 'IsBillable', 'LegalAddress', 'LegalCity', 'LegalZipcode', 'LegalStateProvince', 'LegalCountry', 'Email', 'Phone', 'Phone2', 'Fax', 'MaxLimit30', 'LastEmailAdviseForMaxLimit30', 'IsActive', 'ArResellerId', 'MigrationFieldForTelephone', 'MigrationFieldForAdsl', 'PaymentIban', 'PaymentBic', 'PaymentSepa', 'PaymentInfo', ),
-		BasePeer::TYPE_STUDLYPHPNAME => array ('id', 'name', 'compactName', 'externalCrmCode', 'vat', 'isBillable', 'legalAddress', 'legalCity', 'legalZipcode', 'legalStateProvince', 'legalCountry', 'email', 'phone', 'phone2', 'fax', 'maxLimit30', 'lastEmailAdviseForMaxLimit30', 'isActive', 'arResellerId', 'migrationFieldForTelephone', 'migrationFieldForAdsl', 'paymentIban', 'paymentBic', 'paymentSepa', 'paymentInfo', ),
-		BasePeer::TYPE_COLNAME => array (self::ID, self::NAME, self::COMPACT_NAME, self::EXTERNAL_CRM_CODE, self::VAT, self::IS_BILLABLE, self::LEGAL_ADDRESS, self::LEGAL_CITY, self::LEGAL_ZIPCODE, self::LEGAL_STATE_PROVINCE, self::LEGAL_COUNTRY, self::EMAIL, self::PHONE, self::PHONE2, self::FAX, self::MAX_LIMIT_30, self::LAST_EMAIL_ADVISE_FOR_MAX_LIMIT_30, self::IS_ACTIVE, self::AR_RESELLER_ID, self::MIGRATION_FIELD_FOR_TELEPHONE, self::MIGRATION_FIELD_FOR_ADSL, self::PAYMENT_IBAN, self::PAYMENT_BIC, self::PAYMENT_SEPA, self::PAYMENT_INFO, ),
-		BasePeer::TYPE_FIELDNAME => array ('id', 'name', 'compact_name', 'external_crm_code', 'vat', 'is_billable', 'legal_address', 'legal_city', 'legal_zipcode', 'legal_state_province', 'legal_country', 'email', 'phone', 'phone2', 'fax', 'max_limit_30', 'last_email_advise_for_max_limit_30', 'is_active', 'ar_reseller_id', 'migration_field_for_telephone', 'migration_field_for_adsl', 'payment_iban', 'payment_bic', 'payment_sepa', 'payment_info', ),
-		BasePeer::TYPE_NUM => array (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, )
+		BasePeer::TYPE_PHPNAME => array ('Id', 'Name', 'CompactName', 'Note', 'ExternalCrmCode', 'ContractNumber', 'Vat', 'LegalRegistrationNumber', 'IsBillable', 'LegalAddress', 'LegalCity', 'LegalZipcode', 'LegalStateProvince', 'LegalCountry', 'Email', 'ContactName', 'Phone', 'Phone2', 'Fax', 'WebSite', 'MaxLimit30', 'LastEmailAdviseForMaxLimit30', 'IsActive', 'ArResellerId', 'MigrationFieldForTelephone', 'MigrationFieldForAdsl', 'PaymentIban', 'PaymentBic', 'PaymentSepa', 'PaymentInfo', ),
+		BasePeer::TYPE_STUDLYPHPNAME => array ('id', 'name', 'compactName', 'note', 'externalCrmCode', 'contractNumber', 'vat', 'legalRegistrationNumber', 'isBillable', 'legalAddress', 'legalCity', 'legalZipcode', 'legalStateProvince', 'legalCountry', 'email', 'contactName', 'phone', 'phone2', 'fax', 'webSite', 'maxLimit30', 'lastEmailAdviseForMaxLimit30', 'isActive', 'arResellerId', 'migrationFieldForTelephone', 'migrationFieldForAdsl', 'paymentIban', 'paymentBic', 'paymentSepa', 'paymentInfo', ),
+		BasePeer::TYPE_COLNAME => array (self::ID, self::NAME, self::COMPACT_NAME, self::NOTE, self::EXTERNAL_CRM_CODE, self::CONTRACT_NUMBER, self::VAT, self::LEGAL_REGISTRATION_NUMBER, self::IS_BILLABLE, self::LEGAL_ADDRESS, self::LEGAL_CITY, self::LEGAL_ZIPCODE, self::LEGAL_STATE_PROVINCE, self::LEGAL_COUNTRY, self::EMAIL, self::CONTACT_NAME, self::PHONE, self::PHONE2, self::FAX, self::WEB_SITE, self::MAX_LIMIT_30, self::LAST_EMAIL_ADVISE_FOR_MAX_LIMIT_30, self::IS_ACTIVE, self::AR_RESELLER_ID, self::MIGRATION_FIELD_FOR_TELEPHONE, self::MIGRATION_FIELD_FOR_ADSL, self::PAYMENT_IBAN, self::PAYMENT_BIC, self::PAYMENT_SEPA, self::PAYMENT_INFO, ),
+		BasePeer::TYPE_FIELDNAME => array ('id', 'name', 'compact_name', 'note', 'external_crm_code', 'contract_number', 'vat', 'legal_registration_number', 'is_billable', 'legal_address', 'legal_city', 'legal_zipcode', 'legal_state_province', 'legal_country', 'email', 'contact_name', 'phone', 'phone2', 'fax', 'web_site', 'max_limit_30', 'last_email_advise_for_max_limit_30', 'is_active', 'ar_reseller_id', 'migration_field_for_telephone', 'migration_field_for_adsl', 'payment_iban', 'payment_bic', 'payment_sepa', 'payment_info', ),
+		BasePeer::TYPE_NUM => array (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, )
 	);
 
 	/**
@@ -142,11 +157,11 @@ abstract class BaseArPartyPeer {
 	 * e.g. self::$fieldNames[BasePeer::TYPE_PHPNAME]['Id'] = 0
 	 */
 	private static $fieldKeys = array (
-		BasePeer::TYPE_PHPNAME => array ('Id' => 0, 'Name' => 1, 'CompactName' => 2, 'ExternalCrmCode' => 3, 'Vat' => 4, 'IsBillable' => 5, 'LegalAddress' => 6, 'LegalCity' => 7, 'LegalZipcode' => 8, 'LegalStateProvince' => 9, 'LegalCountry' => 10, 'Email' => 11, 'Phone' => 12, 'Phone2' => 13, 'Fax' => 14, 'MaxLimit30' => 15, 'LastEmailAdviseForMaxLimit30' => 16, 'IsActive' => 17, 'ArResellerId' => 18, 'MigrationFieldForTelephone' => 19, 'MigrationFieldForAdsl' => 20, 'PaymentIban' => 21, 'PaymentBic' => 22, 'PaymentSepa' => 23, 'PaymentInfo' => 24, ),
-		BasePeer::TYPE_STUDLYPHPNAME => array ('id' => 0, 'name' => 1, 'compactName' => 2, 'externalCrmCode' => 3, 'vat' => 4, 'isBillable' => 5, 'legalAddress' => 6, 'legalCity' => 7, 'legalZipcode' => 8, 'legalStateProvince' => 9, 'legalCountry' => 10, 'email' => 11, 'phone' => 12, 'phone2' => 13, 'fax' => 14, 'maxLimit30' => 15, 'lastEmailAdviseForMaxLimit30' => 16, 'isActive' => 17, 'arResellerId' => 18, 'migrationFieldForTelephone' => 19, 'migrationFieldForAdsl' => 20, 'paymentIban' => 21, 'paymentBic' => 22, 'paymentSepa' => 23, 'paymentInfo' => 24, ),
-		BasePeer::TYPE_COLNAME => array (self::ID => 0, self::NAME => 1, self::COMPACT_NAME => 2, self::EXTERNAL_CRM_CODE => 3, self::VAT => 4, self::IS_BILLABLE => 5, self::LEGAL_ADDRESS => 6, self::LEGAL_CITY => 7, self::LEGAL_ZIPCODE => 8, self::LEGAL_STATE_PROVINCE => 9, self::LEGAL_COUNTRY => 10, self::EMAIL => 11, self::PHONE => 12, self::PHONE2 => 13, self::FAX => 14, self::MAX_LIMIT_30 => 15, self::LAST_EMAIL_ADVISE_FOR_MAX_LIMIT_30 => 16, self::IS_ACTIVE => 17, self::AR_RESELLER_ID => 18, self::MIGRATION_FIELD_FOR_TELEPHONE => 19, self::MIGRATION_FIELD_FOR_ADSL => 20, self::PAYMENT_IBAN => 21, self::PAYMENT_BIC => 22, self::PAYMENT_SEPA => 23, self::PAYMENT_INFO => 24, ),
-		BasePeer::TYPE_FIELDNAME => array ('id' => 0, 'name' => 1, 'compact_name' => 2, 'external_crm_code' => 3, 'vat' => 4, 'is_billable' => 5, 'legal_address' => 6, 'legal_city' => 7, 'legal_zipcode' => 8, 'legal_state_province' => 9, 'legal_country' => 10, 'email' => 11, 'phone' => 12, 'phone2' => 13, 'fax' => 14, 'max_limit_30' => 15, 'last_email_advise_for_max_limit_30' => 16, 'is_active' => 17, 'ar_reseller_id' => 18, 'migration_field_for_telephone' => 19, 'migration_field_for_adsl' => 20, 'payment_iban' => 21, 'payment_bic' => 22, 'payment_sepa' => 23, 'payment_info' => 24, ),
-		BasePeer::TYPE_NUM => array (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, )
+		BasePeer::TYPE_PHPNAME => array ('Id' => 0, 'Name' => 1, 'CompactName' => 2, 'Note' => 3, 'ExternalCrmCode' => 4, 'ContractNumber' => 5, 'Vat' => 6, 'LegalRegistrationNumber' => 7, 'IsBillable' => 8, 'LegalAddress' => 9, 'LegalCity' => 10, 'LegalZipcode' => 11, 'LegalStateProvince' => 12, 'LegalCountry' => 13, 'Email' => 14, 'ContactName' => 15, 'Phone' => 16, 'Phone2' => 17, 'Fax' => 18, 'WebSite' => 19, 'MaxLimit30' => 20, 'LastEmailAdviseForMaxLimit30' => 21, 'IsActive' => 22, 'ArResellerId' => 23, 'MigrationFieldForTelephone' => 24, 'MigrationFieldForAdsl' => 25, 'PaymentIban' => 26, 'PaymentBic' => 27, 'PaymentSepa' => 28, 'PaymentInfo' => 29, ),
+		BasePeer::TYPE_STUDLYPHPNAME => array ('id' => 0, 'name' => 1, 'compactName' => 2, 'note' => 3, 'externalCrmCode' => 4, 'contractNumber' => 5, 'vat' => 6, 'legalRegistrationNumber' => 7, 'isBillable' => 8, 'legalAddress' => 9, 'legalCity' => 10, 'legalZipcode' => 11, 'legalStateProvince' => 12, 'legalCountry' => 13, 'email' => 14, 'contactName' => 15, 'phone' => 16, 'phone2' => 17, 'fax' => 18, 'webSite' => 19, 'maxLimit30' => 20, 'lastEmailAdviseForMaxLimit30' => 21, 'isActive' => 22, 'arResellerId' => 23, 'migrationFieldForTelephone' => 24, 'migrationFieldForAdsl' => 25, 'paymentIban' => 26, 'paymentBic' => 27, 'paymentSepa' => 28, 'paymentInfo' => 29, ),
+		BasePeer::TYPE_COLNAME => array (self::ID => 0, self::NAME => 1, self::COMPACT_NAME => 2, self::NOTE => 3, self::EXTERNAL_CRM_CODE => 4, self::CONTRACT_NUMBER => 5, self::VAT => 6, self::LEGAL_REGISTRATION_NUMBER => 7, self::IS_BILLABLE => 8, self::LEGAL_ADDRESS => 9, self::LEGAL_CITY => 10, self::LEGAL_ZIPCODE => 11, self::LEGAL_STATE_PROVINCE => 12, self::LEGAL_COUNTRY => 13, self::EMAIL => 14, self::CONTACT_NAME => 15, self::PHONE => 16, self::PHONE2 => 17, self::FAX => 18, self::WEB_SITE => 19, self::MAX_LIMIT_30 => 20, self::LAST_EMAIL_ADVISE_FOR_MAX_LIMIT_30 => 21, self::IS_ACTIVE => 22, self::AR_RESELLER_ID => 23, self::MIGRATION_FIELD_FOR_TELEPHONE => 24, self::MIGRATION_FIELD_FOR_ADSL => 25, self::PAYMENT_IBAN => 26, self::PAYMENT_BIC => 27, self::PAYMENT_SEPA => 28, self::PAYMENT_INFO => 29, ),
+		BasePeer::TYPE_FIELDNAME => array ('id' => 0, 'name' => 1, 'compact_name' => 2, 'note' => 3, 'external_crm_code' => 4, 'contract_number' => 5, 'vat' => 6, 'legal_registration_number' => 7, 'is_billable' => 8, 'legal_address' => 9, 'legal_city' => 10, 'legal_zipcode' => 11, 'legal_state_province' => 12, 'legal_country' => 13, 'email' => 14, 'contact_name' => 15, 'phone' => 16, 'phone2' => 17, 'fax' => 18, 'web_site' => 19, 'max_limit_30' => 20, 'last_email_advise_for_max_limit_30' => 21, 'is_active' => 22, 'ar_reseller_id' => 23, 'migration_field_for_telephone' => 24, 'migration_field_for_adsl' => 25, 'payment_iban' => 26, 'payment_bic' => 27, 'payment_sepa' => 28, 'payment_info' => 29, ),
+		BasePeer::TYPE_NUM => array (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, )
 	);
 
 	/**
@@ -219,8 +234,11 @@ abstract class BaseArPartyPeer {
 		$criteria->addSelectColumn(ArPartyPeer::ID);
 		$criteria->addSelectColumn(ArPartyPeer::NAME);
 		$criteria->addSelectColumn(ArPartyPeer::COMPACT_NAME);
+		$criteria->addSelectColumn(ArPartyPeer::NOTE);
 		$criteria->addSelectColumn(ArPartyPeer::EXTERNAL_CRM_CODE);
+		$criteria->addSelectColumn(ArPartyPeer::CONTRACT_NUMBER);
 		$criteria->addSelectColumn(ArPartyPeer::VAT);
+		$criteria->addSelectColumn(ArPartyPeer::LEGAL_REGISTRATION_NUMBER);
 		$criteria->addSelectColumn(ArPartyPeer::IS_BILLABLE);
 		$criteria->addSelectColumn(ArPartyPeer::LEGAL_ADDRESS);
 		$criteria->addSelectColumn(ArPartyPeer::LEGAL_CITY);
@@ -228,9 +246,11 @@ abstract class BaseArPartyPeer {
 		$criteria->addSelectColumn(ArPartyPeer::LEGAL_STATE_PROVINCE);
 		$criteria->addSelectColumn(ArPartyPeer::LEGAL_COUNTRY);
 		$criteria->addSelectColumn(ArPartyPeer::EMAIL);
+		$criteria->addSelectColumn(ArPartyPeer::CONTACT_NAME);
 		$criteria->addSelectColumn(ArPartyPeer::PHONE);
 		$criteria->addSelectColumn(ArPartyPeer::PHONE2);
 		$criteria->addSelectColumn(ArPartyPeer::FAX);
+		$criteria->addSelectColumn(ArPartyPeer::WEB_SITE);
 		$criteria->addSelectColumn(ArPartyPeer::MAX_LIMIT_30);
 		$criteria->addSelectColumn(ArPartyPeer::LAST_EMAIL_ADVISE_FOR_MAX_LIMIT_30);
 		$criteria->addSelectColumn(ArPartyPeer::IS_ACTIVE);

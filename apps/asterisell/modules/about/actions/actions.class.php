@@ -21,5 +21,8 @@ class aboutActions extends sfActions
 
   }
 
+  public function executeCustomizations($request) {
+
+  }
 }
 

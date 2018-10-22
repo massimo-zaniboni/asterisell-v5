@@ -93,8 +93,8 @@ abstract class BaseArCurrentProblem extends BaseObject  implements Persistent {
 
 	/**
 	 * The value for the count_of_cdrs field.
-	 * Note: this column has a database default value of: 0
-	 * @var        int
+	 * Note: this column has a database default value of: '0'
+	 * @var        string
 	 */
 	protected $count_of_cdrs;
 
@@ -140,7 +140,7 @@ abstract class BaseArCurrentProblem extends BaseObject  implements Persistent {
 	public function applyDefaultValues()
 	{
 		$this->signaled_to_admin = false;
-		$this->count_of_cdrs = 0;
+		$this->count_of_cdrs = '0';
 	}
 
 	/**
@@ -360,7 +360,7 @@ abstract class BaseArCurrentProblem extends BaseObject  implements Persistent {
 	/**
 	 * Get the [count_of_cdrs] column value.
 	 * 
-	 * @return     int
+	 * @return     string
 	 */
 	public function getCountOfCdrs()
 	{
@@ -709,13 +709,13 @@ abstract class BaseArCurrentProblem extends BaseObject  implements Persistent {
 	/**
 	 * Set the value of [count_of_cdrs] column.
 	 * 
-	 * @param      int $v new value
+	 * @param      string $v new value
 	 * @return     ArCurrentProblem The current object (for fluent API support)
 	 */
 	public function setCountOfCdrs($v)
 	{
 		if ($v !== null) {
-			$v = (int) $v;
+			$v = (string) $v;
 		}
 
 		if ($this->count_of_cdrs !== $v || $this->isNew()) {
@@ -740,7 +740,7 @@ abstract class BaseArCurrentProblem extends BaseObject  implements Persistent {
 				return false;
 			}
 
-			if ($this->count_of_cdrs !== 0) {
+			if ($this->count_of_cdrs !== '0') {
 				return false;
 			}
 
@@ -778,7 +778,7 @@ abstract class BaseArCurrentProblem extends BaseObject  implements Persistent {
 			$this->effect = ($row[$startcol + 9] !== null) ? (string) $row[$startcol + 9] : null;
 			$this->proposed_solution = ($row[$startcol + 10] !== null) ? (string) $row[$startcol + 10] : null;
 			$this->signaled_to_admin = ($row[$startcol + 11] !== null) ? (boolean) $row[$startcol + 11] : null;
-			$this->count_of_cdrs = ($row[$startcol + 12] !== null) ? (int) $row[$startcol + 12] : null;
+			$this->count_of_cdrs = ($row[$startcol + 12] !== null) ? (string) $row[$startcol + 12] : null;
 			$this->resetModified();
 
 			$this->setNew(false);

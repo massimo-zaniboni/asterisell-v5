@@ -7,63 +7,63 @@ generator:
     fields:
       name: { name: Name }
 
-      service_name: { name: Website Name, help: "Name of the VoIP service associated to the website / company, displayed also as title of the tab." }
+      service_name: { name: Website Name, help: "The name of the entity associated to this website interface. Also displayed as the website title." }
 
-      service_provider_website: {name: "Website address", help: "The URL of the website containing this Asterisell installation." }
+      service_provider_website: {name: "Website address", help: "The URL of the website." }
 
       service_provider_email: { name: Email }
 
-      logo_image: { name: Logo image, help: "Logo image to show inside website." }
+      logo_image: { name: Logo image, help: "Logo / image to display in website interface." }
 
-      logo_html_color: { name: Logo color, help: "Optional logo main color, in HTML format (Hexadeciaml RGB), that can be used for customizing invoices, screens and reports according the logo color. Null for default color." }
+      logo_html_color: { name: Logo color, help: "Optional field. The primary color in HTML format (Hexadeciaml RGB), which can be used for customizing the look and feel of invoices, screens and reports. Note: Use Null for the default color." }
 
-      slogan:  { name: Slogan, help: Slogan message displayed under the logo image }
+      slogan:  { name: Slogan, help: "Slogan / message displayed under the logo." }
 
-      logo_image_in_invoices: { name: "Logo image inside invoices", help: "Logo image to show in invoices. Usually it has an higher resolution respect logo image inside website. The image is scaled to a fixed width inside invoice templates, mantainig its proportions. So for some logo you must use an image with empty space on the right. Alpha channel (transparency) is not supported. If you uploda images manually, they must be put inside web/images directory." }
+      logo_image_in_invoices: { name: "Logo image inside invoices", help: "Logo / image to show on invoices. Usually a higher resolution image is required compared to the stndard website logo. The image will be scaled to a fixed width in the invoice templates to mantain it's aspect ratio. Note: For some images you will have to use an image with an empty space on the right side. Alpha channel (transparency) is not supported. If you wish to upload an image manually, it must be placed inside the web/images directory on the server." }
 
       footer: { name:  Footer text }
  
-      user_message:         { name: User message, help: Wellcome message displayed to customers / users after login. }
+      user_message:         { name: User message, help: The welcome message displayed to customers / users after succesful login. }
 
       legal_name:           { name: Company name }
 
       vat:                  { name: VAT, help: VAT registration number }
 
-      vat_tax_perc_as_php_decimal: { name: Tax %, type: input_tag, help: "VAT Tax % to apply in invoices. Something like '19.5' without the '%' symbol and '.' as decimal separator." }
+      vat_tax_perc_as_php_decimal: { name: VAT %, type: input_tag, help: "The VAT % to apply on invoices. Example: '15.0' Note: The vlue should be entered without the '%' symbol and '.' should be used as a decimal separator." }
 
       legal_address:        { name: Address }
 
       legal_city:           { name: City }
 
-      legal_zipcode:        { name: ZIP }
+      legal_zipcode:        { name: ZIP / Area code }
 
-      legal_state_province: { name: Province / State, help: "This can be empty." }
+      legal_state_province: { name: Province / State, help: "This is not a required field and may be left empty." }
 
-      legal_country:        { name: Country, help: "This can be empty." }
+      legal_country:        { name: Country, help: "This is not a required field and may be left empty." }
 
-      legal_email:          { name: email, help: "If not empty, it will be displayed in address." }
+      legal_email:          { name: email, help: "The email address to be displayed in the address header." }
 
-      legal_website:        { name: Company web site }
+      legal_website:        { name: Company website URL }
 
-      legal_phone:          { name: Telephon 1, help: "If not empty, it will be displayed in address." }
+      legal_phone:          { name: Telephone 1, help: "The telephone number to be displayed in the address header." }
 
-      phone2:               { name: Telephon 2 }
+      phone2:               { name: Telephone 2 }
 
-      invoice_notes:        { name: Invoice footer notes, help: "Invoice footer notes. These notes are put before the customer specific notes configured in Entities->Party TAGS. It can contains placeholder like ${pay_due_date}, ${pay_within_days}, ${invoice_number}.", type: textarea_tag, params: size=60x5 }
+      invoice_notes:        { name: Invoice footer note, help: "Invoice footer note. These notes are placed before the customer specific notes as configured in Entities->Party TAGS. It may contain placeholders like ${pay_due_date}, ${pay_within_days}, ${invoice_number}.", type: textarea_tag, params: size=60x5 }
 
-      invoice_payment_terms: { name: Invoice payment terms, help: "Invoice payment terms, and other legal terms. Optionally messages can be customized using also Entities->Party TAGS.", type: textarea_tag, params: size=60x5 }
+      invoice_payment_terms: { name: Invoice payment terms, help: "Invoice payment and other legal terms. It may be customized using Entities->Party TAGS.", type: textarea_tag, params: size=60x5 }
 
-      invoice_payment_due_in_xx_days: { name: Invoice payment due days, help: "When the invoice template support this, specify the payment due days." }
+      invoice_payment_due_in_xx_days: { name: Invoice payment due days, help: "The payment due date to be used with supported invoice templates." }
 
-      legal_fax:            { name: Fax, help: "If not empty, it will be displayed in address." }
+      legal_fax:            { name: Fax, help: "The fax number to be displayed in the address header." }
 
       invoicing_email_address: { name: Email address }
 
-      sender_name_on_invoicing_emails: { name: Sender name, help: "The name used in emails. "}
+      sender_name_on_invoicing_emails: { name: Sender name, help: "The name of the sender to be used in email messages. "}
 
-      html_notes_on_the_login_form: { name: Notes on login form, help: "HTML content to display in the login form. ", type: textarea_tag, params: size=60x5 }
+      html_notes_on_the_login_form: { name: Notes to display on the login form, help: "HTML content to be displayed on the login form. ", type: textarea_tag, params: size=60x5 }
 
-      official_calldate: { name: "Official call date", help: "Calls after this date can be freely rerated in case rating params are changed, because they are not yet included in official billing reports to users. Calls before this date can be rerated only from explicit admin commands. This param is automatically updated, when there are billing reports that are confirmed from admin, and sent to users. You can update this call date also manually." }
+      official_calldate: { name: "Official call date", help: "Calls after this date can be freely re-rated before processing and closing the billing period since they are not included in the official billing report yet. Calls before this date can only be re-rated using explicit admin commands. Note: This parameter is automatically updated when billing reports are processed and confirmed. Only administrators can manually override this date." }
 
     list:
       title: Params
@@ -76,8 +76,8 @@ generator:
         _save: ~
 
       fields:
-        my_logo_image: { name: Logo image, help: "Logo image to show inside website, uploaded using the 'Upload Files' module." }
-        my_logo_image_in_invoices: { name: "Logo image inside invoices", help: "Logo image to show in invoices. Usually it has an higher resolution respect logo image inside website. The image is scaled to a fixed width inside invoice templates, mantainig its proportions. So for some logo you must use an image with empty space on the right. Alpha channel (transparency) is supported. If you upload images manually, they must be put inside web/images directory." }
+        my_logo_image: { name: Logo image, help: "Logo / image to display in website interface. Upload logos / images using the 'Upload Files' module." }
+        my_logo_image_in_invoices: { name: "Logo image inside invoices", help: "Logo image inside invoices", help: "Logo / image to show on invoices. Usually a higher resolution image is required compared to the stndard website logo. The image will be scaled to a fixed width in the invoice templates to mantain it's aspect ratio. Note: For some images you will have to use an image with an empty space on the right side. Alpha channel (transparency) is not supported. If you wish to upload an image manually, it must be placed inside the web/images directory on the server." }
 
       display:
         Params: [name, official_calldate]

@@ -1,12 +1,14 @@
-[Asterisell](https://www.asterisell.com) is an open-source web application for rating and showing VoIP calli.
+[Asterisell](https://www.asterisell.com) is an open-source web application for rating and showing VoIP calls.
 
-## Installation and management
+## Getting started
 
-For list of available commands: `fab help`
+Configurations are on ``asterisell_instances.py``.
 
-Instances configurations are in `fabric_data/asterisell_instances.py`.
+For installing a CentOS 7 Docker container, with all Asterisell compilation and development tools:
 
-Installation instructions on `doc/website/installation.rst` or online at https://www.asterisell.com
+  ./fab.sh
+
+For more info read the manual at ``doc/manual/out/manual.html`` or on <https://www.asterisell.com/doc/manual.html>
 
 ## License
 

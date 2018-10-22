@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+   <head><meta charset="UTF-8" />
+      <title>Reports</title><link href="res/webhelp.css" rel="stylesheet" type="text/css" /><meta content="Each run of a report scheduler, generate a report-set, that is a set of related reports. The administrator can administer Report Set, applying common operations on the whole set." name="description" />
+      <meta content="XMLmind DITA Converter 3.3.0" name="generator" />
+   <script charset="UTF-8" defer="defer" src="_wh/snowball_en.min.js" type="text/javascript"></script><link href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/themes/smoothness/jquery-ui.css" rel="stylesheet" type="text/css" /><link href="_wh/wh.css" rel="stylesheet" type="text/css" /><script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js" type="text/javascript">
+    </script><script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js" type="text/javascript">
+    </script><script charset="UTF-8" src="_wh/wh.min.js" type="text/javascript">
+    </script><script charset="UTF-8" defer="defer" src="_wh/search.js" type="text/javascript">
+    </script></head>
+   
+<body>
+    
+
+    <div id="wh-body">
+      <div id="wh-navigation">
+        <ul id="wh-tabs">
+          <li id="wh-toc-tab"><a href="#wh-toc-pane"><span>Contents</span></a></li>
+          
+          <li id="wh-search-tab"><a href="#wh-search-pane"><span>Search</span></a></li>
+        </ul>
+        <div id="wh-toc-pane">
+          <div id="wh-toc-form">
+            <span id="wh-toc-control"><a href="#">Collapse 
+            All</a><a href="#">Expand All</a></span>
+            <button id="wh-toc-previous">Previous</button>
+            <button id="wh-toc-next">Next</button>
+            <button id="wh-toc-print">Print</button>
+          </div>
+          <script charset="UTF-8" src="_wh/toc.js" type="text/javascript">
+          </script>
+        </div>
+        
+        <div id="wh-search-pane">
+          <div id="wh-search-form">
+            <input id="wh-search-field" type="text" /><button id="wh-search-button">Search</button><span id="wh-highlight-group"><input checked="checked" id="wh-highlight-toggle" type="checkbox" /><label for="wh-highlight-toggle" id="wh-highlight-icon"><span class="ui-icon ui-icon-flag"></span></label></span>
+          </div>
+          <div id="wh-search-results">
+          </div>
+        </div>
+      </div>
+      <div id="wh-separator">
+      </div>
+      <div id="wh-content">
+      
+      <header class="page-navigation-header">
+         <table class="page-navigation-layout" style="width: 100%;">
+            <tr>
+               <td style="text-align: left;vertical-align: top;"><a class="navigation-link" href="manual.html" title="First page: Asterisell Manual"><img alt="First page" class="navigation-icon" height="16" src="res/first.png" width="16" /></a></td>
+               <td style="text-align: left;vertical-align: top;"><a class="navigation-link" href="rate.html" title="Previous page: Rate"><img alt="Previous page" class="navigation-icon" height="16" src="res/previous.png" width="16" /></a></td>
+               <td style="width: 25%;text-align: left;vertical-align: top;"><span class="page-navigation-previous">Rate</span></td>
+               <td style="width: 40%;text-align: center;vertical-align: top;"><span class="page-navigation-current">Reports</span> <span class="page-navigation-page">(54 / 71)</span></td>
+               <td style="width: 25%;text-align: right;vertical-align: top;"><span class="page-navigation-next">Root organizations</span></td>
+               <td style="text-align: right;vertical-align: top;"><a class="navigation-link" href="root_organizations.html" title="Next page: Root organizations"><img alt="Next page" class="navigation-icon" height="16" src="res/next.png" width="16" /></a></td>
+               <td style="text-align: right;vertical-align: top;"><a class="navigation-link" href="about.html" title="Last page: About"><img alt="Last page" class="navigation-icon" height="16" src="res/last.png" width="16" /></a></td>
+            </tr>
+         </table>
+      </header>
+      <section class="topic" id="Reports-2">
+         <h2 class="section2-title">Reports</h2>
+         <p class="shortdesc">Each run of a report scheduler, generate a report-set, that is a set of related reports.
+            The administrator can administer Report Set, applying common operations on the whole
+            set.
+         </p>
+         <div class="body">
+            <div class="p">Reports usually must be reviewed and confirmed from administrator, before being visible
+               to end users. If the calls associated to the reports are changed, the administrator
+               is advised.
+            </div>
+            <div class="p">Every error in sending a report by email (when configured) is signaled from the application,
+               until the problem is fixed.
+            </div>
+            <section class="section" id="Reports-2__I_dq8uz3_">
+               <h3 class="section-title">Report definition</h3>
+               <ul class="ul">
+                  <li class="li">create a report template,</li>
+                  <li class="li">test it,</li>
+                  <li class="li">create a report scheduler, linked to the report template,</li>
+                  <li class="li">set the first date from which generate the new reports on the report template,</li>
+                  <li class="li">use the “Generate” button or report scheduler, for starting the report generation,</li>
+                  <li class="li">from this date, new reports will be automatically generated, without the need of any
+                     manual intervention
+                  </li>
+               </ul>
+            </section>
+            <section class="section" id="Reports-2__I_benhug_">
+               <h3 class="section-title">Permissions and notifications</h3>
+               <div class="p">The administrator can view all reports.</div>
+               <div class="p">Users can view only reports for which they have the right permissions.</div>
+               <div class="p">Users and administrators are notified in the call report (on-line), and by email,
+                  only for reports for which they are directly responsible.
+               </div>
+               <div class="p">Scheduled Reports can be generated in a “to review” mode. In this case the administrator
+                  is advised that there are reports to review. Then the administrator can check the
+                  reports, and if they are all ok, he can confirm the reports. Only in this case the
+                  reports are visible to users, and they can be sent to email.
+               </div>
+               <div class="p">Scheduled Reports can be generated directly as “reviewed”, and sent immediately.</div>
+               <div class="p">Reports permissions, and allowed users, are calculated only when the administrator
+                  run the “Confirm Reports” action. If an administrator change later the user permissions,
+                  old assigned reports remain visible to users. So the administrator must run again
+                  the “Confirm Reports” actions for updating the visible reports. Reports will be visible
+                  to new users, and not visible to users with different permissions.
+               </div>
+            </section>
+            <section class="section" id="Reports-2__I_etitu0_">
+               <h3 class="section-title">Organization hierarchy and report generation</h3>
+               <div class="p">Reports can be generated also for every parts of a complex organization hierarchy.</div>
+               <div class="p">This feature is overkill for the case of simple customers, and it has more sense in
+                  case of call reporting inside a big organizations.
+               </div>
+               <div class="p">If there is an organization hierarchy like A/B/C/D, and there is an User U, with role
+                  “responsible”, for organization B, then U can view all the calls of B, B/C, and B/C/D.
+               </div>
+               <div class="p">“U” receives only the reports associated exactly to B, and not reports associated
+                  to B/C, and B/C/D. This in order to reduce the number of reports sent to the the user
+                  U. In any case a report on B, can contain info on B/C and B/C/D.
+               </div>
+            </section>
+            <section class="section" id="Reports-2__I_h4s9er_">
+               <h3 class="section-title">Report time-frame</h3>
+               <div class="p">Reports can be generated on all the calls of a year/month/custom time-frame.</div>
+               <div class="p">The first date of generation of a report, influences all next run of a report.</div>
+               <div class="p">If you change the date of last report generation, then next reports will be scheduled
+                  according the new settings.
+               </div>
+               <div class="p">After configuring a report scheduler, you must always run the scheduler one time,
+                  in order to activate it, and test it.
+               </div>
+               <div class="p">After the first run of a report scheduler, next reports will be generated automatically.</div>
+            </section>
+            <section class="section" id="Reports-2__I_fhsbyj_">
+               <h3 class="section-title">Legal documents and consecutive numbers</h3>
+               <div class="p">Legal documents use consecutive numbers, according the last generated legal document.</div>
+               <div class="p">If there are not legal documents in the system, the first used number is 1, and not
+                  the number on the document template.
+               </div>
+               <div class="p">For specifying an initial legal number different from 1, or for starting the generation
+                  of documents with a new non consecutive legal number, you had to:
+               </div>
+               <ul class="ul">
+                  <li class="li">create a fake legal document of type “Placeholder for Invoice Numeration”</li>
+                  <li class="li">set the “Billing Document” flag</li>
+                  <li class="li">set the legal number with the previous number you want to use on new (real) generated
+                     legal documents
+                  </li>
+                  <li class="li">set the “legal date” equals to the date of new invoices to generate, so it will be
+                     used as last reference number
+                  </li>
+                  <li class="li">leave blank all other params (also the reference date), because they are not used
+                     (the document is a “fake”)
+                  </li>
+                  <li class="li">save</li>
+               </ul>
+            </section>
+         </div>
+      </section>
+      <footer class="page-navigation-footer">
+         <table class="page-navigation-layout" style="width: 100%;">
+            <tr>
+               <td style="text-align: left;vertical-align: top;"><a class="navigation-link" href="manual.html" title="First page: Asterisell Manual"><img alt="First page" class="navigation-icon" height="16" src="res/first.png" width="16" /></a></td>
+               <td style="text-align: left;vertical-align: top;"><a class="navigation-link" href="rate.html" title="Previous page: Rate"><img alt="Previous page" class="navigation-icon" height="16" src="res/previous.png" width="16" /></a></td>
+               <td style="width: 25%;text-align: left;vertical-align: top;"><span class="page-navigation-previous">Rate</span></td>
+               <td style="width: 40%;text-align: center;vertical-align: top;"><span class="page-navigation-current">Reports</span> <span class="page-navigation-page">(54 / 71)</span></td>
+               <td style="width: 25%;text-align: right;vertical-align: top;"><span class="page-navigation-next">Root organizations</span></td>
+               <td style="text-align: right;vertical-align: top;"><a class="navigation-link" href="root_organizations.html" title="Next page: Root organizations"><img alt="Next page" class="navigation-icon" height="16" src="res/next.png" width="16" /></a></td>
+               <td style="text-align: right;vertical-align: top;"><a class="navigation-link" href="about.html" title="Last page: About"><img alt="Last page" class="navigation-icon" height="16" src="res/last.png" width="16" /></a></td>
+            </tr>
+         </table>
+      </footer>
+   </div>
+    </div>
+
+    
+  </body></html>

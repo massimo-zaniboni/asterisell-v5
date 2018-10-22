@@ -25,7 +25,7 @@ abstract class BaseArHolidayPeer {
 	const TM_CLASS = 'ArHolidayTableMap';
 	
 	/** The total number of columns. */
-	const NUM_COLUMNS = 5;
+	const NUM_COLUMNS = 11;
 
 	/** The number of lazy-loaded columns. */
 	const NUM_LAZY_LOAD_COLUMNS = 0;
@@ -44,6 +44,24 @@ abstract class BaseArHolidayPeer {
 
 	/** the column name for the DAY_OF_WEEK field */
 	const DAY_OF_WEEK = 'ar_holiday.DAY_OF_WEEK';
+
+	/** the column name for the FROM_HOUR field */
+	const FROM_HOUR = 'ar_holiday.FROM_HOUR';
+
+	/** the column name for the FROM_MINUTES field */
+	const FROM_MINUTES = 'ar_holiday.FROM_MINUTES';
+
+	/** the column name for the TO_HOUR field */
+	const TO_HOUR = 'ar_holiday.TO_HOUR';
+
+	/** the column name for the TO_MINUTES field */
+	const TO_MINUTES = 'ar_holiday.TO_MINUTES';
+
+	/** the column name for the PEAK_CODE field */
+	const PEAK_CODE = 'ar_holiday.PEAK_CODE';
+
+	/** the column name for the NAME field */
+	const NAME = 'ar_holiday.NAME';
 
 	/**
 	 * An identiy map to hold any loaded instances of ArHoliday objects.
@@ -68,11 +86,11 @@ abstract class BaseArHolidayPeer {
 	 * e.g. self::$fieldNames[self::TYPE_PHPNAME][0] = 'Id'
 	 */
 	private static $fieldNames = array (
-		BasePeer::TYPE_PHPNAME => array ('Id', 'DayOfMonth', 'Month', 'Year', 'DayOfWeek', ),
-		BasePeer::TYPE_STUDLYPHPNAME => array ('id', 'dayOfMonth', 'month', 'year', 'dayOfWeek', ),
-		BasePeer::TYPE_COLNAME => array (self::ID, self::DAY_OF_MONTH, self::MONTH, self::YEAR, self::DAY_OF_WEEK, ),
-		BasePeer::TYPE_FIELDNAME => array ('id', 'day_of_month', 'month', 'year', 'day_of_week', ),
-		BasePeer::TYPE_NUM => array (0, 1, 2, 3, 4, )
+		BasePeer::TYPE_PHPNAME => array ('Id', 'DayOfMonth', 'Month', 'Year', 'DayOfWeek', 'FromHour', 'FromMinutes', 'ToHour', 'ToMinutes', 'PeakCode', 'Name', ),
+		BasePeer::TYPE_STUDLYPHPNAME => array ('id', 'dayOfMonth', 'month', 'year', 'dayOfWeek', 'fromHour', 'fromMinutes', 'toHour', 'toMinutes', 'peakCode', 'name', ),
+		BasePeer::TYPE_COLNAME => array (self::ID, self::DAY_OF_MONTH, self::MONTH, self::YEAR, self::DAY_OF_WEEK, self::FROM_HOUR, self::FROM_MINUTES, self::TO_HOUR, self::TO_MINUTES, self::PEAK_CODE, self::NAME, ),
+		BasePeer::TYPE_FIELDNAME => array ('id', 'day_of_month', 'month', 'year', 'day_of_week', 'from_hour', 'from_minutes', 'to_hour', 'to_minutes', 'peak_code', 'name', ),
+		BasePeer::TYPE_NUM => array (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, )
 	);
 
 	/**
@@ -82,11 +100,11 @@ abstract class BaseArHolidayPeer {
 	 * e.g. self::$fieldNames[BasePeer::TYPE_PHPNAME]['Id'] = 0
 	 */
 	private static $fieldKeys = array (
-		BasePeer::TYPE_PHPNAME => array ('Id' => 0, 'DayOfMonth' => 1, 'Month' => 2, 'Year' => 3, 'DayOfWeek' => 4, ),
-		BasePeer::TYPE_STUDLYPHPNAME => array ('id' => 0, 'dayOfMonth' => 1, 'month' => 2, 'year' => 3, 'dayOfWeek' => 4, ),
-		BasePeer::TYPE_COLNAME => array (self::ID => 0, self::DAY_OF_MONTH => 1, self::MONTH => 2, self::YEAR => 3, self::DAY_OF_WEEK => 4, ),
-		BasePeer::TYPE_FIELDNAME => array ('id' => 0, 'day_of_month' => 1, 'month' => 2, 'year' => 3, 'day_of_week' => 4, ),
-		BasePeer::TYPE_NUM => array (0, 1, 2, 3, 4, )
+		BasePeer::TYPE_PHPNAME => array ('Id' => 0, 'DayOfMonth' => 1, 'Month' => 2, 'Year' => 3, 'DayOfWeek' => 4, 'FromHour' => 5, 'FromMinutes' => 6, 'ToHour' => 7, 'ToMinutes' => 8, 'PeakCode' => 9, 'Name' => 10, ),
+		BasePeer::TYPE_STUDLYPHPNAME => array ('id' => 0, 'dayOfMonth' => 1, 'month' => 2, 'year' => 3, 'dayOfWeek' => 4, 'fromHour' => 5, 'fromMinutes' => 6, 'toHour' => 7, 'toMinutes' => 8, 'peakCode' => 9, 'name' => 10, ),
+		BasePeer::TYPE_COLNAME => array (self::ID => 0, self::DAY_OF_MONTH => 1, self::MONTH => 2, self::YEAR => 3, self::DAY_OF_WEEK => 4, self::FROM_HOUR => 5, self::FROM_MINUTES => 6, self::TO_HOUR => 7, self::TO_MINUTES => 8, self::PEAK_CODE => 9, self::NAME => 10, ),
+		BasePeer::TYPE_FIELDNAME => array ('id' => 0, 'day_of_month' => 1, 'month' => 2, 'year' => 3, 'day_of_week' => 4, 'from_hour' => 5, 'from_minutes' => 6, 'to_hour' => 7, 'to_minutes' => 8, 'peak_code' => 9, 'name' => 10, ),
+		BasePeer::TYPE_NUM => array (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, )
 	);
 
 	/**
@@ -161,6 +179,12 @@ abstract class BaseArHolidayPeer {
 		$criteria->addSelectColumn(ArHolidayPeer::MONTH);
 		$criteria->addSelectColumn(ArHolidayPeer::YEAR);
 		$criteria->addSelectColumn(ArHolidayPeer::DAY_OF_WEEK);
+		$criteria->addSelectColumn(ArHolidayPeer::FROM_HOUR);
+		$criteria->addSelectColumn(ArHolidayPeer::FROM_MINUTES);
+		$criteria->addSelectColumn(ArHolidayPeer::TO_HOUR);
+		$criteria->addSelectColumn(ArHolidayPeer::TO_MINUTES);
+		$criteria->addSelectColumn(ArHolidayPeer::PEAK_CODE);
+		$criteria->addSelectColumn(ArHolidayPeer::NAME);
 	}
 
 	/**
@@ -706,7 +730,7 @@ abstract class BaseArHolidayPeer {
 	 */
 	static public function getUniqueColumnNames()
 	{
-	  return array(array('day_of_month', 'month', 'year', 'day_of_week'));
+	  return array();
 	}
 
 } // BaseArHolidayPeer

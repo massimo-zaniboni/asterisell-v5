@@ -25,7 +25,7 @@ abstract class BaseArOrganizationUnitPeer {
 	const TM_CLASS = 'ArOrganizationUnitTableMap';
 	
 	/** The total number of columns. */
-	const NUM_COLUMNS = 5;
+	const NUM_COLUMNS = 9;
 
 	/** The number of lazy-loaded columns. */
 	const NUM_LAZY_LOAD_COLUMNS = 0;
@@ -38,6 +38,18 @@ abstract class BaseArOrganizationUnitPeer {
 
 	/** the column name for the INTERNAL_NAME2 field */
 	const INTERNAL_NAME2 = 'ar_organization_unit.INTERNAL_NAME2';
+
+	/** the column name for the INTERNAL_CHECKSUM1 field */
+	const INTERNAL_CHECKSUM1 = 'ar_organization_unit.INTERNAL_CHECKSUM1';
+
+	/** the column name for the INTERNAL_CHECKSUM2 field */
+	const INTERNAL_CHECKSUM2 = 'ar_organization_unit.INTERNAL_CHECKSUM2';
+
+	/** the column name for the INTERNAL_CHECKSUM3 field */
+	const INTERNAL_CHECKSUM3 = 'ar_organization_unit.INTERNAL_CHECKSUM3';
+
+	/** the column name for the INTERNAL_CHECKSUM4 field */
+	const INTERNAL_CHECKSUM4 = 'ar_organization_unit.INTERNAL_CHECKSUM4';
 
 	/** the column name for the EXPORT_CODE field */
 	const EXPORT_CODE = 'ar_organization_unit.EXPORT_CODE';
@@ -68,11 +80,11 @@ abstract class BaseArOrganizationUnitPeer {
 	 * e.g. self::$fieldNames[self::TYPE_PHPNAME][0] = 'Id'
 	 */
 	private static $fieldNames = array (
-		BasePeer::TYPE_PHPNAME => array ('Id', 'InternalName', 'InternalName2', 'ExportCode', 'AutomaticallyManagedFrom', ),
-		BasePeer::TYPE_STUDLYPHPNAME => array ('id', 'internalName', 'internalName2', 'exportCode', 'automaticallyManagedFrom', ),
-		BasePeer::TYPE_COLNAME => array (self::ID, self::INTERNAL_NAME, self::INTERNAL_NAME2, self::EXPORT_CODE, self::AUTOMATICALLY_MANAGED_FROM, ),
-		BasePeer::TYPE_FIELDNAME => array ('id', 'internal_name', 'internal_name2', 'export_code', 'automatically_managed_from', ),
-		BasePeer::TYPE_NUM => array (0, 1, 2, 3, 4, )
+		BasePeer::TYPE_PHPNAME => array ('Id', 'InternalName', 'InternalName2', 'InternalChecksum1', 'InternalChecksum2', 'InternalChecksum3', 'InternalChecksum4', 'ExportCode', 'AutomaticallyManagedFrom', ),
+		BasePeer::TYPE_STUDLYPHPNAME => array ('id', 'internalName', 'internalName2', 'internalChecksum1', 'internalChecksum2', 'internalChecksum3', 'internalChecksum4', 'exportCode', 'automaticallyManagedFrom', ),
+		BasePeer::TYPE_COLNAME => array (self::ID, self::INTERNAL_NAME, self::INTERNAL_NAME2, self::INTERNAL_CHECKSUM1, self::INTERNAL_CHECKSUM2, self::INTERNAL_CHECKSUM3, self::INTERNAL_CHECKSUM4, self::EXPORT_CODE, self::AUTOMATICALLY_MANAGED_FROM, ),
+		BasePeer::TYPE_FIELDNAME => array ('id', 'internal_name', 'internal_name2', 'internal_checksum1', 'internal_checksum2', 'internal_checksum3', 'internal_checksum4', 'export_code', 'automatically_managed_from', ),
+		BasePeer::TYPE_NUM => array (0, 1, 2, 3, 4, 5, 6, 7, 8, )
 	);
 
 	/**
@@ -82,11 +94,11 @@ abstract class BaseArOrganizationUnitPeer {
 	 * e.g. self::$fieldNames[BasePeer::TYPE_PHPNAME]['Id'] = 0
 	 */
 	private static $fieldKeys = array (
-		BasePeer::TYPE_PHPNAME => array ('Id' => 0, 'InternalName' => 1, 'InternalName2' => 2, 'ExportCode' => 3, 'AutomaticallyManagedFrom' => 4, ),
-		BasePeer::TYPE_STUDLYPHPNAME => array ('id' => 0, 'internalName' => 1, 'internalName2' => 2, 'exportCode' => 3, 'automaticallyManagedFrom' => 4, ),
-		BasePeer::TYPE_COLNAME => array (self::ID => 0, self::INTERNAL_NAME => 1, self::INTERNAL_NAME2 => 2, self::EXPORT_CODE => 3, self::AUTOMATICALLY_MANAGED_FROM => 4, ),
-		BasePeer::TYPE_FIELDNAME => array ('id' => 0, 'internal_name' => 1, 'internal_name2' => 2, 'export_code' => 3, 'automatically_managed_from' => 4, ),
-		BasePeer::TYPE_NUM => array (0, 1, 2, 3, 4, )
+		BasePeer::TYPE_PHPNAME => array ('Id' => 0, 'InternalName' => 1, 'InternalName2' => 2, 'InternalChecksum1' => 3, 'InternalChecksum2' => 4, 'InternalChecksum3' => 5, 'InternalChecksum4' => 6, 'ExportCode' => 7, 'AutomaticallyManagedFrom' => 8, ),
+		BasePeer::TYPE_STUDLYPHPNAME => array ('id' => 0, 'internalName' => 1, 'internalName2' => 2, 'internalChecksum1' => 3, 'internalChecksum2' => 4, 'internalChecksum3' => 5, 'internalChecksum4' => 6, 'exportCode' => 7, 'automaticallyManagedFrom' => 8, ),
+		BasePeer::TYPE_COLNAME => array (self::ID => 0, self::INTERNAL_NAME => 1, self::INTERNAL_NAME2 => 2, self::INTERNAL_CHECKSUM1 => 3, self::INTERNAL_CHECKSUM2 => 4, self::INTERNAL_CHECKSUM3 => 5, self::INTERNAL_CHECKSUM4 => 6, self::EXPORT_CODE => 7, self::AUTOMATICALLY_MANAGED_FROM => 8, ),
+		BasePeer::TYPE_FIELDNAME => array ('id' => 0, 'internal_name' => 1, 'internal_name2' => 2, 'internal_checksum1' => 3, 'internal_checksum2' => 4, 'internal_checksum3' => 5, 'internal_checksum4' => 6, 'export_code' => 7, 'automatically_managed_from' => 8, ),
+		BasePeer::TYPE_NUM => array (0, 1, 2, 3, 4, 5, 6, 7, 8, )
 	);
 
 	/**
@@ -159,6 +171,10 @@ abstract class BaseArOrganizationUnitPeer {
 		$criteria->addSelectColumn(ArOrganizationUnitPeer::ID);
 		$criteria->addSelectColumn(ArOrganizationUnitPeer::INTERNAL_NAME);
 		$criteria->addSelectColumn(ArOrganizationUnitPeer::INTERNAL_NAME2);
+		$criteria->addSelectColumn(ArOrganizationUnitPeer::INTERNAL_CHECKSUM1);
+		$criteria->addSelectColumn(ArOrganizationUnitPeer::INTERNAL_CHECKSUM2);
+		$criteria->addSelectColumn(ArOrganizationUnitPeer::INTERNAL_CHECKSUM3);
+		$criteria->addSelectColumn(ArOrganizationUnitPeer::INTERNAL_CHECKSUM4);
 		$criteria->addSelectColumn(ArOrganizationUnitPeer::EXPORT_CODE);
 		$criteria->addSelectColumn(ArOrganizationUnitPeer::AUTOMATICALLY_MANAGED_FROM);
 	}

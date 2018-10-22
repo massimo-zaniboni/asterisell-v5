@@ -1,24 +1,5 @@
 <?php
-/* $LICENSE 2014:
- *
- * Copyright (C) 2014 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
- *
- * This file is part of Asterisell.
- *
- * Asterisell is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 3 of the License, or
- * (at your option) any later version.
- *
- * Asterisell is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with Asterisell. If not, see <http://www.gnu.org/licenses/>.
- * $
- */
+// SPDX-License-Identifier: GPL-3.0-or-later
 
 sfLoader::loadHelpers(array('I18N', 'Debug', 'Date', 'Asterisell'));
 
@@ -30,6 +11,42 @@ class ChangePassword extends FixedJobProcessor
 
     public function process()
     {
+
+        // ----------------------------------------------------------
+        // Change user passwords using clear_password_to_import field
+
+        $c = new Criteria();
+        $c->add(ArUserPeer::CLEAR_PASSWORD_TO_IMPORT, null, Criteria::ISNOTNULL);
+
+        $users = ArUserPeer::doSelect($c);
+        foreach ($users as $user) {
+            /**
+             * @var ArUser $user
+             */
+            try {
+                if ($user->getIsRootAdmin()) {
+                    throw($this->signalSecurityCompromise());
+                }
+
+                $newPassword = $user->getClearPasswordToImport();
+                if (!isEmptyOrNull($newPassword)) {
+                  // NOTE: the password will be substitute with the hash
+                  $user->setClearPassword($newPassword);
+                }
+
+            } catch (ArProblemException $e) {
+            } catch (Exception $e) {
+                $this->signalSecurityCompromise();
+            }
+
+            // in any case process the request
+            $user->setClearPasswordToImport(null);
+            $user->save();
+        }
+
+        // -----------------------------------------------------------------
+        // Change user passwords using ar_user_change_password_request table
+
         $userWithChangedPassword = '';
 
         $c = new Criteria();
@@ -62,9 +79,8 @@ class ChangePassword extends FixedJobProcessor
                 $user->save();
 
             } catch (ArProblemException $e) {
-                throw($e);
             } catch (Exception $e) {
-                throw($this->signalSecurityCompromise());
+                $this->signalSecurityCompromise();
             }
 
             // in any case process the request
@@ -101,7 +117,7 @@ class ChangePassword extends FixedJobProcessor
     protected function signalSecurityCompromise()
     {
         $problemDuplicationKey = "User password compromise attempt";
-        $problemDescription = "In the table \"ar_user_change_password_request\", there is a bad request of password change. ";
+        $problemDescription = "In the table \"ar_user_change_password_request\", and/or \"ar_user.clear_password_to_import\" field there is a bad request of password change. ";
         $problemEffect = "This change of password was blocked, but there is still an unknown security problem in application code, or in the configuration of the instance. ";
         $problemProposedSolution = "Use new passwords for database access, review the security of your server, and contact the application assistance.";
         return ArProblemException::createWithoutGarbageCollection(
@@ -114,5 +130,4 @@ class ChangePassword extends FixedJobProcessor
             $problemProposedSolution
         );
     }
-
 }

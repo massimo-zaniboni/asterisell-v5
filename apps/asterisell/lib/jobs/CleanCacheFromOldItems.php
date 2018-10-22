@@ -1,73 +1,51 @@
- <?php
+<?php
 
-/* $LICENSE 2009, 2010:
- *
- * Copyright (C) 2009, 2010 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
- *
- * This file is part of Asterisell.
- *
- * Asterisell is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 3 of the License, or
- * (at your option) any later version.
- *
- * Asterisell is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with Asterisell. If not, see <http://www.gnu.org/licenses/>.
- * $
- */
+// SPDX-License-Identifier: GPL-3.0-or-later
 
 sfLoader::loadHelpers(array('I18N', 'Debug', 'Date', 'Asterisell'));
 
 /**
  * Remove old items from the various caches of the system.
  */
-class CleanCacheFromOldItems extends FixedJobProcessor {
+class CleanCacheFromOldItems extends FixedJobProcessor
+{
 
-  public function process() {
-    // Profiling
-    //
-    $time1 = microtime_float();
+    const EXECUTION_INTERVAL_IN_MINUTES = 60;
 
-    // Remove old job log items.
-    //
-    $oldMonths =   sfConfig::get('app_months_after_removing_a_job_log_entry');
-    $oldDate = fromUnixTimestampToMySQLTimestamp(strtotime("-$oldMonths month"));
+    public function process()
+    {
 
-    $connection = Propel::getConnection();
-    $stmt = $connection->prepare('DELETE FROM ar_job_queue WHERE created_at < "' . $oldDate . '"');
-    $stmt->execute();
+        $timeFrameInMinutes = self::EXECUTION_INTERVAL_IN_MINUTES;
+        $checkFile = get_class($this);
+        $checkLimit = strtotime("-$timeFrameInMinutes minutes");
+        $mutex = new Mutex($checkFile);
 
-    // Remove old files inside "web/generated_graphs" directory.
-    //
-    $oldTime = strtotime('-1 day'); 
-    $dir = realpath(dirname(__FILE__).'/../../../../web/generated_graphs');
-    if ($handle = opendir($dir)) {
-      while (false !== ($file = readdir($handle))) {
-	$completeFile = "$dir/$file";
-	if ($file[0] === '.' || is_dir($completeFile)) {
-	  continue;
-	}
-	try {
-	  if (filemtime($completeFile) < $oldTime) {
-	    unlink($completeFile);
-	  }
-	} catch(Exception $e) {
-	  // XXX add an error that says it was unable to process a certain file...
-	}
-      }
-      closedir($handle);
+        if ($mutex->maybeTouch($checkLimit)) {
+
+            // Remove old job log items.
+            // NOTE: surprisingly these logs use a lot of space (~300MB for 6 months of usage),
+            // because they are a lot,
+            // and also because I store some meta-info inside them.
+            // So I take care to delete some info here.
+
+            $oldMonths = sfConfig::get('app_months_after_removing_a_job_log_entry');
+            $oldDate = strtotime("-$oldMonths month");
+
+            // Delete old jobs
+            $connection = Propel::getConnection();
+            $stmt = $connection->prepare('DELETE FROM ar_job_queue WHERE created_at < ?');
+            $stmt->execute(array(fromUnixTimestampToMySQLTimestamp($oldDate)));
+
+            // Delete meta-info, in recently executed jobs
+            $connection = Propel::getConnection();
+            $stmt = $connection->prepare('
+                UPDATE ar_job_queue
+                SET php_data_job_serialization = NULL
+                WHERE created_at > ?
+                AND   state = 2');
+
+            $stmt->execute(array(fromUnixTimestampToMySQLTimestamp($oldDate)));
+        }
+        return '';
     }
-
-    // Profiling
-    //
-    $time2 = microtime_float();
-    $totTime = $time2 - $time1;
-    return "Clear Cache from old items executed in $totTime seconds.";
-  }
-
 }

@@ -57,6 +57,7 @@ abstract class BaseArJobQueue extends BaseObject  implements Persistent {
 
 	/**
 	 * The value for the description field.
+	 * Note: this column has a database default value of: ''
 	 * @var        string
 	 */
 	protected $description;
@@ -100,6 +101,7 @@ abstract class BaseArJobQueue extends BaseObject  implements Persistent {
 	public function applyDefaultValues()
 	{
 		$this->state = 0;
+		$this->description = '';
 	}
 
 	/**
@@ -505,7 +507,7 @@ abstract class BaseArJobQueue extends BaseObject  implements Persistent {
 			$v = (string) $v;
 		}
 
-		if ($this->description !== $v) {
+		if ($this->description !== $v || $this->isNew()) {
 			$this->description = $v;
 			$this->modifiedColumns[] = ArJobQueuePeer::DESCRIPTION;
 		}
@@ -564,6 +566,10 @@ abstract class BaseArJobQueue extends BaseObject  implements Persistent {
 	public function hasOnlyDefaultValues()
 	{
 			if ($this->state !== 0) {
+				return false;
+			}
+
+			if ($this->description !== '') {
 				return false;
 			}
 

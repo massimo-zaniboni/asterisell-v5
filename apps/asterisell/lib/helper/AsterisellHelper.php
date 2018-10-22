@@ -1,25 +1,6 @@
 <?php
 
-/* $LICENSE 2009, 2010, 2011, 2012:
- *
- * Copyright (C) 2009, 2010, 2011, 2012 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
- *
- * This file is part of Asterisell.
- *
- * Asterisell is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 3 of the License, or
- * (at your option) any later version.
- *
- * Asterisell is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with Asterisell. If not, see <http://www.gnu.org/licenses/>.
- * $
- */
+// SPDX-License-Identifier: GPL-3.0-or-later
 
 sfLoader::loadHelpers(array('Number', 'Date', 'Url'));
 
@@ -44,11 +25,12 @@ function isEmptyOrNull($str)
  * @param string|null $str
  * @return int
  */
-function countLines($str) {
+function countLines($str)
+{
     if (isEmptyOrNull($str)) {
         return 0;
     } else {
-      return substr_count($str, '/\n/');
+        return substr_count($str, '/\n/');
     }
 }
 
@@ -96,7 +78,8 @@ function getAsterisellRootDirectory()
  * @return bool true if this instance is an admin instance,
  * false if this is a customer instance.
  */
-function isAdminInstance() {
+function isAdminInstance()
+{
     return (trim(basename(getAsterisellCompleteRootDirectory())) == 'admin');
 }
 
@@ -123,14 +106,16 @@ function getAsterisellCompleteRootDirectory()
 /**
  * @return string the directory where is installed the admin version of the application.
  */
-function getAsterisellCompleteAdminDirectory() {
+function getAsterisellCompleteAdminDirectory()
+{
     return dirname(getAsterisellCompleteRootDirectory()) . '/admin';
 }
 
 /**
  * @return string the directory where is installed the admin version of the application.
  */
-function getAsterisellCompleteUserDirectory() {
+function getAsterisellCompleteUserDirectory()
+{
     return dirname(getAsterisellCompleteRootDirectory()) . '/user';
 }
 
@@ -138,7 +123,8 @@ function getAsterisellCompleteUserDirectory() {
  * @param bool $isAdmin
  * @return string the directory where is installed the admin version of the application.
  */
-function getAsterisellCompleteAdminOrUserDirectory($isAdmin) {
+function getAsterisellCompleteAdminOrUserDirectory($isAdmin)
+{
     if ($isAdmin) {
         return getAsterisellCompleteAdminDirectory();
     } else {
@@ -146,19 +132,23 @@ function getAsterisellCompleteAdminOrUserDirectory($isAdmin) {
     }
 }
 
-function getPageURL() {
+function getPageURL()
+{
     $pageURL = 'http';
-    if ($_SERVER["HTTPS"] == "on") {$pageURL .= "s";}
+    if ($_SERVER["HTTPS"] == "on") {
+        $pageURL .= "s";
+    }
     $pageURL .= "://";
     if ($_SERVER["SERVER_PORT"] != "80") {
-        $pageURL .= $_SERVER["SERVER_NAME"].":".$_SERVER["SERVER_PORT"].$_SERVER["REQUEST_URI"];
+        $pageURL .= $_SERVER["SERVER_NAME"] . ":" . $_SERVER["SERVER_PORT"] . $_SERVER["REQUEST_URI"];
     } else {
-        $pageURL .= $_SERVER["SERVER_NAME"].$_SERVER["REQUEST_URI"];
+        $pageURL .= $_SERVER["SERVER_NAME"] . $_SERVER["REQUEST_URI"];
     }
     return $pageURL;
 }
 
-function getAsterisellCompleteDataFileParamsDirectory() {
+function getAsterisellCompleteDataFileParamsDirectory()
+{
     return normalizeFileNamePath(getAsterisellCompleteRootDirectory() . DIRECTORY_SEPARATOR . 'data_files' . DIRECTORY_SEPARATOR . 'params');
 }
 
@@ -174,7 +164,8 @@ function getAsterisellCompleteLocalArchiveOfCSVFilesDirectory()
  * @return string this instance code. It should be unique on a system with multiple installed instances.
  * @throws ArProblemException
  */
-function getInstanceCodeName() {
+function getInstanceCodeName()
+{
     return getInstanceConfigValue('instance_code_name');
 }
 
@@ -246,19 +237,31 @@ function fromSymfonyTimestampToUnixTimestamp($dateStr)
 {
 
     $context = sfContext::getInstance();
-
     $culture = $context->getUser()->getCulture();
-
     return $context->getI18N()->getTimestampForCulture($dateStr, $culture);
 }
 
 /**
- * @param int $d a date in unix timestamp numeric format
+ * @param int|null $d a date in unix timestamp numeric format
  * @return string a date formatted according current Symfony locale/culture setting
  */
 function fromUnixTimestampToSymfonyStrDate($d)
 {
-    return format_date($d, 's');
+    if (is_null($d)) {
+        return null;
+    } else {
+      return format_date($d, 's');
+    }
+}
+
+
+/**
+ * @param string time in MySQL format "hh:mm:ss"
+ * @return string a date formatted according current Symfony locale/culture setting
+ */
+function fromMySQLTimeToSymfonyStrTime($d)
+{
+      return $d;
 }
 
 /**
@@ -278,20 +281,24 @@ function fromUnixTimestampToSymfonyStrTimestamp($d)
  * Note: there is difference between a MySQL timestamp (date + time),
  * and a date.
  *
- * @param  int $d a unix timestamp
+ * @param  int|null $d a unix timestamp
  * @return string in Y-m-d format recognized from MySQL.
  *
  */
 function fromUnixTimestampToMySQLDate($d)
 {
-    return date('Y-m-d', $d);
+    if (is_null($d)) {
+        return null;
+    } else {
+      return date('Y-m-d', $d);
+    }
 }
 
 /**
  * Note: there is difference between a MySQL timestamp (date + time),
  * and a date.
  *
- * @param  int $d in unix timestamp
+ * @param  int|null $d in unix timestamp
  * @return string|null a timestamp in a format recognized from MySQL.
  *
  */
@@ -339,6 +346,169 @@ function fromMySQLBooleanToPhpBoolean($b)
 }
 
 /**
+ * @param int|null $d
+ * @param bool $inclusive true for the maximum range, false for a conservative range
+ * @return int the timestamp at beginning of the day
+ */
+function fromUnixTimestampToWholeDayStart($d, $inclusive = true)
+{
+    if (is_null($d)) {
+        return null;
+    }
+
+    $r = strtotime(fromUnixTimestampToMySQLDate($d));
+    if (!$inclusive && $d != $r) {
+        $r = strtotime('+1 day', $r);
+    }
+    return $r;
+}
+
+/**
+ * @param int|null $d
+ * @param bool $inclusive true for maximum range, false for a conservative range
+ * @return int|null the timestamp at the end of the day
+ */
+function fromUnixTimestampToWholeDayEnd($d, $inclusive = true)
+{
+    if (is_null($d)) {
+        return null;
+    }
+
+    $r = strtotime(fromUnixTimestampToMySQLDate($d));
+    if ($inclusive && $d != $r) {
+        $r = strtotime('+1 day', $r);
+    }
+    return $r;
+}
+
+/**
+ * @param int $fromDate
+ * @param int|null $toDate
+ * @param int $interval :
+ *        - 0 the entire non whole interval on ar_cdr,
+ *        - 1 the starting non-whole part on ar_cdr,
+ *        - 2 the entire whole part on ar_cached_grouped_cdr,
+ *        - 3 the ending non whole-part on ar_cdr
+ *        - 4 the entire inclusive whole-part on ar_cached_grouped_cdr
+ * @return array|null list(int $startDate, int|null $endDate) null if the interval does not exists
+ */
+function fromTimeFrameToWholeDay($fromDate, $toDate, $interval)
+{
+    if ($interval == 0) {
+        return array($fromDate, $toDate);
+    }
+
+    if ($interval == 4) {
+        return array(fromUnixTimestampToWholeDayStart($fromDate, true), fromUnixTimestampToWholeDayEnd($toDate, true));
+    }
+
+    $fromWhole = fromUnixTimestampToWholeDayStart($fromDate, false);
+    $toWhole = fromUnixTimestampToWholeDayEnd($toDate, false);
+
+    // the interval time-frames are:
+    // $fromDate |--------| $fromWhole |------| $toWhole |------| $toDate
+    //               1                     2                3
+
+    $isThere1 = true;
+    $isThere2 = true;
+    $isThere3 = true;
+
+    if (is_null($toDate)) {
+        // open end-interval
+
+        $isThere3 = false;
+        if ($fromDate == $fromWhole) {
+            $isThere1 = false;
+        }
+    } else {
+        // specified end-interval
+
+        if ($fromWhole >= $toWhole) {
+            $isThere2 = false;
+        }
+
+        if ($fromDate == $fromWhole && $isThere2) {
+            $isThere1 = false;
+        }
+
+        if ($toDate == $toWhole && $isThere2) {
+            $isThere3 = false;
+        }
+
+        if (!$isThere2) {
+            $isThere3 = false;
+        }
+    }
+
+    if ($interval == 1 && $isThere1) {
+        if ($isThere2) {
+            return array($fromDate, $fromWhole);
+        } else {
+            return array($fromDate, $toDate);
+        }
+    }
+
+    if ($interval == 2 && $isThere2) {
+        return array($fromWhole, $toWhole);
+    }
+
+    if ($interval == 3 && $isThere3) {
+        if ($isThere2) {
+            return array($toWhole, $toDate);
+        } else {
+            return array($fromDate, $toDate);
+        }
+    }
+
+    return null;
+}
+
+/**
+ * Add time-frame filter conditions.
+ *
+ * @param array $c SQL conditions
+ * @param array $params SQL params
+ * @param int $fromDate
+ * @param int|null $toDate
+ * @param int $interval :
+ *        - 0 the entire non whole interval on ar_cdr,
+ *        - 1 the starting non-whole part on ar_cdr,
+ *        - 2 the entire whole part on ar_cached_grouped_cdr,
+ *        - 3 the ending non whole-part on ar_cdr
+ *        - 4 an inclusive whole-part an ar_cached_grouped_cdr
+ * @return bool false if the interval can be ignored because empty
+ */
+function addTimeFrameFilters(& $c, & $params, $fromDate, $toDate, $interval)
+{
+
+    $maybeTimeFrame = fromTimeFrameToWholeDay($fromDate, $toDate, $interval);
+
+    if (is_null($maybeTimeFrame)) {
+        return false;
+    }
+
+    list($fromDate1, $toDate1) = $maybeTimeFrame;
+
+    if ($interval == 2 || $interval == 4) {
+        $filterFromDate = fromUnixTimestampToMySQLDate($fromDate1);
+        $filterToDate = fromUnixTimestampToMySQLDate($toDate1);
+    } else {
+        $filterFromDate = fromUnixTimestampToMySQLTimestamp($fromDate1);
+        $filterToDate = fromUnixTimestampToMySQLTimestamp($toDate1);
+    }
+
+    $c[] = "calldate >= ?";
+    $params[] = $filterFromDate;
+
+    if (!is_null($filterToDate)) {
+        $c[] = "calldate < ?";
+        $params[] = $filterToDate;
+    }
+
+    return true;
+}
+
+/**
  * @param int $fromDate unixtimestamp
  * @param int|null $toDate unixtimestamp
  * @param bool $completeToDate true for using now as $toDate if it is null
@@ -371,30 +541,30 @@ function getUserReadableTimeFrame($fromDate, $toDate, $completeToDate = true, $f
 
     if ($isFromACompactDate && $isToACompactDate) {
         $r = mytr('from', $forCustomer)
-                . ' '
-                . format_invoice_timestamp_according_config($fromDate);
+            . ' '
+            . format_invoice_timestamp_according_config($fromDate);
 
         if (!is_null($toDate)) {
 
             $r .= ' '
-                    . mytr('to', $forCustomer)
-                    . ' '
-                    . format_invoice_timestamp_according_config(strtotime('-1 day', $toDate))
-                    . ' '
-                    . mytr('(inclusive)', $forCustomer);
+                . mytr('to', $forCustomer)
+                . ' '
+                . format_invoice_timestamp_according_config(strtotime('-1 day', $toDate))
+                . ' '
+                . mytr('(inclusive)', $forCustomer);
         }
     } else {
         $r = mytr('from', $forCustomer)
-                . ' '
-                . format_unixtimestamp_according_config($fromDate);
+            . ' '
+            . format_unixtimestamp_according_config($fromDate);
 
         if (!is_null($toDate)) {
             $r .= ' '
-                    . mytr('to', $forCustomer)
-                    . ' '
-                    . format_unixtimestamp_according_config($toDate)
-                    . ' '
-                    . mytr('(exclusive)', $forCustomer);
+                . mytr('to', $forCustomer)
+                . ' '
+                . format_unixtimestamp_according_config($toDate)
+                . ' '
+                . mytr('(exclusive)', $forCustomer);
         }
     }
 
@@ -483,7 +653,7 @@ function format_zip_city_address($zipCode, $city, $stateProvince, $country)
         return $zipCode . " " . $city . maybeAddIfExistsCentral(" (", $stateProvince, ")") . maybeAddIfExistsCentral(" - ", $country, "");
     } else if ($culture === "de_AT") {
         return $zipCode . " " . $city . maybeAddIfExistsCentral(" (", $stateProvince, ")") . maybeAddIfExistsCentral(" - ", $country, "");
-     } else {
+    } else {
         return $city . "\n" . maybeAddIfExistsCentral("", $stateProvince, "\n") . $zipCode . maybeAddIfExistsCentral("\n", $country, "");
     }
 }
@@ -735,36 +905,37 @@ function safe_fputcsv($filePointer, $dataArray, $delimiter = ',', $enclosure = '
 function encode_csv_value($dataElement, $delimeter = ',', $enclosure = '"')
 {
 
+    $useEnclosure = false;
+    if (is_null($dataElement)) {
+        // MySQL symbol for NULL
+        $dataElement = '\\N';
         $useEnclosure = false;
-        if (is_null($dataElement)) {
-            // MySQL symbol for NULL
-            $dataElement = '\\N';
-            $useEnclosure = false;
-        } else {
-            if (strpos($dataElement, $delimeter) !== FALSE || strpos($dataElement, "\n") !== FALSE) {
-                $useEnclosure = true;
-            }
-
-            if (strpos($dataElement, $enclosure) !== FALSE) {
-                $useEnclosure = true;
-
-                // Replaces a double quote with two double quotes
-                $dataElement = str_replace($enclosure, $enclosure . $enclosure, $dataElement);
-            }
+    } else {
+        if (strpos($dataElement, $delimeter) !== FALSE || strpos($dataElement, "\n") !== FALSE) {
+            $useEnclosure = true;
         }
 
-        if ($useEnclosure) {
-            return  $enclosure . $dataElement . $enclosure;
-        } else {
-            return $dataElement;
+        if (strpos($dataElement, $enclosure) !== FALSE) {
+            $useEnclosure = true;
+
+            // Replaces a double quote with two double quotes
+            $dataElement = str_replace($enclosure, $enclosure . $enclosure, $dataElement);
         }
+    }
+
+    if ($useEnclosure) {
+        return $enclosure . $dataElement . $enclosure;
+    } else {
+        return $dataElement;
+    }
 }
 
 /**
  * @param $valueS a decimal value, using the locale decimal separator
  * @return string a number with "." as decimal separator
  */
-function from_local_decimal_to_php_decimal($valueS) {
+function from_local_decimal_to_php_decimal($valueS)
+{
     static $decimalSeparator = null;
 
     if (is_null($decimalSeparator)) {
@@ -777,7 +948,7 @@ function from_local_decimal_to_php_decimal($valueS) {
         $decimalSeparator = '.';
         while ($i >= 0) {
             $d = substr($n2, $i, 1);
-            if (! is_numeric($d)) {
+            if (!is_numeric($d)) {
                 $decimalSeparator = $d;
             }
             $i--;
@@ -899,8 +1070,7 @@ function from_db_decimal_to_smart_php_decimal($value)
 function from_php_decimal_to_invoice_decimal($value)
 {
     $l = sfConfig::get('app_currency_decimal_places_in_invoices');
-    $decimalValue = round($value, $l);
-    return sprintf("%." . $l . "F", $decimalValue);
+    return from_php_decimal_to_rounded_php_decimal($value, $l);
 }
 
 /**
@@ -911,8 +1081,51 @@ function from_php_decimal_to_invoice_decimal($value)
  */
 function from_php_decimal_to_rounded_php_decimal($value, $round_precision)
 {
-    $decimalValue = round($value, $round_precision);
-    return sprintf("%." . $round_precision . "F", $decimalValue);
+    $r = getBcRound_internal($value, $round_precision);
+    $p = strpos($r, '.');
+    if ($p == false) {
+        return $r . '.' . str_repeat('0', $round_precision);
+    } else {
+        $l = strlen($r);
+        $ldecimal = $l - $p - 1;
+        $missing0 = $round_precision - $ldecimal;
+        if ($missing0 == 0) {
+            return $r;
+        } else if ($missing0 > 0) {
+            return $r . str_repeat('0', $missing0);
+        } else {
+            // DEV-NOTE: $missing0 < 0
+            return substr($r, 0, $l + $missing0);
+        }
+    }
+}
+
+/**
+ * From: https://stackoverflow.com/a/46287184
+ */
+function getBcRound_internal($number, $precision = 0)
+{
+    $precision = ($precision < 0)
+               ? 0
+               : (int) $precision;
+    if (strcmp(bcadd($number, '0', $precision), bcadd($number, '0', $precision+1)) == 0) {
+        return bcadd($number, '0', $precision);
+    }
+    if (getBcPrecision_internal($number) - $precision > 1) {
+        $number = getBcRound_internal($number, $precision + 1);
+    }
+    $t = '0.' . str_repeat('0', $precision) . '5';
+    return $number < 0
+           ? bcsub($number, $t, $precision)
+           : bcadd($number, $t, $precision);
+}
+
+function getBcPrecision_internal($number) {
+    $dotPosition = strpos($number, '.');
+    if ($dotPosition === false) {
+        return 0;
+    }
+    return strlen($number) - strpos($number, '.') - 1;
 }
 
 /**
@@ -1174,8 +1387,8 @@ function isValidCharForSQLQuery($ch1)
         || $ch1 === '_'
         || $ch1 === '-'
         || $ch1 === '.'
-        || $ch1 === '+')
-    {
+        || $ch1 === '+'
+    ) {
         return true;
     } else {
         return false;
@@ -1265,7 +1478,8 @@ function html2rgb($color)
             $color[2] . $color[3],
             $color[4] . $color[5]);
     elseif (strlen($color) == 3)
-        list($r, $g, $b) = array($color[0] . $color[0], $color[1] . $color[1], $color[2] . $color[2]); else
+        list($r, $g, $b) = array($color[0] . $color[0], $color[1] . $color[1], $color[2] . $color[2]);
+    else
         return null;
 
     $r = hexdec($r);
@@ -1405,9 +1619,9 @@ function filterValue($filters, $index)
 {
     $r = NULL;
     if (isset($filters[$index])
-            && (!is_null($filters[$index]))
-            && (strlen(trim($filters[$index])) != 0)
-            && ($filters[$index] != -1)
+        && (!is_null($filters[$index]))
+        && (strlen(trim($filters[$index])) != 0)
+        && ($filters[$index] != -1)
     ) {
         $r = $filters[$index];
     }
@@ -1438,9 +1652,9 @@ function getArCdrCalldateFilter($fromDate, $toDate)
 function getMaxCdrCallDate()
 {
     $connection = Propel::getConnection();
-    $stm = $connection->prepare('SELECT calldate FROM ar_cdr FORCE INDEX (ar_cdr_calldate_index) ORDER BY calldate DESC LIMIT 1');
+    $stm = $connection->prepare('SELECT calldate FROM ar_cdr ORDER BY calldate DESC LIMIT 1');
     $stm->execute();
-    while ($rs = $stm->fetchColumn()) {
+    while ($rs = $stm->fetchColumn(PDO::FETCH_NUM)) {
         return strtotime($rs[0]);
     }
 
@@ -1501,7 +1715,7 @@ function getInstanceConfigValue($key)
 
     if (!is_null($value)) {
         if (is_string($value)) {
-          return trim($value);
+            return trim($value);
         } else {
             return $value;
         }
@@ -1532,7 +1746,7 @@ function getInstanceConfigValueFromKeys($keys)
     // generate a key like "key1_key2_key3"
     $key = '';
     $isFirst = true;
-    foreach($keys as $k) {
+    foreach ($keys as $k) {
         if ($isFirst) {
             $isFirst = false;
         } else {
@@ -1546,11 +1760,18 @@ function getInstanceConfigValueFromKeys($keys)
 
 /**
  * @param string $connectionName a name of "connection" entry in app.yml
- * @return array|null null if no params exists, list(host, user, password, port) otherwise
+ * @param bool $asPrefix true for matching only the prefix, false for complete match
+ * @param bool $returnExtendedInfo false for returning only legacy info
+ * host, user, password, port (legacy info)
+ * @param int $fromIndex 0 for the first entry, 1 for the second matching entry...
+ * @return array|null null if no params exists,
+ * in case $returnExtendedInfo == false return list(host, user, password, port)
+ * in case $returnExtendedInfo == true return
+ * array('connectionName' => ..., 'host' => .., ..., 'dbName' => ..., 'provider' => ..., 'timeFrameInMinute' => ..., 'dataSourceFormat' => ..., 'dataSourceVersion' => ...)
+ *
  */
-function getConnectionParams($connectionName) {
-
-    // Read configuration settings from app.yml
+function getConnectionParams($connectionName, $returnExtendedInfo = false, $asPrefix = false, $fromIndex = 0)
+{
 
     $conf_host = null;
     $conf_user = null;
@@ -1558,24 +1779,48 @@ function getConnectionParams($connectionName) {
     $conf_port = null;
 
     $i = 0;
-    $result = null;
+    $countMatches = -1;
     while (true) {
         $connectionIndex = "app_connections_$i";
         $i++;
 
         if (sfConfig::has($connectionIndex)) {
             $conf = sfConfig::get($connectionIndex);
-            if (trim($conf['name']) == $connectionName) {
-                $foundConnection = true;
-                $result = array(trim($conf['host']), trim($conf['user']), trim($conf['password']), trim($conf['port']));
-                break;
+            $remoteName = trim($conf['name']);
+            if ($asPrefix && isPrefixOf($connectionName, $remoteName)) {
+                $countMatches++;
+            } else if ((!$asPrefix) && $connectionName == $remoteName) {
+                $countMatches++;
+            }
+
+            if ($countMatches == $fromIndex) {
+                if ($returnExtendedInfo) {
+                    return array(
+                        'name' => trim($conf['name'])
+                    , 'host' => trim($conf['host'])
+                    , 'user' => trim($conf['user'])
+                    , 'password' => trim($conf['password'])
+                    , 'port' => trim((strval($conf['port'])))
+                    , 'dbName' => trim($conf['dbName'])
+                    , 'tableName' => trim($conf['tableName'])
+                    , 'provider' => trim($conf['provider'])
+                    , 'timeFrameInMinutes' => trim(strval($conf['timeFrameInMinutes']))
+                    , 'dataSourceFormat' => trim($conf['dataSourceFormat'])
+                    , 'dataSourceVersion' => trim($conf['dataSourceVersion'])
+                    );
+                } else {
+                    return array(
+                        trim($conf['host'])
+                    , trim($conf['user'])
+                    , trim($conf['password'])
+                    , trim($conf['port'])
+                    );
+                }
             }
         } else {
-            break;
+            return null;
         }
     }
-
-    return $result;
 }
 
 /**
@@ -1639,6 +1884,56 @@ function addToStatsArray(&$arr, $key, $value)
 /**
  * @param array $arr
  * @param mixed $key
+ * @return int 0 if the key does not exist
+ */
+function statsArrayValue($arr, $key)
+{
+    if (!array_key_exists($key, $arr)) {
+        return 0;
+    } else {
+        return $arr[$key];
+    }
+}
+
+
+/**
+ * Add values to an array, considering as 0 the initial value.
+ *
+ * @param array $arr
+ * @param array $values
+ */
+function addValuesToStatsArray(&$arr, $values)
+{
+   foreach ($values as $c => $v) {
+       addToStatsArray($arr, $c, $v);
+   }
+}
+
+/**
+ * @param mixed $v
+ * @param int $format 0 for simple number, 1 for monetary value, 2 for hours/minutes
+ * @return string
+ */
+function printValue($v, $format)
+{
+    static $culture = null;
+    if (is_null($culture)) {
+        $culture = sfConfig::get('app_culture');
+    }
+
+    if ($format == 0) {
+       return format_number($v, $culture);
+    } else if ($format == 1) {
+       return format_from_db_decimal_to_call_report_currency($v);
+    } else if ($format == 2) {
+      return format_minute($v);
+    }
+
+}
+
+/**
+ * @param array $arr
+ * @param mixed $key
  * @return int
  */
 function getFromStats(&$arr, $key)
@@ -1647,6 +1942,32 @@ function getFromStats(&$arr, $key)
         return $arr[$key];
     } else {
         return 0;
+    }
+}
+
+/**
+ * Add a list of numeric values to an array, considering as 0 the default value.
+ * The key of the external array identifies the row, while the keys of the added array the columns.
+ *
+ * @param array $arr where put the result
+ * @param string $key1 the type of row to add
+ * @param string $key2 the sub type of row to add. The row will be $key1 and $key2
+ * @param array $values list of string => int to add, where string is the column key
+ */
+function addToTableArray(&$arr, $key1, $key2, $values)
+{
+    if (!array_key_exists($key1, $arr)) {
+        $arr[$key1] = array();
+    }
+
+    if (!array_key_exists($key2, $arr[$key1])) {
+        $arr[$key1][$key2] = $values;
+    } else {
+        $values2 = $arr[$key1][$key2];
+        foreach ($values as $c => $v) {
+            $values2[$c] += $v;
+        }
+        $arr[$key1][$key2] = $values2;
     }
 }
 
@@ -1665,7 +1986,7 @@ function getStatsPerc($good, $total)
 }
 
 /**
- * Add a value to an array, considering as 0 the initial value.
+ * Concatenate a sting to an array, considering '' the initial value.
  *
  * @param array $arr
  * @param mixed $key
@@ -1708,7 +2029,7 @@ function getNrOfRecordsInTable($tableName, PropelPDO $conn, $condition = 'TRUE',
     $stm->execute($params);
 
     $r = 0;
-    while ((($rs = $stm->fetch(PDO::FETCH_NUM)) !== false)) {
+    while (($rs = $stm->fetch(PDO::FETCH_NUM)) !== false) {
         $r = intval($rs[0]);
     }
     $stm->closeCursor();
@@ -1729,8 +2050,8 @@ function assertCondition($cond, $msg)
             ArProblemType::TYPE_ERROR,
             ArProblemDomain::APPLICATION,
             null,
-                'assertCondition - ' . time(),
-                'Unexpected condition: ' . $msg,
+            'assertCondition - ' . time(),
+            'Unexpected condition: ' . $msg,
             'The job is interrupted.',
             'This in an error in the code, specification or data. Contact the assistance. ');
         throw($p);
@@ -1763,6 +2084,8 @@ function getCurrencyUTF8Symbol()
     } else if ($currency == 'RUB') {
         // TODO this does not work return "\xE2\x82\xBD";
         return "RUB";
+    } else if ($currency == 'ZAR') {
+        return "R";
     } else {
         $p = ArProblemException::createWithoutGarbageCollection(
             ArProblemType::TYPE_ERROR,
@@ -1807,12 +2130,12 @@ function getCustomerAddressAccordingCulture(
         . "\n" . mytr("VAT:", true) . $vat;
     } else if ($culture == 'de_AT') {
         $r = $legalAddress
-        . "\n" . format_zip_city_address($legalZipcode, $legalCity, $legalStateProvince, $legalCountry);
+            . "\n" . format_zip_city_address($legalZipcode, $legalCity, $legalStateProvince, $legalCountry);
         if (!isEmptyOrNull($vat)) {
-          $r .= "\n" . "UID: " . $vat;
+            $r .= "\n" . "UID: " . $vat;
         }
         return $r;
-     } else {
+    } else {
         return $legalAddress
         . "\n" . format_zip_city_address($legalZipcode, $legalCity, $legalStateProvince, $legalCountry)
         . "\n" . mytr("VAT:", true) . $vat;
@@ -1879,88 +2202,216 @@ function addSpecialTelephoneNumberToTelephonePrefixTable($telephoneNumber, $desc
 }
 
 /**
- * @return string
+ * Create a query with summary and list views of calls to use according the application params,
+ * in the call_report WEB UI. These views are used for displaying (fast) summary of calls,
+ * and details of grouped calls by organization unit, when requested.
+ * These views allows for applying fast filters on some type of calls, so the user
+ * can filter/analyze calls.
+ *
+ * It creates an SQL query similar to a VIEW, but not a VIEW, because MySQL can not manage
+ * in an efficient way, VIEWS with GROUP BY statements, and SELECT DISTINCT.
+ *
+ * The fields of the VIEW has the same name, despite the way the VIEW is created.
+ *
+ * @param bool $isAdmin false for generating a view with data visible to the customer, true for the admin
+ * @param int $groupOn
+ * - 0 list all single/ungrouped calls,
+ * - 1 calls grouped on cached_parent_id_hierarchy, but no telephone location
+ * - 2 calls grouped on billable_ar_organization_unit_id, but no telephone location
+ * - 3 calls grouped on extension and all other visible fields: direction, telephone location, vendor, communication channel
+ * - 4 like 0 but with also debug fields on used rates
+ * - 100 summary of all grouped calls for header/summary
+ * @param bool $filterOnOrganization true if there is some filter criteria involving organizations,
+ * indipendently from the grouping criteria.
+ * @param bool $canUseGroupedCDRS true if ar_cached_grouped_cdr can be used, false for mandatory use of ar_cdr
+ * because the filter to use in next phases require the processing of ar_cdr with all details of calls,
+ * or CDRS are in non-whole-day time-frames.
+ * NOTE: the ar_cdr will be used also accordingly $groupOn, and this is an additional field.
+ * @param array $wherePart
+ * @param array $groupByPart
+ * @param array $selectPart
+ * @return string the $fromPart. The format is compatible with `getQueryFromParts`
  */
-function getCommonReportWorkflowUserHelp()
+function getCdrListView($isAdmin, $groupOn, $filterOnOrganization, $canUseGroupedCDRS, & $wherePart, & $groupByPart, & $selectPart)
 {
-    return <<<'MARKDOWN'
 
-## Reports Creation Workflow
+    /**
+     * @var bool true when instead of using ar_cached_grouped_cdr, ar_cdr is used, and a group is performed,
+     * for simulating the values of ar_cached_grouped_cdr, but with more fine grained filters.
+     * false for using plain ar_cdr or ar_cached_grouped_cdr without any group on them.
+     */
+    $forceGroupOnArCdr = !$canUseGroupedCDRS;
+    if ($groupOn == 0 || $groupOn == 4) {
+        $forceGroupOnArCdr = false;
+    }
+    // NOTE: the meaning is that for grouping on 1, 2, 3, 100, the ar_cdr are grouped only
+    // if !$canUseGroupedCDRS,
+    // otherwise for group on 0 and 4 (list of calls), never do a grouping of ar_cdr
 
-The usual workflow is:
+    /**
+     * @var bool true for reading content of ar_cdr, false for reading ar_cached_grouped_cdr
+     */
+    $useArCdr = ($forceGroupOnArCdr || $groupOn == 0 || $groupOn == 4);
 
-* create a report template,
-* test it,
-* create a report scheduler, linked to the report template,
-* set the first date from which generate the new reports on the report template,
-* use the "Generate" button or report scheduler, for starting the report generation,
-* from this date, new reports will be automatically generated, without the need of any manual intervention
+    $fieldsToShow = FieldsToShow::getFieldsToShowInCallReport($isAdmin);
+    $showCallDetails = ($groupOn == 0) || ($groupOn == 4) || ($groupOn == 3) || ($groupOn == 100);
+    $isCommunicationChannelNeeded = $showCallDetails && in_array(FieldsToShow::COMMUNICATION_CHANNEL, $fieldsToShow);
+    $isVendorNeeded = $showCallDetails && in_array(FieldsToShow::VENDOR, $fieldsToShow);
+    $showDebugInfo = ($groupOn == 4);
 
-Each run of a report scheduler, generate a report-set, that is a set of related reports. The administrator can administer Report Set, applying common operations on the whole set.
+    /**
+     * @var true for grouping some fields of ar_cached_grouped_cdr, ignoring some of them,
+     * so they are not viewable from customers.
+     */
+    $aggregateIgnoredFields = ($groupOn != 0 && $groupOn != 4);
 
-Reports usually must be reviewed and confirmed from administrator, before being visible to end users. If the calls associated to the reports are changed, the administrator is advised.
+    if ($useArCdr) {
+        $fromPart = 'ar_cdr AS c LEFT JOIN ar_telephone_prefix AS p ON c.ar_telephone_prefix_id = p.id';
+        $prefixTable = 'p';
+    } else {
+        $fromPart = 'ar_cached_grouped_cdr AS c';
+        $prefixTable = 'c';
+    }
 
-Every error in sending a report by email (when configured) is signaled from the application, until the problem is fixed.
+    if ($showCallDetails) {
+      if ($isCommunicationChannelNeeded) {
+          $selectPart[] = 'c.ar_communication_channel_type_id AS ar_communication_channel_type_id';
+          if ($forceGroupOnArCdr || $aggregateIgnoredFields) {
+              $groupByPart[] = 'c.ar_communication_channel_type_id';
+          }
+      } else {
+          $selectPart[] = 'NULL AS ar_communication_channel_type_id';
+      }
 
-## Single Reports
+      if ($isVendorNeeded) {
+        $selectPart[] = 'c.ar_vendor_id AS ar_vendor_id';
+        if ($forceGroupOnArCdr || $aggregateIgnoredFields) {
+            $groupByPart[] = 'c.ar_vendor_id';
+        }
+      } else {
+          $selectPart[] = 'NULL AS ar_vendor_id';
+      }
 
-A report can also be generated manually, without using a Report Scheduler.
+      if ($groupOn == 0 || $groupOn == 4) {
+        $selectPart[] = 'is_redirect';
+      } else {
+        $selectPart[] = '0 AS is_redirect';
+      }
 
-## Reports Permissions and Notifications
+      $selectPart[] = 'c.destination_type AS destination_type';
+      $selectPart[] = "$prefixTable.operator_type AS operator_type";
 
-The administrator can view all reports.
+      if ($forceGroupOnArCdr || $aggregateIgnoredFields) {
+        $groupByPart[] = 'c.destination_type';
+        $groupByPart[] = "$prefixTable.operator_type";
+      }
+    }
 
-Users can view only reports for which they have the right permissions.
+    if ($forceGroupOnArCdr || $aggregateIgnoredFields) {
+        $selectPart[] = 'MIN(c.id) AS id';
+        $selectPart[] = 'COUNT(c.id) AS count_of_records';
+        $selectPart[] = 'SUM(c.count_of_calls) AS count_of_calls';
+        $selectPart[] = 'SUM(c.billsec) AS billsec';
+        $selectPart[] = 'SUM(c.income) AS income';
+        $selectPart[] = 'SUM(c.cost) AS cost';
+        $selectPart[] = 'SUM(c.cost_saving) AS cost_saving';
+    } else {
+        $selectPart[] = 'c.id AS id';
+        $selectPart[] = 'c.count_of_calls AS count_of_calls';
+        $selectPart[] = 'c.billsec AS billsec';
+        $selectPart[] = 'c.income AS income';
+        $selectPart[] = 'c.cost AS cost';
+        $selectPart[] = 'c.cost_saving AS cost_saving';
+    }
 
-Users and administrators are notified in the call report (on-line), and by email, only for reports for which they are directly responsible.
+    if ($groupOn == 0 || $groupOn == 4) {
+        $selectPart[] = "c.calldate AS calldate";
+        $selectPart[] = "c.is_service_cdr AS is_service_cdr";
+        $selectPart[] = 'ar_organization_unit_id';
+        $selectPart[] = 'cached_parent_id_hierarchy';
+        $selectPart[] = 'billable_ar_organization_unit_id';
+        $selectPart[] = 'bundle_ar_organization_unit_id';
+        $selectPart[] = 'cached_masked_external_telephone_number';
+        $selectPart[] = 'cached_external_telephone_number';
+    } else  if ($groupOn == 1 || $groupOn == 3) {
+        $selectPart[] = "MIN(c.calldate) AS calldate";
+        $selectPart[] = 'cached_parent_id_hierarchy';
+        if ($forceGroupOnArCdr || $aggregateIgnoredFields) {
+            $groupByPart[] = 'cached_parent_id_hierarchy';
+        }
+    } else if ($groupOn == 2) {
+        $selectPart[] = "MIN(c.calldate) AS calldate";
+        $selectPart[] = 'billable_ar_organization_unit_id';
+        if ($forceGroupOnArCdr || $aggregateIgnoredFields) {
+          $groupByPart[] = 'billable_ar_organization_unit_id';
+        }
+    }
 
-Scheduled Reports can be generated in a "to review" mode. In this case the administrator is advised that there are reports to review. Then the administrator can check the reports, and if they are all ok, he can confirm the reports. Only in this case the reports are visible to users, and they can be sent to email.
+    if (!$useArCdr) {
+      if ($groupOn == 100 && !$filterOnOrganization) {
+         // results grouped by all customers
+         $wherePart [] = "cached_parent_id_hierarchy = '' ";
+      } else {
+         // exclude results grouped by all customers
+        $wherePart [] = "cached_parent_id_hierarchy <> '' ";
+      }
+    }
 
-Scheduled Reports can be generated directly as "reviewed", and sent immediately.
+    if ($showDebugInfo && $useArCdr) {
+        $selectPart[] = 'debug_cost_rate';
+        $selectPart[] = 'debug_income_rate';
+        $selectPart[] = 'debug_residual_income_rate';
+        $selectPart[] = 'debug_residual_call_duration';
+        $selectPart[] = 'debug_bundle_left_calls';
+        $selectPart[] = 'debug_bundle_left_calls';
+        $selectPart[] = 'debug_bundle_left_duration';
+        $selectPart[] = 'debug_bundle_left_cost';
+        $selectPart[] = 'debug_rating_details';
+    }
 
-Reports permissions, and allowed users, are calculated only when the administrator run the "Confirm Reports" action. If an administrator change later the user permissions, old assigned reports remain visible to users. So the administrator must run again the "Confirm Reports" actions for updating the visible reports. Reports will be visible to new users, and not visible to users with different permissions.
+    if ($showCallDetails) {
+        $selectPart[] = "$prefixTable.geographic_location AS geographic_location";
+        if ($forceGroupOnArCdr || $aggregateIgnoredFields) {
+            $groupByPart[] .= "$prefixTable.geographic_location";
+        }
+    }
 
-## Organization Hierarchy and Report Generation
+    return $fromPart;
+}
 
-Reports can be generated also for every parts of a complex organization hierarchy.
+/**
+ * @param string $fromPart
+ * @param array $c a list of AND conditions in the WHERE part
+ * @param array|null $groupByPart group conditions
+ * @param array|null $order a list of sort fields
+ * @param array $select a list of fields to return
+ * @param int|null $limit
+ * @param int|null $offset
+ * @return string the corresponding SQL query
+ */
+function getQueryFromParts($fromPart, $c, $groupByPart, $order, $select, $limit = null, $offset = null)
+{
+    $r = 'SELECT ' . implode(', ', $select)
+        . "\n FROM " . $fromPart
+        . "\n WHERE " . implode("\n AND ", $c);
 
-This feature is overkill for the case of simple customers, and it has more sense in case of call reporting inside big organizations.
+    if (!is_null($groupByPart) && count($groupByPart) > 0) {
+        $r .= " GROUP BY " . implode(', ', $groupByPart);
+    }
 
-## Organization Hierarchy and User Permissions
+    if (!is_null($order) && count($order) > 0) {
+        $r .= "\n ORDER BY " . implode(', ', $order);
+    }
 
-If there is an organization hierarchy like A/B/C/D, and there is an User U, with role "responsible", for organization B, then U can view all the calls of B, B/C, and B/C/D.
+    if (!is_null($limit)) {
+        $r .= "\n LIMIT " . $limit;
+    }
 
-"U" receives only the reports associated exactly to B, and not reports associated to B/C, and B/C/D. This in order to reduce the number of reports sent to the the user U. In any case a report on B, can contain info on B/C and B/C/D.
+    if (!is_null($offset)) {
+        $r .= "\n OFFSET " . $offset;
+    }
 
-## Report Schedule and Range
-
-Reports can be generated on all the calls of a year/month/custom time-frame.
-
-The first date of generation of a report, influences all next run of a report.
-
-If you change the date of last report generation, then next reports will be scheduled according the new settings.
-
-After configuring a report scheduler, you must always run the scheduler one time, in order to activate it, and test it.
-
-After the first run of a report scheduler, next reports will be generated automatically.
-
-## Generation of Legal Documents Consecutive Numbers
-
-Legal documents use consecutive numbers, according the last generated legal document.
-
-If there are not legal documents in the system, the first used number is 1, and not the number on the document template.
-
-For specifying an initial legal number different from 1, or for starting the generation of documents with a new non consecutive legal number, you had to:
-
-* create a fake legal document of type "Placeholder for Invoice Numeration"
-* set the "Billing Document" flag
-* set the legal number with the previous number you want to use on new (real) generated legal documents
-* set the "legal date" equals to the date of new invoices to generate, so it will be used as last reference number
-* leave blank all other params (also the reference date), because they are not used (the document is a "fake")
-* save
-
-MARKDOWN;
-
+    return $r;
 }
 
 /**
@@ -1982,7 +2433,8 @@ function normalizeFileNamePath($fileNamePath)
  * @return string a unique time prefix ordered by seconds and microseconds,
  * and a random number later for making sure it is unique.
  */
-function get_ordered_timeprefix_with_unique_id() {
+function get_ordered_timeprefix_with_unique_id()
+{
     $time = microtime(false);
 
     $p = strpos($time, ' ');
@@ -2005,29 +2457,30 @@ function get_ordered_timeprefix_with_unique_id() {
  * @param bool $forCustomer true for converting the language to customer language
  * @return stringd
  */
-function mytr($str, $forCustomer = true) {
+function mytr($str, $forCustomer = true)
+{
     static $isEnglishLanguage = null;
 
     if (is_null($isEnglishLanguage)) {
         $culture = getCulture();
         if (isPrefixOf('en', $culture)) {
             $isEnglishLanguage = true;
-        }  else {
-            $isEnglishLanguage =  false;
+        } else {
+            $isEnglishLanguage = false;
         }
     }
 
     if ($forCustomer) {
         if ($isEnglishLanguage) {
-          return $str;
+            return $str;
         } else {
-          $r = __('__' . $str);
-          if (isPrefixOf('__', $r) && (!isPrefixOf('____', $r))) {
-              // in this case there is no conversion and return the original string
-              return $str;
-          } else {
-              return $r;
-          }
+            $r = __('__' . $str);
+            if (isPrefixOf('__', $r) && (!isPrefixOf('____', $r))) {
+                // in this case there is no conversion and return the original string
+                return $str;
+            } else {
+                return $r;
+            }
         }
     } else {
         return $str;

@@ -10,6 +10,7 @@ class ArReportPeer extends BaseArReportPeer
     // ACCESS REPORTS ACCORDING USER PERMISSIONS //
     ///////////////////////////////////////////////
 
+
     /**
      * Publish or unpublish the report to subscribed users.
      *
@@ -61,7 +62,7 @@ class ArReportPeer extends BaseArReportPeer
         $conn->beginTransaction();
         try {
             $state = $conn->prepare('UPDATE ar_report SET produced_report_already_reviewed = ? WHERE id = ?');
-            $state->execute(array($isPublish, $reportId));
+            $state->execute(array((int)$isPublish, $reportId));
 
             if ($isPublish) {
 
@@ -148,7 +149,7 @@ class ArReportPeer extends BaseArReportPeer
                     // * there were no previous sending of email
                     // * there were previous sending of emails, but a resend is forced
                     if ($forceResend || is_null($queueId)) {
-                        $ins->execute(array($reportId, $userId, $sendMail));
+                        $ins->execute(array($reportId, $userId, (int)$sendMail));
                     }
                 }
                 $stm->closeCursor();
@@ -179,7 +180,7 @@ class ArReportPeer extends BaseArReportPeer
                     }
 
                     if ($forceResend || is_null($queueId)) {
-                        $insWithNullUser->execute(array($reportId, true));
+                        $insWithNullUser->execute(array($reportId, 1));
                     }
                 }
                 $stm->closeCursor();
@@ -188,7 +189,7 @@ class ArReportPeer extends BaseArReportPeer
                     $stm = $conn->prepare('SELECT id FROM ar_report WHERE id = ? AND param_is_legal = 1');
                     $stm->execute(array($reportId));
                     while (($rs = $stm->fetch(PDO::FETCH_NUM)) !== false) {
-                        $insWithNullUser->execute(array($reportId, true));
+                        $insWithNullUser->execute(array($reportId, 1));
                     }
                     $stm->closeCursor();
                 }

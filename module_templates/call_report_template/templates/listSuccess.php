@@ -37,8 +37,6 @@ echo '</div>';
 
 echo '<div id="sf_admin_footer">';
 
-include_partial(<?php echo "'$moduleName/list_footer'"?>);
-
 echo '</div>';
 echo '</div>';
 

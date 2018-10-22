@@ -6,19 +6,19 @@ generator:
 
     fields:
       telephone_number: { name: "Source", help: "The source telephone number. It must match exactly, it is not a prefix. " }
-
       ported_telephone_number: { name: "Destination", help: "The destination telephone number. The source number is replaced with this number." }
-
       from_date:    { name: "From", help: "When number portability takes effect. The same source number can be used in two or more records, in this case the most recent date (respect the date of call) is selected." }
 
     list:
       title: Number Portability
-      display: [=telephone_number, ported_telephone_number, from_date]
-
+      actions: []
+      display: [telephone_number, ported_telephone_number, from_date]
       filters: [telephone_number, ported_telephone_number]
-
       sort: [telephone_number, asc]
 
     edit:
       title: Number Portability
+      actions:
+        _list: ~
+        _save: ~
       display: [telephone_number, ported_telephone_number, from_date]

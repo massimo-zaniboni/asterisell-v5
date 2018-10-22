@@ -18,6 +18,7 @@ abstract class BaseArTelephonePrefixFormFilter extends BaseFormFilterPropel
       'geographic_location'              => new sfWidgetFormFilterInput(),
       'operator_type'                    => new sfWidgetFormFilterInput(),
       'display_priority_level'           => new sfWidgetFormFilterInput(array('with_empty' => false)),
+      'rating_code'                      => new sfWidgetFormFilterInput(array('with_empty' => false)),
     ));
 
     $this->setValidators(array(
@@ -27,6 +28,7 @@ abstract class BaseArTelephonePrefixFormFilter extends BaseFormFilterPropel
       'geographic_location'              => new sfValidatorPass(array('required' => false)),
       'operator_type'                    => new sfValidatorPass(array('required' => false)),
       'display_priority_level'           => new sfValidatorSchemaFilter('text', new sfValidatorInteger(array('required' => false))),
+      'rating_code'                      => new sfValidatorPass(array('required' => false)),
     ));
 
     $this->widgetSchema->setNameFormat('ar_telephone_prefix_filters[%s]');
@@ -51,6 +53,7 @@ abstract class BaseArTelephonePrefixFormFilter extends BaseFormFilterPropel
       'geographic_location'              => 'Text',
       'operator_type'                    => 'Text',
       'display_priority_level'           => 'Number',
+      'rating_code'                      => 'Text',
     );
   }
 }

@@ -5,18 +5,18 @@
   <div id="sf_admin_footer">
   <div id="asterisellHelp">
 
-  <h2>Scope</h2>
-    <p>Upload all images and files, that can be used as part of the Asterisell user interface or generated document.</p>
+  <h2>Overview</h2>
+    <p>Use this module to upload images and files to be used as part of the website interface and/or generated documents.</p>
 
-  <h2>Location</h2>
-    <p>This is the content of directory "web/<?php echo sfConfig::get('app_sfMediaLibrary_upload_dir')?>". You can upload files using this Web-Form, or adding directories and files directly in it. In this case make sure that the Web-Server process can read and write the added files.</p>
+  <h2>File Location</h2>
+    <p>The directory where images and files are store in: "web/<?php echo sfConfig::get('app_sfMediaLibrary_upload_dir')?>". Images and files may also be uploaded directly to this location on the server. Note: In case images / files are directly uploaded to the server, ensure that the web server process can read and write the images / files.</p>
 
-  <h2>Format</h2>
+  <h2>Supported Formats</h2>
       <p> JPEG images </p>
-      <p> PNG images, but without alpha channel (transparent layer)</p>
+      <p> PNG images without alpha channel (transparent layer)</p>
 
   <h2>Security</h2>
-    <p>Note that the uploaded files can be displayed from users, if they know their name. So does not upload private content, but only user-viewable content.</p>
+    <p>Note that all users will have access to uploaded images / files. Do not upload private content.</p>
 
   </div></div>
   <br/>

@@ -16,6 +16,7 @@ generator:
       is_applied_only_one_time: { name: "One time cost", help: "true if the service is applied only one time to the customer. " }
       schedule_timeframe: { name: "Time Frame", help: "\"monthly\" for billing the service every month. \"weekly\" for billing the service every week. " }
       schedule_from: { name: "From", help: "A number between 1 and 28 for the start of the billing time frame, in case of monthly schedule. \"Monday\", \"Tuesday\", and so on, in case of weekly schedule." }
+      schedule_at_hhmmss: { name: "At", help: "When the service starts (in hh:mm:ss format) and the old service ends. It is usually the same time of bundle-rates." }
       select_scheduling: { name: "Time Frame", help: "\"monthly\" for billing the service every month. \"weekly\" for billing the service every week. " }
       select_schedule_from: { name: "From", help: "A number between 1 and 28 for the start of the billing time frame, in case of monthly schedule. \"Monday\", \"Tuesday\", and so on, in case of weekly schedule." }
       external_crm_code: { name: "CRM code", help: "A optional service code identifying the service, in the vendor CRM application." }
@@ -32,5 +33,5 @@ generator:
       display:
         Vendor: [is_enabled, vendor_name, external_crm_code, vendor_description]
         Customer: [customer_name, customer_description]
-        Scheduling: [is_applied_only_one_time, _select_scheduling, _select_schedule_from]
+        Scheduling: [is_applied_only_one_time, _select_scheduling, _select_schedule_from, _schedule_at_hhmmss]
         Billing: [customer_price_change_with_price_list, customer_price_depend_from_activation_date]

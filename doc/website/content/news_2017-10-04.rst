@@ -1,0 +1,33 @@
+Asterisell-5.8
+--------------
+
+:date: 2017-10-04
+
+Improvements to the User Interface:
+
+* Summary of calls grouped by extension/customer, in the online call report. They can be ordered by cost, income, duration.
+* CSV exporting of grouped calls.
+* Filters support "*" (match any char) also in the header position. Useful for searching customers by name.
+
+Internal improvements to the rating engine:
+
+* Fixed a bug in the usage of the more recent CSV external rate, when there were more than two changes in the same billing rating time frame.
+* Recognize when there are logical changes in main rate plan, and split the rating time-frame accordingly.
+* Used more recent and modern Haskell packages.
+* Refactoring and simplification of the code.
+* Added a rerate stressing test.
+* Enabled automatic ANALYZE TABLE in the TokuDB engine, for better query plans.
+* Support for Abilis VoIP server CDR format.
+
+Management infrastructure:
+
+* Docker images now uses CentOS 7 instead of CentOS 6.
+* Installation procedure manage automatically webdav settings, for importing and exporting CSV between resellers.
+* Various bug fixes and improvements.
+* Improved the manual.
+
+How upgrading
+~~~~~~~~~~~~~
+
+Due to changes from CentOS 6 to CentoOS 7 the upgrade is not automatic. The database must be exported and imported in the new Docker instance.
+

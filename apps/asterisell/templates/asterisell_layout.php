@@ -2,6 +2,36 @@
 use_helper('Number', 'I18N', 'Date', 'OnlineManual', 'Asterisell');
 
 $params = ArParamsPeer::getDefaultParams();
+
+function toManualPage($moduleName, $base) {
+    $arr = array(
+        'admin_call_report' => 'call_report',
+        'communication_channel' => 'communication-channel-type',
+        'vendor_domain' => 'communication-channel',
+        'backup_of_organizations' => 'backup_of_organizations',
+        'holidays' => 'holidays',
+        'number_portability' => 'number_portability',
+        'party' => 'party',
+        'user' => 'user',
+        'problem' => 'problem',
+        'rate' => 'rate',
+        'report' => 'reports-2',
+        'report_scheduling' => 'reports-2',
+        'report_set' => 'reports-2',
+        'root_organizations' => 'root_organizations',
+        'organization_full_view' => 'root_organizations',
+        'service_price_list' => 'service_price_list',
+        'service_sale' => 'service_sale',
+        'tag' => 'tag'
+    );
+    if (array_key_exists($moduleName, $arr)) {
+        $helpPage = $arr[$moduleName];
+        return '<a href="' . $base . '/admin/manual/' . $helpPage . '.html" target="_blank">' . __('Help about this Module') . '</a>';
+    } else {
+        return '<a href="' . $base . '/admin/manual/manual.html" target="_blank">' . __('Missing Help about this Module') . '</a>';
+    }
+}
+
 ?>
 
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
@@ -55,6 +85,13 @@ $params = ArParamsPeer::getDefaultParams();
 //
     if ($sf_user->hasCredential('admin')) {
 
+        $base = sfConfig::get('app_instance_url_path');
+        if ($base !== '') {
+            if (substr($base, 0, 1) !== '/') {
+                $base = '/' . $base;
+            }
+        }
+
         echo "\n";
         echo '<div class="appmenu">' . "\n";
         echo '<ul>' . "\n";
@@ -105,16 +142,6 @@ $params = ArParamsPeer::getDefaultParams();
         echo '</ul>' . "\n";
         echo '</li>' . "\n";
 
-        echo '<li><a href="" target="_self" >' . __('Calls') . '</a>' . "\n";
-        echo '<ul>' . "\n";
-        if (isStatusServerInstance()) {
-            echo '<li>' . link_to(__('Status Dashboard'), 'instance_status/list') . '</li>' . "\n";
-        }
-        echo '<li>' . link_to(__('Calls Report'), 'admin_call_report/list') . '</li>' . "\n";
-        echo '<li>' . link_to(__('Calls with Errors'), 'cdrlist_unprocessed/list') . '</li>' . "\n";
-        echo '</ul>' . "\n";
-        echo '</li>' . "\n";
-
         echo '<li><a href="" target="_self" >' . __('Reports') . '</a>' . "\n";
         echo '<ul>' . "\n";
         echo '<li>' . link_to(__('All Reports'), 'report/list') . '</li>' . "\n";
@@ -128,14 +155,17 @@ $params = ArParamsPeer::getDefaultParams();
 
         echo '<li><a href="" target="_self" >' . __('Status') . '</a>' . "\n";
         echo '<ul>' . "\n";
+        echo '<li>' . link_to(__('Calls'), 'admin_call_report/list') . '</li>' . "\n";
         echo '<li>' . link_to(__('Jobs Log'), 'jobqueue/list') . '</li>' . "\n";
-        echo '<li>' . link_to(__('Current Problems'), 'problem/list') . '</li>' . "\n";
+        echo '<li>' . link_to(__('Rating Problems'), 'problem/list') . '</li>' . "\n";
         echo '</ul>' . "\n";
         echo '</li>' . "\n";
 
         echo '<li><a href="" target="_self" >' . __('Help') . '</a>' . "\n";
         echo '<ul>' . "\n";
-        echo '<li>' . link_to(__('Manual'), 'https://www.asterisell.com') . '</li>' . "\n";
+        echo '<li>' . toManualPage($sf_context->getModuleName(), $base) . '</li>' . "\n";
+        echo '<li><a href="' . $base . '/admin/manual/manual.html" target="_blank">' . __('Manual') . '</a></li>' . "\n";
+        echo '<li>' . link_to(__('Customizations'), 'about/customizations') . '</li>' . "\n";
         echo '<li>' . link_to(__('Version'), 'about/version') . '</li>' . "\n";
         echo '<li>' . link_to(__('License'), 'about/license') . '</li>' . "\n";
         echo '</ul>' . "\n";
@@ -167,11 +197,8 @@ if ($sf_user->hasFlash('error')) {
 <?php echo $sf_content ?>
 
 <div id="asterisellFooter">
-
     <hr/>
-
     <?php echo $params->getFooter(ESC_RAW); ?>
-
 </div>
 
 </body>

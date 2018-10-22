@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+   <head><meta charset="UTF-8" />
+      <title>Configuring WebDAV</title><link href="res/webhelp.css" rel="stylesheet" type="text/css" /><meta content="It is possible sending files to a remote Reseller using the WebDav protocol. WebDAV is a standard protocol based on HTTP connections, so it has encryption by default (using HTTPS), and it can pass through firewalls." name="description" />
+      <meta content="XMLmind DITA Converter 3.3.0" name="generator" />
+   <script charset="UTF-8" defer="defer" src="_wh/snowball_en.min.js" type="text/javascript"></script><link href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/themes/smoothness/jquery-ui.css" rel="stylesheet" type="text/css" /><link href="_wh/wh.css" rel="stylesheet" type="text/css" /><script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js" type="text/javascript">
+    </script><script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js" type="text/javascript">
+    </script><script charset="UTF-8" src="_wh/wh.min.js" type="text/javascript">
+    </script><script charset="UTF-8" defer="defer" src="_wh/search.js" type="text/javascript">
+    </script></head>
+   
+<body>
+    
+
+    <div id="wh-body">
+      <div id="wh-navigation">
+        <ul id="wh-tabs">
+          <li id="wh-toc-tab"><a href="#wh-toc-pane"><span>Contents</span></a></li>
+          
+          <li id="wh-search-tab"><a href="#wh-search-pane"><span>Search</span></a></li>
+        </ul>
+        <div id="wh-toc-pane">
+          <div id="wh-toc-form">
+            <span id="wh-toc-control"><a href="#">Collapse 
+            All</a><a href="#">Expand All</a></span>
+            <button id="wh-toc-previous">Previous</button>
+            <button id="wh-toc-next">Next</button>
+            <button id="wh-toc-print">Print</button>
+          </div>
+          <script charset="UTF-8" src="_wh/toc.js" type="text/javascript">
+          </script>
+        </div>
+        
+        <div id="wh-search-pane">
+          <div id="wh-search-form">
+            <input id="wh-search-field" type="text" /><button id="wh-search-button">Search</button><span id="wh-highlight-group"><input checked="checked" id="wh-highlight-toggle" type="checkbox" /><label for="wh-highlight-toggle" id="wh-highlight-icon"><span class="ui-icon ui-icon-flag"></span></label></span>
+          </div>
+          <div id="wh-search-results">
+          </div>
+        </div>
+      </div>
+      <div id="wh-separator">
+      </div>
+      <div id="wh-content">
+      
+      <header class="page-navigation-header">
+         <table class="page-navigation-layout" style="width: 100%;">
+            <tr>
+               <td style="text-align: left;vertical-align: top;"><a class="navigation-link" href="manual.html" title="First page: Asterisell Manual"><img alt="First page" class="navigation-icon" height="16" src="res/first.png" width="16" /></a></td>
+               <td style="text-align: left;vertical-align: top;"><a class="navigation-link" href="custom-jobs-2.html" title="Previous page: Custom jobs"><img alt="Previous page" class="navigation-icon" height="16" src="res/previous.png" width="16" /></a></td>
+               <td style="width: 25%;text-align: left;vertical-align: top;"><span class="page-navigation-previous">Custom jobs</span></td>
+               <td style="width: 40%;text-align: center;vertical-align: top;"><span class="page-navigation-current">Configuring WebDAV</span> <span class="page-navigation-page">(65 / 71)</span></td>
+               <td style="width: 25%;text-align: right;vertical-align: top;"><span class="page-navigation-next">Glossary</span></td>
+               <td style="text-align: right;vertical-align: top;"><a class="navigation-link" href="manual-6.html" title="Next page: Glossary"><img alt="Next page" class="navigation-icon" height="16" src="res/next.png" width="16" /></a></td>
+               <td style="text-align: right;vertical-align: top;"><a class="navigation-link" href="about.html" title="Last page: About"><img alt="Last page" class="navigation-icon" height="16" src="res/last.png" width="16" /></a></td>
+            </tr>
+         </table>
+      </header>
+      <section class="topic" id="Configuring_WebDAV">
+         <h2 class="section2-title">Configuring WebDAV</h2>
+         <p class="shortdesc">It is possible sending files to a remote <a class="xref" href="reseller.html#Reseller">Reseller</a> using the WebDav protocol. WebDAV is a standard protocol based on HTTP connections,
+            so it has encryption by default (using HTTPS), and it can pass through firewalls.
+         </p>
+         <div class="body">
+            <section class="section" id="Configuring_WebDAV__I_mosuyx_">
+               <h3 class="section-title">On provider</h3>
+               <div class="p">Create a file <code class="codeph">customizations/ExportToFoo.php</code> like this
+               </div><pre class="pre">    class ExportToFoo extends ExportCDRSToReseller
+    {
+    
+      /**
+       * @return string
+       */
+      function getResellerCode() {
+          return 'foo';
+      }
+    
+      public function getActivationDate() {
+          // NOTE: before this date the info is manually sent, retrieving from the historic data.
+          // From this data the info is sent live, the rates are aligned.
+          return strtotime('2017-01-01');
+      }
+    }
+</pre><div class="p">and a file <code class="codeph">customizations/ExportServicesToFoo.php</code> like this
+               </div><pre class="pre">    class ExportServicesToFoo extends ExportServiceCDRSToReseller
+    {
+    
+      /**
+       * @return string
+       */
+      function getResellerCode() {
+          return 'foo';
+      }
+    
+      public function getActivationDate() {
+          // NOTE: before this date the info is manually sent, retrieving from the historic data.
+          // From this data the info is sent live, the rates are aligned.
+          return strtotime('2017-01-01');
+      }
+    }
+</pre><div class="p">Enable the job customizing <code class="codeph">fabric_data/asterisell_instances.py</code></div><pre class="pre">    custom_files = {
+      'ExportToFoo':'apps/asterisell/lib/jobs/customizations',
+      'ExportServicesToFoo':'apps/asterisell/lib/jobs/customizations'
+    }
+    
+    custom_export_jobs = [
+      'ExportToFoo',
+      'ExportServicesToFoo'
+    ]
+    
+    webdav_users = [('foo','some-password')]
+</pre><div class="p">The installation tool, will create the webdav configurations for you, and it will
+                  expose the WebDAV service on <code class="codeph">https://provider-url/get-foo</code> You can inspect the <code class="codeph">/etc/nginx/</code> configurations inside the <a class="xref" href="manual-6.html#Asterisell_instance">Asterisell instance</a>.
+               </div>
+            </section>
+            <section class="section" id="Configuring_WebDAV__I_6vqqpp_">
+               <h3 class="section-title">On reseller on the same host</h3>
+               <div class="p">In case the reseller is an instance on the same host of the provider, create a Job
+                  like this
+               </div><pre class="pre">    class FooImportCDRSFromBar extends ImportCDRSFromRemoteAsterisellProvider
+    {
+    
+        function getConnectionName() {
+            return 'bar';
+        }
+    
+        function getCDRProviderName() {
+          return 'bar';
+        }
+    
+        function skipSSLCertificateVerify()
+        {
+          return true;
+        }
+    }
+</pre><div class="p">Then configure something like this</div><pre class="pre">    custom_files = {
+      'FooImportCDRSFromBar':'apps/asterisell/lib/jobs/customizations'
+    }
+    
+    import_cdrs_jobs = [ 'FooImportCDRSFromBar' ]
+    
+    def conf_connection_params(self):
+      r = []
+    
+      c = lib.ConnectionParams()
+      c.connection_name = 'bar'
+      c.user = 'foo'
+      c.password = self.get_password_for('bar-foo')
+      c.host = 'http://local-ip/admin/get-foo/'
+      c.port = '8001' 
+      r.append(c)
+    
+      return r
+</pre><div class="p">You had to set the password on <a class="xref" href="manual-6.html#Password_file">Password file</a>.
+               </div>
+            </section>
+            <section class="section" id="Configuring_WebDAV__I_ijfzl0_">
+               <h3 class="section-title">On resellers on external hosts</h3>
+               <div class="p">In case the reseller is on a different host respect the provider, create a Job like
+                  this
+               </div><pre class="pre">    class FooImportCDRSFromBar extends ImportCDRSFromRemoteAsterisellProvider
+    {
+    
+        function getConnectionName() {
+            return 'bar';
+        }
+    
+        function getCDRProviderName() {
+          return 'bar';
+        }
+    
+       function skipSSLCertificateVerify()
+       {
+         return false;
+       }
+    }
+</pre><div class="p">Configure something like this</div><pre class="pre">    custom_files = {
+      'FooImportCDRSFromBar':'apps/asterisell/lib/jobs/customizations'
+    }
+    
+    import_cdrs_jobs = [ 'FooImportCDRSFromBar' ]
+    
+    def conf_connection_params(self):
+      r = []
+    
+      c = lib.ConnectionParams()
+      c.connection_name = &quot;bar&quot;
+      c.user = &quot;foo&quot;
+      c.password = self.get_password_for('bar-foo')
+      c.host = 'https://provider-url/admin/get-foo/'
+      c.port = '443'
+      r.append(c)
+    
+      return r
+</pre><div class="p">You had to set the password on <a class="xref" href="manual-6.html#Password_file">Password file</a>.
+               </div>
+               <div class="p">You can try the access using a command like this inside the reseller</div><pre class="pre">    curl -v --basic --user foo:some-password https://provider-url/admin/get-foo/is_asterisell_directory.chk
+</pre><div class="p">Try with the <code class="codeph">--insecure</code> for debugging SSL certificate problems.
+               </div>
+            </section>
+         </div>
+      </section>
+      <footer class="page-navigation-footer">
+         <table class="page-navigation-layout" style="width: 100%;">
+            <tr>
+               <td style="text-align: left;vertical-align: top;"><a class="navigation-link" href="manual.html" title="First page: Asterisell Manual"><img alt="First page" class="navigation-icon" height="16" src="res/first.png" width="16" /></a></td>
+               <td style="text-align: left;vertical-align: top;"><a class="navigation-link" href="custom-jobs-2.html" title="Previous page: Custom jobs"><img alt="Previous page" class="navigation-icon" height="16" src="res/previous.png" width="16" /></a></td>
+               <td style="width: 25%;text-align: left;vertical-align: top;"><span class="page-navigation-previous">Custom jobs</span></td>
+               <td style="width: 40%;text-align: center;vertical-align: top;"><span class="page-navigation-current">Configuring WebDAV</span> <span class="page-navigation-page">(65 / 71)</span></td>
+               <td style="width: 25%;text-align: right;vertical-align: top;"><span class="page-navigation-next">Glossary</span></td>
+               <td style="text-align: right;vertical-align: top;"><a class="navigation-link" href="manual-6.html" title="Next page: Glossary"><img alt="Next page" class="navigation-icon" height="16" src="res/next.png" width="16" /></a></td>
+               <td style="text-align: right;vertical-align: top;"><a class="navigation-link" href="about.html" title="Last page: About"><img alt="Last page" class="navigation-icon" height="16" src="res/last.png" width="16" /></a></td>
+            </tr>
+         </table>
+      </footer>
+   </div>
+    </div>
+
+    
+  </body></html>

@@ -25,7 +25,7 @@ abstract class BaseArServicePeer {
 	const TM_CLASS = 'ArServiceTableMap';
 	
 	/** The total number of columns. */
-	const NUM_COLUMNS = 14;
+	const NUM_COLUMNS = 15;
 
 	/** The number of lazy-loaded columns. */
 	const NUM_LAZY_LOAD_COLUMNS = 0;
@@ -72,6 +72,9 @@ abstract class BaseArServicePeer {
 	/** the column name for the SCHEDULE_FROM field */
 	const SCHEDULE_FROM = 'ar_service.SCHEDULE_FROM';
 
+	/** the column name for the SCHEDULE_AT field */
+	const SCHEDULE_AT = 'ar_service.SCHEDULE_AT';
+
 	/**
 	 * An identiy map to hold any loaded instances of ArService objects.
 	 * This must be public so that other peer classes can access this when hydrating from JOIN
@@ -95,11 +98,11 @@ abstract class BaseArServicePeer {
 	 * e.g. self::$fieldNames[self::TYPE_PHPNAME][0] = 'Id'
 	 */
 	private static $fieldNames = array (
-		BasePeer::TYPE_PHPNAME => array ('Id', 'InternalName', 'CustomerName', 'CustomerDescription', 'VendorName', 'VendorDescription', 'ExternalCrmCode', 'CustomerPriceDependFromActivationDate', 'CustomerPriceChangeWithPriceList', 'IsEnabled', 'IsAppliedOnlyOneTime', 'ScheduleTimeframe', 'WasCompiled', 'ScheduleFrom', ),
-		BasePeer::TYPE_STUDLYPHPNAME => array ('id', 'internalName', 'customerName', 'customerDescription', 'vendorName', 'vendorDescription', 'externalCrmCode', 'customerPriceDependFromActivationDate', 'customerPriceChangeWithPriceList', 'isEnabled', 'isAppliedOnlyOneTime', 'scheduleTimeframe', 'wasCompiled', 'scheduleFrom', ),
-		BasePeer::TYPE_COLNAME => array (self::ID, self::INTERNAL_NAME, self::CUSTOMER_NAME, self::CUSTOMER_DESCRIPTION, self::VENDOR_NAME, self::VENDOR_DESCRIPTION, self::EXTERNAL_CRM_CODE, self::CUSTOMER_PRICE_DEPEND_FROM_ACTIVATION_DATE, self::CUSTOMER_PRICE_CHANGE_WITH_PRICE_LIST, self::IS_ENABLED, self::IS_APPLIED_ONLY_ONE_TIME, self::SCHEDULE_TIMEFRAME, self::WAS_COMPILED, self::SCHEDULE_FROM, ),
-		BasePeer::TYPE_FIELDNAME => array ('id', 'internal_name', 'customer_name', 'customer_description', 'vendor_name', 'vendor_description', 'external_crm_code', 'customer_price_depend_from_activation_date', 'customer_price_change_with_price_list', 'is_enabled', 'is_applied_only_one_time', 'schedule_timeframe', 'was_compiled', 'schedule_from', ),
-		BasePeer::TYPE_NUM => array (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, )
+		BasePeer::TYPE_PHPNAME => array ('Id', 'InternalName', 'CustomerName', 'CustomerDescription', 'VendorName', 'VendorDescription', 'ExternalCrmCode', 'CustomerPriceDependFromActivationDate', 'CustomerPriceChangeWithPriceList', 'IsEnabled', 'IsAppliedOnlyOneTime', 'ScheduleTimeframe', 'WasCompiled', 'ScheduleFrom', 'ScheduleAt', ),
+		BasePeer::TYPE_STUDLYPHPNAME => array ('id', 'internalName', 'customerName', 'customerDescription', 'vendorName', 'vendorDescription', 'externalCrmCode', 'customerPriceDependFromActivationDate', 'customerPriceChangeWithPriceList', 'isEnabled', 'isAppliedOnlyOneTime', 'scheduleTimeframe', 'wasCompiled', 'scheduleFrom', 'scheduleAt', ),
+		BasePeer::TYPE_COLNAME => array (self::ID, self::INTERNAL_NAME, self::CUSTOMER_NAME, self::CUSTOMER_DESCRIPTION, self::VENDOR_NAME, self::VENDOR_DESCRIPTION, self::EXTERNAL_CRM_CODE, self::CUSTOMER_PRICE_DEPEND_FROM_ACTIVATION_DATE, self::CUSTOMER_PRICE_CHANGE_WITH_PRICE_LIST, self::IS_ENABLED, self::IS_APPLIED_ONLY_ONE_TIME, self::SCHEDULE_TIMEFRAME, self::WAS_COMPILED, self::SCHEDULE_FROM, self::SCHEDULE_AT, ),
+		BasePeer::TYPE_FIELDNAME => array ('id', 'internal_name', 'customer_name', 'customer_description', 'vendor_name', 'vendor_description', 'external_crm_code', 'customer_price_depend_from_activation_date', 'customer_price_change_with_price_list', 'is_enabled', 'is_applied_only_one_time', 'schedule_timeframe', 'was_compiled', 'schedule_from', 'schedule_at', ),
+		BasePeer::TYPE_NUM => array (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, )
 	);
 
 	/**
@@ -109,11 +112,11 @@ abstract class BaseArServicePeer {
 	 * e.g. self::$fieldNames[BasePeer::TYPE_PHPNAME]['Id'] = 0
 	 */
 	private static $fieldKeys = array (
-		BasePeer::TYPE_PHPNAME => array ('Id' => 0, 'InternalName' => 1, 'CustomerName' => 2, 'CustomerDescription' => 3, 'VendorName' => 4, 'VendorDescription' => 5, 'ExternalCrmCode' => 6, 'CustomerPriceDependFromActivationDate' => 7, 'CustomerPriceChangeWithPriceList' => 8, 'IsEnabled' => 9, 'IsAppliedOnlyOneTime' => 10, 'ScheduleTimeframe' => 11, 'WasCompiled' => 12, 'ScheduleFrom' => 13, ),
-		BasePeer::TYPE_STUDLYPHPNAME => array ('id' => 0, 'internalName' => 1, 'customerName' => 2, 'customerDescription' => 3, 'vendorName' => 4, 'vendorDescription' => 5, 'externalCrmCode' => 6, 'customerPriceDependFromActivationDate' => 7, 'customerPriceChangeWithPriceList' => 8, 'isEnabled' => 9, 'isAppliedOnlyOneTime' => 10, 'scheduleTimeframe' => 11, 'wasCompiled' => 12, 'scheduleFrom' => 13, ),
-		BasePeer::TYPE_COLNAME => array (self::ID => 0, self::INTERNAL_NAME => 1, self::CUSTOMER_NAME => 2, self::CUSTOMER_DESCRIPTION => 3, self::VENDOR_NAME => 4, self::VENDOR_DESCRIPTION => 5, self::EXTERNAL_CRM_CODE => 6, self::CUSTOMER_PRICE_DEPEND_FROM_ACTIVATION_DATE => 7, self::CUSTOMER_PRICE_CHANGE_WITH_PRICE_LIST => 8, self::IS_ENABLED => 9, self::IS_APPLIED_ONLY_ONE_TIME => 10, self::SCHEDULE_TIMEFRAME => 11, self::WAS_COMPILED => 12, self::SCHEDULE_FROM => 13, ),
-		BasePeer::TYPE_FIELDNAME => array ('id' => 0, 'internal_name' => 1, 'customer_name' => 2, 'customer_description' => 3, 'vendor_name' => 4, 'vendor_description' => 5, 'external_crm_code' => 6, 'customer_price_depend_from_activation_date' => 7, 'customer_price_change_with_price_list' => 8, 'is_enabled' => 9, 'is_applied_only_one_time' => 10, 'schedule_timeframe' => 11, 'was_compiled' => 12, 'schedule_from' => 13, ),
-		BasePeer::TYPE_NUM => array (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, )
+		BasePeer::TYPE_PHPNAME => array ('Id' => 0, 'InternalName' => 1, 'CustomerName' => 2, 'CustomerDescription' => 3, 'VendorName' => 4, 'VendorDescription' => 5, 'ExternalCrmCode' => 6, 'CustomerPriceDependFromActivationDate' => 7, 'CustomerPriceChangeWithPriceList' => 8, 'IsEnabled' => 9, 'IsAppliedOnlyOneTime' => 10, 'ScheduleTimeframe' => 11, 'WasCompiled' => 12, 'ScheduleFrom' => 13, 'ScheduleAt' => 14, ),
+		BasePeer::TYPE_STUDLYPHPNAME => array ('id' => 0, 'internalName' => 1, 'customerName' => 2, 'customerDescription' => 3, 'vendorName' => 4, 'vendorDescription' => 5, 'externalCrmCode' => 6, 'customerPriceDependFromActivationDate' => 7, 'customerPriceChangeWithPriceList' => 8, 'isEnabled' => 9, 'isAppliedOnlyOneTime' => 10, 'scheduleTimeframe' => 11, 'wasCompiled' => 12, 'scheduleFrom' => 13, 'scheduleAt' => 14, ),
+		BasePeer::TYPE_COLNAME => array (self::ID => 0, self::INTERNAL_NAME => 1, self::CUSTOMER_NAME => 2, self::CUSTOMER_DESCRIPTION => 3, self::VENDOR_NAME => 4, self::VENDOR_DESCRIPTION => 5, self::EXTERNAL_CRM_CODE => 6, self::CUSTOMER_PRICE_DEPEND_FROM_ACTIVATION_DATE => 7, self::CUSTOMER_PRICE_CHANGE_WITH_PRICE_LIST => 8, self::IS_ENABLED => 9, self::IS_APPLIED_ONLY_ONE_TIME => 10, self::SCHEDULE_TIMEFRAME => 11, self::WAS_COMPILED => 12, self::SCHEDULE_FROM => 13, self::SCHEDULE_AT => 14, ),
+		BasePeer::TYPE_FIELDNAME => array ('id' => 0, 'internal_name' => 1, 'customer_name' => 2, 'customer_description' => 3, 'vendor_name' => 4, 'vendor_description' => 5, 'external_crm_code' => 6, 'customer_price_depend_from_activation_date' => 7, 'customer_price_change_with_price_list' => 8, 'is_enabled' => 9, 'is_applied_only_one_time' => 10, 'schedule_timeframe' => 11, 'was_compiled' => 12, 'schedule_from' => 13, 'schedule_at' => 14, ),
+		BasePeer::TYPE_NUM => array (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, )
 	);
 
 	/**
@@ -197,6 +200,7 @@ abstract class BaseArServicePeer {
 		$criteria->addSelectColumn(ArServicePeer::SCHEDULE_TIMEFRAME);
 		$criteria->addSelectColumn(ArServicePeer::WAS_COMPILED);
 		$criteria->addSelectColumn(ArServicePeer::SCHEDULE_FROM);
+		$criteria->addSelectColumn(ArServicePeer::SCHEDULE_AT);
 	}
 
 	/**

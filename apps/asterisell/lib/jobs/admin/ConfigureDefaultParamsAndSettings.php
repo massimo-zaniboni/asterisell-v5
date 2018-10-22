@@ -1,25 +1,6 @@
 <?php
 
-/* $LICENSE 2013:
- *
- * Copyright (C) 2013 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
- *
- * This file is part of Asterisell.
- *
- * Asterisell is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 3 of the License, or
- * (at your option) any later version.
- *
- * Asterisell is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with Asterisell. If not, see <http://www.gnu.org/licenses/>.
- * $
- */
+// SPDX-License-Identifier: GPL-3.0-or-later
 
 sfLoader::loadHelpers(array('I18N', 'Debug', 'Date', 'Asterisell'));
 
@@ -294,15 +275,9 @@ class ConfigureDefaultParamsAndSettings extends AdminJobProcessor
         // CREATE DEFAULT CDR PROVIDERS //
         //////////////////////////////////
 
-        $r = new ArCdrProvider();
-        $r->setInternalName(ArCdrProvider::MANUAL_IMPORTING);
-        $r->setDescription('Used for importing CDRs from ad-hoc files, created for fixing errors, or adding info during initial importing of data.');
-        $r->save();
-
-        $r = new ArCdrProvider();
-        $r->setInternalName(ArCdrProvider::DEFAULT_SOURCE);
-        $r->setDescription('The default source of CDRs.');
-        $r->save();
+        // NOTE: use maybe create because during `reinstall_dev` this info can exists
+        ArCdrProviderPeer::maybeCreate(ArCdrProvider::MANUAL_IMPORTING,'Used for importing CDRs from ad-hoc files, created for fixing errors, or adding info during initial importing of data.');
+        ArCdrProviderPeer::maybeCreate(ArCdrProvider::DEFAULT_SOURCE,'The default source of CDRs.');
 
         ////////////////////////////////////
         // CREATE DEFAULT RATE CATEGORIES //

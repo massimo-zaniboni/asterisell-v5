@@ -1,28 +1,8 @@
 <?php
 
-/* $LICENSE 2009, 2012:
- *
- * Copyright (C) 2009, 2012 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
- *
- * This file is part of Asterisell.
- *
- * Asterisell is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 3 of the License, or
- * (at your option) any later version.
- *
- * Asterisell is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with Asterisell. If not, see <http://www.gnu.org/licenses/>.
- * $
- */
+// SPDX-License-Identifier: GPL-3.0-or-later
 
 sfLoader::loadHelpers(array('I18N', 'Debug', 'Date', 'Asterisell'));
-
 
 /**
  * Process all queued jobs.
@@ -44,8 +24,9 @@ class JobQueueProcessor
      */
     static $IS_INTERACTIVE = false;
 
-    static public function setIsInteractive($v) {
-      self::$IS_INTERACTIVE = $v;
+    static public function setIsInteractive($v)
+    {
+        self::$IS_INTERACTIVE = $v;
     }
 
     //////////////////
@@ -112,31 +93,22 @@ class JobQueueProcessor
     {
         $isLocked = $this->lock();
 
-        // exit if there is no acquired lock
-        // (another job-queue-processor is running).
-        //
+        // another job-queue-processor is running
         if (!$isLocked) return NULL;
 
-        self::$IS_INTERACTIVE = $isInteractive;
-
-        // Signal the problem if some old job were not completely executed.
-        // NOTE: signal this before starting a Log transaction, in order to signal a PHP complete interruption.
-        $this->areThereAbortedJobs($isInteractive);
-        ArProblemException::commitLogTransaction();
-
-        // use this, because new errors must replace old errors, only after the complete processing.
-        ArProblemException::beginLogTransaction();
-
-        $result = $this->inner_process($isInteractive, $isDebugMode);
-
-        ArProblemException::commitLogTransaction();
-
-        // Release the resources.
-        //
-        // NOTE: it is very important to release the lock also in case of error, otherwise the system will be blocked!!!
-        //
-        $this->unlock();
-
+        $result = FALSE;
+        try {
+            self::$IS_INTERACTIVE = $isInteractive;
+            ArProblemException::beginLogTransaction();
+            try {
+                $this->areThereAbortedJobs($isInteractive);
+                $result = $this->inner_process($isInteractive, $isDebugMode);
+            } finally {
+                ArProblemException::commitLogTransaction();
+            }
+        } finally {
+            $this->unlock();
+        }
         return $result;
     }
 
@@ -186,25 +158,12 @@ class JobQueueProcessor
 
             // Execute "always_scheduled_jobs" following their order of declaration.
             foreach ($fixedJobs as $jobClass) {
-                $jobLog = NULL;
-
-                /**
-                 * @var FixedJobProcessor $job
-                 */
-                $job = new $jobClass();
-                $job->setDebugMode($isDebugMode);
-
-                if ($isInteractive) {
-                    echo "\nStart job: " . get_class($job);
-                }
-
                 $jobData = new NullJobData();
                 $jobLog = ArJobQueuePeer::addNewWithStateAndDescription($jobData, NULL, ArJobQueue::RUNNING, $jobClass);
 
                 try {
-                    $msg = $job->process();
+                    $msg = $this->executeJob($jobClass, $isInteractive, $isDebugMode);
                     $jobLog->complete(ArJobQueue::DONE, $jobLog->getDescription() . ": " . $msg);
-                    self::checkOfNestedTransactions($jobClass, $isInteractive);
                 } catch (Exception $e) {
                     $allOk = FALSE;
                     if (!is_null($jobLog)) {
@@ -300,6 +259,30 @@ class JobQueueProcessor
         }
 
         return $allOk;
+    }
+
+    /**
+     * @param string $jobClass
+     * @param bool $isInteractive
+     * @param bool $isDebugMode
+     * @return string
+     */
+    public function executeJob($jobClass, $isInteractive = FALSE, $isDebugMode = FALSE)
+    {
+        /**
+         * @var FixedJobProcessor $job
+         */
+        $job = new $jobClass();
+        $job->setDebugMode($isDebugMode);
+
+        if ($isInteractive) {
+            echo "\nStart job: " . get_class($job);
+        }
+
+        $msg = $job->process();
+        self::checkOfNestedTransactions($jobClass, $isInteractive);
+
+        return $msg;
     }
 
     /**
@@ -485,7 +468,7 @@ class JobQueueProcessor
                         echo "\n\n" . $msg;
                     }
 
-                    if ($storeCommands && (! $isPostPoned)) {
+                    if ($storeCommands && (!$isPostPoned)) {
                         self::markUpgradeCommand($key, $msg);
                     }
 

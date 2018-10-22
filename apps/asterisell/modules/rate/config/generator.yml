@@ -20,11 +20,12 @@ generator:
       shared_resellers: { name: "Export to Reseller", help: "The selected resellers will receive automatically this rate. In this way a rate can be inserted only one time on the main instance, and then resellers will receive the last version. The rate plan of this instance must use this rate for calculating incomes, while the rate plan on the reseller side must use this rate for calculating costs. So usually only external CSV rates are shared between a provider and a reseller, while rate plan referencing them are keep private. Also the rate description field is sent to reseller, so use an unambigous description for the rate.", type: admin_check_list, params: through_class=ArRateSharedWithReseller }
       ar_vendor_id: { name: "Shared with Vendor", help: "The rate is received from the specified Astersell Vendor instance. Every time the Vendor change the rate, it is automatically updated also on this instance, acting like a reseller." }
       select_vendor: { name: "Shared with Vendor", help: "The rate is received from the specified Astersell Vendor instance. Every time the Vendor change the rate, it is automatically updated also on this instance, acting like a reseller. NOTE: a Vendor must be associated to a Party, to be inside this selector. NOTE: the fields of a rate imported from vendor are overwritten every time there is a new version from the vendor." }
+      filter_on_name_list: { name: "Rate name", filter_criteria_disabled: true  }
 
     list:
       title: Rates
       display: [=id, =internal_name, short_description, from_time]
-      filters: [from_time, internal_name, short_description, ar_rate_format_id, ar_vendor_id]
+      filters: [_filter_on_name_list, from_time, short_description, ar_rate_format_id, ar_vendor_id]
       sort: [from_time, desc]
 
     edit:

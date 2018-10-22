@@ -25,7 +25,7 @@ abstract class BaseArCdrProviderPeer {
 	const TM_CLASS = 'ArCdrProviderTableMap';
 	
 	/** The total number of columns. */
-	const NUM_COLUMNS = 3;
+	const NUM_COLUMNS = 5;
 
 	/** The number of lazy-loaded columns. */
 	const NUM_LAZY_LOAD_COLUMNS = 0;
@@ -38,6 +38,12 @@ abstract class BaseArCdrProviderPeer {
 
 	/** the column name for the DESCRIPTION field */
 	const DESCRIPTION = 'ar_cdr_provider.DESCRIPTION';
+
+	/** the column name for the LAST_IMPORTED_ID field */
+	const LAST_IMPORTED_ID = 'ar_cdr_provider.LAST_IMPORTED_ID';
+
+	/** the column name for the LAST_IMPORTED_DATA field */
+	const LAST_IMPORTED_DATA = 'ar_cdr_provider.LAST_IMPORTED_DATA';
 
 	/**
 	 * An identiy map to hold any loaded instances of ArCdrProvider objects.
@@ -62,11 +68,11 @@ abstract class BaseArCdrProviderPeer {
 	 * e.g. self::$fieldNames[self::TYPE_PHPNAME][0] = 'Id'
 	 */
 	private static $fieldNames = array (
-		BasePeer::TYPE_PHPNAME => array ('Id', 'InternalName', 'Description', ),
-		BasePeer::TYPE_STUDLYPHPNAME => array ('id', 'internalName', 'description', ),
-		BasePeer::TYPE_COLNAME => array (self::ID, self::INTERNAL_NAME, self::DESCRIPTION, ),
-		BasePeer::TYPE_FIELDNAME => array ('id', 'internal_name', 'description', ),
-		BasePeer::TYPE_NUM => array (0, 1, 2, )
+		BasePeer::TYPE_PHPNAME => array ('Id', 'InternalName', 'Description', 'LastImportedId', 'LastImportedData', ),
+		BasePeer::TYPE_STUDLYPHPNAME => array ('id', 'internalName', 'description', 'lastImportedId', 'lastImportedData', ),
+		BasePeer::TYPE_COLNAME => array (self::ID, self::INTERNAL_NAME, self::DESCRIPTION, self::LAST_IMPORTED_ID, self::LAST_IMPORTED_DATA, ),
+		BasePeer::TYPE_FIELDNAME => array ('id', 'internal_name', 'description', 'last_imported_id', 'last_imported_data', ),
+		BasePeer::TYPE_NUM => array (0, 1, 2, 3, 4, )
 	);
 
 	/**
@@ -76,11 +82,11 @@ abstract class BaseArCdrProviderPeer {
 	 * e.g. self::$fieldNames[BasePeer::TYPE_PHPNAME]['Id'] = 0
 	 */
 	private static $fieldKeys = array (
-		BasePeer::TYPE_PHPNAME => array ('Id' => 0, 'InternalName' => 1, 'Description' => 2, ),
-		BasePeer::TYPE_STUDLYPHPNAME => array ('id' => 0, 'internalName' => 1, 'description' => 2, ),
-		BasePeer::TYPE_COLNAME => array (self::ID => 0, self::INTERNAL_NAME => 1, self::DESCRIPTION => 2, ),
-		BasePeer::TYPE_FIELDNAME => array ('id' => 0, 'internal_name' => 1, 'description' => 2, ),
-		BasePeer::TYPE_NUM => array (0, 1, 2, )
+		BasePeer::TYPE_PHPNAME => array ('Id' => 0, 'InternalName' => 1, 'Description' => 2, 'LastImportedId' => 3, 'LastImportedData' => 4, ),
+		BasePeer::TYPE_STUDLYPHPNAME => array ('id' => 0, 'internalName' => 1, 'description' => 2, 'lastImportedId' => 3, 'lastImportedData' => 4, ),
+		BasePeer::TYPE_COLNAME => array (self::ID => 0, self::INTERNAL_NAME => 1, self::DESCRIPTION => 2, self::LAST_IMPORTED_ID => 3, self::LAST_IMPORTED_DATA => 4, ),
+		BasePeer::TYPE_FIELDNAME => array ('id' => 0, 'internal_name' => 1, 'description' => 2, 'last_imported_id' => 3, 'last_imported_data' => 4, ),
+		BasePeer::TYPE_NUM => array (0, 1, 2, 3, 4, )
 	);
 
 	/**
@@ -153,6 +159,8 @@ abstract class BaseArCdrProviderPeer {
 		$criteria->addSelectColumn(ArCdrProviderPeer::ID);
 		$criteria->addSelectColumn(ArCdrProviderPeer::INTERNAL_NAME);
 		$criteria->addSelectColumn(ArCdrProviderPeer::DESCRIPTION);
+		$criteria->addSelectColumn(ArCdrProviderPeer::LAST_IMPORTED_ID);
+		$criteria->addSelectColumn(ArCdrProviderPeer::LAST_IMPORTED_DATA);
 	}
 
 	/**

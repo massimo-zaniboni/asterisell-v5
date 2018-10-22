@@ -1,25 +1,6 @@
 <?php
 
-/* $LICENSE 2012, 2013, 2015, 2016, 2017:
- *
- * Copyright (C) 2012, 2013, 2015, 2016, 2017 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
- *
- * This file is part of Asterisell.
- *
- * Asterisell is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 3 of the License, or
- * (at your option) any later version.
- *
- * Asterisell is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with Asterisell. If not, see <http://www.gnu.org/licenses/>.
- * $
- */
+// SPDX-License-Identifier: GPL-3.0-or-later
 
 sfLoader::loadHelpers(array('I18N', 'Debug', 'Date', 'Asterisell'));
 
@@ -45,7 +26,7 @@ class InitWithDefaultMySQLStoredProcedures extends AdminJobProcessor
         ArProblemException::garbageCollect(self::GARBAGE_KEY, null, null);
 
         // Delete this job because it is not used anymore.
-        $jobId = ManageRateEvent::getRateEngineChangedDaysJobId();
+        $jobId = self::getRateEngineChangedDaysJobId();
         if (!is_null($jobId)) {
             $j = ArDailyStatusJobPeer::retrieveByPK($jobId);
             $j->delete();
@@ -141,7 +122,7 @@ DELETE FROM ar_cached_organization_info$$
 ';
 
 
-        $sqlCode .= '
+        $sqlCode .= <<<SQL
 
 /**
  * Get the ported telephone number, or NULL if it does not exists, of a source telephone number.
@@ -165,8 +146,67 @@ BEGIN
 
   RETURN(dest_number);
 END$$
-';
 
+/**
+ * Add a ported telephone number, merging compatible dates together.
+ */
+DROP PROCEDURE IF EXISTS add_ported_telephone_number$$
+CREATE PROCEDURE add_ported_telephone_number(source_number VARCHAR(1024), dest_number VARCHAR(1024), at_date DATETIME)
+MODIFIES SQL DATA
+BEGIN
+
+  DECLARE empty_result INT DEFAULT 0;
+  DECLARE found_dest_number VARCHAR(1024);
+  DECLARE found_from_date DATETIME;
+
+  DECLARE scan1 CURSOR FOR
+  SELECT ported_telephone_number
+  FROM ar_number_portability
+  WHERE telephone_number = source_number
+  AND   from_date <= at_date
+  ORDER BY from_date DESC
+  LIMIT 1;
+
+  DECLARE scan2 CURSOR FOR
+  SELECT ported_telephone_number, from_date
+  FROM ar_number_portability
+  WHERE telephone_number = source_number
+  AND   from_date >= at_date
+  ORDER BY from_date ASC
+  LIMIT 1;
+
+  DECLARE CONTINUE HANDLER FOR NOT FOUND SET empty_result = 1;
+
+  SET empty_result = 0;
+  OPEN scan1;
+  FETCH scan1 INTO found_dest_number;
+  CLOSE scan1;
+  IF empty_result = 0 AND found_dest_number = dest_number THEN
+      SET empty_result = 1;
+      # dummy instruction and nothing to do:
+      # there is already a porting of the number to the same number, in a date strictly in the past
+  ELSE
+    SET empty_result = 0;
+    OPEN scan2;
+    FETCH scan2 INTO found_dest_number, found_from_date;
+    CLOSE scan2;
+    IF empty_result = 0 AND found_dest_number = dest_number THEN
+      # use this new better date in the past, instead of the strictly date in the future
+
+      UPDATE ar_number_portability
+      SET from_date = at_date
+      WHERE telephone_number = source_number
+      AND   from_date = found_from_date
+      AND   ported_telephone_number = dest_number;
+    ELSE
+      # insert a new entry, replacing an old entry if it has the same telephone number and date
+
+      REPLACE INTO ar_number_portability(telephone_number, ported_telephone_number, from_date)
+      VALUES(source_number, dest_number, at_date);
+    END IF;
+  END IF;
+END$$
+SQL;
 
         $sqlCode .= <<<SQL
 /**
@@ -264,7 +304,7 @@ BEGIN
      WHERE p.ar_report_set_id = report_set_id
   ) AS g
   SET s.reports = g.c
-  ,   s.amount = g.t
+  ,   s.amount = IFNULL(g.t, 0)
   WHERE s.id = report_set_id
   ;
 
@@ -285,13 +325,13 @@ BEGIN
      FROM ar_postponed_report AS p
      JOIN ar_report_set AS ss
      ON p.ar_report_set_id = ss.id
-     , ar_cdr FORCE INDEX (ar_cdr_calldate_index)
+     , ar_cdr 
      WHERE p.ar_report_set_id = report_set_id
      AND ar_cdr.billable_ar_organization_unit_id = p.ar_organization_unit_id
      AND ar_cdr.calldate >= ss.from_date
      AND ar_cdr.calldate < ss.to_date
      ) AS g
-  SET s.postponed_amount = g.s
+  SET s.postponed_amount = IFNULL(g.s, 0)
   WHERE s.id = report_set_id;
 
   UPDATE ar_report_set
@@ -306,7 +346,7 @@ $$
 SQL;
 
         $tablesWithRerating = array(
-            'ar_organization_unit'
+          'ar_organization_unit'
         , 'ar_organization_unit_has_structure'
         , 'ar_organization_unit_type'
         , 'ar_party'
@@ -318,6 +358,8 @@ SQL;
         , 'ar_service'
         , 'ar_service_price'
         , 'ar_assigned_service'
+        , 'ar_number_portability'
+        , 'ar_communication_channel_type'
         );
 
         foreach ($tablesWithRerating as $tableName) {
@@ -329,6 +371,7 @@ SQL;
 
         return 'Updaded MySQL stored procedures libray.';
     }
+
 
     /**
      * The logic for saying if a report can be seen or not from a user.

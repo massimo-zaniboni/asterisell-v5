@@ -41,6 +41,7 @@ class ArUserTableMap extends TableMap {
 		$this->addForeignKey('AR_ORGANIZATION_UNIT_ID', 'ArOrganizationUnitId', 'INTEGER', 'ar_organization_unit', 'ID', false, null, null);
 		$this->addColumn('LOGIN', 'Login', 'VARCHAR', true, 255, null);
 		$this->addColumn('PASSWORD', 'Password', 'VARCHAR', false, 1024, null);
+		$this->addColumn('CLEAR_PASSWORD_TO_IMPORT', 'ClearPasswordToImport', 'VARCHAR', false, 255, null);
 		$this->addColumn('IS_ENABLED', 'IsEnabled', 'BOOLEAN', true, null, true);
 		$this->addColumn('IS_ROOT_ADMIN', 'IsRootAdmin', 'BOOLEAN', true, null, false);
 		// validators

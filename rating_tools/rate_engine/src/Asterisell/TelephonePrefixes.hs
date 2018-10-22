@@ -1,24 +1,6 @@
 {-# Language BangPatterns, OverloadedStrings, QuasiQuotes, ScopedTypeVariables, TypeSynonymInstances, FlexibleInstances, DeriveGeneric, DeriveAnyClass, FlexibleContexts  #-}
 
-{- $LICENSE 2013, 2014, 2015, 2016, 2017
- * Copyright (C) 2013-2017 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
- *
- * This file is part of Asterisell.
- *
- * Asterisell is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 3 of the License, or
- * (at your option) any later version.
- *
- * Asterisell is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with Asterisell. If not, see <http://www.gnu.org/licenses/>.
- * $
--}
+-- SPDX-License-Identifier: GPL-3.0-or-later
 
 -- | Import Telephone Prefixes.
 --
@@ -27,8 +9,12 @@
 module Asterisell.TelephonePrefixes (
   TelephonePrefixes,
   telephonePrefixes_load,
+  telephonePrefixes_loadRatingCodes,
   telephonePrefixes_update,
-  TelephonePrefixRecord(..)
+  TelephonePrefixRecord(..),
+  RatingCodes,
+  IdToTelephonePrefix,
+  TelephonePrefix(..)
 ) where
 
 import Asterisell.Trie
@@ -37,9 +23,12 @@ import Asterisell.DB
 import Asterisell.Error
 
 import qualified Data.Text as Text
+import qualified Data.ByteString as BS
 
 import qualified System.IO as SIO
 import Data.Map.Strict as Map
+import qualified Data.HashMap.Strict as HMap
+import qualified Data.IntMap.Strict as IMap
 import qualified Data.Set as Set
 import Data.List as L
 
@@ -57,62 +46,108 @@ import Control.Exception.Safe (catch, catchAny, onException, finally, handleAny,
                               , SomeException, throwIO, throw, Exception, MonadMask
                               , withException, displayException)
 
--- | Associate a telephone prefix to its id.
-type TelephonePrefixes = Trie Int
+type RatingCode = Text.Text
+
+type RatingCodes = Set.Set RatingCode
+
+-- | Info about a telephone prefix.
+--   DEV-NOTE: do not pack, because the many repeated Text entries are shared
+data TelephonePrefix
+       = TelephonePrefix {
+           tp_id :: !Int
+         , tp_ratingCode :: !RatingCode
+         , tp_operatorType :: !Text.Text
+         , tp_geographicLocation :: !Text.Text
+         }
+ deriving (Show, Eq, Ord)
+
+-- | Associate a telephone prefix to its id and rating code
+type TelephonePrefixes = Trie TelephonePrefix
+
+type IdToTelephonePrefix = IMap.IntMap TelephonePrefix
 
 telephonePrefixes_load
   :: DB.MySQLConn
   -> Bool
-  -> IO TelephonePrefixes
+  -> IO (TelephonePrefixes, IdToTelephonePrefix, RatingCodes)
 
 telephonePrefixes_load conn isDebugMode = do
   let q1 = [str| SELECT
                |   id
                | , prefix
                | , match_only_numbers_with_n_digits
+               | , rating_code
+               | , geographic_location
+               | , operator_type
                | FROM ar_telephone_prefix
                | ORDER BY prefix
                |]
 
+  sdict :: IOStringDictionary Text.Text <- d_empty
   (_, inS) <- DB.query_ conn q1
-  S.foldM importPrefix trie_empty inS
+  S.foldM (importPrefix sdict) (trie_empty, IMap.empty, Set.empty) inS
 
  where
 
   importPrefix
-    map1
+    sdict
+    (map1, idToTelephonePrefix1, set1)
     [ id'
     , prefix'
     , match_only_numbers_with_n_digits'
+    , rating_code'
+    , geographic_location'
+    , operator_type'
     ] = do
 
         let id = fromDBInt id'
-        prefix'' <- nn "telephone_prefix" id fromDBText prefix'
+        rating_code <- d_get sdict $ fromDBText rating_code'
+        prefix <- nn "telephone_prefix" id fromDBByteString prefix'
         let match_n_digits = fromMaybeDBValue fromDBInt match_only_numbers_with_n_digits'
-        let prefix = case match_n_digits of
+        let suffix = case match_n_digits of
                        Nothing
-                         -> Text.append prefix'' "X*"
+                         -> Nothing
                        Just 0
-                         -> Text.append prefix'' "X*"
+                         -> Nothing
                        Just n1
-                         -> let n2 = n1 - (Text.length prefix'')
-                            in  if n2 > 0
-                                then (Text.append prefix'' (Text.replicate n2 "X"))
-                                else prefix''
+                         -> Just $ n1 - (BS.length prefix)
 
-        case trie_addUniqueExtensionCode map1 (Text.unpack prefix) id of
+        geographic_location <- d_get sdict $ nnn "telephone_prefix" id fromDBText geographic_location'
+        operator_type <- d_get sdict $ nnn "telephone_prefix" id fromDBText operator_type'
+
+        let tp = TelephonePrefix {
+                   tp_id = id
+                 , tp_ratingCode = rating_code
+                 , tp_geographicLocation = geographic_location
+                 , tp_operatorType = operator_type
+                 }
+
+        case trie_insertUnique map1 (prefix, suffix) tp of
           Nothing
-            -> throw $ AsterisellException $ "The telephone prefix \"" ++ (Text.unpack prefix'') ++ "\", is in conflict with another prefix. Correct the value in the telephone_prefix table. "
+            -> throwIO $ AsterisellException $ "The telephone prefix \"" ++ (fromByteStringToString prefix) ++ "\", is in conflict with another prefix. Correct the value in the telephone_prefix table. "
           Just map2
-            -> let code = Text.unpack prefix''
-                   codeM = extensionCode_toCharsMatch code
-               in case charsMatch_valid codeM of
-                    Just err
-                      -> throw $ AsterisellException $ "Telephone prefix \"" ++ code ++ "\" has an invalid format: " ++ err
-                    Nothing
-                      -> return map2
+            -> return (map2, IMap.insert id tp idToTelephonePrefix1, Set.insert rating_code set1)
 
-  importPrefix _ _ = throw $ AsterisellException "err 1601 in code: unexpected DB format for ar_telephone_prefix"
+  importPrefix _ _ _ = throwIO $ AsterisellException "err 1601 in code: unexpected DB format for ar_telephone_prefix"
+
+-- | A relatively fast query for retrieving only (the usually few) rating codes.
+telephonePrefixes_loadRatingCodes
+  :: DB.MySQLConn
+  -> Bool
+  -> IO RatingCodes
+
+telephonePrefixes_loadRatingCodes conn isDebugMode = do
+  let q1 = "SELECT DISTINCT rating_code FROM ar_telephone_prefix"
+  (_, inS) <- DB.query_ conn q1
+  S.foldM importPrefix Set.empty inS
+
+ where
+
+  importPrefix set1 [rating_code'] = do
+        let rating_code = fromDBText rating_code'
+        return $ Set.insert rating_code set1
+
+  importPrefix _ _ = throwIO $ AsterisellException "err 1602 in code: unexpected DB format for ar_telephone_prefix"
 
 data TelephonePrefixRecord
        = TelephonePrefixRecord {
@@ -122,6 +157,7 @@ data TelephonePrefixRecord
             , tpr_geographic_location :: Text.Text
             , tpr_operator_type :: Text.Text
             , tpr_display_priority :: Int
+            , tpr_rating_code :: BS.ByteString
             }
          deriving (Eq, Generic, NFData)
 
@@ -138,8 +174,9 @@ telephonePrefixes_update conn = do
                |    name,
                |    geographic_location,
                |    operator_type,
-               |    display_priority_level)
-               | VALUES(?,?,?,?,?,?)
+               |    display_priority_level,
+               |    rating_code)
+               | VALUES(?,?,?,?,?,?,?)
                |]
   updateStmtId <- DB.prepareStmt conn q1
 
@@ -151,6 +188,7 @@ telephonePrefixes_update conn = do
                | AND geographic_location = ?
                | AND operator_type = ?
                | AND display_priority_level = ?
+               | AND rating_code = ?
                |]
   checkStmtId <- DB.prepareStmt conn q2
 
@@ -168,6 +206,7 @@ telephonePrefixes_update conn = do
              , toDBText $ tpr_geographic_location tpr
              , toDBText $ tpr_operator_type tpr
              , toDBInt64 $ tpr_display_priority tpr
+             , toDBByteString $ tpr_rating_code tpr
              ]
 
      (_, checkS) <- DB.queryStmt conn checkStmtId values

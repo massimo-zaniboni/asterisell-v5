@@ -37,16 +37,34 @@ abstract class BaseArParty extends BaseObject  implements Persistent {
 	protected $compact_name;
 
 	/**
+	 * The value for the note field.
+	 * @var        string
+	 */
+	protected $note;
+
+	/**
 	 * The value for the external_crm_code field.
 	 * @var        string
 	 */
 	protected $external_crm_code;
 
 	/**
+	 * The value for the contract_number field.
+	 * @var        string
+	 */
+	protected $contract_number;
+
+	/**
 	 * The value for the vat field.
 	 * @var        string
 	 */
 	protected $vat;
+
+	/**
+	 * The value for the legal_registration_number field.
+	 * @var        string
+	 */
+	protected $legal_registration_number;
 
 	/**
 	 * The value for the is_billable field.
@@ -92,6 +110,12 @@ abstract class BaseArParty extends BaseObject  implements Persistent {
 	protected $email;
 
 	/**
+	 * The value for the contact_name field.
+	 * @var        string
+	 */
+	protected $contact_name;
+
+	/**
 	 * The value for the phone field.
 	 * @var        string
 	 */
@@ -110,8 +134,14 @@ abstract class BaseArParty extends BaseObject  implements Persistent {
 	protected $fax;
 
 	/**
+	 * The value for the web_site field.
+	 * @var        string
+	 */
+	protected $web_site;
+
+	/**
 	 * The value for the max_limit_30 field.
-	 * @var        int
+	 * @var        string
 	 */
 	protected $max_limit_30;
 
@@ -286,6 +316,16 @@ abstract class BaseArParty extends BaseObject  implements Persistent {
 	}
 
 	/**
+	 * Get the [note] column value.
+	 * 
+	 * @return     string
+	 */
+	public function getNote()
+	{
+		return $this->note;
+	}
+
+	/**
 	 * Get the [external_crm_code] column value.
 	 * 
 	 * @return     string
@@ -296,6 +336,16 @@ abstract class BaseArParty extends BaseObject  implements Persistent {
 	}
 
 	/**
+	 * Get the [contract_number] column value.
+	 * 
+	 * @return     string
+	 */
+	public function getContractNumber()
+	{
+		return $this->contract_number;
+	}
+
+	/**
 	 * Get the [vat] column value.
 	 * 
 	 * @return     string
@@ -303,6 +353,16 @@ abstract class BaseArParty extends BaseObject  implements Persistent {
 	public function getVat()
 	{
 		return $this->vat;
+	}
+
+	/**
+	 * Get the [legal_registration_number] column value.
+	 * 
+	 * @return     string
+	 */
+	public function getLegalRegistrationNumber()
+	{
+		return $this->legal_registration_number;
 	}
 
 	/**
@@ -376,6 +436,16 @@ abstract class BaseArParty extends BaseObject  implements Persistent {
 	}
 
 	/**
+	 * Get the [contact_name] column value.
+	 * 
+	 * @return     string
+	 */
+	public function getContactName()
+	{
+		return $this->contact_name;
+	}
+
+	/**
 	 * Get the [phone] column value.
 	 * 
 	 * @return     string
@@ -406,9 +476,19 @@ abstract class BaseArParty extends BaseObject  implements Persistent {
 	}
 
 	/**
+	 * Get the [web_site] column value.
+	 * 
+	 * @return     string
+	 */
+	public function getWebSite()
+	{
+		return $this->web_site;
+	}
+
+	/**
 	 * Get the [max_limit_30] column value.
 	 * 
-	 * @return     int
+	 * @return     string
 	 */
 	public function getMaxLimit30()
 	{
@@ -594,6 +674,26 @@ abstract class BaseArParty extends BaseObject  implements Persistent {
 	} // setCompactName()
 
 	/**
+	 * Set the value of [note] column.
+	 * 
+	 * @param      string $v new value
+	 * @return     ArParty The current object (for fluent API support)
+	 */
+	public function setNote($v)
+	{
+		if ($v !== null) {
+			$v = (string) $v;
+		}
+
+		if ($this->note !== $v) {
+			$this->note = $v;
+			$this->modifiedColumns[] = ArPartyPeer::NOTE;
+		}
+
+		return $this;
+	} // setNote()
+
+	/**
 	 * Set the value of [external_crm_code] column.
 	 * 
 	 * @param      string $v new value
@@ -614,6 +714,26 @@ abstract class BaseArParty extends BaseObject  implements Persistent {
 	} // setExternalCrmCode()
 
 	/**
+	 * Set the value of [contract_number] column.
+	 * 
+	 * @param      string $v new value
+	 * @return     ArParty The current object (for fluent API support)
+	 */
+	public function setContractNumber($v)
+	{
+		if ($v !== null) {
+			$v = (string) $v;
+		}
+
+		if ($this->contract_number !== $v) {
+			$this->contract_number = $v;
+			$this->modifiedColumns[] = ArPartyPeer::CONTRACT_NUMBER;
+		}
+
+		return $this;
+	} // setContractNumber()
+
+	/**
 	 * Set the value of [vat] column.
 	 * 
 	 * @param      string $v new value
@@ -632,6 +752,26 @@ abstract class BaseArParty extends BaseObject  implements Persistent {
 
 		return $this;
 	} // setVat()
+
+	/**
+	 * Set the value of [legal_registration_number] column.
+	 * 
+	 * @param      string $v new value
+	 * @return     ArParty The current object (for fluent API support)
+	 */
+	public function setLegalRegistrationNumber($v)
+	{
+		if ($v !== null) {
+			$v = (string) $v;
+		}
+
+		if ($this->legal_registration_number !== $v) {
+			$this->legal_registration_number = $v;
+			$this->modifiedColumns[] = ArPartyPeer::LEGAL_REGISTRATION_NUMBER;
+		}
+
+		return $this;
+	} // setLegalRegistrationNumber()
 
 	/**
 	 * Set the value of [is_billable] column.
@@ -774,6 +914,26 @@ abstract class BaseArParty extends BaseObject  implements Persistent {
 	} // setEmail()
 
 	/**
+	 * Set the value of [contact_name] column.
+	 * 
+	 * @param      string $v new value
+	 * @return     ArParty The current object (for fluent API support)
+	 */
+	public function setContactName($v)
+	{
+		if ($v !== null) {
+			$v = (string) $v;
+		}
+
+		if ($this->contact_name !== $v) {
+			$this->contact_name = $v;
+			$this->modifiedColumns[] = ArPartyPeer::CONTACT_NAME;
+		}
+
+		return $this;
+	} // setContactName()
+
+	/**
 	 * Set the value of [phone] column.
 	 * 
 	 * @param      string $v new value
@@ -834,15 +994,35 @@ abstract class BaseArParty extends BaseObject  implements Persistent {
 	} // setFax()
 
 	/**
+	 * Set the value of [web_site] column.
+	 * 
+	 * @param      string $v new value
+	 * @return     ArParty The current object (for fluent API support)
+	 */
+	public function setWebSite($v)
+	{
+		if ($v !== null) {
+			$v = (string) $v;
+		}
+
+		if ($this->web_site !== $v) {
+			$this->web_site = $v;
+			$this->modifiedColumns[] = ArPartyPeer::WEB_SITE;
+		}
+
+		return $this;
+	} // setWebSite()
+
+	/**
 	 * Set the value of [max_limit_30] column.
 	 * 
-	 * @param      int $v new value
+	 * @param      string $v new value
 	 * @return     ArParty The current object (for fluent API support)
 	 */
 	public function setMaxLimit30($v)
 	{
 		if ($v !== null) {
-			$v = (int) $v;
+			$v = (string) $v;
 		}
 
 		if ($this->max_limit_30 !== $v) {
@@ -1109,28 +1289,33 @@ abstract class BaseArParty extends BaseObject  implements Persistent {
 			$this->id = ($row[$startcol + 0] !== null) ? (int) $row[$startcol + 0] : null;
 			$this->name = ($row[$startcol + 1] !== null) ? (string) $row[$startcol + 1] : null;
 			$this->compact_name = ($row[$startcol + 2] !== null) ? (string) $row[$startcol + 2] : null;
-			$this->external_crm_code = ($row[$startcol + 3] !== null) ? (string) $row[$startcol + 3] : null;
-			$this->vat = ($row[$startcol + 4] !== null) ? (string) $row[$startcol + 4] : null;
-			$this->is_billable = ($row[$startcol + 5] !== null) ? (boolean) $row[$startcol + 5] : null;
-			$this->legal_address = ($row[$startcol + 6] !== null) ? (string) $row[$startcol + 6] : null;
-			$this->legal_city = ($row[$startcol + 7] !== null) ? (string) $row[$startcol + 7] : null;
-			$this->legal_zipcode = ($row[$startcol + 8] !== null) ? (string) $row[$startcol + 8] : null;
-			$this->legal_state_province = ($row[$startcol + 9] !== null) ? (string) $row[$startcol + 9] : null;
-			$this->legal_country = ($row[$startcol + 10] !== null) ? (string) $row[$startcol + 10] : null;
-			$this->email = ($row[$startcol + 11] !== null) ? (string) $row[$startcol + 11] : null;
-			$this->phone = ($row[$startcol + 12] !== null) ? (string) $row[$startcol + 12] : null;
-			$this->phone2 = ($row[$startcol + 13] !== null) ? (string) $row[$startcol + 13] : null;
-			$this->fax = ($row[$startcol + 14] !== null) ? (string) $row[$startcol + 14] : null;
-			$this->max_limit_30 = ($row[$startcol + 15] !== null) ? (int) $row[$startcol + 15] : null;
-			$this->last_email_advise_for_max_limit_30 = ($row[$startcol + 16] !== null) ? (string) $row[$startcol + 16] : null;
-			$this->is_active = ($row[$startcol + 17] !== null) ? (boolean) $row[$startcol + 17] : null;
-			$this->ar_reseller_id = ($row[$startcol + 18] !== null) ? (int) $row[$startcol + 18] : null;
-			$this->migration_field_for_telephone = ($row[$startcol + 19] !== null) ? (string) $row[$startcol + 19] : null;
-			$this->migration_field_for_adsl = ($row[$startcol + 20] !== null) ? (string) $row[$startcol + 20] : null;
-			$this->payment_iban = ($row[$startcol + 21] !== null) ? (string) $row[$startcol + 21] : null;
-			$this->payment_bic = ($row[$startcol + 22] !== null) ? (string) $row[$startcol + 22] : null;
-			$this->payment_sepa = ($row[$startcol + 23] !== null) ? (string) $row[$startcol + 23] : null;
-			$this->payment_info = ($row[$startcol + 24] !== null) ? (string) $row[$startcol + 24] : null;
+			$this->note = ($row[$startcol + 3] !== null) ? (string) $row[$startcol + 3] : null;
+			$this->external_crm_code = ($row[$startcol + 4] !== null) ? (string) $row[$startcol + 4] : null;
+			$this->contract_number = ($row[$startcol + 5] !== null) ? (string) $row[$startcol + 5] : null;
+			$this->vat = ($row[$startcol + 6] !== null) ? (string) $row[$startcol + 6] : null;
+			$this->legal_registration_number = ($row[$startcol + 7] !== null) ? (string) $row[$startcol + 7] : null;
+			$this->is_billable = ($row[$startcol + 8] !== null) ? (boolean) $row[$startcol + 8] : null;
+			$this->legal_address = ($row[$startcol + 9] !== null) ? (string) $row[$startcol + 9] : null;
+			$this->legal_city = ($row[$startcol + 10] !== null) ? (string) $row[$startcol + 10] : null;
+			$this->legal_zipcode = ($row[$startcol + 11] !== null) ? (string) $row[$startcol + 11] : null;
+			$this->legal_state_province = ($row[$startcol + 12] !== null) ? (string) $row[$startcol + 12] : null;
+			$this->legal_country = ($row[$startcol + 13] !== null) ? (string) $row[$startcol + 13] : null;
+			$this->email = ($row[$startcol + 14] !== null) ? (string) $row[$startcol + 14] : null;
+			$this->contact_name = ($row[$startcol + 15] !== null) ? (string) $row[$startcol + 15] : null;
+			$this->phone = ($row[$startcol + 16] !== null) ? (string) $row[$startcol + 16] : null;
+			$this->phone2 = ($row[$startcol + 17] !== null) ? (string) $row[$startcol + 17] : null;
+			$this->fax = ($row[$startcol + 18] !== null) ? (string) $row[$startcol + 18] : null;
+			$this->web_site = ($row[$startcol + 19] !== null) ? (string) $row[$startcol + 19] : null;
+			$this->max_limit_30 = ($row[$startcol + 20] !== null) ? (string) $row[$startcol + 20] : null;
+			$this->last_email_advise_for_max_limit_30 = ($row[$startcol + 21] !== null) ? (string) $row[$startcol + 21] : null;
+			$this->is_active = ($row[$startcol + 22] !== null) ? (boolean) $row[$startcol + 22] : null;
+			$this->ar_reseller_id = ($row[$startcol + 23] !== null) ? (int) $row[$startcol + 23] : null;
+			$this->migration_field_for_telephone = ($row[$startcol + 24] !== null) ? (string) $row[$startcol + 24] : null;
+			$this->migration_field_for_adsl = ($row[$startcol + 25] !== null) ? (string) $row[$startcol + 25] : null;
+			$this->payment_iban = ($row[$startcol + 26] !== null) ? (string) $row[$startcol + 26] : null;
+			$this->payment_bic = ($row[$startcol + 27] !== null) ? (string) $row[$startcol + 27] : null;
+			$this->payment_sepa = ($row[$startcol + 28] !== null) ? (string) $row[$startcol + 28] : null;
+			$this->payment_info = ($row[$startcol + 29] !== null) ? (string) $row[$startcol + 29] : null;
 			$this->resetModified();
 
 			$this->setNew(false);
@@ -1140,7 +1325,7 @@ abstract class BaseArParty extends BaseObject  implements Persistent {
 			}
 
 			// FIXME - using NUM_COLUMNS may be clearer.
-			return $startcol + 25; // 25 = ArPartyPeer::NUM_COLUMNS - ArPartyPeer::NUM_LAZY_LOAD_COLUMNS).
+			return $startcol + 30; // 30 = ArPartyPeer::NUM_COLUMNS - ArPartyPeer::NUM_LAZY_LOAD_COLUMNS).
 
 		} catch (Exception $e) {
 			throw new PropelException("Error populating ArParty object", $e);
@@ -1550,69 +1735,84 @@ abstract class BaseArParty extends BaseObject  implements Persistent {
 				return $this->getCompactName();
 				break;
 			case 3:
-				return $this->getExternalCrmCode();
+				return $this->getNote();
 				break;
 			case 4:
-				return $this->getVat();
+				return $this->getExternalCrmCode();
 				break;
 			case 5:
-				return $this->getIsBillable();
+				return $this->getContractNumber();
 				break;
 			case 6:
-				return $this->getLegalAddress();
+				return $this->getVat();
 				break;
 			case 7:
-				return $this->getLegalCity();
+				return $this->getLegalRegistrationNumber();
 				break;
 			case 8:
-				return $this->getLegalZipcode();
+				return $this->getIsBillable();
 				break;
 			case 9:
-				return $this->getLegalStateProvince();
+				return $this->getLegalAddress();
 				break;
 			case 10:
-				return $this->getLegalCountry();
+				return $this->getLegalCity();
 				break;
 			case 11:
-				return $this->getEmail();
+				return $this->getLegalZipcode();
 				break;
 			case 12:
-				return $this->getPhone();
+				return $this->getLegalStateProvince();
 				break;
 			case 13:
-				return $this->getPhone2();
+				return $this->getLegalCountry();
 				break;
 			case 14:
-				return $this->getFax();
+				return $this->getEmail();
 				break;
 			case 15:
-				return $this->getMaxLimit30();
+				return $this->getContactName();
 				break;
 			case 16:
-				return $this->getLastEmailAdviseForMaxLimit30();
+				return $this->getPhone();
 				break;
 			case 17:
-				return $this->getIsActive();
+				return $this->getPhone2();
 				break;
 			case 18:
-				return $this->getArResellerId();
+				return $this->getFax();
 				break;
 			case 19:
-				return $this->getMigrationFieldForTelephone();
+				return $this->getWebSite();
 				break;
 			case 20:
-				return $this->getMigrationFieldForAdsl();
+				return $this->getMaxLimit30();
 				break;
 			case 21:
-				return $this->getPaymentIban();
+				return $this->getLastEmailAdviseForMaxLimit30();
 				break;
 			case 22:
-				return $this->getPaymentBic();
+				return $this->getIsActive();
 				break;
 			case 23:
-				return $this->getPaymentSepa();
+				return $this->getArResellerId();
 				break;
 			case 24:
+				return $this->getMigrationFieldForTelephone();
+				break;
+			case 25:
+				return $this->getMigrationFieldForAdsl();
+				break;
+			case 26:
+				return $this->getPaymentIban();
+				break;
+			case 27:
+				return $this->getPaymentBic();
+				break;
+			case 28:
+				return $this->getPaymentSepa();
+				break;
+			case 29:
 				return $this->getPaymentInfo();
 				break;
 			default:
@@ -1639,28 +1839,33 @@ abstract class BaseArParty extends BaseObject  implements Persistent {
 			$keys[0] => $this->getId(),
 			$keys[1] => $this->getName(),
 			$keys[2] => $this->getCompactName(),
-			$keys[3] => $this->getExternalCrmCode(),
-			$keys[4] => $this->getVat(),
-			$keys[5] => $this->getIsBillable(),
-			$keys[6] => $this->getLegalAddress(),
-			$keys[7] => $this->getLegalCity(),
-			$keys[8] => $this->getLegalZipcode(),
-			$keys[9] => $this->getLegalStateProvince(),
-			$keys[10] => $this->getLegalCountry(),
-			$keys[11] => $this->getEmail(),
-			$keys[12] => $this->getPhone(),
-			$keys[13] => $this->getPhone2(),
-			$keys[14] => $this->getFax(),
-			$keys[15] => $this->getMaxLimit30(),
-			$keys[16] => $this->getLastEmailAdviseForMaxLimit30(),
-			$keys[17] => $this->getIsActive(),
-			$keys[18] => $this->getArResellerId(),
-			$keys[19] => $this->getMigrationFieldForTelephone(),
-			$keys[20] => $this->getMigrationFieldForAdsl(),
-			$keys[21] => $this->getPaymentIban(),
-			$keys[22] => $this->getPaymentBic(),
-			$keys[23] => $this->getPaymentSepa(),
-			$keys[24] => $this->getPaymentInfo(),
+			$keys[3] => $this->getNote(),
+			$keys[4] => $this->getExternalCrmCode(),
+			$keys[5] => $this->getContractNumber(),
+			$keys[6] => $this->getVat(),
+			$keys[7] => $this->getLegalRegistrationNumber(),
+			$keys[8] => $this->getIsBillable(),
+			$keys[9] => $this->getLegalAddress(),
+			$keys[10] => $this->getLegalCity(),
+			$keys[11] => $this->getLegalZipcode(),
+			$keys[12] => $this->getLegalStateProvince(),
+			$keys[13] => $this->getLegalCountry(),
+			$keys[14] => $this->getEmail(),
+			$keys[15] => $this->getContactName(),
+			$keys[16] => $this->getPhone(),
+			$keys[17] => $this->getPhone2(),
+			$keys[18] => $this->getFax(),
+			$keys[19] => $this->getWebSite(),
+			$keys[20] => $this->getMaxLimit30(),
+			$keys[21] => $this->getLastEmailAdviseForMaxLimit30(),
+			$keys[22] => $this->getIsActive(),
+			$keys[23] => $this->getArResellerId(),
+			$keys[24] => $this->getMigrationFieldForTelephone(),
+			$keys[25] => $this->getMigrationFieldForAdsl(),
+			$keys[26] => $this->getPaymentIban(),
+			$keys[27] => $this->getPaymentBic(),
+			$keys[28] => $this->getPaymentSepa(),
+			$keys[29] => $this->getPaymentInfo(),
 		);
 		return $result;
 	}
@@ -1702,69 +1907,84 @@ abstract class BaseArParty extends BaseObject  implements Persistent {
 				$this->setCompactName($value);
 				break;
 			case 3:
-				$this->setExternalCrmCode($value);
+				$this->setNote($value);
 				break;
 			case 4:
-				$this->setVat($value);
+				$this->setExternalCrmCode($value);
 				break;
 			case 5:
-				$this->setIsBillable($value);
+				$this->setContractNumber($value);
 				break;
 			case 6:
-				$this->setLegalAddress($value);
+				$this->setVat($value);
 				break;
 			case 7:
-				$this->setLegalCity($value);
+				$this->setLegalRegistrationNumber($value);
 				break;
 			case 8:
-				$this->setLegalZipcode($value);
+				$this->setIsBillable($value);
 				break;
 			case 9:
-				$this->setLegalStateProvince($value);
+				$this->setLegalAddress($value);
 				break;
 			case 10:
-				$this->setLegalCountry($value);
+				$this->setLegalCity($value);
 				break;
 			case 11:
-				$this->setEmail($value);
+				$this->setLegalZipcode($value);
 				break;
 			case 12:
-				$this->setPhone($value);
+				$this->setLegalStateProvince($value);
 				break;
 			case 13:
-				$this->setPhone2($value);
+				$this->setLegalCountry($value);
 				break;
 			case 14:
-				$this->setFax($value);
+				$this->setEmail($value);
 				break;
 			case 15:
-				$this->setMaxLimit30($value);
+				$this->setContactName($value);
 				break;
 			case 16:
-				$this->setLastEmailAdviseForMaxLimit30($value);
+				$this->setPhone($value);
 				break;
 			case 17:
-				$this->setIsActive($value);
+				$this->setPhone2($value);
 				break;
 			case 18:
-				$this->setArResellerId($value);
+				$this->setFax($value);
 				break;
 			case 19:
-				$this->setMigrationFieldForTelephone($value);
+				$this->setWebSite($value);
 				break;
 			case 20:
-				$this->setMigrationFieldForAdsl($value);
+				$this->setMaxLimit30($value);
 				break;
 			case 21:
-				$this->setPaymentIban($value);
+				$this->setLastEmailAdviseForMaxLimit30($value);
 				break;
 			case 22:
-				$this->setPaymentBic($value);
+				$this->setIsActive($value);
 				break;
 			case 23:
-				$this->setPaymentSepa($value);
+				$this->setArResellerId($value);
 				break;
 			case 24:
+				$this->setMigrationFieldForTelephone($value);
+				break;
+			case 25:
+				$this->setMigrationFieldForAdsl($value);
+				break;
+			case 26:
+				$this->setPaymentIban($value);
+				break;
+			case 27:
+				$this->setPaymentBic($value);
+				break;
+			case 28:
+				$this->setPaymentSepa($value);
+				break;
+			case 29:
 				$this->setPaymentInfo($value);
 				break;
 		} // switch()
@@ -1794,28 +2014,33 @@ abstract class BaseArParty extends BaseObject  implements Persistent {
 		if (array_key_exists($keys[0], $arr)) $this->setId($arr[$keys[0]]);
 		if (array_key_exists($keys[1], $arr)) $this->setName($arr[$keys[1]]);
 		if (array_key_exists($keys[2], $arr)) $this->setCompactName($arr[$keys[2]]);
-		if (array_key_exists($keys[3], $arr)) $this->setExternalCrmCode($arr[$keys[3]]);
-		if (array_key_exists($keys[4], $arr)) $this->setVat($arr[$keys[4]]);
-		if (array_key_exists($keys[5], $arr)) $this->setIsBillable($arr[$keys[5]]);
-		if (array_key_exists($keys[6], $arr)) $this->setLegalAddress($arr[$keys[6]]);
-		if (array_key_exists($keys[7], $arr)) $this->setLegalCity($arr[$keys[7]]);
-		if (array_key_exists($keys[8], $arr)) $this->setLegalZipcode($arr[$keys[8]]);
-		if (array_key_exists($keys[9], $arr)) $this->setLegalStateProvince($arr[$keys[9]]);
-		if (array_key_exists($keys[10], $arr)) $this->setLegalCountry($arr[$keys[10]]);
-		if (array_key_exists($keys[11], $arr)) $this->setEmail($arr[$keys[11]]);
-		if (array_key_exists($keys[12], $arr)) $this->setPhone($arr[$keys[12]]);
-		if (array_key_exists($keys[13], $arr)) $this->setPhone2($arr[$keys[13]]);
-		if (array_key_exists($keys[14], $arr)) $this->setFax($arr[$keys[14]]);
-		if (array_key_exists($keys[15], $arr)) $this->setMaxLimit30($arr[$keys[15]]);
-		if (array_key_exists($keys[16], $arr)) $this->setLastEmailAdviseForMaxLimit30($arr[$keys[16]]);
-		if (array_key_exists($keys[17], $arr)) $this->setIsActive($arr[$keys[17]]);
-		if (array_key_exists($keys[18], $arr)) $this->setArResellerId($arr[$keys[18]]);
-		if (array_key_exists($keys[19], $arr)) $this->setMigrationFieldForTelephone($arr[$keys[19]]);
-		if (array_key_exists($keys[20], $arr)) $this->setMigrationFieldForAdsl($arr[$keys[20]]);
-		if (array_key_exists($keys[21], $arr)) $this->setPaymentIban($arr[$keys[21]]);
-		if (array_key_exists($keys[22], $arr)) $this->setPaymentBic($arr[$keys[22]]);
-		if (array_key_exists($keys[23], $arr)) $this->setPaymentSepa($arr[$keys[23]]);
-		if (array_key_exists($keys[24], $arr)) $this->setPaymentInfo($arr[$keys[24]]);
+		if (array_key_exists($keys[3], $arr)) $this->setNote($arr[$keys[3]]);
+		if (array_key_exists($keys[4], $arr)) $this->setExternalCrmCode($arr[$keys[4]]);
+		if (array_key_exists($keys[5], $arr)) $this->setContractNumber($arr[$keys[5]]);
+		if (array_key_exists($keys[6], $arr)) $this->setVat($arr[$keys[6]]);
+		if (array_key_exists($keys[7], $arr)) $this->setLegalRegistrationNumber($arr[$keys[7]]);
+		if (array_key_exists($keys[8], $arr)) $this->setIsBillable($arr[$keys[8]]);
+		if (array_key_exists($keys[9], $arr)) $this->setLegalAddress($arr[$keys[9]]);
+		if (array_key_exists($keys[10], $arr)) $this->setLegalCity($arr[$keys[10]]);
+		if (array_key_exists($keys[11], $arr)) $this->setLegalZipcode($arr[$keys[11]]);
+		if (array_key_exists($keys[12], $arr)) $this->setLegalStateProvince($arr[$keys[12]]);
+		if (array_key_exists($keys[13], $arr)) $this->setLegalCountry($arr[$keys[13]]);
+		if (array_key_exists($keys[14], $arr)) $this->setEmail($arr[$keys[14]]);
+		if (array_key_exists($keys[15], $arr)) $this->setContactName($arr[$keys[15]]);
+		if (array_key_exists($keys[16], $arr)) $this->setPhone($arr[$keys[16]]);
+		if (array_key_exists($keys[17], $arr)) $this->setPhone2($arr[$keys[17]]);
+		if (array_key_exists($keys[18], $arr)) $this->setFax($arr[$keys[18]]);
+		if (array_key_exists($keys[19], $arr)) $this->setWebSite($arr[$keys[19]]);
+		if (array_key_exists($keys[20], $arr)) $this->setMaxLimit30($arr[$keys[20]]);
+		if (array_key_exists($keys[21], $arr)) $this->setLastEmailAdviseForMaxLimit30($arr[$keys[21]]);
+		if (array_key_exists($keys[22], $arr)) $this->setIsActive($arr[$keys[22]]);
+		if (array_key_exists($keys[23], $arr)) $this->setArResellerId($arr[$keys[23]]);
+		if (array_key_exists($keys[24], $arr)) $this->setMigrationFieldForTelephone($arr[$keys[24]]);
+		if (array_key_exists($keys[25], $arr)) $this->setMigrationFieldForAdsl($arr[$keys[25]]);
+		if (array_key_exists($keys[26], $arr)) $this->setPaymentIban($arr[$keys[26]]);
+		if (array_key_exists($keys[27], $arr)) $this->setPaymentBic($arr[$keys[27]]);
+		if (array_key_exists($keys[28], $arr)) $this->setPaymentSepa($arr[$keys[28]]);
+		if (array_key_exists($keys[29], $arr)) $this->setPaymentInfo($arr[$keys[29]]);
 	}
 
 	/**
@@ -1830,8 +2055,11 @@ abstract class BaseArParty extends BaseObject  implements Persistent {
 		if ($this->isColumnModified(ArPartyPeer::ID)) $criteria->add(ArPartyPeer::ID, $this->id);
 		if ($this->isColumnModified(ArPartyPeer::NAME)) $criteria->add(ArPartyPeer::NAME, $this->name);
 		if ($this->isColumnModified(ArPartyPeer::COMPACT_NAME)) $criteria->add(ArPartyPeer::COMPACT_NAME, $this->compact_name);
+		if ($this->isColumnModified(ArPartyPeer::NOTE)) $criteria->add(ArPartyPeer::NOTE, $this->note);
 		if ($this->isColumnModified(ArPartyPeer::EXTERNAL_CRM_CODE)) $criteria->add(ArPartyPeer::EXTERNAL_CRM_CODE, $this->external_crm_code);
+		if ($this->isColumnModified(ArPartyPeer::CONTRACT_NUMBER)) $criteria->add(ArPartyPeer::CONTRACT_NUMBER, $this->contract_number);
 		if ($this->isColumnModified(ArPartyPeer::VAT)) $criteria->add(ArPartyPeer::VAT, $this->vat);
+		if ($this->isColumnModified(ArPartyPeer::LEGAL_REGISTRATION_NUMBER)) $criteria->add(ArPartyPeer::LEGAL_REGISTRATION_NUMBER, $this->legal_registration_number);
 		if ($this->isColumnModified(ArPartyPeer::IS_BILLABLE)) $criteria->add(ArPartyPeer::IS_BILLABLE, $this->is_billable);
 		if ($this->isColumnModified(ArPartyPeer::LEGAL_ADDRESS)) $criteria->add(ArPartyPeer::LEGAL_ADDRESS, $this->legal_address);
 		if ($this->isColumnModified(ArPartyPeer::LEGAL_CITY)) $criteria->add(ArPartyPeer::LEGAL_CITY, $this->legal_city);
@@ -1839,9 +2067,11 @@ abstract class BaseArParty extends BaseObject  implements Persistent {
 		if ($this->isColumnModified(ArPartyPeer::LEGAL_STATE_PROVINCE)) $criteria->add(ArPartyPeer::LEGAL_STATE_PROVINCE, $this->legal_state_province);
 		if ($this->isColumnModified(ArPartyPeer::LEGAL_COUNTRY)) $criteria->add(ArPartyPeer::LEGAL_COUNTRY, $this->legal_country);
 		if ($this->isColumnModified(ArPartyPeer::EMAIL)) $criteria->add(ArPartyPeer::EMAIL, $this->email);
+		if ($this->isColumnModified(ArPartyPeer::CONTACT_NAME)) $criteria->add(ArPartyPeer::CONTACT_NAME, $this->contact_name);
 		if ($this->isColumnModified(ArPartyPeer::PHONE)) $criteria->add(ArPartyPeer::PHONE, $this->phone);
 		if ($this->isColumnModified(ArPartyPeer::PHONE2)) $criteria->add(ArPartyPeer::PHONE2, $this->phone2);
 		if ($this->isColumnModified(ArPartyPeer::FAX)) $criteria->add(ArPartyPeer::FAX, $this->fax);
+		if ($this->isColumnModified(ArPartyPeer::WEB_SITE)) $criteria->add(ArPartyPeer::WEB_SITE, $this->web_site);
 		if ($this->isColumnModified(ArPartyPeer::MAX_LIMIT_30)) $criteria->add(ArPartyPeer::MAX_LIMIT_30, $this->max_limit_30);
 		if ($this->isColumnModified(ArPartyPeer::LAST_EMAIL_ADVISE_FOR_MAX_LIMIT_30)) $criteria->add(ArPartyPeer::LAST_EMAIL_ADVISE_FOR_MAX_LIMIT_30, $this->last_email_advise_for_max_limit_30);
 		if ($this->isColumnModified(ArPartyPeer::IS_ACTIVE)) $criteria->add(ArPartyPeer::IS_ACTIVE, $this->is_active);
@@ -1910,9 +2140,15 @@ abstract class BaseArParty extends BaseObject  implements Persistent {
 
 		$copyObj->setCompactName($this->compact_name);
 
+		$copyObj->setNote($this->note);
+
 		$copyObj->setExternalCrmCode($this->external_crm_code);
 
+		$copyObj->setContractNumber($this->contract_number);
+
 		$copyObj->setVat($this->vat);
+
+		$copyObj->setLegalRegistrationNumber($this->legal_registration_number);
 
 		$copyObj->setIsBillable($this->is_billable);
 
@@ -1928,11 +2164,15 @@ abstract class BaseArParty extends BaseObject  implements Persistent {
 
 		$copyObj->setEmail($this->email);
 
+		$copyObj->setContactName($this->contact_name);
+
 		$copyObj->setPhone($this->phone);
 
 		$copyObj->setPhone2($this->phone2);
 
 		$copyObj->setFax($this->fax);
+
+		$copyObj->setWebSite($this->web_site);
 
 		$copyObj->setMaxLimit30($this->max_limit_30);
 

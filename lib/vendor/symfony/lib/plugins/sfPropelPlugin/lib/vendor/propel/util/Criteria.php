@@ -826,9 +826,9 @@ class Criteria implements IteratorAggregate {
 	 * @param      string $name Name of the select column.
 	 * @return     Criteria Modified Criteria object (for fluent API)
 	 */
-	public function addSelectColumn($name)
+    public function addSelectColumn($name)
 	{
-		$this->selectColumns[] = $name;
+        $this->selectColumns[] = $name;
 		return $this;
 	}
 	

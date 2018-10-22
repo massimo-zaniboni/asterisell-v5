@@ -42,7 +42,7 @@ abstract class BaseArCurrentProblemForm extends BaseFormPropel
       'effect'                    => new sfValidatorString(array('required' => false)),
       'proposed_solution'         => new sfValidatorString(array('required' => false)),
       'signaled_to_admin'         => new sfValidatorBoolean(),
-      'count_of_cdrs'             => new sfValidatorInteger(array('min' => -2147483648, 'max' => 2147483647)),
+      'count_of_cdrs'             => new sfValidatorInteger(array('min' => -9.2233720368548E+18, 'max' => 9223372036854775807)),
     ));
 
     $this->widgetSchema->setNameFormat('ar_current_problem[%s]');

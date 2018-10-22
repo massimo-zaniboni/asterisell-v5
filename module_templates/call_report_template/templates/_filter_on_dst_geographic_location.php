@@ -14,20 +14,9 @@
   !!!                                                        !!!
  * ************************************************************ */
 
-
-// add a blank option
-//
-$options = array("" => "");
-
-// add other options
-//
-foreach (VariableFrame::$geographicLocationsInTimeRange as $loc => $zero) {
-    $options[$loc] = $loc;
-}
-
 $defaultChoice = "";
 if (isset($filters['filter_on_dst_geographic_location'])) {
     $defaultChoice = $filters['filter_on_dst_geographic_location'];
 }
-echo select_tag('filters[filter_on_dst_geographic_location]', options_for_select($options, $defaultChoice));
+echo select_tag('filters[filter_on_dst_geographic_location]', options_for_select(VariableFrame::$filterOnGeographicLocation, $defaultChoice));
 ?>

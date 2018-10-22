@@ -108,6 +108,13 @@ abstract class BaseArService extends BaseObject  implements Persistent {
 	protected $schedule_from;
 
 	/**
+	 * The value for the schedule_at field.
+	 * Note: this column has a database default value of: '00:00:00'
+	 * @var        string
+	 */
+	protected $schedule_at;
+
+	/**
 	 * @var        array ArServicePrice[] Collection to store aggregation of ArServicePrice objects.
 	 */
 	protected $collArServicePrices;
@@ -158,6 +165,7 @@ abstract class BaseArService extends BaseObject  implements Persistent {
 		$this->is_enabled = true;
 		$this->is_applied_only_one_time = false;
 		$this->was_compiled = false;
+		$this->schedule_at = '00:00:00';
 	}
 
 	/**
@@ -308,6 +316,39 @@ abstract class BaseArService extends BaseObject  implements Persistent {
 	public function getScheduleFrom()
 	{
 		return $this->schedule_from;
+	}
+
+	/**
+	 * Get the [optionally formatted] temporal [schedule_at] column value.
+	 * 
+	 *
+	 * @param      string $format The date/time format string (either date()-style or strftime()-style).
+	 *							If format is NULL, then the raw DateTime object will be returned.
+	 * @return     mixed Formatted date/time value as string or DateTime object (if format is NULL), NULL if column is NULL
+	 * @throws     PropelException - if unable to parse/validate the date/time value.
+	 */
+	public function getScheduleAt($format = 'H:i:s')
+	{
+		if ($this->schedule_at === null) {
+			return null;
+		}
+
+
+
+		try {
+			$dt = new DateTime($this->schedule_at);
+		} catch (Exception $x) {
+			throw new PropelException("Internally stored date/time/timestamp value could not be converted to DateTime: " . var_export($this->schedule_at, true), $x);
+		}
+
+		if ($format === null) {
+			// Because propel.useDateTimeClass is TRUE, we return a DateTime object.
+			return $dt;
+		} elseif (strpos($format, '%') !== false) {
+			return strftime($format, $dt->format('U'));
+		} else {
+			return $dt->format($format);
+		}
 	}
 
 	/**
@@ -591,6 +632,56 @@ abstract class BaseArService extends BaseObject  implements Persistent {
 	} // setScheduleFrom()
 
 	/**
+	 * Sets the value of [schedule_at] column to a normalized version of the date/time value specified.
+	 * 
+	 * @param      mixed $v string, integer (timestamp), or DateTime value.  Empty string will
+	 *						be treated as NULL for temporal objects.
+	 * @return     ArService The current object (for fluent API support)
+	 */
+	public function setScheduleAt($v)
+	{
+		// we treat '' as NULL for temporal objects because DateTime('') == DateTime('now')
+		// -- which is unexpected, to say the least.
+		if ($v === null || $v === '') {
+			$dt = null;
+		} elseif ($v instanceof DateTime) {
+			$dt = $v;
+		} else {
+			// some string/numeric value passed; we normalize that so that we can
+			// validate it.
+			try {
+				if (is_numeric($v)) { // if it's a unix timestamp
+					$dt = new DateTime('@'.$v, new DateTimeZone('UTC'));
+					// We have to explicitly specify and then change the time zone because of a
+					// DateTime bug: http://bugs.php.net/bug.php?id=43003
+					$dt->setTimeZone(new DateTimeZone(date_default_timezone_get()));
+				} else {
+					$dt = new DateTime($v);
+				}
+			} catch (Exception $x) {
+				throw new PropelException('Error parsing date/time value: ' . var_export($v, true), $x);
+			}
+		}
+
+		if ( $this->schedule_at !== null || $dt !== null ) {
+			// (nested ifs are a little easier to read in this case)
+
+			$currNorm = ($this->schedule_at !== null && $tmpDt = new DateTime($this->schedule_at)) ? $tmpDt->format('H:i:s') : null;
+			$newNorm = ($dt !== null) ? $dt->format('H:i:s') : null;
+
+			if ( ($currNorm !== $newNorm) // normalized values don't match 
+					|| ($dt->format('H:i:s') === '00:00:00') // or the entered value matches the default
+					)
+			{
+				$this->schedule_at = ($dt ? $dt->format('H:i:s') : null);
+				$this->modifiedColumns[] = ArServicePeer::SCHEDULE_AT;
+			}
+		} // if either are not null
+
+		return $this;
+	} // setScheduleAt()
+
+	/**
 	 * Indicates whether the columns in this object are only set to default values.
 	 *
 	 * This method can be used in conjunction with isModified() to indicate whether an object is both
@@ -617,6 +708,10 @@ abstract class BaseArService extends BaseObject  implements Persistent {
 			}
 
 			if ($this->was_compiled !== false) {
+				return false;
+			}
+
+			if ($this->schedule_at !== '00:00:00') {
 				return false;
 			}
 
@@ -656,6 +751,7 @@ abstract class BaseArService extends BaseObject  implements Persistent {
 			$this->schedule_timeframe = ($row[$startcol + 11] !== null) ? (string) $row[$startcol + 11] : null;
 			$this->was_compiled = ($row[$startcol + 12] !== null) ? (boolean) $row[$startcol + 12] : null;
 			$this->schedule_from = ($row[$startcol + 13] !== null) ? (string) $row[$startcol + 13] : null;
+			$this->schedule_at = ($row[$startcol + 14] !== null) ? (string) $row[$startcol + 14] : null;
 			$this->resetModified();
 
 			$this->setNew(false);
@@ -665,7 +761,7 @@ abstract class BaseArService extends BaseObject  implements Persistent {
 			}
 
 			// FIXME - using NUM_COLUMNS may be clearer.
-			return $startcol + 14; // 14 = ArServicePeer::NUM_COLUMNS - ArServicePeer::NUM_LAZY_LOAD_COLUMNS).
+			return $startcol + 15; // 15 = ArServicePeer::NUM_COLUMNS - ArServicePeer::NUM_LAZY_LOAD_COLUMNS).
 
 		} catch (Exception $e) {
 			throw new PropelException("Error populating ArService object", $e);
@@ -1041,6 +1137,9 @@ abstract class BaseArService extends BaseObject  implements Persistent {
 			case 13:
 				return $this->getScheduleFrom();
 				break;
+			case 14:
+				return $this->getScheduleAt();
+				break;
 			default:
 				return null;
 				break;
@@ -1076,6 +1175,7 @@ abstract class BaseArService extends BaseObject  implements Persistent {
 			$keys[11] => $this->getScheduleTimeframe(),
 			$keys[12] => $this->getWasCompiled(),
 			$keys[13] => $this->getScheduleFrom(),
+			$keys[14] => $this->getScheduleAt(),
 		);
 		return $result;
 	}
@@ -1149,6 +1249,9 @@ abstract class BaseArService extends BaseObject  implements Persistent {
 			case 13:
 				$this->setScheduleFrom($value);
 				break;
+			case 14:
+				$this->setScheduleAt($value);
+				break;
 		} // switch()
 	}
 
@@ -1187,6 +1290,7 @@ abstract class BaseArService extends BaseObject  implements Persistent {
 		if (array_key_exists($keys[11], $arr)) $this->setScheduleTimeframe($arr[$keys[11]]);
 		if (array_key_exists($keys[12], $arr)) $this->setWasCompiled($arr[$keys[12]]);
 		if (array_key_exists($keys[13], $arr)) $this->setScheduleFrom($arr[$keys[13]]);
+		if (array_key_exists($keys[14], $arr)) $this->setScheduleAt($arr[$keys[14]]);
 	}
 
 	/**
@@ -1212,6 +1316,7 @@ abstract class BaseArService extends BaseObject  implements Persistent {
 		if ($this->isColumnModified(ArServicePeer::SCHEDULE_TIMEFRAME)) $criteria->add(ArServicePeer::SCHEDULE_TIMEFRAME, $this->schedule_timeframe);
 		if ($this->isColumnModified(ArServicePeer::WAS_COMPILED)) $criteria->add(ArServicePeer::WAS_COMPILED, $this->was_compiled);
 		if ($this->isColumnModified(ArServicePeer::SCHEDULE_FROM)) $criteria->add(ArServicePeer::SCHEDULE_FROM, $this->schedule_from);
+		if ($this->isColumnModified(ArServicePeer::SCHEDULE_AT)) $criteria->add(ArServicePeer::SCHEDULE_AT, $this->schedule_at);
 
 		return $criteria;
 	}
@@ -1291,6 +1396,8 @@ abstract class BaseArService extends BaseObject  implements Persistent {
 		$copyObj->setWasCompiled($this->was_compiled);
 
 		$copyObj->setScheduleFrom($this->schedule_from);
+
+		$copyObj->setScheduleAt($this->schedule_at);
 
 
 		if ($deepCopy) {

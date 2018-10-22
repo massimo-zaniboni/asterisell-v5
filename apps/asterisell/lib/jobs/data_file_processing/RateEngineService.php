@@ -1,25 +1,6 @@
 <?php
 
-/* $LICENSE 2013, 2014, 2017:
- *
- * Copyright (C) 2013, 2014, 2017 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
- *
- * This file is part of Asterisell.
- *
- * Asterisell is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 3 of the License, or
- * (at your option) any later version.
- *
- * Asterisell is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with Asterisell. If not, see <http://www.gnu.org/licenses/>.
- * $
- */
+// SPDX-License-Identifier: GPL-3.0-or-later
 
 sfLoader::loadHelpers(array('I18N', 'Debug', 'Date', 'Asterisell'));
 
@@ -29,17 +10,28 @@ sfLoader::loadHelpers(array('I18N', 'Debug', 'Date', 'Asterisell'));
  */
 class RateEngineService
 {
+    const PARAMS_FILE = 'rating-params.csv';
 
     const TOOL_EXECUTABLE = 'scripts/RateEngine';
 
     const MAX_IMPORT_ERRORS_TO_SHOW = 50;
 
+    /**
+     * Here a custom job executed before the rating process,
+     * can put specific instance params,
+     * that can be read from the rating engine,
+     * through the `--params ...` option.
+     *
+     * Useful for customizing the rating process, without modifying
+     * the public accessible code of the rating engine.
+     *
+     * @var array name => value
+     */
+    static public $custom_initial_params = array();
+
     static public function getToolExecutable()
     {
-
-        $cpu_cores = sfConfig::get('app_cpu_cores');
-        $opts = " +RTS -N" . $cpu_cores . " -RTS ";
-
+        $opts = " ";
         return normalizeFileNamePath(getAsterisellCompleteRootDirectory() . '/' . self::TOOL_EXECUTABLE) . $opts;
     }
 
@@ -70,25 +62,17 @@ class RateEngineService
         return $r;
     }
 
-    /**
-     * Execute regression tests on the rating engine.
-     *
-     * @param int $referenceTime
-     * @param int $pass
-     * @return bool true in case of success of tests, fals otherwise
+     /**
+     * @return bool true in case of success of tests, false otherwise
      */
-    static public function executeOrganizationTests($referenceTime, $pass)
+    static public function executeUpdateAllCachedCDRS()
     {
 
-        // Create command
-        list($database, $user, $password) = getDatabaseNameUserAndPassword(true);
-
+        $ratingParams = array();
         $cmd = self::getToolExecutable()
-            . ' --test-organizations ' . $pass
-            . ' --from-date "' . fromUnixTimestampToMySQLTimestamp($referenceTime) . '" '
-            . ' --db-name ' . $database
-            . ' --db-user ' . $user
-            . ' --db-password ' . $password;
+            . ' --update-all-cached-cdrs '
+            . self::writeWithDBAccessParams($ratingParams)
+            ;
 
         // Execute the command
         $discard = array();
@@ -102,6 +86,39 @@ class RateEngineService
         }
     }
 
+    /**
+     * Execute regression tests on the rating engine.
+     *
+     * @param int|null $referenceTime null for only testing if organizations are well specified
+     * @param int $pass
+     * @return bool true in case of success of tests, fals otherwise
+     */
+    static public function executeOrganizationTests($referenceTime, $pass)
+    {
+
+        if (is_null($referenceTime)) {
+           $referenceTimeS = 'null';
+        } else {
+            $referenceTimeS = fromUnixTimestampToMySQLTimestamp($referenceTime);
+        }
+
+        $ratingParams = array();
+        $cmd = self::getToolExecutable()
+            . ' --test-organizations ' . $pass
+            . self::writeWithDBAccessParams($ratingParams)
+            . ' --from-date "' . $referenceTimeS . '" ';
+
+        // Execute the command
+        $discard = array();
+        $exitStatus = 0;
+        $resultLine = exec($cmd, $discard, $exitStatus);
+
+        if ($exitStatus != 0) {
+            return false;
+        } else {
+            return true;
+        }
+    }
 
     /**
      * @return bool true in case of success of tests, fals otherwise
@@ -125,5 +142,45 @@ class RateEngineService
         }
     }
 
+    /**
+     * @param array $params add to this array the db access params
+     */
+    static public function addDBAccessToParams(&$params) {
+      list($dbName, $dbUser, $dbPassword) = getDatabaseNameUserAndPassword(true);
+      $params['db-name'] = $dbName;
+      $params['db-user'] = $dbUser;
+      $params['db-password'] = $dbPassword;
+    }
+
+    /**
+     * Write all the params on a param file, to send to the engine.
+     * Add also the `self::custom_initial_params`.
+     *
+     * @param array $params name => value array
+     * @return string the command line with the name of the param file to pass to the rating engine
+     */
+    static public function writeParams($params) {
+      $ratingParamsFileName = normalizeFileNamePath(ImportDataFiles::getMySQLAccessibleTmpDirectory('rating-services') . '/' . self::PARAMS_FILE);
+
+      // NOTE: the custom params can override the code params
+      $params2 = array_merge($params, self::$custom_initial_params);
+
+      $fh = fopen($ratingParamsFileName, 'w');
+      foreach($params2 as $key => $value) {
+          $data = array();
+          $data[] = $key;
+          $data[] = $value;
+          safe_fputcsv($fh, $data);
+      }
+      fclose($fh);
+
+      return ' --params ' . $ratingParamsFileName . ' ';
+
+    }
+
+    static public function writeWithDBAccessParams(&$params) {
+        self::addDBAccessToParams($params);
+        return self::writeParams($params);
+    }
 
 }

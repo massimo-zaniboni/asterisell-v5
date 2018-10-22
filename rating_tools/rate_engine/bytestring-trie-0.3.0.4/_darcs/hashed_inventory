@@ -1,0 +1,238 @@
+pristine:f20f3ee43b50551bddd12dc1c7566c5d6ee735b16f920d9889810a47cf1a417d
+Starting with inventory:
+0000017015-8ac0b9c19d7f4b650966c41e1d43fa8a3e5a95f8b1fe67c479149329a1a1daa1
+[TAG 0.2.4
+wren gayle romano <wren@community.haskell.org>**20141010071754
+ Ignore-this: 4ab9afef550cea235d74a4275e990956
+] 
+hash: 0000000440-92c81bba52935bbb429d3254cc41176d03db4a0fc53136dd9416b6f3ecd93fff
+[Moved everything under BigEndianPatricia to make way for changes
+wren gayle romano <wren@community.haskell.org>**20140529232413
+ Ignore-this: 3137bc8b1b1ddfb697d87fdd8492a1f9
+] 
+hash: 0000006433-73a0a3c83ee7f85e26c5f0a3420c9de4596d5b6e9d94bd04d926e145188d2e31
+[Moved ByteStringInternal back
+wren gayle romano <wren@community.haskell.org>**20140531003002
+ Ignore-this: 3a8ff821a5b4c2627a89926d51dfabd8
+] 
+hash: 0000001779-59dd19363ef98558f9ed6c7566aa0954e7ac964a567a57f4e0af2c5b2b457e6c
+[Preliminary code for ArrayMapped version
+wren gayle romano <wren@community.haskell.org>**20140531110419
+ Ignore-this: e8bd73de33512799b8606582560aacdd
+] 
+hash: 0000052202-cf5445c2d8ac51cae740676dfff27232baf8c997e1043408f62434bf92b678f4
+[SparseArray: lots of changes
+wren gayle romano <wren@community.haskell.org>**20140531123626
+ Ignore-this: fa4b868db290c6e5e9acdda56cf40af0
+] 
+hash: 0000004481-85a5dcdae1c2df51093eeb9cf389e831232ce58f7bc4db50543fd829fd4ac378
+[SparseArray: added DynamicMSA
+wren gayle romano <wren@community.haskell.org>**20140601225827
+ Ignore-this: 58124e0f229eeac8a3687a052d335ddd
+ 
+ We'll probably remove this as noted in the TODO comment on fromList;
+ but wanted to check it in for posterity.
+] 
+hash: 0000007409-3f677c9d9a3ec1c2464a84a895c1218993ea8a77a50f483b87ee8f75037abacb
+[SparseArray: got everything to type check at least
+wren gayle romano <wren@community.haskell.org>**20140601234808
+ Ignore-this: 5e907439cd6db5bf165093870ff7b3d7
+] 
+hash: 0000009157-890d7cb26e777c0f1a93f626849fbcdeb35ae3e46493d44dbfa0ea494b96a316
+[SparseArray: fixed off-by-one errors in folds
+wren gayle romano <wren@community.haskell.org>**20140602001755
+ Ignore-this: c88f2cd9083fc1f7133312f885e7052c
+] 
+hash: 0000000706-b147bcb349319fc1acb094d41328358ffffeb4d42e717d84021ee01ef7b21acf
+[SparseArray: optimization hackery
+wren gayle romano <wren@community.haskell.org>**20140602001901
+ Ignore-this: b885104dca84f403b3c4d3a4d70ef35b
+] 
+hash: 0000002651-435370cdbc4504311980aba9102ea71f6e6e00af958ab20792d6eb39e8bb6115
+[SparseArray: fixed off-by one error in toListByFB
+wren gayle romano <wren@community.haskell.org>**20140602002314
+ Ignore-this: ef0132573b3fad796c8baebf99667883
+] 
+hash: 0000000320-f471b394f75c26aa31b6b106f66f35c63b012329a922f320381088fda728ce06
+[SparseArray: various
+wren gayle romano <wren@community.haskell.org>**20140602054624
+ Ignore-this: 6a4a163a111527feca9d267fed8a64fa
+] 
+hash: 0000011664-d0478721c26325db77c0b43bf5fcb7aa1e5bbeb1819250eb56b993553e1be315
+[ByteStringInternal: added appendSnoc
+wren gayle romano <wren@community.haskell.org>**20140602054649
+ Ignore-this: 72348c83e6ff9a586233f6e8564f2153
+] 
+hash: 0000002095-122b20109cca2d214fbd7ced1f52f32a043651fe67e28695a626b8374b822ecd
+[Data.Trie.ArrayMapped.Internal: various
+wren gayle romano <wren@community.haskell.org>**20140602054712
+ Ignore-this: b8628de3794d774c987b95c50fc44bf3
+] 
+hash: 0000020465-e18643b03a71f8a3dafab550628e6a4353afc5083c3f09145b5fda74a2bc1bc8
+[SparseArray: lots of stuff
+wren gayle romano <wren@community.haskell.org>**20140604112907
+ Ignore-this: af48abef2e0979decd57eefaf97195cd
+] 
+hash: 0000042613-db8a8f136f58efa9097899027faa552614a0fc621a28569c1405ce73fb6fe4e7
+[SparseArray: reimplemented firstBit and nextBit to be constant time
+wren gayle romano <wren@community.haskell.org>**20140604225737
+ Ignore-this: 72b4c934cbcf3e6836a28721875b727f
+] 
+hash: 0000004323-d088755ac93eaf3e527ec4de0eb0d840e2a6517a7e070dfbb9768a6a123055a0
+[SparseArray: some minor optimizations
+wren gayle romano <wren@community.haskell.org>**20140604234959
+ Ignore-this: 359eba19222cdeaf5ee21048cd432ccc
+] 
+hash: 0000003091-73fbad87082963f76df0b94a6debce8617c8081b92995e3f2b288c0131da6dfc
+[SparseArray: renamed firstBit/nextBit
+wren gayle romano <wren@community.haskell.org>**20140605022918
+ Ignore-this: 8200455284a8991f315c694a2883c65d
+] 
+hash: 0000017433-fb57177b6d9aface1763813e71cc4d48869dc5994ebf69f26f706e1f043d5c26
+[Data.Trie.ArrayMapped.SparseArray: overhaul
+wren gayle romano <wren@community.haskell.org>**20141009074818
+ Ignore-this: 665377ab2db277f0ca59b1455a39c010
+] 
+hash: 0000013950-0e8d9d73c12add785821e4f34e2830eedbcc5b9a7f8bc43f572bc901d1b9d102
+[Data.Trie.ArrayMapped.*: added various
+wren gayle romano <wren@community.haskell.org>**20141009074859
+ Ignore-this: 19c64c0f2d046d4527a383d03074880
+] 
+hash: 0000024602-810ede065954e5b6d8ef3b7784760324d20f15b7928a85e0773ca86716c045a7
+[Data.Trie.ArrayMapped.SparseArray: lots of munging
+wren gayle romano <wren@community.haskell.org>**20141011012446
+ Ignore-this: 4cbd83b049cba966181720d3f4e767c6
+] 
+hash: 0000016677-075a3636ae3ac0c80f1696f9c0f26cc033c2ded6913332049f9eea2c439c0056
+[Data.Trie.ArrayMapped.Internal: implemented the branch smart constructor
+wren gayle romano <wren@community.haskell.org>**20141011032843
+ Ignore-this: beeb3e6f1bc1f742329a3c80d379b539
+] 
+hash: 0000005127-4d47ae92403bafd7272f4a12edc344885e9b8bdb02f77c8ec5469c6ba08f2a45
+[corrected some documentation
+wren gayle romano <wren@community.haskell.org>**20141010072513
+ Ignore-this: 24d7cd55d4040e62cb24f9754425e082
+] 
+hash: 0000000783-62176515445ba46bc48fdff2890508f47f0672532f54702606cbec1cae6c90d9
+[Merged version 0.2.4 with 0.3.0-working
+wren gayle romano <wren@community.haskell.org>**20141011033507
+ Ignore-this: 11708c2fe3dd0a35c2b7a741e4a2f032
+] 
+hash: 0000001465-e12346c19bb06cf0a957c5c5b02d9f7788ce1ab83f7ab8d32a7791b91a1df6df
+[Cleaning up for GHC 7.10
+wren gayle romano <wren@community.haskell.org>**20150324033500
+ Ignore-this: 79618c9ba55309d1dff42616cea199bc
+] 
+hash: 0000020753-9b63795994a7e0a799d6b99b044eeb9df473b6819e531abb3463848cd2932cff
+[More work on ArrayMapped/SparseArray
+wren gayle romano <wren@community.haskell.org>**20150405031042
+ Ignore-this: 8ac1c303a228509c603ee8d7a15da768
+] 
+hash: 0000016198-5551c831661cee71e87f8c0ef68ead2d5ff99ffe872c7825882f35ad178a1cd9
+[Some updates to SparseArray
+wren gayle romano <wren@community.haskell.org>**20150405052906
+ Ignore-this: a6d1b485f967e9f1681edbd05f2dcee6
+] 
+hash: 0000009219-dc977eaaaa4c19f54a584c72c821bc46d87a38299f243041304af10cc33f692a
+[SparseArray: added lots of helpers
+wren gayle romano <wren@community.haskell.org>**20150405204623
+ Ignore-this: a25ed8135a8e2d998e94506086aed91a
+] 
+hash: 0000011772-3c01b4d26daeccee4e42793b5c3c4d2f45d7c36d25ea80f71936115b0bbb38fe
+[SparseArray: added a bunch more functions
+wren gayle romano <wren@community.haskell.org>**20150406002026
+ Ignore-this: b849c9ae48fa178dcbbc0125c91fd8ce
+] 
+hash: 0000008205-fc11a745f54845cb4259dc4ce757e5eb0b246d54f5620f92b9a4518df9216d4e
+[SparseArray: various
+wren gayle romano <wren@community.haskell.org>**20150406015124
+ Ignore-this: 6e089236d54ea7c7f465ed81e03ed094
+] 
+hash: 0000010991-db2b64b594e4ee2f885ddad2f7bffff2c70393ef776fb05e1a1fa0c308f60971
+[SparseArray: some renaming; added a bunch of TODOs
+wren gayle romano <wren@community.haskell.org>**20150409005440
+ Ignore-this: 75f3d57864bd4ecea3542b2f6f59c2fb
+] 
+hash: 0000014448-786690f30bd10e4d3cac14063e1744145430d11ecf9f52b76112e4be92551347
+[Added some notes about ghc/base correspondences
+wren gayle romano <wren@community.haskell.org>**20150409014540
+ Ignore-this: 639bbd7a0ea96fde1a9c5ee2e6fb4ac
+] 
+hash: 0000005908-c05d656fd14a673e155e208e87fc346bb2750033577f097666d96bf892e56853
+[SparseArray: added more safety assertions
+wren gayle romano <wren@community.haskell.org>**20150409024055
+ Ignore-this: f5db4bbf4e954d1f6e1fe323ab894533
+] 
+hash: 0000004659-58f37a8cffff8b3eee7d98db4804a7172a61a5cb91ca029395edee1cd251e423
+[ArrayMapped.Internal: cleaned up the alter/adjust functions
+wren gayle romano <wren@community.haskell.org>**20150409225619
+ Ignore-this: e65ef26998520ea261d7ad934137bec5
+] 
+hash: 0000013285-1e78587db4d14ca86bd7e9704e276fc51d2789f62e82ce0dd3fb1a00fde7e2cb
+[Changed VERSION into CHANGELOG
+wren gayle romano <wren@community.haskell.org>**20150530053631
+ Ignore-this: e9c6903a2384f89d24fe0fc357dc297b
+] 
+hash: 0000000493-1b0575c72faf166c3c8d1074ad5052fed67ed8f2856415036ea524566efbd449
+[CHANGELOG: nudge
+wren gayle romano <wren@community.haskell.org>**20150530055209
+ Ignore-this: 5a30527e961fdd70b9f48672f3bb88d7
+] 
+hash: 0000000205-a365f9b8128f40f231d5a0b60316261d37df95d660de1dd5c2069e61b113cf6d
+[Adding hidden files for Git
+wren gayle romano <wren@community.haskell.org>**20150708234410
+ Ignore-this: b49dc5cc1c816910c87c778af7c21fd4
+] 
+hash: 0000007262-3c45dce2f45a67995c43f5534e56aac59cbef50a6bc54b65ca44dff457388df1
+[README: added
+wren gayle romano <wren@community.haskell.org>**20150902225048
+ Ignore-this: 29571fdfbcde706c16fc3390dc679ac5
+] 
+hash: 0000004682-e5f9b68cae8a472cecb9185f419197c51be844912d37ca6978083c437dc1aced
+[README: reflowed text
+wren gayle romano <wren@community.haskell.org>**20150902231249
+ Ignore-this: 12a221502f7085fef3ed8608006481f7
+] 
+hash: 0000003524-5b4e56849f167554da249a4edc9d83a1f6d68b6dc01a2a2dfac640703a13da0e
+[Getting the ArrayMapped version to typecheck
+wren gayle romano <wren@community.haskell.org>**20160411034353
+ Ignore-this: d139e67623142d0b8a9616445b569df3
+] 
+hash: 0000004148-260e82aca85ad3a19124888c4e401c2560f3d60b5c246cc9e990624033f9d83d
+[Updating the test suite to work again
+wren gayle romano <wren@community.haskell.org>**20160411034420
+ Ignore-this: a75bf2fc826717d5032c61c090828bc2
+] 
+hash: 0000009071-7f3436b1e14d8aa0d7970b761074e0d3e449e3bc813344dfabab15c84cfe6bac
+[got Data.Trie.Test to work again
+wren gayle romano <wren@community.haskell.org>**20160411040811
+ Ignore-this: ced9cb3a9a9bdce5fa58e6157d7862a5
+] 
+hash: 0000002602-1d3f26fd2b50d8e989d40cbca7688cea45005e906d2ba8d40f48bcb30b9f6532
+[Data.Trie.ArrayMapped.Convenience: added
+wren gayle romano <wren@community.haskell.org>**20160411043712
+ Ignore-this: 255ba679bfaf3baaa46656ff75526a39
+] 
+hash: 0000009271-e198675dabbe0c443a51b1b1bc38e97ffcf1c98f2738adb6537e562269bdbabf
+[Data.Trie.ArrayMapped.Internal: optimized minAssoc
+wren gayle romano <wren@community.haskell.org>**20160411052924
+ Ignore-this: 6be20d619646e4502f7e0284fe49c11b
+] 
+hash: 0000001791-c6c6122469ec82dcd4cd3f8de3507e899e34f39f149fe9176edd7e29652ed00a
+[Data.Trie.ByteStringInternal: added builders
+wren gayle romano <wren@community.haskell.org>**20160411060928
+ Ignore-this: 76b35286f5f3241260fc03b75c932485
+ 
+ Because Data.ByteString.Builder requires first building a lazy
+ ByteString which then gets converted in a second pass into a strict
+ ByteString, we provide this lightweight alternative instead. Not
+ actually used anywhere yet, nor benchmarked; but should be faster
+ than that version.
+] 
+hash: 0000002665-5a89f5e4da13e3b204d741ca96eb8e63d0ae943bb782a4177ac0f0cad237ba68
+[Support for stackage lts-12.0
+massimo.zaniboni@asterisell.com**20180710130429
+ Ignore-this: 87aa0cdb3153dbcda6729aee55680a75
+ 
+] 
+hash: 0000006620-91411e3872d6513d970ca687d359d413849620995fd22b7f2b364c54f437a071

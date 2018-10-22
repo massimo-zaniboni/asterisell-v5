@@ -43,15 +43,36 @@ class ArPartyPeer extends BaseArPartyPeer
     static public function hasTag($partyId, $tagId)
     {
 
-         $conn = Propel::getConnection();
-         $query = 'SELECT ar_party_id FROM ar_party_has_tag WHERE ar_party_id = ? AND ar_tag_id = ?';
-         $stm = $conn->prepare($query);
-         $stm->execute(array($partyId, $tagId));
-         $r = false;
-         while ((($rs = $stm->fetch(PDO::FETCH_NUM)) !== false)) {
+        $conn = Propel::getConnection();
+        $query = 'SELECT ar_party_id FROM ar_party_has_tag WHERE ar_party_id = ? AND ar_tag_id = ?';
+        $stm = $conn->prepare($query);
+        $stm->execute(array($partyId, $tagId));
+        $r = false;
+        while ((($rs = $stm->fetch(PDO::FETCH_NUM)) !== false)) {
             $r = true;
-         }
-         $stm->closeCursor();
-         return $r;
+        }
+        $stm->closeCursor();
+        return $r;
     }
+
+    /**
+     * @param int $partyId
+     * @return string|null party.contract_number
+     */
+    static public function getPartyContract($partyId)
+    {
+        $conn = Propel::getConnection();
+        $query = "SELECT contract_number FROM ar_party WHERE id = ?";
+        $stm = $conn->prepare($query);
+        $stm->execute(array($partyId));
+        $r = null;
+        while ((($rs = $stm->fetch(PDO::FETCH_NUM)) !== false)) {
+            $r = $rs[0];
+        }
+
+        $stm->closeCursor();
+
+        return $r;
+    }
+
 }

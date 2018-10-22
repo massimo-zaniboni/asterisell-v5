@@ -1,25 +1,6 @@
 <?php
 
-/* $LICENSE 2011, 2012, 2013, 2014:
- *
- * Copyright (C) 2011, 2012, 2013, 2014 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
- *
- * This file is part of Asterisell.
- *
- * Asterisell is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 3 of the License, or
- * (at your option) any later version.
- *
- * Asterisell is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with Asterisell. If not, see <http://www.gnu.org/licenses/>.
- * $
- */
+// SPDX-License-Identifier: GPL-3.0-or-later
 
 /**
  * Execute common regression tests.
@@ -56,7 +37,6 @@ class CommonTests extends InstallationService
 
         if ($r) {
             echo "\n\nAll tests are ok.\n";
-            echo "\nConsider also to run \"stress-rerating\" command on a running instance, for testing rerating logic.\n";
         } else {
             echo "\n\n!!! There are test with a failure. Check the error messages. \n";
         }
@@ -190,8 +170,219 @@ class CommonTests extends InstallationService
             return false;
         }
 
-        return true;
+        $s1 = strtotime('2018-01-01');
+        for ($i = 0; $i < 48; $i++) {
+            $s2 = strtotime('+1 month', $s1);
+            if (!(getPreviousMonth($s2) == $s1)) {
+              echo "\n   !!! failure on variousUnitTests 9.9";
+              return false;
+            }
+            $s1 = $s2;
+        }
 
+        if (!(isPrefixOf("abc", "abcdefg") &&
+            isPrefixOf("abc", "abc") &&
+            isPrefixOf("", "abc") &&
+            isSuffixOf("", "abc") &&
+            isSuffixOf("abc", "123abc") &&
+            isSuffixOf("abc", "abc") &&
+            (!isSuffixOf("abc", "123ab")))
+        ) {
+            echo "\n   !!! failure on variousUnitTests 9.10";
+            return false;
+        }
+
+        if (!
+             (fromUnixTimestampToWholeDayStart(strtotime('2018-01-01 14:00:00'), true) == strtotime('2018-01-01 00:00:00')
+              && fromUnixTimestampToWholeDayEnd(strtotime('2018-01-01 14:00:00'), true) == strtotime('2018-01-02 00:00:00')
+              && fromUnixTimestampToWholeDayStart(strtotime('2018-01-01 00:00:00'), false) == strtotime('2018-01-01 00:00:00')
+              && fromUnixTimestampToWholeDayStart(strtotime('2018-01-01 14:00:00'), false) == strtotime('2018-01-02 00:00:00')              && fromUnixTimestampToWholeDayStart(strtotime('2018-01-01 00:00:00'), false) == strtotime('2018-01-01 00:00:00')
+              && fromUnixTimestampToWholeDayEnd(strtotime('2018-01-01 14:00:00'), false) == strtotime('2018-01-01 00:00:00')
+              && fromUnixTimestampToWholeDayEnd(strtotime('2018-01-01 00:00:00'), false) == strtotime('2018-01-01 00:00:00')
+             )
+           ) {
+            echo "\n   !!! failure on variousUnitTests 9.11.1";
+            return false;
+        }
+
+        if (!
+             (fromUnixTimestampToWholeDayStart(strtotime('2018-01-01 14:00:00'), false) == strtotime('2018-01-02 00:00:00')
+              && fromUnixTimestampToWholeDayEnd(strtotime('2018-01-01 14:00:00'), false) == strtotime('2018-01-01 00:00:00'))
+           ) {
+            echo "\n   !!! failure on variousUnitTests 9.11.2";
+            return false;
+        }
+
+        $t1 = strtotime('2018-01-01 14:00:00');
+        $t2 = strtotime('2018-02-02 00:00:00');
+        if (! $this->testTimeFrameToWholeDay($t1, $t2, $t1, strtotime('2018-01-02 00:00:00'), strtotime('2018-02-02 00:00:00'), false)) {
+            echo "\n   !!! failure on variousUnitTests 9.15";
+            return false;
+        }
+
+        $t1 = strtotime('2018-01-01 14:00:00');
+        $t2 = strtotime('2018-01-01 18:00:00');
+        if (! $this->testTimeFrameToWholeDay($t1, $t2, $t1, $t2, false, false))
+        {
+            echo "\n   !!! failure on variousUnitTests 9.16";
+            return false;
+        }
+
+        $t1 = strtotime('2018-01-01 00:00:00');
+        $t2 = strtotime('2018-01-01 18:00:00');
+        if (! $this->testTimeFrameToWholeDay($t1, $t2, $t1, $t2, false, false))
+        {
+            echo "\n   !!! failure on variousUnitTests 9.17";
+            return false;
+        }
+
+        $t1 = strtotime('2018-01-01 00:00:00');
+        $t2 = strtotime('2018-02-02 18:00:00');
+        if (! $this->testTimeFrameToWholeDay($t1, $t2, false, $t1, strtotime('2018-02-02 00:00:00'), $t2))
+        {
+            echo "\n   !!! failure on variousUnitTests 9.18";
+            return false;
+        }
+
+        $t1 = strtotime('2018-01-01 00:00:00');
+        $t2 = strtotime('2018-02-02 00:00:00');
+        if (! $this->testTimeFrameToWholeDay($t1, $t2, false, $t1, $t2, false))
+        {
+            echo "\n   !!! failure on variousUnitTests 9.19";
+            return false;
+        }
+
+        $t1 = strtotime('2018-01-01 00:00:00');
+        $t2 = strtotime('2018-02-02 18:00:00');
+        $t3 = strtotime('2018-02-02 00:00:00');
+        if (! $this->testTimeFrameToWholeDay($t1, $t2, false, $t1, $t3, $t2))
+        {
+            echo "\n   !!! failure on variousUnitTests 9.20";
+            return false;
+        }
+
+        $t1 = strtotime('2018-01-01 00:00:00');
+        if (! $this->testTimeFrameToWholeDay($t1, null, false, $t1, null, false))
+        {
+            echo "\n   !!! failure on variousUnitTests 9.20.1";
+            return false;
+        }
+
+        $t1 = strtotime('2018-01-01 14:00:00');
+        if (! $this->testTimeFrameToWholeDay($t1, null, $t1, strtotime('2018-01-02 00:00:00'), null, false))
+        {
+            echo "\n   !!! failure on variousUnitTests 9.21";
+            return false;
+        }
+
+        $t1 = strtotime('2018-01-01 00:00:00');
+        $t2 = strtotime('2018-01-01 18:00:00');
+        if (! $this->testTimeFrameToWholeDay($t1, $t2, $t1, strtotime('2018-01-01 18:00:00'), false, false)) {
+            echo "\n   !!! failure on variousUnitTests 9.22";
+            return false;
+        }
+
+        $t1 = strtotime('2018-01-01 00:00:00');
+        $t2 = strtotime('2018-01-04 18:00:00');
+        $t3 = strtotime('2018-01-04 00:00:00');
+        if (! $this->testTimeFrameToWholeDay($t1, $t2, false, $t1, $t3, $t2)) {
+            echo "\n   !!! failure on variousUnitTests 9.23";
+            return false;
+        }
+
+        $t1 = strtotime('2018-01-01 00:00:00');
+        if (! $this->testTimeFrameToWholeDay($t1, null, false, strtotime('2018-01-01 00:00:00'), null, false)) {
+            echo "\n   !!! failure on variousUnitTests 9.24";
+            return false;
+        }
+
+
+
+        return true;
+    }
+
+    /**
+     * @param array|null $arr1
+     * @param array|null $arr2
+     * @return bool true if the two arrays have same values
+     */
+    protected function testArray($arr1, $arr2) {
+        $this->print_arr($arr2);
+
+        if (is_null($arr1) && is_null($arr2)) {
+            return true;
+        }
+
+        if (is_null($arr1) || is_null($arr2)) {
+            return false;
+        }
+
+        return $arr1 == $arr2;
+    }
+
+    protected function print_arr($arr) {
+        if (is_null($arr)) {
+            echo "[false]";
+        } else {
+            echo "[";
+            foreach($arr as $v) {
+              if (is_null($v)) {
+                  echo "null";
+              } else {
+                  echo fromUnixTimestampToMySQLTimestamp($v);
+              }
+              echo "  ";
+          }
+          echo "]";
+        }
+    }
+
+    /**
+     * @param int $fromDate
+     * @param int|null|bool $toDate
+     * @param int|bool $d1 false if there is no 1 interval
+     * @param int|null|bool $d2 false if there is no 2 interval, null for open-time frame
+     * @param int|null|bool $d3 false if there is no 2 and 3 interval, null for open-time frame
+     * @param int|null|bool $d4 false if there is no 3 interval, null for open-time frame
+     * @return bool true if the returned time frame is the same
+     */
+    protected function testTimeFrameToWholeDay($fromDate, $toDate, $d1, $d2, $d3, $d4) {
+        $maybeR = fromTimeFrameToWholeDay($fromDate, $toDate, 0);
+        if (! $this->testArray($maybeR, array($fromDate, $toDate))) {
+            return false;
+        }
+
+        $maybeR = fromTimeFrameToWholeDay($fromDate, $toDate, 1);
+        if ($d1 === false || $d2 === false) {
+           $expectedR = null;
+        } else {
+           $expectedR = array($d1, $d2);
+        }
+        if (! $this->testArray($maybeR, $expectedR)) {
+            return false;
+        }
+
+        $maybeR = fromTimeFrameToWholeDay($fromDate, $toDate, 2);
+        if ($d2 === false || $d3 === false) {
+           $expectedR = null;
+        } else {
+           $expectedR = array($d2, $d3);
+        }
+        if (! $this->testArray($maybeR, $expectedR)) {
+            return false;
+        }
+
+        $maybeR = fromTimeFrameToWholeDay($fromDate, $toDate, 3);
+        if ($d3 === false || $d4 === false) {
+           $expectedR = null;
+        } else {
+           $expectedR = array($d3, $d4);
+        }
+        if (! $this->testArray($maybeR, $expectedR)) {
+            return false;
+        }
+
+        return true;
     }
 
     /**
@@ -209,55 +400,13 @@ class CommonTests extends InstallationService
         // Test Holidays //
         ///////////////////
 
-        $i = 0;
-
-        $i++;
-        $r = $this->unitTestOfCondition(
-                "holiday test - $i",
-                ArHolidayPeer::isHoliday(strtotime('2013-12-25')),
-                true
-            ) && $r;
-
-        $i++;
-        $r = $this->unitTestOfCondition(
-                "holiday test - $i",
-                ArHolidayPeer::isHoliday(strtotime('2013-12-26')),
-                true
-            ) && $r;
-
-        $i++;
-        $r = $this->unitTestOfCondition(
-                "holiday test - $i",
-                ArHolidayPeer::isHoliday(strtotime('1974-12-26')),
-                true
-            ) && $r;
-
-        $i++;
-        $r = $this->unitTestOfCondition(
-                "holiday test - $i",
-                ArHolidayPeer::isHoliday(strtotime('2013-12-28')),
-                false
-            ) && $r;
-
-        $i++;
-        $r = $this->unitTestOfCondition(
-                "holiday test (sunday) - $i",
-                ArHolidayPeer::isHoliday(strtotime('2013-06-09')),
-                true
-            ) && $r;
-
-        $i++;
-        $r = $this->unitTestOfCondition(
-                "holiday test (sunday) - $i",
-                ArHolidayPeer::isHoliday(strtotime('2013-06-10')),
-                false
-            ) && $r;
+        // TODO use tests on Haskell side
 
         return $r;
     }
 
     /**
-     * @return bool true if all test are ok
+     *
      */
     protected function unitTestOfOrganizationInfo()
     {
@@ -977,8 +1126,12 @@ class CommonTests extends InstallationService
      */
     protected function unitTestOfReportWorkflow()
     {
+        $d = FixedJobProcessor::getGlobalStartingDateForCDRProcessinng();
+
         // Add one ArCdr, otherwise report scheduling is locked
         $cdr = new ArCdr();
+        $cdr->setCalldate($d);
+        $cdr->setId(200);
         $cdr->setDestinationType(DestinationType::ignored);
         $cdr->save();
 
@@ -1011,6 +1164,8 @@ class CommonTests extends InstallationService
 
         // add a CDR because otherwise reports are not generated
         $cdr = new ArCdr();
+        $cdr->setCalldate($d);
+        $cdr->setId(100);
         $cdr->save();
 
         $report = new ArReport();

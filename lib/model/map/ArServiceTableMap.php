@@ -50,6 +50,7 @@ class ArServiceTableMap extends TableMap {
 		$this->addColumn('SCHEDULE_TIMEFRAME', 'ScheduleTimeframe', 'VARCHAR', false, 255, null);
 		$this->addColumn('WAS_COMPILED', 'WasCompiled', 'BOOLEAN', true, null, false);
 		$this->addColumn('SCHEDULE_FROM', 'ScheduleFrom', 'VARCHAR', false, 255, null);
+		$this->addColumn('SCHEDULE_AT', 'ScheduleAt', 'TIME', false, null, '00:00:00');
 		// validators
 	} // initialize()
 

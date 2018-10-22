@@ -34,13 +34,11 @@ class ArNumberPortabilityTableMap extends TableMap {
 		$this->setPhpName('ArNumberPortability');
 		$this->setClassname('ArNumberPortability');
 		$this->setPackage('lib.model');
-		$this->setUseIdGenerator(true);
+		$this->setUseIdGenerator(false);
 		// columns
-		$this->addPrimaryKey('ID', 'Id', 'INTEGER', true, null, null);
-		$this->addColumn('TELEPHONE_NUMBER', 'TelephoneNumber', 'VARCHAR', true, 255, null);
+		$this->addPrimaryKey('TELEPHONE_NUMBER', 'TelephoneNumber', 'VARCHAR', true, 255, null);
+		$this->addPrimaryKey('FROM_DATE', 'FromDate', 'TIMESTAMP', true, null, null);
 		$this->addColumn('PORTED_TELEPHONE_NUMBER', 'PortedTelephoneNumber', 'VARCHAR', true, 255, null);
-		$this->addColumn('FROM_DATE', 'FromDate', 'TIMESTAMP', false, null, null);
-		$this->addColumn('IS_EXPORTED_TO_RATING_ENGINE', 'IsExportedToRatingEngine', 'BOOLEAN', true, null, false);
 		// validators
 	} // initialize()
 

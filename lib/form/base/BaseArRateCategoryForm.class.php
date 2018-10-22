@@ -21,7 +21,7 @@ abstract class BaseArRateCategoryForm extends BaseFormPropel
 
     $this->setValidators(array(
       'id'                => new sfValidatorChoice(array('choices' => array($this->getObject()->getId()), 'empty_value' => $this->getObject()->getId(), 'required' => false)),
-      'internal_name'     => new sfValidatorString(array('max_length' => 255, 'required' => false)),
+      'internal_name'     => new sfValidatorString(array('max_length' => 255)),
       'short_description' => new sfValidatorString(array('required' => false)),
     ));
 

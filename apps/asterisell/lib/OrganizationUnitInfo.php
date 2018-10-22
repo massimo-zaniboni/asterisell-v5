@@ -1,24 +1,5 @@
 <?php
-/* $LICENSE 2012, 2013:
- *
- * Copyright (C) 2012, 2013 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
- *
- * This file is part of Asterisell.
- *
- * Asterisell is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 3 of the License, or
- * (at your option) any later version.
- *
- * Asterisell is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with Asterisell. If not, see <http://www.gnu.org/licenses/>.
- * $
- */
+// SPDX-License-Identifier: GPL-3.0-or-later
 
 sfLoader::loadHelpers(array('I18N', 'Debug', 'Asterisell'));
 
@@ -79,7 +60,7 @@ class OrganizationUnitInfo
             $query = "SELECT content FROM ar_cached_organization_info WHERE internal_name = ?";
             $stm = $conn->prepare($query);
             $stm->execute(array($code));
-            while ((($rs = $stm->fetch(PDO::FETCH_NUM)) !== false)) {
+            while (($rs = $stm->fetch(PDO::FETCH_NUM)) !== false) {
                 try {
                     self::$instance = unserialize($rs[0]);
 
@@ -172,6 +153,7 @@ class OrganizationUnitInfo
     const DATA_EXTENSION_USER_CODE = 26;
     const DATA_EXPORT_CODE = 27;
     const DATA_PARTY_CRM = 28;
+    const DATA_PARTY_NOTE = 29;
 
     /**
      * The info associated to an organization, in descending order by date.
@@ -286,7 +268,8 @@ s.extension_codes AS field_24,
 s.extension_name AS field_25,
 s.extension_user_code AS field_26,
 u.export_code AS field_27,
-p.external_crm_code AS field_28
+p.external_crm_code AS field_28,
+p.note AS field_29
 FROM ar_organization_unit_has_structure AS s
      JOIN ar_organization_unit AS u ON (s.ar_organization_unit_id = u.id)
      LEFT JOIN ar_organization_unit_type AS t ON (s.ar_organization_unit_type_id = t.id)
@@ -518,6 +501,32 @@ SQL;
         return array_keys($this->idToStructureData);
     }
 
+    /**
+     * Search (slowly) for an organization with a certain CRM.
+     * @param string $crm
+     * @return int|null null if it does not exist an organization with the specified CRM,
+     * -2, -3 ... if exists 2 or more organizations with the same CRM
+     */
+    public function getOrganizationIdByCRM($crm)
+    {
+        $r = array();
+        foreach($this->idToStructureData as $organizationId => $data) {
+            foreach($data as $info) {
+              if (strcmp($crm, $info[self::DATA_PARTY_CRM]) == 0) {
+                $r[] = $organizationId;
+              }
+            }
+        }
+
+        if (count($r) == 0) {
+            return null;
+        } else if (count($r) > 1) {
+            return (- count($r));
+        } else {
+            return reset($r);
+        }
+    }
+
     //////////////////
     // Basic Access //
     //////////////////
@@ -560,7 +569,7 @@ SQL;
         return $info[self::DATA_PARTY_ID];
     }
 
-     /**
+    /**
      * NULL if it is not a party
      *
      * @param int $organizationId
@@ -573,6 +582,18 @@ SQL;
         return $info[self::DATA_PARTY_CRM];
     }
 
+    /**
+     * NULL if it is not a party
+     *
+     * @param int $organizationId
+     * @param int|null $date
+     * @return string|null the note
+     */
+    public function getPartyNote($organizationId, $date)
+    {
+        $info = $this->getDataInfo($organizationId, $date);
+        return $info[self::DATA_PARTY_NOTE];
+    }
 
     /**
      * unixtimestamp from when this info is valid
@@ -848,7 +869,7 @@ SQL;
 
         $r = null;
         foreach ($ids as $id) {
-            $id = intval($id);
+            $id = $id;
             if (isset($this->organizationIdsThatCanBeBillable[$id])) {
                 $info = $this->getDataInfo($id, $date);
                 if ($info[self::DATA_UNIT_IS_BILLABLE]) {
@@ -1246,17 +1267,16 @@ SQL;
     /**
      * @param string $hierarchy a string like "/123/45/456/" identifying the root parent,
      * and other parents in the hierarchy. It is the result of `self::getFullIds()`
-     * @return string[] the parent ids, starting from the root parent
+     * @return int[] the parent ids, starting from the root parent
      */
     public static function getParentIdsFromCachedParentIdHierarchy($hierarchy)
     {
         $ids = explode('/', $hierarchy);
 
         $r = array();
-
         foreach ($ids as $id) {
             if (!isEmptyOrNull($id)) {
-                $r[] = $id;
+                $r[] = intval($id);
             }
         }
 

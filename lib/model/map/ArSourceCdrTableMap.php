@@ -34,14 +34,13 @@ class ArSourceCdrTableMap extends TableMap {
 		$this->setPhpName('ArSourceCdr');
 		$this->setClassname('ArSourceCdr');
 		$this->setPackage('lib.model');
-		$this->setUseIdGenerator(true);
+		$this->setUseIdGenerator(false);
 		// columns
+		$this->addPrimaryKey('CALLDATE', 'Calldate', 'TIMESTAMP', true, null, null);
 		$this->addPrimaryKey('ID', 'Id', 'INTEGER', true, null, null);
-		$this->addForeignKey('AR_CDR_PROVIDER_ID', 'ArCdrProviderId', 'INTEGER', 'ar_cdr_provider', 'ID', false, null, null);
-		$this->addForeignKey('AR_PHYSICAL_FORMAT_ID', 'ArPhysicalFormatId', 'INTEGER', 'ar_physical_format', 'ID', false, null, null);
-		$this->addColumn('CALLDATE', 'Calldate', 'TIMESTAMP', true, null, null);
-		$this->addColumn('IS_IMPORTED_SERVICE_CDR', 'IsImportedServiceCdr', 'BOOLEAN', true, null, false);
-		$this->addColumn('CONTENT', 'Content', 'VARCHAR', false, 51200, null);
+		$this->addPrimaryKey('AR_CDR_PROVIDER_ID', 'ArCdrProviderId', 'INTEGER', true, null, null);
+		$this->addPrimaryKey('AR_PHYSICAL_FORMAT_ID', 'ArPhysicalFormatId', 'INTEGER', true, null, null);
+		$this->addColumn('CONTENT', 'Content', 'VARCHAR', false, 10000, null);
 		// validators
 	} // initialize()
 
@@ -50,8 +49,6 @@ class ArSourceCdrTableMap extends TableMap {
 	 */
 	public function buildRelations()
 	{
-    $this->addRelation('ArCdrProvider', 'ArCdrProvider', RelationMap::MANY_TO_ONE, array('ar_cdr_provider_id' => 'id', ), null, null);
-    $this->addRelation('ArPhysicalFormat', 'ArPhysicalFormat', RelationMap::MANY_TO_ONE, array('ar_physical_format_id' => 'id', ), null, null);
 	} // buildRelations()
 
 	/**

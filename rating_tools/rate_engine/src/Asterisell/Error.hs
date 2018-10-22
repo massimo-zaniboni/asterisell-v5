@@ -1,27 +1,8 @@
 {-# Language OverloadedStrings, ScopedTypeVariables, DeriveGeneric, DeriveDataTypeable, QuasiQuotes #-}
 
-{- $LICENSE 2013, 2014, 2015, 2016, 2017
- * Copyright (C) 2013-2017 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
- *
- * This file is part of Asterisell.
- *
- * Asterisell is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 3 of the License, or
- * (at your option) any later version.
- *
- * Asterisell is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with Asterisell. If not, see <http://www.gnu.org/licenses/>.
- * $
--}
+-- SPDX-License-Identifier: GPL-3.0-or-later
 
-
--- | Manage errors. 
+-- | Manage errors.
 --
 module Asterisell.Error (
   ErrorType(..),
@@ -30,6 +11,7 @@ module Asterisell.Error (
   AsterisellError (..),
   RuleCaseFor (..),
   AsterisellException (..),
+  CallDate,
   ruleCaseFor,
   test_ruleCaseFor,
   asterisellError_empty,
@@ -45,8 +27,8 @@ module Asterisell.Error (
   DebugMessage,
   debugMessage_create,
   dbc_error,
-  initErrors,
-  debugFile_init
+  debugFile_init,
+  asterisellError_toException
 ) where
 
 import Asterisell.Utils
@@ -65,6 +47,7 @@ import qualified Database.MySQL.Protocol.Escape as DB
 import Database.MySQL.Protocol.MySQLValue
 import Data.Hashable
 import Data.HashSet as Set
+import qualified Data.Map as Map
 import Data.String
 import Control.Monad.Except
 import qualified Test.HUnit as HUnit
@@ -72,9 +55,28 @@ import Data.Text
 import Control.Concurrent.Async
 import Control.DeepSeq
 import Control.Exception.Base
+import qualified Data.Csv as CSV
+
+type CallDate = LocalTime
 
 data ErrorType = Type_Info | Type_Warning | Type_Error | Type_Critical | Type_InternalLog
-  deriving (Eq, Show)
+  deriving (Eq, Show, Generic)
+
+instance CSV.ToField ErrorType where
+    toField Type_Info = "Info"
+    toField Type_Warning = "Warning"
+    toField Type_Error = "Error"
+    toField Type_Critical = "Critical"
+    toField Type_InternalLog = "InternalLog"
+
+instance CSV.FromField ErrorType where
+    parseField s
+        | s == "Info"  = pure Type_Info
+        | s == "Warning" = pure Type_Warning
+        | s == "Error" = pure Type_Error
+        | s == "Critical" = pure Type_Critical
+        | s == "InternalLog" = pure Type_InternalLog
+        | otherwise = mzero
 
 errorType_toPHPCode :: ErrorType -> Int
 errorType_toPHPCode t
@@ -93,8 +95,28 @@ data ErrorDomain
   |  Domain_REPORTS
   |  Domain_CONFIGURATIONS
   |  Domain_SAFETY
-  deriving(Eq, Show)
+  deriving(Eq, Show, Generic)
 
+instance CSV.ToField ErrorDomain where
+  toField Domain_VOIP_ACCOUNTS = "VOIP_ACCOUNTS"
+  toField Domain_RATES = "RATES"
+  toField Domain_CALL_FLOW_MERGING_RULES = "CALL_FLOW_MERGING_RULES" 
+  toField Domain_APPLICATION = "APPLICATION" 
+  toField Domain_REPORTS = "REPORTS" 
+  toField Domain_CONFIGURATIONS = "CONFIGURATIONS" 
+  toField Domain_SAFETY = "SAFETY" 
+ 
+
+instance CSV.FromField ErrorDomain where
+    parseField s
+         | s == "VOIP_ACCOUNTS" = pure Domain_VOIP_ACCOUNTS 
+         | s == "RATES" = pure Domain_RATES 
+         | s == "CALL_FLOW_MERGING_RULES"  = pure Domain_CALL_FLOW_MERGING_RULES 
+         | s == "APPLICATION"  = pure Domain_APPLICATION 
+         | s == "REPORTS"  = pure Domain_REPORTS 
+         | s == "CONFIGURATIONS"  = pure Domain_CONFIGURATIONS 
+         | s == "SAFETY"  = pure Domain_SAFETY 
+         | otherwise = mzero
 
 errorDomain_toPHPCode :: ErrorDomain -> Int
 errorDomain_toPHPCode t
@@ -110,7 +132,17 @@ errorDomain_toPHPCode t
 data ErrorResponsible
    = Responsible_ADMIN
    | Responsible_ASSISTANCE
-  deriving(Eq, Show)
+  deriving(Eq, Show, Generic)
+
+instance CSV.ToField ErrorResponsible where
+  toField Responsible_ADMIN = "ADMIN"
+  toField Responsible_ASSISTANCE = "ASSISTANCE"
+
+instance CSV.FromField ErrorResponsible where
+    parseField s
+        | s == "ADMIN"  = pure Responsible_ADMIN
+        | s == "ASSISTANCE" = pure Responsible_ASSISTANCE
+        | otherwise = mzero
 
 errorResponsible_toPHPCode :: ErrorResponsible -> Int
 errorResponsible_toPHPCode t
@@ -123,14 +155,15 @@ errorResponsible_toPHPCode t
 --   Errors of this type are generated during rating.
 --   They are managed usually inside an error monad returning `Either AsterisellError a`.
 --   After reporting this error, rating continue with other CDRs.
---   
+--
 --    Critical errors are instead throwed as `AsterisellException`.
 --
 data AsterisellError = AsterisellError {
-    asterisellError_type :: ErrorType
+    asterisellError_garbageKey :: BS.ByteString
+  , asterisellError_type :: ErrorType
   , asterisellError_domain :: ErrorDomain
   , asterisellError_responsible :: ErrorResponsible
-  , asterisellError_key :: String
+  , asterisellError_key :: BS.ByteString
   , asterisellError_description :: String
   , asterisellError_effect :: String
   , asterisellError_proposedSolution :: String
@@ -145,6 +178,10 @@ instance Eq AsterisellError where
 instance Ord AsterisellError where
   compare e1 e2 = compare (asterisellError_key e1) (asterisellError_key e2)
 
+instance CSV.FromRecord AsterisellError
+
+instance CSV.ToRecord AsterisellError
+
 asterisellError_userShow :: AsterisellError -> String
 asterisellError_userShow err
   = "Description: " ++ (asterisellError_description err) ++ "\n\nEffect: " ++ (asterisellError_effect err) ++ "\n\nSolution: " ++ (asterisellError_proposedSolution err)
@@ -158,22 +195,15 @@ asterisellError_empty = AsterisellError {
           , asterisellError_description = ""
           , asterisellError_effect = ""
           , asterisellError_proposedSolution = ""
+          , asterisellError_garbageKey = ""
           }
-
-initErrors :: MySQLConn -> Text -> LocalTime -> LocalTime -> IO AsterisellErrorsDictionary
-initErrors db garbageKey fromDate toDate
-  = do DB.execute
-         db
-         "DELETE FROM ar_new_problem WHERE garbage_collection_key = ? AND garbage_collection_from >= ? AND garbage_collection_to <= ? ;"
-         [MySQLText garbageKey, MySQLTimeStamp fromDate, MySQLTimeStamp toDate]
-       return asterisellErrorsDictionary_empty
 
 createError :: ErrorType -> ErrorDomain -> String -> String -> String -> String -> AsterisellError
 createError errType errDomain key descr effect solution
      = asterisellError_empty {
          asterisellError_type = errType
        , asterisellError_domain = errDomain
-       , asterisellError_key = key
+       , asterisellError_key = fromStringToByteString key
        , asterisellError_description = descr
        , asterisellError_effect = effect
        , asterisellError_proposedSolution = solution
@@ -190,8 +220,8 @@ debugMessage_create :: String -> String -> AsterisellError
 debugMessage_create key description
   = createError Type_InternalLog Domain_RATES key description "This is only an informative/debug message." ""
 
---
--- ERROR DICTIONARY
+-- ------------------------------------------------
+-- Error Dictionary
 --
 
 type AsterisellErrorDupKey = Text
@@ -203,15 +233,16 @@ asterisellError_dupKey err
         y = hashWithSalt 2 k
     in  fromString $ (show x ++ "-" ++ show y)
 
--- | Recognize duplicated AsterisellErrors
-type AsterisellErrorsDictionary = Set.HashSet AsterisellErrorDupKey
+-- | Recognize duplicated AsterisellErrors,
+--   and store info about from/to garbage-key.
+type AsterisellErrorsDictionary = Map.Map AsterisellErrorDupKey (CallDate, CallDate)
 
 asterisellErrorsDictionary_empty :: AsterisellErrorsDictionary
-asterisellErrorsDictionary_empty = Set.empty
+asterisellErrorsDictionary_empty = Map.empty
 
 --
 -- Compatibility with Haskell errors
--- 
+--
 
 -- | Critical errors blocking the entire rating process are throwed as
 --   IO Exception.
@@ -223,6 +254,9 @@ data AsterisellException = AsterisellException String
  deriving (Show, Typeable)
 
 instance Exception AsterisellException
+
+asterisellError_toException :: AsterisellError -> AsterisellException
+asterisellError_toException err = AsterisellException $ asterisellError_userShow err
 
 --
 -- MONADPLUS RELATED FUNCTIONS
@@ -329,7 +363,7 @@ debugFile_init Nothing = return ()
 debugFile_init (Just f)
   = writeFile f ""
 
---
+-- ---------------------------------
 -- Design by Contract Errors
 --
 

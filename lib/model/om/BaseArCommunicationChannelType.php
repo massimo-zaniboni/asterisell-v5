@@ -43,16 +43,6 @@ abstract class BaseArCommunicationChannelType extends BaseObject  implements Per
 	protected $internal_name;
 
 	/**
-	 * @var        array ArCdr[] Collection to store aggregation of ArCdr objects.
-	 */
-	protected $collArCdrs;
-
-	/**
-	 * @var        Criteria The criteria used to select the current contents of collArCdrs.
-	 */
-	private $lastArCdrCriteria = null;
-
-	/**
 	 * @var        array ArVendorDomain[] Collection to store aggregation of ArVendorDomain objects.
 	 */
 	protected $collArVendorDomains;
@@ -307,9 +297,6 @@ abstract class BaseArCommunicationChannelType extends BaseObject  implements Per
 
 		if ($deep) {  // also de-associate any related objects?
 
-			$this->collArCdrs = null;
-			$this->lastArCdrCriteria = null;
-
 			$this->collArVendorDomains = null;
 			$this->lastArVendorDomainCriteria = null;
 
@@ -443,14 +430,6 @@ abstract class BaseArCommunicationChannelType extends BaseObject  implements Per
 				$this->resetModified(); // [HL] After being saved an object is no longer 'modified'
 			}
 
-			if ($this->collArCdrs !== null) {
-				foreach ($this->collArCdrs as $referrerFK) {
-					if (!$referrerFK->isDeleted()) {
-						$affectedRows += $referrerFK->save($con);
-					}
-				}
-			}
-
 			if ($this->collArVendorDomains !== null) {
 				foreach ($this->collArVendorDomains as $referrerFK) {
 					if (!$referrerFK->isDeleted()) {
@@ -529,14 +508,6 @@ abstract class BaseArCommunicationChannelType extends BaseObject  implements Per
 				$failureMap = array_merge($failureMap, $retval);
 			}
 
-
-				if ($this->collArCdrs !== null) {
-					foreach ($this->collArCdrs as $referrerFK) {
-						if (!$referrerFK->validate($columns)) {
-							$failureMap = array_merge($failureMap, $referrerFK->getValidationFailures());
-						}
-					}
-				}
 
 				if ($this->collArVendorDomains !== null) {
 					foreach ($this->collArVendorDomains as $referrerFK) {
@@ -768,12 +739,6 @@ abstract class BaseArCommunicationChannelType extends BaseObject  implements Per
 			// the getter/setter methods for fkey referrer objects.
 			$copyObj->setNew(false);
 
-			foreach ($this->getArCdrs() as $relObj) {
-				if ($relObj !== $this) {  // ensure that we don't try to copy a reference to ourselves
-					$copyObj->addArCdr($relObj->copy($deepCopy));
-				}
-			}
-
 			foreach ($this->getArVendorDomains() as $relObj) {
 				if ($relObj !== $this) {  // ensure that we don't try to copy a reference to ourselves
 					$copyObj->addArVendorDomain($relObj->copy($deepCopy));
@@ -825,301 +790,6 @@ abstract class BaseArCommunicationChannelType extends BaseObject  implements Per
 			self::$peer = new ArCommunicationChannelTypePeer();
 		}
 		return self::$peer;
-	}
-
-	/**
-	 * Clears out the collArCdrs collection (array).
-	 *
-	 * This does not modify the database; however, it will remove any associated objects, causing
-	 * them to be refetched by subsequent calls to accessor method.
-	 *
-	 * @return     void
-	 * @see        addArCdrs()
-	 */
-	public function clearArCdrs()
-	{
-		$this->collArCdrs = null; // important to set this to NULL since that means it is uninitialized
-	}
-
-	/**
-	 * Initializes the collArCdrs collection (array).
-	 *
-	 * By default this just sets the collArCdrs collection to an empty array (like clearcollArCdrs());
-	 * however, you may wish to override this method in your stub class to provide setting appropriate
-	 * to your application -- for example, setting the initial array to the values stored in database.
-	 *
-	 * @return     void
-	 */
-	public function initArCdrs()
-	{
-		$this->collArCdrs = array();
-	}
-
-	/**
-	 * Gets an array of ArCdr objects which contain a foreign key that references this object.
-	 *
-	 * If this collection has already been initialized with an identical Criteria, it returns the collection.
-	 * Otherwise if this ArCommunicationChannelType has previously been saved, it will retrieve
-	 * related ArCdrs from storage. If this ArCommunicationChannelType is new, it will return
-	 * an empty collection or the current collection, the criteria is ignored on a new object.
-	 *
-	 * @param      PropelPDO $con
-	 * @param      Criteria $criteria
-	 * @return     array ArCdr[]
-	 * @throws     PropelException
-	 */
-	public function getArCdrs($criteria = null, PropelPDO $con = null)
-	{
-		if ($criteria === null) {
-			$criteria = new Criteria(ArCommunicationChannelTypePeer::DATABASE_NAME);
-		}
-		elseif ($criteria instanceof Criteria)
-		{
-			$criteria = clone $criteria;
-		}
-
-		if ($this->collArCdrs === null) {
-			if ($this->isNew()) {
-			   $this->collArCdrs = array();
-			} else {
-
-				$criteria->add(ArCdrPeer::AR_COMMUNICATION_CHANNEL_TYPE_ID, $this->id);
-
-				ArCdrPeer::addSelectColumns($criteria);
-				$this->collArCdrs = ArCdrPeer::doSelect($criteria, $con);
-			}
-		} else {
-			// criteria has no effect for a new object
-			if (!$this->isNew()) {
-				// the following code is to determine if a new query is
-				// called for.  If the criteria is the same as the last
-				// one, just return the collection.
-
-
-				$criteria->add(ArCdrPeer::AR_COMMUNICATION_CHANNEL_TYPE_ID, $this->id);
-
-				ArCdrPeer::addSelectColumns($criteria);
-				if (!isset($this->lastArCdrCriteria) || !$this->lastArCdrCriteria->equals($criteria)) {
-					$this->collArCdrs = ArCdrPeer::doSelect($criteria, $con);
-				}
-			}
-		}
-		$this->lastArCdrCriteria = $criteria;
-		return $this->collArCdrs;
-	}
-
-	/**
-	 * Returns the number of related ArCdr objects.
-	 *
-	 * @param      Criteria $criteria
-	 * @param      boolean $distinct
-	 * @param      PropelPDO $con
-	 * @return     int Count of related ArCdr objects.
-	 * @throws     PropelException
-	 */
-	public function countArCdrs(Criteria $criteria = null, $distinct = false, PropelPDO $con = null)
-	{
-		if ($criteria === null) {
-			$criteria = new Criteria(ArCommunicationChannelTypePeer::DATABASE_NAME);
-		} else {
-			$criteria = clone $criteria;
-		}
-
-		if ($distinct) {
-			$criteria->setDistinct();
-		}
-
-		$count = null;
-
-		if ($this->collArCdrs === null) {
-			if ($this->isNew()) {
-				$count = 0;
-			} else {
-
-				$criteria->add(ArCdrPeer::AR_COMMUNICATION_CHANNEL_TYPE_ID, $this->id);
-
-				$count = ArCdrPeer::doCount($criteria, false, $con);
-			}
-		} else {
-			// criteria has no effect for a new object
-			if (!$this->isNew()) {
-				// the following code is to determine if a new query is
-				// called for.  If the criteria is the same as the last
-				// one, just return count of the collection.
-
-
-				$criteria->add(ArCdrPeer::AR_COMMUNICATION_CHANNEL_TYPE_ID, $this->id);
-
-				if (!isset($this->lastArCdrCriteria) || !$this->lastArCdrCriteria->equals($criteria)) {
-					$count = ArCdrPeer::doCount($criteria, false, $con);
-				} else {
-					$count = count($this->collArCdrs);
-				}
-			} else {
-				$count = count($this->collArCdrs);
-			}
-		}
-		return $count;
-	}
-
-	/**
-	 * Method called to associate a ArCdr object to this object
-	 * through the ArCdr foreign key attribute.
-	 *
-	 * @param      ArCdr $l ArCdr
-	 * @return     void
-	 * @throws     PropelException
-	 */
-	public function addArCdr(ArCdr $l)
-	{
-		if ($this->collArCdrs === null) {
-			$this->initArCdrs();
-		}
-		if (!in_array($l, $this->collArCdrs, true)) { // only add it if the **same** object is not already associated
-			array_push($this->collArCdrs, $l);
-			$l->setArCommunicationChannelType($this);
-		}
-	}
-
-
-	/**
-	 * If this collection has already been initialized with
-	 * an identical criteria, it returns the collection.
-	 * Otherwise if this ArCommunicationChannelType is new, it will return
-	 * an empty collection; or if this ArCommunicationChannelType has previously
-	 * been saved, it will retrieve related ArCdrs from storage.
-	 *
-	 * This method is protected by default in order to keep the public
-	 * api reasonable.  You can provide public methods for those you
-	 * actually need in ArCommunicationChannelType.
-	 */
-	public function getArCdrsJoinArOrganizationUnit($criteria = null, $con = null, $join_behavior = Criteria::LEFT_JOIN)
-	{
-		if ($criteria === null) {
-			$criteria = new Criteria(ArCommunicationChannelTypePeer::DATABASE_NAME);
-		}
-		elseif ($criteria instanceof Criteria)
-		{
-			$criteria = clone $criteria;
-		}
-
-		if ($this->collArCdrs === null) {
-			if ($this->isNew()) {
-				$this->collArCdrs = array();
-			} else {
-
-				$criteria->add(ArCdrPeer::AR_COMMUNICATION_CHANNEL_TYPE_ID, $this->id);
-
-				$this->collArCdrs = ArCdrPeer::doSelectJoinArOrganizationUnit($criteria, $con, $join_behavior);
-			}
-		} else {
-			// the following code is to determine if a new query is
-			// called for.  If the criteria is the same as the last
-			// one, just return the collection.
-
-			$criteria->add(ArCdrPeer::AR_COMMUNICATION_CHANNEL_TYPE_ID, $this->id);
-
-			if (!isset($this->lastArCdrCriteria) || !$this->lastArCdrCriteria->equals($criteria)) {
-				$this->collArCdrs = ArCdrPeer::doSelectJoinArOrganizationUnit($criteria, $con, $join_behavior);
-			}
-		}
-		$this->lastArCdrCriteria = $criteria;
-
-		return $this->collArCdrs;
-	}
-
-
-	/**
-	 * If this collection has already been initialized with
-	 * an identical criteria, it returns the collection.
-	 * Otherwise if this ArCommunicationChannelType is new, it will return
-	 * an empty collection; or if this ArCommunicationChannelType has previously
-	 * been saved, it will retrieve related ArCdrs from storage.
-	 *
-	 * This method is protected by default in order to keep the public
-	 * api reasonable.  You can provide public methods for those you
-	 * actually need in ArCommunicationChannelType.
-	 */
-	public function getArCdrsJoinArVendor($criteria = null, $con = null, $join_behavior = Criteria::LEFT_JOIN)
-	{
-		if ($criteria === null) {
-			$criteria = new Criteria(ArCommunicationChannelTypePeer::DATABASE_NAME);
-		}
-		elseif ($criteria instanceof Criteria)
-		{
-			$criteria = clone $criteria;
-		}
-
-		if ($this->collArCdrs === null) {
-			if ($this->isNew()) {
-				$this->collArCdrs = array();
-			} else {
-
-				$criteria->add(ArCdrPeer::AR_COMMUNICATION_CHANNEL_TYPE_ID, $this->id);
-
-				$this->collArCdrs = ArCdrPeer::doSelectJoinArVendor($criteria, $con, $join_behavior);
-			}
-		} else {
-			// the following code is to determine if a new query is
-			// called for.  If the criteria is the same as the last
-			// one, just return the collection.
-
-			$criteria->add(ArCdrPeer::AR_COMMUNICATION_CHANNEL_TYPE_ID, $this->id);
-
-			if (!isset($this->lastArCdrCriteria) || !$this->lastArCdrCriteria->equals($criteria)) {
-				$this->collArCdrs = ArCdrPeer::doSelectJoinArVendor($criteria, $con, $join_behavior);
-			}
-		}
-		$this->lastArCdrCriteria = $criteria;
-
-		return $this->collArCdrs;
-	}
-
-
-	/**
-	 * If this collection has already been initialized with
-	 * an identical criteria, it returns the collection.
-	 * Otherwise if this ArCommunicationChannelType is new, it will return
-	 * an empty collection; or if this ArCommunicationChannelType has previously
-	 * been saved, it will retrieve related ArCdrs from storage.
-	 *
-	 * This method is protected by default in order to keep the public
-	 * api reasonable.  You can provide public methods for those you
-	 * actually need in ArCommunicationChannelType.
-	 */
-	public function getArCdrsJoinArTelephonePrefix($criteria = null, $con = null, $join_behavior = Criteria::LEFT_JOIN)
-	{
-		if ($criteria === null) {
-			$criteria = new Criteria(ArCommunicationChannelTypePeer::DATABASE_NAME);
-		}
-		elseif ($criteria instanceof Criteria)
-		{
-			$criteria = clone $criteria;
-		}
-
-		if ($this->collArCdrs === null) {
-			if ($this->isNew()) {
-				$this->collArCdrs = array();
-			} else {
-
-				$criteria->add(ArCdrPeer::AR_COMMUNICATION_CHANNEL_TYPE_ID, $this->id);
-
-				$this->collArCdrs = ArCdrPeer::doSelectJoinArTelephonePrefix($criteria, $con, $join_behavior);
-			}
-		} else {
-			// the following code is to determine if a new query is
-			// called for.  If the criteria is the same as the last
-			// one, just return the collection.
-
-			$criteria->add(ArCdrPeer::AR_COMMUNICATION_CHANNEL_TYPE_ID, $this->id);
-
-			if (!isset($this->lastArCdrCriteria) || !$this->lastArCdrCriteria->equals($criteria)) {
-				$this->collArCdrs = ArCdrPeer::doSelectJoinArTelephonePrefix($criteria, $con, $join_behavior);
-			}
-		}
-		$this->lastArCdrCriteria = $criteria;
-
-		return $this->collArCdrs;
 	}
 
 	/**
@@ -1335,11 +1005,6 @@ abstract class BaseArCommunicationChannelType extends BaseObject  implements Per
 	public function clearAllReferences($deep = false)
 	{
 		if ($deep) {
-			if ($this->collArCdrs) {
-				foreach ((array) $this->collArCdrs as $o) {
-					$o->clearAllReferences($deep);
-				}
-			}
 			if ($this->collArVendorDomains) {
 				foreach ((array) $this->collArVendorDomains as $o) {
 					$o->clearAllReferences($deep);
@@ -1347,7 +1012,6 @@ abstract class BaseArCommunicationChannelType extends BaseObject  implements Per
 			}
 		} // if ($deep)
 
-		$this->collArCdrs = null;
 		$this->collArVendorDomains = null;
 	}
 

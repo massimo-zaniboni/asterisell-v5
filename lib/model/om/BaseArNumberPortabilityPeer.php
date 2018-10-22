@@ -25,25 +25,19 @@ abstract class BaseArNumberPortabilityPeer {
 	const TM_CLASS = 'ArNumberPortabilityTableMap';
 	
 	/** The total number of columns. */
-	const NUM_COLUMNS = 5;
+	const NUM_COLUMNS = 3;
 
 	/** The number of lazy-loaded columns. */
 	const NUM_LAZY_LOAD_COLUMNS = 0;
 
-	/** the column name for the ID field */
-	const ID = 'ar_number_portability.ID';
-
 	/** the column name for the TELEPHONE_NUMBER field */
 	const TELEPHONE_NUMBER = 'ar_number_portability.TELEPHONE_NUMBER';
-
-	/** the column name for the PORTED_TELEPHONE_NUMBER field */
-	const PORTED_TELEPHONE_NUMBER = 'ar_number_portability.PORTED_TELEPHONE_NUMBER';
 
 	/** the column name for the FROM_DATE field */
 	const FROM_DATE = 'ar_number_portability.FROM_DATE';
 
-	/** the column name for the IS_EXPORTED_TO_RATING_ENGINE field */
-	const IS_EXPORTED_TO_RATING_ENGINE = 'ar_number_portability.IS_EXPORTED_TO_RATING_ENGINE';
+	/** the column name for the PORTED_TELEPHONE_NUMBER field */
+	const PORTED_TELEPHONE_NUMBER = 'ar_number_portability.PORTED_TELEPHONE_NUMBER';
 
 	/**
 	 * An identiy map to hold any loaded instances of ArNumberPortability objects.
@@ -68,11 +62,11 @@ abstract class BaseArNumberPortabilityPeer {
 	 * e.g. self::$fieldNames[self::TYPE_PHPNAME][0] = 'Id'
 	 */
 	private static $fieldNames = array (
-		BasePeer::TYPE_PHPNAME => array ('Id', 'TelephoneNumber', 'PortedTelephoneNumber', 'FromDate', 'IsExportedToRatingEngine', ),
-		BasePeer::TYPE_STUDLYPHPNAME => array ('id', 'telephoneNumber', 'portedTelephoneNumber', 'fromDate', 'isExportedToRatingEngine', ),
-		BasePeer::TYPE_COLNAME => array (self::ID, self::TELEPHONE_NUMBER, self::PORTED_TELEPHONE_NUMBER, self::FROM_DATE, self::IS_EXPORTED_TO_RATING_ENGINE, ),
-		BasePeer::TYPE_FIELDNAME => array ('id', 'telephone_number', 'ported_telephone_number', 'from_date', 'is_exported_to_rating_engine', ),
-		BasePeer::TYPE_NUM => array (0, 1, 2, 3, 4, )
+		BasePeer::TYPE_PHPNAME => array ('TelephoneNumber', 'FromDate', 'PortedTelephoneNumber', ),
+		BasePeer::TYPE_STUDLYPHPNAME => array ('telephoneNumber', 'fromDate', 'portedTelephoneNumber', ),
+		BasePeer::TYPE_COLNAME => array (self::TELEPHONE_NUMBER, self::FROM_DATE, self::PORTED_TELEPHONE_NUMBER, ),
+		BasePeer::TYPE_FIELDNAME => array ('telephone_number', 'from_date', 'ported_telephone_number', ),
+		BasePeer::TYPE_NUM => array (0, 1, 2, )
 	);
 
 	/**
@@ -82,11 +76,11 @@ abstract class BaseArNumberPortabilityPeer {
 	 * e.g. self::$fieldNames[BasePeer::TYPE_PHPNAME]['Id'] = 0
 	 */
 	private static $fieldKeys = array (
-		BasePeer::TYPE_PHPNAME => array ('Id' => 0, 'TelephoneNumber' => 1, 'PortedTelephoneNumber' => 2, 'FromDate' => 3, 'IsExportedToRatingEngine' => 4, ),
-		BasePeer::TYPE_STUDLYPHPNAME => array ('id' => 0, 'telephoneNumber' => 1, 'portedTelephoneNumber' => 2, 'fromDate' => 3, 'isExportedToRatingEngine' => 4, ),
-		BasePeer::TYPE_COLNAME => array (self::ID => 0, self::TELEPHONE_NUMBER => 1, self::PORTED_TELEPHONE_NUMBER => 2, self::FROM_DATE => 3, self::IS_EXPORTED_TO_RATING_ENGINE => 4, ),
-		BasePeer::TYPE_FIELDNAME => array ('id' => 0, 'telephone_number' => 1, 'ported_telephone_number' => 2, 'from_date' => 3, 'is_exported_to_rating_engine' => 4, ),
-		BasePeer::TYPE_NUM => array (0, 1, 2, 3, 4, )
+		BasePeer::TYPE_PHPNAME => array ('TelephoneNumber' => 0, 'FromDate' => 1, 'PortedTelephoneNumber' => 2, ),
+		BasePeer::TYPE_STUDLYPHPNAME => array ('telephoneNumber' => 0, 'fromDate' => 1, 'portedTelephoneNumber' => 2, ),
+		BasePeer::TYPE_COLNAME => array (self::TELEPHONE_NUMBER => 0, self::FROM_DATE => 1, self::PORTED_TELEPHONE_NUMBER => 2, ),
+		BasePeer::TYPE_FIELDNAME => array ('telephone_number' => 0, 'from_date' => 1, 'ported_telephone_number' => 2, ),
+		BasePeer::TYPE_NUM => array (0, 1, 2, )
 	);
 
 	/**
@@ -156,11 +150,9 @@ abstract class BaseArNumberPortabilityPeer {
 	 */
 	public static function addSelectColumns(Criteria $criteria)
 	{
-		$criteria->addSelectColumn(ArNumberPortabilityPeer::ID);
 		$criteria->addSelectColumn(ArNumberPortabilityPeer::TELEPHONE_NUMBER);
-		$criteria->addSelectColumn(ArNumberPortabilityPeer::PORTED_TELEPHONE_NUMBER);
 		$criteria->addSelectColumn(ArNumberPortabilityPeer::FROM_DATE);
-		$criteria->addSelectColumn(ArNumberPortabilityPeer::IS_EXPORTED_TO_RATING_ENGINE);
+		$criteria->addSelectColumn(ArNumberPortabilityPeer::PORTED_TELEPHONE_NUMBER);
 	}
 
 	/**
@@ -284,7 +276,7 @@ abstract class BaseArNumberPortabilityPeer {
 	{
 		if (Propel::isInstancePoolingEnabled()) {
 			if ($key === null) {
-				$key = (string) $obj->getId();
+				$key = serialize(array((string) $obj->getTelephoneNumber(), (string) $obj->getFromDate()));
 			} // if key === null
 			self::$instances[$key] = $obj;
 		}
@@ -304,10 +296,10 @@ abstract class BaseArNumberPortabilityPeer {
 	{
 		if (Propel::isInstancePoolingEnabled() && $value !== null) {
 			if (is_object($value) && $value instanceof ArNumberPortability) {
-				$key = (string) $value->getId();
-			} elseif (is_scalar($value)) {
+				$key = serialize(array((string) $value->getTelephoneNumber(), (string) $value->getFromDate()));
+			} elseif (is_array($value) && count($value) === 2) {
 				// assume we've been passed a primary key
-				$key = (string) $value;
+				$key = serialize(array((string) $value[0], (string) $value[1]));
 			} else {
 				$e = new PropelException("Invalid value passed to removeInstanceFromPool().  Expected primary key or ArNumberPortability object; got " . (is_object($value) ? get_class($value) . ' object.' : var_export($value,true)));
 				throw $e;
@@ -368,10 +360,10 @@ abstract class BaseArNumberPortabilityPeer {
 	public static function getPrimaryKeyHashFromRow($row, $startcol = 0)
 	{
 		// If the PK cannot be derived from the row, return NULL.
-		if ($row[$startcol] === null) {
+		if ($row[$startcol] === null && $row[$startcol + 1] === null) {
 			return null;
 		}
-		return (string) $row[$startcol];
+		return serialize(array((string) $row[$startcol], (string) $row[$startcol + 1]));
 	}
 
 	/**
@@ -466,10 +458,6 @@ abstract class BaseArNumberPortabilityPeer {
 			$criteria = $values->buildCriteria(); // build Criteria from ArNumberPortability object
 		}
 
-		if ($criteria->containsKey(ArNumberPortabilityPeer::ID) && $criteria->keyContainsValue(ArNumberPortabilityPeer::ID) ) {
-			throw new PropelException('Cannot insert a value for auto-increment primary key ('.ArNumberPortabilityPeer::ID.')');
-		}
-
 
 		// Set the correct dbName
 		$criteria->setDbName(self::DATABASE_NAME);
@@ -508,8 +496,11 @@ abstract class BaseArNumberPortabilityPeer {
 		if ($values instanceof Criteria) {
 			$criteria = clone $values; // rename for clarity
 
-			$comparison = $criteria->getComparison(ArNumberPortabilityPeer::ID);
-			$selectCriteria->add(ArNumberPortabilityPeer::ID, $criteria->remove(ArNumberPortabilityPeer::ID), $comparison);
+			$comparison = $criteria->getComparison(ArNumberPortabilityPeer::TELEPHONE_NUMBER);
+			$selectCriteria->add(ArNumberPortabilityPeer::TELEPHONE_NUMBER, $criteria->remove(ArNumberPortabilityPeer::TELEPHONE_NUMBER), $comparison);
+
+			$comparison = $criteria->getComparison(ArNumberPortabilityPeer::FROM_DATE);
+			$selectCriteria->add(ArNumberPortabilityPeer::FROM_DATE, $criteria->remove(ArNumberPortabilityPeer::FROM_DATE), $comparison);
 
 		} else { // $values is ArNumberPortability object
 			$criteria = $values->buildCriteria(); // gets full criteria
@@ -582,10 +573,18 @@ abstract class BaseArNumberPortabilityPeer {
 			$criteria = $values->buildPkeyCriteria();
 		} else { // it's a primary key, or an array of pks
 			$criteria = new Criteria(self::DATABASE_NAME);
-			$criteria->add(ArNumberPortabilityPeer::ID, (array) $values, Criteria::IN);
-			// invalidate the cache for this object(s)
-			foreach ((array) $values as $singleval) {
-				ArNumberPortabilityPeer::removeInstanceFromPool($singleval);
+			// primary key is composite; we therefore, expect
+			// the primary key passed to be an array of pkey values
+			if (count($values) == count($values, COUNT_RECURSIVE)) {
+				// array is not multi-dimensional
+				$values = array($values);
+			}
+			foreach ($values as $value) {
+				$criterion = $criteria->getNewCriterion(ArNumberPortabilityPeer::TELEPHONE_NUMBER, $value[0]);
+				$criterion->addAnd($criteria->getNewCriterion(ArNumberPortabilityPeer::FROM_DATE, $value[1]));
+				$criteria->addOr($criterion);
+				// we can invalidate the cache for this single PK
+				ArNumberPortabilityPeer::removeInstanceFromPool($value);
 			}
 		}
 
@@ -647,56 +646,28 @@ abstract class BaseArNumberPortabilityPeer {
 	}
 
 	/**
-	 * Retrieve a single object by pkey.
-	 *
-	 * @param      int $pk the primary key.
-	 * @param      PropelPDO $con the connection to use
+	 * Retrieve object using using composite pkey values.
+	 * @param      string $telephone_number
+	 * @param      string $from_date
+	 * @param      PropelPDO $con
 	 * @return     ArNumberPortability
 	 */
-	public static function retrieveByPK($pk, PropelPDO $con = null)
-	{
-
-		if (null !== ($obj = ArNumberPortabilityPeer::getInstanceFromPool((string) $pk))) {
-			return $obj;
+	public static function retrieveByPK($telephone_number, $from_date, PropelPDO $con = null) {
+		$key = serialize(array((string) $telephone_number, (string) $from_date));
+ 		if (null !== ($obj = ArNumberPortabilityPeer::getInstanceFromPool($key))) {
+ 			return $obj;
 		}
 
 		if ($con === null) {
 			$con = Propel::getConnection(ArNumberPortabilityPeer::DATABASE_NAME, Propel::CONNECTION_READ);
 		}
-
 		$criteria = new Criteria(ArNumberPortabilityPeer::DATABASE_NAME);
-		$criteria->add(ArNumberPortabilityPeer::ID, $pk);
-
+		$criteria->add(ArNumberPortabilityPeer::TELEPHONE_NUMBER, $telephone_number);
+		$criteria->add(ArNumberPortabilityPeer::FROM_DATE, $from_date);
 		$v = ArNumberPortabilityPeer::doSelect($criteria, $con);
 
-		return !empty($v) > 0 ? $v[0] : null;
+		return !empty($v) ? $v[0] : null;
 	}
-
-	/**
-	 * Retrieve multiple objects by pkey.
-	 *
-	 * @param      array $pks List of primary keys
-	 * @param      PropelPDO $con the connection to use
-	 * @throws     PropelException Any exceptions caught during processing will be
-	 *		 rethrown wrapped into a PropelException.
-	 */
-	public static function retrieveByPKs($pks, PropelPDO $con = null)
-	{
-		if ($con === null) {
-			$con = Propel::getConnection(ArNumberPortabilityPeer::DATABASE_NAME, Propel::CONNECTION_READ);
-		}
-
-		$objs = null;
-		if (empty($pks)) {
-			$objs = array();
-		} else {
-			$criteria = new Criteria(ArNumberPortabilityPeer::DATABASE_NAME);
-			$criteria->add(ArNumberPortabilityPeer::ID, $pks, Criteria::IN);
-			$objs = ArNumberPortabilityPeer::doSelect($criteria, $con);
-		}
-		return $objs;
-	}
-
 	// symfony behavior
 	
 	/**

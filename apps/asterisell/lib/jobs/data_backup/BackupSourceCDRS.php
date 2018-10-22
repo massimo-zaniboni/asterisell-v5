@@ -1,25 +1,6 @@
 <?php
 
-/* $LICENSE 2015:
- *
- * Copyright (C) 2015 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
- *
- * This file is part of Asterisell.
- *
- * Asterisell is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 3 of the License, or
- * (at your option) any later version.
- *
- * Asterisell is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with Asterisell. If not, see <http://www.gnu.org/licenses/>.
- * $
- */
+// SPDX-License-Identifier: GPL-3.0-or-later
 
 sfLoader::loadHelpers(array('I18N', 'Debug', 'Date', 'Asterisell'));
 
@@ -57,7 +38,7 @@ class BackupSourceCDRS extends DailyBackupJob
 
         // NOTE: this file can be recognized from MySQL using LOAD FUNCTION, but not from Haskell, because the escape character is `\` instead of  `"`
         $query = <<<'NOWDOC'
-        SELECT ar_cdr_provider_id, ar_physical_format_id, calldate, is_imported_service_cdr, content
+        SELECT ar_cdr_provider_id, ar_physical_format_id, calldate, content
 NOWDOC;
         $query .= " INTO OUTFILE '$tmpFileName' ";
 
@@ -138,7 +119,7 @@ NOWDOC;
         OPTIONALLY ENCLOSED BY '"'
         ESCAPED BY '\\'
         LINES TERMINATED BY '\r\n' STARTING BY ''
-        (ar_cdr_provider_id, ar_physical_format_id, calldate, is_imported_service_cdr, content) SET id = NULL;
+        (ar_cdr_provider_id, ar_physical_format_id, calldate, content) SET id = NULL;
         ';
 HEREDOC;
                 $isOk = $conn->exec($cmd);

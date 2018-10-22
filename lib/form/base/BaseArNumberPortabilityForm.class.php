@@ -14,19 +14,15 @@ abstract class BaseArNumberPortabilityForm extends BaseFormPropel
   public function setup()
   {
     $this->setWidgets(array(
-      'id'                           => new sfWidgetFormInputHidden(),
-      'telephone_number'             => new sfWidgetFormInputText(),
-      'ported_telephone_number'      => new sfWidgetFormInputText(),
-      'from_date'                    => new sfWidgetFormDateTime(),
-      'is_exported_to_rating_engine' => new sfWidgetFormInputCheckbox(),
+      'telephone_number'        => new sfWidgetFormInputHidden(),
+      'from_date'               => new sfWidgetFormInputHidden(),
+      'ported_telephone_number' => new sfWidgetFormInputText(),
     ));
 
     $this->setValidators(array(
-      'id'                           => new sfValidatorChoice(array('choices' => array($this->getObject()->getId()), 'empty_value' => $this->getObject()->getId(), 'required' => false)),
-      'telephone_number'             => new sfValidatorString(array('max_length' => 255)),
-      'ported_telephone_number'      => new sfValidatorString(array('max_length' => 255)),
-      'from_date'                    => new sfValidatorDateTime(array('required' => false)),
-      'is_exported_to_rating_engine' => new sfValidatorBoolean(),
+      'telephone_number'        => new sfValidatorChoice(array('choices' => array($this->getObject()->getTelephoneNumber()), 'empty_value' => $this->getObject()->getTelephoneNumber(), 'required' => false)),
+      'from_date'               => new sfValidatorChoice(array('choices' => array($this->getObject()->getFromDate()), 'empty_value' => $this->getObject()->getFromDate(), 'required' => false)),
+      'ported_telephone_number' => new sfValidatorString(array('max_length' => 255)),
     ));
 
     $this->widgetSchema->setNameFormat('ar_number_portability[%s]');

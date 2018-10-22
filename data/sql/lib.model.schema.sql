@@ -12,17 +12,17 @@ DROP TABLE IF EXISTS `ar_cdr`;
 
 CREATE TABLE `ar_cdr`
 (
-	`id` INTEGER  NOT NULL AUTO_INCREMENT,
 	`calldate` DATETIME  NOT NULL,
+	`id` INTEGER default 0 NOT NULL,
+	`is_service_cdr` TINYINT default 0 NOT NULL,
 	`to_calldate` DATETIME,
-	`is_imported_service_cdr` TINYINT default 0 NOT NULL,
 	`count_of_calls` INTEGER default 1 NOT NULL,
-	`destination_type` INTEGER(1) default 0 NOT NULL,
+	`destination_type` SMALLINT default 0 NOT NULL,
 	`is_redirect` TINYINT default 0 NOT NULL,
-	`duration` INTEGER  NOT NULL,
-	`billsec` INTEGER  NOT NULL,
+	`duration` INTEGER default 0 NOT NULL,
+	`billsec` INTEGER default 0 NOT NULL,
 	`ar_organization_unit_id` INTEGER,
-	`cached_parent_id_hierarchy` VARCHAR(850),
+	`cached_parent_id_hierarchy` VARBINARY(850),
 	`billable_ar_organization_unit_id` INTEGER,
 	`bundle_ar_organization_unit_id` INTEGER,
 	`income` BIGINT,
@@ -35,36 +35,18 @@ CREATE TABLE `ar_cdr`
 	`cached_external_telephone_number` VARCHAR(1024),
 	`external_telephone_number_with_applied_portability` VARCHAR(1024),
 	`cached_masked_external_telephone_number` VARCHAR(1024),
-	`error_destination_type` INTEGER(1) default 0 NOT NULL,
+	`error_destination_type` SMALLINT default 0 NOT NULL,
 	`ar_problem_duplication_key` VARCHAR(255),
-	`debug_cost_rate` VARCHAR(2048),
-	`debug_income_rate` VARCHAR(2048),
-	`debug_residual_income_rate` VARCHAR(2048),
+	`debug_cost_rate` VARCHAR(512),
+	`debug_income_rate` VARCHAR(512),
+	`debug_residual_income_rate` VARCHAR(512),
 	`debug_residual_call_duration` INTEGER,
 	`debug_bundle_left_calls` INTEGER,
 	`debug_bundle_left_duration` INTEGER,
 	`debug_bundle_left_cost` BIGINT,
-	`debug_rating_details` VARCHAR(10000),
-	PRIMARY KEY (`id`),
-	KEY `ar_cdr_I_1`(`to_calldate`),
-	KEY `ar_cdr_calldate_index`(`calldate`, `cached_parent_id_hierarchy`),
-	INDEX `ar_cdr_FI_1` (`ar_organization_unit_id`),
-	CONSTRAINT `ar_cdr_FK_1`
-		FOREIGN KEY (`ar_organization_unit_id`)
-		REFERENCES `ar_organization_unit` (`id`),
-	INDEX `ar_cdr_FI_2` (`ar_vendor_id`),
-	CONSTRAINT `ar_cdr_FK_2`
-		FOREIGN KEY (`ar_vendor_id`)
-		REFERENCES `ar_vendor` (`id`),
-	INDEX `ar_cdr_FI_3` (`ar_communication_channel_type_id`),
-	CONSTRAINT `ar_cdr_FK_3`
-		FOREIGN KEY (`ar_communication_channel_type_id`)
-		REFERENCES `ar_communication_channel_type` (`id`),
-	INDEX `ar_cdr_FI_4` (`ar_telephone_prefix_id`),
-	CONSTRAINT `ar_cdr_FK_4`
-		FOREIGN KEY (`ar_telephone_prefix_id`)
-		REFERENCES `ar_telephone_prefix` (`id`)
-)Engine=tokudb COMPRESSION=tokudb_quicklz,DEFAULT CHARACTER SET = utf8, DEFAULT COLLATE = utf8_bin;
+	`debug_rating_details` VARCHAR(5000),
+	PRIMARY KEY (`calldate`,`id`,`is_service_cdr`)
+)ENGINE=TokuDB ROW_FORMAT=TOKUDB_SNAPPY, DEFAULT CHARACTER SET = utf8mb4, DEFAULT COLLATE = utf8mb4_bin;
 
 #-----------------------------------------------------------------------------
 #-- ar_destination_type
@@ -76,10 +58,10 @@ DROP TABLE IF EXISTS `ar_destination_type`;
 CREATE TABLE `ar_destination_type`
 (
 	`id` INTEGER  NOT NULL AUTO_INCREMENT,
-	`internal_id` INTEGER,
+	`internal_id` SMALLINT,
 	`name` VARCHAR(1024),
 	PRIMARY KEY (`id`)
-)Engine=tokudb COMPRESSION=tokudb_quicklz,DEFAULT CHARACTER SET = utf8, DEFAULT COLLATE = utf8_bin;
+)ENGINE=TokuDB ROW_FORMAT=TOKUDB_SNAPPY, DEFAULT CHARACTER SET = utf8mb4, DEFAULT COLLATE = utf8mb4_bin;
 
 #-----------------------------------------------------------------------------
 #-- ar_number_portability
@@ -90,16 +72,11 @@ DROP TABLE IF EXISTS `ar_number_portability`;
 
 CREATE TABLE `ar_number_portability`
 (
-	`id` INTEGER  NOT NULL AUTO_INCREMENT,
 	`telephone_number` VARCHAR(255)  NOT NULL,
+	`from_date` DATETIME  NOT NULL,
 	`ported_telephone_number` VARCHAR(255)  NOT NULL,
-	`from_date` DATETIME,
-	`is_exported_to_rating_engine` TINYINT default 0 NOT NULL,
-	PRIMARY KEY (`id`),
-	KEY `ar_number_portability_I_1`(`telephone_number`),
-	KEY `ar_number_portability_I_2`(`from_date`),
-	KEY `ar_number_portability_I_3`(`is_exported_to_rating_engine`)
-)Engine=tokudb COMPRESSION=tokudb_quicklz,DEFAULT CHARACTER SET = utf8, DEFAULT COLLATE = utf8_bin;
+	PRIMARY KEY (`telephone_number`,`from_date`)
+)ENGINE=TokuDB ROW_FORMAT=TOKUDB_SNAPPY, DEFAULT CHARACTER SET = utf8mb4, DEFAULT COLLATE = utf8mb4_bin;
 
 #-----------------------------------------------------------------------------
 #-- ar_rating_engine_export_status
@@ -115,7 +92,7 @@ CREATE TABLE `ar_rating_engine_export_status`
 	`check_value` VARCHAR(1024),
 	PRIMARY KEY (`id`),
 	UNIQUE KEY `ar_rating_engine_export_status_U_1` (`internal_name`)
-)Engine=tokudb COMPRESSION=tokudb_quicklz,DEFAULT CHARACTER SET = utf8, DEFAULT COLLATE = utf8_bin;
+)ENGINE=TokuDB ROW_FORMAT=TOKUDB_SNAPPY, DEFAULT CHARACTER SET = utf8mb4, DEFAULT COLLATE = utf8mb4_bin;
 
 #-----------------------------------------------------------------------------
 #-- ar_party
@@ -129,8 +106,11 @@ CREATE TABLE `ar_party`
 	`id` INTEGER  NOT NULL AUTO_INCREMENT,
 	`name` VARCHAR(255),
 	`compact_name` VARCHAR(255),
+	`note` VARCHAR(1024),
 	`external_crm_code` VARCHAR(255),
+	`contract_number` VARCHAR(255),
 	`vat` VARCHAR(255),
+	`legal_registration_number` VARCHAR(255),
 	`is_billable` TINYINT default 0 NOT NULL,
 	`legal_address` VARCHAR(255),
 	`legal_city` VARCHAR(255),
@@ -138,10 +118,12 @@ CREATE TABLE `ar_party`
 	`legal_state_province` VARCHAR(255),
 	`legal_country` VARCHAR(255),
 	`email` VARCHAR(255),
+	`contact_name` VARCHAR(255),
 	`phone` VARCHAR(255),
 	`phone2` VARCHAR(255),
 	`fax` VARCHAR(255),
-	`max_limit_30` INTEGER,
+	`web_site` VARCHAR(120),
+	`max_limit_30` BIGINT,
 	`last_email_advise_for_max_limit_30` DATETIME,
 	`is_active` TINYINT default 1 NOT NULL,
 	`ar_reseller_id` INTEGER,
@@ -158,7 +140,7 @@ CREATE TABLE `ar_party`
 	CONSTRAINT `ar_party_FK_1`
 		FOREIGN KEY (`ar_reseller_id`)
 		REFERENCES `ar_reseller` (`id`)
-)Engine=tokudb COMPRESSION=tokudb_quicklz,DEFAULT CHARACTER SET = utf8, DEFAULT COLLATE = utf8_bin;
+)ENGINE=TokuDB ROW_FORMAT=TOKUDB_SNAPPY, DEFAULT CHARACTER SET = utf8mb4, DEFAULT COLLATE = utf8mb4_bin;
 
 #-----------------------------------------------------------------------------
 #-- ar_tag
@@ -176,7 +158,7 @@ CREATE TABLE `ar_tag`
 	`note_for_customer` VARCHAR(1204) default '' NOT NULL,
 	PRIMARY KEY (`id`),
 	UNIQUE KEY `ar_tag_U_1` (`internal_name`)
-)Engine=tokudb COMPRESSION=tokudb_quicklz,DEFAULT CHARACTER SET = utf8, DEFAULT COLLATE = utf8_bin;
+)ENGINE=TokuDB ROW_FORMAT=TOKUDB_SNAPPY, DEFAULT CHARACTER SET = utf8mb4, DEFAULT COLLATE = utf8mb4_bin;
 
 #-----------------------------------------------------------------------------
 #-- ar_party_has_tag
@@ -199,7 +181,7 @@ CREATE TABLE `ar_party_has_tag`
 		FOREIGN KEY (`ar_tag_id`)
 		REFERENCES `ar_tag` (`id`)
 		ON DELETE CASCADE
-)Engine=tokudb COMPRESSION=tokudb_quicklz,DEFAULT CHARACTER SET = utf8, DEFAULT COLLATE = utf8_bin;
+)ENGINE=TokuDB ROW_FORMAT=TOKUDB_SNAPPY, DEFAULT CHARACTER SET = utf8mb4, DEFAULT COLLATE = utf8mb4_bin;
 
 #-----------------------------------------------------------------------------
 #-- ar_params
@@ -245,18 +227,14 @@ CREATE TABLE `ar_params`
 	`official_calldate` DATETIME,
 	`scheduled_rerate_from_official_calldate` TINYINT default 0 NOT NULL,
 	`new_imported_cdrs_from_calldate` DATETIME,
-	`new_imported_cdrs_to_calldate` DATETIME,
 	`scheduled_rerate_from_specific_calldate` DATETIME,
-	`scheduled_rerate_to_specific_calldate` DATETIME,
-	`scheduled_imported_services_rerate_from_specific_calldate` DATETIME,
-	`scheduled_imported_services_rerate_to_specific_calldate` DATETIME,
 	`current_count_of_rerating_failed_attempts` INTEGER default 0 NOT NULL,
 	`current_rerating_event_is_running` TINYINT default 0 NOT NULL,
 	`should_reschedule_rerate_from_official_calldate` TINYINT default 0 NOT NULL,
 	`wait_for_scheduled_rerate` TINYINT default 1 NOT NULL,
 	`clean_error_table` INTEGER default 0 NOT NULL,
 	PRIMARY KEY (`id`)
-)Engine=tokudb COMPRESSION=tokudb_quicklz,DEFAULT CHARACTER SET = utf8, DEFAULT COLLATE = utf8_bin;
+)ENGINE=TokuDB ROW_FORMAT=TOKUDB_SNAPPY, DEFAULT CHARACTER SET = utf8mb4, DEFAULT COLLATE = utf8mb4_bin;
 
 #-----------------------------------------------------------------------------
 #-- ar_reseller
@@ -273,7 +251,7 @@ CREATE TABLE `ar_reseller`
 	`note` VARCHAR(2048),
 	PRIMARY KEY (`id`),
 	UNIQUE KEY `ar_reseller_U_1` (`internal_name`)
-)Engine=tokudb COMPRESSION=tokudb_quicklz,DEFAULT CHARACTER SET = utf8, DEFAULT COLLATE = utf8_bin;
+)ENGINE=TokuDB ROW_FORMAT=TOKUDB_SNAPPY, DEFAULT CHARACTER SET = utf8mb4, DEFAULT COLLATE = utf8mb4_bin;
 
 #-----------------------------------------------------------------------------
 #-- ar_rate_category
@@ -285,11 +263,11 @@ DROP TABLE IF EXISTS `ar_rate_category`;
 CREATE TABLE `ar_rate_category`
 (
 	`id` INTEGER  NOT NULL AUTO_INCREMENT,
-	`internal_name` VARCHAR(255),
+	`internal_name` VARCHAR(255)  NOT NULL,
 	`short_description` TEXT,
 	PRIMARY KEY (`id`),
 	UNIQUE KEY `ar_rate_category_U_1` (`internal_name`)
-)Engine=tokudb COMPRESSION=tokudb_quicklz,DEFAULT CHARACTER SET = utf8, DEFAULT COLLATE = utf8_bin;
+)ENGINE=TokuDB ROW_FORMAT=TOKUDB_SNAPPY, DEFAULT CHARACTER SET = utf8mb4, DEFAULT COLLATE = utf8mb4_bin;
 
 #-----------------------------------------------------------------------------
 #-- ar_rate_format
@@ -307,7 +285,7 @@ CREATE TABLE `ar_rate_format`
 	`order_name` VARCHAR(255),
 	PRIMARY KEY (`id`),
 	UNIQUE KEY `ar_rate_format_U_1` (`internal_name`)
-)Engine=tokudb COMPRESSION=tokudb_quicklz,DEFAULT CHARACTER SET = utf8, DEFAULT COLLATE = utf8_bin;
+)ENGINE=TokuDB ROW_FORMAT=TOKUDB_SNAPPY, DEFAULT CHARACTER SET = utf8mb4, DEFAULT COLLATE = utf8mb4_bin;
 
 #-----------------------------------------------------------------------------
 #-- ar_rate
@@ -348,7 +326,7 @@ CREATE TABLE `ar_rate`
 	CONSTRAINT `ar_rate_FK_3`
 		FOREIGN KEY (`ar_rate_id`)
 		REFERENCES `ar_rate` (`id`)
-)Engine=tokudb COMPRESSION=tokudb_quicklz,DEFAULT CHARACTER SET = utf8, DEFAULT COLLATE = utf8_bin;
+)ENGINE=TokuDB ROW_FORMAT=TOKUDB_SNAPPY, DEFAULT CHARACTER SET = utf8mb4, DEFAULT COLLATE = utf8mb4_bin;
 
 #-----------------------------------------------------------------------------
 #-- ar_rate_shared_with_reseller
@@ -374,7 +352,7 @@ CREATE TABLE `ar_rate_shared_with_reseller`
 	CONSTRAINT `ar_rate_shared_with_reseller_FK_2`
 		FOREIGN KEY (`ar_reseller_id`)
 		REFERENCES `ar_reseller` (`id`)
-)Engine=tokudb COMPRESSION=tokudb_quicklz,DEFAULT CHARACTER SET = utf8, DEFAULT COLLATE = utf8_bin;
+)ENGINE=TokuDB ROW_FORMAT=TOKUDB_SNAPPY, DEFAULT CHARACTER SET = utf8mb4, DEFAULT COLLATE = utf8mb4_bin;
 
 #-----------------------------------------------------------------------------
 #-- ar_telephone_prefix
@@ -389,13 +367,14 @@ CREATE TABLE `ar_telephone_prefix`
 	`prefix` VARCHAR(255)  NOT NULL,
 	`match_only_numbers_with_n_digits` INTEGER,
 	`name` VARCHAR(1024),
-	`geographic_location` VARCHAR(1024),
-	`operator_type` VARCHAR(1024),
+	`geographic_location` VARCHAR(255),
+	`operator_type` VARCHAR(255),
 	`display_priority_level` INTEGER default 0 NOT NULL,
+	`rating_code` VARCHAR(255) default '' NOT NULL,
 	PRIMARY KEY (`id`),
 	UNIQUE KEY `ar_telephone_prefix_U_1` (`prefix`),
 	KEY `ar_telephone_prefix_I_1`(`operator_type`)
-)Engine=tokudb COMPRESSION=tokudb_quicklz,DEFAULT CHARACTER SET = utf8, DEFAULT COLLATE = utf8_bin;
+)ENGINE=TokuDB ROW_FORMAT=TOKUDB_SNAPPY, DEFAULT CHARACTER SET = utf8mb4, DEFAULT COLLATE = utf8mb4_bin;
 
 #-----------------------------------------------------------------------------
 #-- ar_organization_unit
@@ -409,13 +388,17 @@ CREATE TABLE `ar_organization_unit`
 	`id` INTEGER  NOT NULL AUTO_INCREMENT,
 	`internal_name` VARCHAR(200),
 	`internal_name2` VARCHAR(200),
+	`internal_checksum1` VARCHAR(200),
+	`internal_checksum2` VARCHAR(200),
+	`internal_checksum3` VARCHAR(200),
+	`internal_checksum4` VARCHAR(200),
 	`export_code` VARCHAR(200),
 	`automatically_managed_from` INTEGER default 0 NOT NULL,
 	PRIMARY KEY (`id`),
 	UNIQUE KEY `ar_organization_unit_U_1` (`internal_name`),
 	UNIQUE KEY `ar_organization_unit_U_2` (`internal_name2`),
 	UNIQUE KEY `ar_organization_unit_U_3` (`export_code`)
-)Engine=tokudb COMPRESSION=tokudb_quicklz,DEFAULT CHARACTER SET = utf8, DEFAULT COLLATE = utf8_bin;
+)ENGINE=TokuDB ROW_FORMAT=TOKUDB_SNAPPY, DEFAULT CHARACTER SET = utf8mb4, DEFAULT COLLATE = utf8mb4_bin;
 
 #-----------------------------------------------------------------------------
 #-- ar_organization_unit_type
@@ -433,7 +416,7 @@ CREATE TABLE `ar_organization_unit_type`
 	PRIMARY KEY (`id`),
 	UNIQUE KEY `ar_organization_unit_type_U_1` (`name`),
 	UNIQUE KEY `ar_organization_unit_type_U_2` (`internal_name`)
-)Engine=tokudb COMPRESSION=tokudb_quicklz,DEFAULT CHARACTER SET = utf8, DEFAULT COLLATE = utf8_bin;
+)ENGINE=TokuDB ROW_FORMAT=TOKUDB_SNAPPY, DEFAULT CHARACTER SET = utf8mb4, DEFAULT COLLATE = utf8mb4_bin;
 
 #-----------------------------------------------------------------------------
 #-- ar_organization_unit_has_structure
@@ -477,7 +460,7 @@ CREATE TABLE `ar_organization_unit_has_structure`
 	CONSTRAINT `ar_organization_unit_has_structure_FK_5`
 		FOREIGN KEY (`ar_party_id`)
 		REFERENCES `ar_party` (`id`)
-)Engine=tokudb COMPRESSION=tokudb_quicklz,DEFAULT CHARACTER SET = utf8, DEFAULT COLLATE = utf8_bin;
+)ENGINE=TokuDB ROW_FORMAT=TOKUDB_SNAPPY, DEFAULT CHARACTER SET = utf8mb4, DEFAULT COLLATE = utf8mb4_bin;
 
 #-----------------------------------------------------------------------------
 #-- ar_organization_backup_of_changes
@@ -496,7 +479,7 @@ CREATE TABLE `ar_organization_backup_of_changes`
 	`sql_tables` LONGBLOB,
 	PRIMARY KEY (`id`),
 	KEY `ar_organization_backup_of_changes_I_1`(`backup_at_date`)
-)Engine=tokudb COMPRESSION=tokudb_quicklz,DEFAULT CHARACTER SET = utf8, DEFAULT COLLATE = utf8_bin;
+)ENGINE=TokuDB ROW_FORMAT=TOKUDB_SNAPPY, DEFAULT CHARACTER SET = utf8mb4, DEFAULT COLLATE = utf8mb4_bin;
 
 #-----------------------------------------------------------------------------
 #-- ar_expanded_extensions
@@ -515,7 +498,7 @@ CREATE TABLE `ar_expanded_extensions`
 	CONSTRAINT `ar_expanded_extensions_FK_1`
 		FOREIGN KEY (`ar_organization_unit_id`)
 		REFERENCES `ar_organization_unit` (`id`)
-)Engine=tokudb COMPRESSION=tokudb_quicklz,DEFAULT CHARACTER SET = utf8, DEFAULT COLLATE = utf8_bin;
+)ENGINE=TokuDB ROW_FORMAT=TOKUDB_SNAPPY, DEFAULT CHARACTER SET = utf8mb4, DEFAULT COLLATE = utf8mb4_bin;
 
 #-----------------------------------------------------------------------------
 #-- ar_vendor
@@ -536,7 +519,7 @@ CREATE TABLE `ar_vendor`
 	CONSTRAINT `ar_vendor_FK_1`
 		FOREIGN KEY (`ar_party_id`)
 		REFERENCES `ar_party` (`id`)
-)Engine=tokudb COMPRESSION=tokudb_quicklz,DEFAULT CHARACTER SET = utf8, DEFAULT COLLATE = utf8_bin;
+)ENGINE=TokuDB ROW_FORMAT=TOKUDB_SNAPPY, DEFAULT CHARACTER SET = utf8mb4, DEFAULT COLLATE = utf8mb4_bin;
 
 #-----------------------------------------------------------------------------
 #-- ar_communication_channel_type
@@ -554,7 +537,7 @@ CREATE TABLE `ar_communication_channel_type`
 	PRIMARY KEY (`id`),
 	UNIQUE KEY `ar_communication_channel_type_U_1` (`name`),
 	UNIQUE KEY `ar_communication_channel_type_U_2` (`internal_name`)
-)Engine=tokudb COMPRESSION=tokudb_quicklz,DEFAULT CHARACTER SET = utf8, DEFAULT COLLATE = utf8_bin;
+)ENGINE=TokuDB ROW_FORMAT=TOKUDB_SNAPPY, DEFAULT CHARACTER SET = utf8mb4, DEFAULT COLLATE = utf8mb4_bin;
 
 #-----------------------------------------------------------------------------
 #-- ar_vendor_domain
@@ -585,7 +568,7 @@ CREATE TABLE `ar_vendor_domain`
 	CONSTRAINT `ar_vendor_domain_FK_2`
 		FOREIGN KEY (`ar_communication_channel_type_id`)
 		REFERENCES `ar_communication_channel_type` (`id`)
-)Engine=tokudb COMPRESSION=tokudb_quicklz,DEFAULT CHARACTER SET = utf8, DEFAULT COLLATE = utf8_bin;
+)ENGINE=TokuDB ROW_FORMAT=TOKUDB_SNAPPY, DEFAULT CHARACTER SET = utf8mb4, DEFAULT COLLATE = utf8mb4_bin;
 
 #-----------------------------------------------------------------------------
 #-- ar_user
@@ -601,10 +584,12 @@ CREATE TABLE `ar_user`
 	`ar_organization_unit_id` INTEGER,
 	`login` VARCHAR(255)  NOT NULL,
 	`password` VARCHAR(1024),
+	`clear_password_to_import` VARCHAR(255),
 	`is_enabled` TINYINT default 1 NOT NULL,
 	`is_root_admin` TINYINT default 0 NOT NULL,
 	PRIMARY KEY (`id`),
 	UNIQUE KEY `ar_user_U_1` (`login`),
+	KEY `ar_user_I_1`(`clear_password_to_import`),
 	INDEX `ar_user_FI_1` (`ar_party_id`),
 	CONSTRAINT `ar_user_FK_1`
 		FOREIGN KEY (`ar_party_id`)
@@ -613,7 +598,7 @@ CREATE TABLE `ar_user`
 	CONSTRAINT `ar_user_FK_2`
 		FOREIGN KEY (`ar_organization_unit_id`)
 		REFERENCES `ar_organization_unit` (`id`)
-)Engine=tokudb COMPRESSION=tokudb_quicklz,DEFAULT CHARACTER SET = utf8, DEFAULT COLLATE = utf8_bin;
+)ENGINE=TokuDB ROW_FORMAT=TOKUDB_SNAPPY, DEFAULT CHARACTER SET = utf8mb4, DEFAULT COLLATE = utf8mb4_bin;
 
 #-----------------------------------------------------------------------------
 #-- ar_user_change_password_request
@@ -636,7 +621,7 @@ CREATE TABLE `ar_user_change_password_request`
 	CONSTRAINT `ar_user_change_password_request_FK_1`
 		FOREIGN KEY (`ar_user_id`)
 		REFERENCES `ar_user` (`id`)
-)Engine=tokudb COMPRESSION=tokudb_quicklz,DEFAULT CHARACTER SET = utf8, DEFAULT COLLATE = utf8_bin;
+)ENGINE=TokuDB ROW_FORMAT=TOKUDB_SNAPPY, DEFAULT CHARACTER SET = utf8mb4, DEFAULT COLLATE = utf8mb4_bin;
 
 #-----------------------------------------------------------------------------
 #-- ar_user_has_role
@@ -660,7 +645,7 @@ CREATE TABLE `ar_user_has_role`
 	CONSTRAINT `ar_user_has_role_FK_2`
 		FOREIGN KEY (`ar_role_id`)
 		REFERENCES `ar_role` (`id`)
-)Engine=tokudb COMPRESSION=tokudb_quicklz,DEFAULT CHARACTER SET = utf8, DEFAULT COLLATE = utf8_bin;
+)ENGINE=TokuDB ROW_FORMAT=TOKUDB_SNAPPY, DEFAULT CHARACTER SET = utf8mb4, DEFAULT COLLATE = utf8mb4_bin;
 
 #-----------------------------------------------------------------------------
 #-- ar_user_has_permission
@@ -684,7 +669,7 @@ CREATE TABLE `ar_user_has_permission`
 	CONSTRAINT `ar_user_has_permission_FK_2`
 		FOREIGN KEY (`ar_permission_id`)
 		REFERENCES `ar_permission` (`id`)
-)Engine=tokudb COMPRESSION=tokudb_quicklz,DEFAULT CHARACTER SET = utf8, DEFAULT COLLATE = utf8_bin;
+)ENGINE=TokuDB ROW_FORMAT=TOKUDB_SNAPPY, DEFAULT CHARACTER SET = utf8mb4, DEFAULT COLLATE = utf8mb4_bin;
 
 #-----------------------------------------------------------------------------
 #-- ar_view_all_user_permissions
@@ -698,7 +683,7 @@ CREATE TABLE `ar_view_all_user_permissions`
 	`ar_user_id` VARCHAR(255)  NOT NULL,
 	`ar_permission_id` VARCHAR(255)  NOT NULL,
 	PRIMARY KEY (`ar_user_id`,`ar_permission_id`)
-)Engine=tokudb COMPRESSION=tokudb_quicklz,DEFAULT CHARACTER SET = utf8, DEFAULT COLLATE = utf8_bin;
+)ENGINE=TokuDB ROW_FORMAT=TOKUDB_SNAPPY, DEFAULT CHARACTER SET = utf8mb4, DEFAULT COLLATE = utf8mb4_bin;
 
 #-----------------------------------------------------------------------------
 #-- ar_role
@@ -716,7 +701,7 @@ CREATE TABLE `ar_role`
 	`internal_name` VARCHAR(200),
 	PRIMARY KEY (`id`),
 	UNIQUE KEY `ar_role_U_1` (`internal_name`)
-)Engine=tokudb COMPRESSION=tokudb_quicklz,DEFAULT CHARACTER SET = utf8, DEFAULT COLLATE = utf8_bin;
+)ENGINE=TokuDB ROW_FORMAT=TOKUDB_SNAPPY, DEFAULT CHARACTER SET = utf8mb4, DEFAULT COLLATE = utf8mb4_bin;
 
 #-----------------------------------------------------------------------------
 #-- ar_role_has_permission
@@ -739,7 +724,7 @@ CREATE TABLE `ar_role_has_permission`
 	CONSTRAINT `ar_role_has_permission_FK_2`
 		FOREIGN KEY (`ar_role_id`)
 		REFERENCES `ar_role` (`id`)
-)Engine=tokudb COMPRESSION=tokudb_quicklz,DEFAULT CHARACTER SET = utf8, DEFAULT COLLATE = utf8_bin;
+)ENGINE=TokuDB ROW_FORMAT=TOKUDB_SNAPPY, DEFAULT CHARACTER SET = utf8mb4, DEFAULT COLLATE = utf8mb4_bin;
 
 #-----------------------------------------------------------------------------
 #-- ar_global_permissions
@@ -760,7 +745,7 @@ CREATE TABLE `ar_global_permissions`
 	`show_communication_channel` TINYINT,
 	`show_cost_saving` TINYINT,
 	PRIMARY KEY (`id`)
-)Engine=tokudb COMPRESSION=tokudb_quicklz,DEFAULT CHARACTER SET = utf8, DEFAULT COLLATE = utf8_bin;
+)ENGINE=TokuDB ROW_FORMAT=TOKUDB_SNAPPY, DEFAULT CHARACTER SET = utf8mb4, DEFAULT COLLATE = utf8mb4_bin;
 
 #-----------------------------------------------------------------------------
 #-- ar_permission
@@ -776,7 +761,7 @@ CREATE TABLE `ar_permission`
 	`description` TEXT,
 	`power` INTEGER  NOT NULL,
 	PRIMARY KEY (`id`)
-)Engine=tokudb COMPRESSION=tokudb_quicklz,DEFAULT CHARACTER SET = utf8, DEFAULT COLLATE = utf8_bin;
+)ENGINE=TokuDB ROW_FORMAT=TOKUDB_SNAPPY, DEFAULT CHARACTER SET = utf8mb4, DEFAULT COLLATE = utf8mb4_bin;
 
 #-----------------------------------------------------------------------------
 #-- ar_report_order_of_children
@@ -791,7 +776,7 @@ CREATE TABLE `ar_report_order_of_children`
 	`name` VARCHAR(255),
 	`description` VARCHAR(1024),
 	PRIMARY KEY (`id`)
-)Engine=tokudb COMPRESSION=tokudb_quicklz,DEFAULT CHARACTER SET = utf8, DEFAULT COLLATE = utf8_bin;
+)ENGINE=TokuDB ROW_FORMAT=TOKUDB_SNAPPY, DEFAULT CHARACTER SET = utf8mb4, DEFAULT COLLATE = utf8mb4_bin;
 
 #-----------------------------------------------------------------------------
 #-- ar_report
@@ -831,8 +816,8 @@ CREATE TABLE `ar_report`
 	`php_class_name` VARCHAR(1024),
 	`produced_report_generation_date` DATETIME,
 	`report_name` VARCHAR(1024),
-	`produced_report_short_description` VARCHAR(2048),
-	`produced_report_additional_description` VARCHAR(2048),
+	`produced_report_short_description` VARCHAR(512),
+	`produced_report_additional_description` VARCHAR(1024),
 	`produced_report_already_reviewed` TINYINT default 0 NOT NULL,
 	`produced_report_is_draft` TINYINT default 0 NOT NULL,
 	`produced_report_must_be_regenerated` TINYINT default 0 NOT NULL,
@@ -840,13 +825,13 @@ CREATE TABLE `ar_report`
 	`produced_report_file_type_suffix` VARCHAR(25) default 'pdf' NOT NULL,
 	`produced_report_document` LONGBLOB,
 	`produced_report_document_checksum` VARCHAR(1024),
-	`report_mail_subject` VARCHAR(1024),
-	`report_mail_body` VARCHAR(5024),
+	`report_mail_subject` VARCHAR(512),
+	`report_mail_body` VARCHAR(2048),
 	`report_attachment_file_name` VARCHAR(255),
 	`report_attachment_file_name_add_report_date` TINYINT default 0 NOT NULL,
 	`internal_name` VARCHAR(512),
-	`cached_parent_id_hierarchy` VARCHAR(2024),
-	`legal_nr_prefix` VARCHAR(255)  NOT NULL,
+	`cached_parent_id_hierarchy` VARBINARY(850),
+	`legal_nr_prefix` VARCHAR(80) default '' NOT NULL,
 	`legal_consecutive_nr` INTEGER,
 	`legal_date` DATE,
 	`legal_sender_name` VARCHAR(255),
@@ -855,10 +840,10 @@ CREATE TABLE `ar_report`
 	`legal_receiver_name` VARCHAR(255),
 	`legal_receiver_vat` VARCHAR(255),
 	`legal_receiver_address` VARCHAR(1024),
-	`total_without_tax` BIGINT,
-	`tax` BIGINT,
-	`applied_vat` BIGINT,
-	`total_with_tax` BIGINT,
+	`total_without_tax` BIGINT default 0 NOT NULL,
+	`tax` BIGINT default 0 NOT NULL,
+	`applied_vat` BIGINT default 0 NOT NULL,
+	`total_with_tax` BIGINT default 0 NOT NULL,
 	PRIMARY KEY (`id`),
 	KEY `ar_report_I_1`(`is_template`),
 	KEY `ar_report_I_2`(`from_date`),
@@ -900,7 +885,7 @@ CREATE TABLE `ar_report`
 	CONSTRAINT `ar_report_FK_7`
 		FOREIGN KEY (`ar_report_order_of_children_id`)
 		REFERENCES `ar_report_order_of_children` (`id`)
-)Engine=tokudb COMPRESSION=tokudb_quicklz,DEFAULT CHARACTER SET = utf8, DEFAULT COLLATE = utf8_bin;
+)ENGINE=TokuDB ROW_FORMAT=TOKUDB_SNAPPY, DEFAULT CHARACTER SET = utf8mb4, DEFAULT COLLATE = utf8mb4_bin;
 
 #-----------------------------------------------------------------------------
 #-- ar_report_also_for
@@ -923,7 +908,7 @@ CREATE TABLE `ar_report_also_for`
 		FOREIGN KEY (`ar_role_id`)
 		REFERENCES `ar_role` (`id`)
 		ON DELETE CASCADE
-)Engine=tokudb COMPRESSION=tokudb_quicklz,DEFAULT CHARACTER SET = utf8, DEFAULT COLLATE = utf8_bin;
+)ENGINE=TokuDB ROW_FORMAT=TOKUDB_SNAPPY, DEFAULT CHARACTER SET = utf8mb4, DEFAULT COLLATE = utf8mb4_bin;
 
 #-----------------------------------------------------------------------------
 #-- ar_report_scheduler
@@ -970,7 +955,7 @@ CREATE TABLE `ar_report_scheduler`
 	CONSTRAINT `ar_report_scheduler_FK_3`
 		FOREIGN KEY (`ar_report_generation_id`)
 		REFERENCES `ar_report_generation` (`id`)
-)Engine=tokudb COMPRESSION=tokudb_quicklz,DEFAULT CHARACTER SET = utf8, DEFAULT COLLATE = utf8_bin;
+)ENGINE=TokuDB ROW_FORMAT=TOKUDB_SNAPPY, DEFAULT CHARACTER SET = utf8mb4, DEFAULT COLLATE = utf8mb4_bin;
 
 #-----------------------------------------------------------------------------
 #-- ar_postponed_report
@@ -993,7 +978,7 @@ CREATE TABLE `ar_postponed_report`
 		FOREIGN KEY (`ar_organization_unit_id`)
 		REFERENCES `ar_organization_unit` (`id`)
 		ON DELETE CASCADE
-)Engine=tokudb COMPRESSION=tokudb_quicklz,DEFAULT CHARACTER SET = utf8, DEFAULT COLLATE = utf8_bin;
+)ENGINE=TokuDB ROW_FORMAT=TOKUDB_SNAPPY, DEFAULT CHARACTER SET = utf8mb4, DEFAULT COLLATE = utf8mb4_bin;
 
 #-----------------------------------------------------------------------------
 #-- ar_postponed_report_tmp
@@ -1013,7 +998,7 @@ CREATE TABLE `ar_postponed_report_tmp`
 		FOREIGN KEY (`ar_organization_unit_id`)
 		REFERENCES `ar_organization_unit` (`id`)
 		ON DELETE CASCADE
-)Engine=tokudb COMPRESSION=tokudb_quicklz,DEFAULT CHARACTER SET = utf8, DEFAULT COLLATE = utf8_bin;
+)ENGINE=TokuDB ROW_FORMAT=TOKUDB_SNAPPY, DEFAULT CHARACTER SET = utf8mb4, DEFAULT COLLATE = utf8mb4_bin;
 
 #-----------------------------------------------------------------------------
 #-- ar_legal_date_generation_method
@@ -1028,7 +1013,7 @@ CREATE TABLE `ar_legal_date_generation_method`
 	`name` VARCHAR(1024),
 	`description` VARCHAR(2048),
 	PRIMARY KEY (`id`)
-)Engine=tokudb COMPRESSION=tokudb_quicklz,DEFAULT CHARACTER SET = utf8, DEFAULT COLLATE = utf8_bin;
+)ENGINE=TokuDB ROW_FORMAT=TOKUDB_SNAPPY, DEFAULT CHARACTER SET = utf8mb4, DEFAULT COLLATE = utf8mb4_bin;
 
 #-----------------------------------------------------------------------------
 #-- ar_report_set
@@ -1057,7 +1042,7 @@ CREATE TABLE `ar_report_set`
 	CONSTRAINT `ar_report_set_FK_1`
 		FOREIGN KEY (`ar_report_scheduler_id`)
 		REFERENCES `ar_report_scheduler` (`id`)
-)Engine=tokudb COMPRESSION=tokudb_quicklz,DEFAULT CHARACTER SET = utf8, DEFAULT COLLATE = utf8_bin;
+)ENGINE=TokuDB ROW_FORMAT=TOKUDB_SNAPPY, DEFAULT CHARACTER SET = utf8mb4, DEFAULT COLLATE = utf8mb4_bin;
 
 #-----------------------------------------------------------------------------
 #-- ar_report_generation
@@ -1072,7 +1057,7 @@ CREATE TABLE `ar_report_generation`
 	`name` VARCHAR(256),
 	`description` VARCHAR(1024),
 	PRIMARY KEY (`id`)
-)Engine=tokudb COMPRESSION=tokudb_quicklz,DEFAULT CHARACTER SET = utf8, DEFAULT COLLATE = utf8_bin;
+)ENGINE=TokuDB ROW_FORMAT=TOKUDB_SNAPPY, DEFAULT CHARACTER SET = utf8mb4, DEFAULT COLLATE = utf8mb4_bin;
 
 #-----------------------------------------------------------------------------
 #-- ar_report_to_read
@@ -1102,7 +1087,7 @@ CREATE TABLE `ar_report_to_read`
 		FOREIGN KEY (`ar_user_id`)
 		REFERENCES `ar_user` (`id`)
 		ON DELETE CASCADE
-)Engine=tokudb COMPRESSION=tokudb_quicklz,DEFAULT CHARACTER SET = utf8, DEFAULT COLLATE = utf8_bin;
+)ENGINE=TokuDB ROW_FORMAT=TOKUDB_SNAPPY, DEFAULT CHARACTER SET = utf8mb4, DEFAULT COLLATE = utf8mb4_bin;
 
 #-----------------------------------------------------------------------------
 #-- ar_report_to_read_user_view
@@ -1148,7 +1133,7 @@ CREATE TABLE `ar_report_to_read_user_view`
 	CONSTRAINT `ar_report_to_read_user_view_FK_4`
 		FOREIGN KEY (`ar_organization_unit_id`)
 		REFERENCES `ar_organization_unit` (`id`)
-)Engine=tokudb COMPRESSION=tokudb_quicklz,DEFAULT CHARACTER SET = utf8, DEFAULT COLLATE = utf8_bin;
+)ENGINE=TokuDB ROW_FORMAT=TOKUDB_SNAPPY, DEFAULT CHARACTER SET = utf8mb4, DEFAULT COLLATE = utf8mb4_bin;
 
 #-----------------------------------------------------------------------------
 #-- ar_user_can_view_report
@@ -1171,7 +1156,7 @@ CREATE TABLE `ar_user_can_view_report`
 		FOREIGN KEY (`ar_report_id`)
 		REFERENCES `ar_report` (`id`)
 		ON DELETE CASCADE
-)Engine=tokudb COMPRESSION=tokudb_quicklz,DEFAULT CHARACTER SET = utf8, DEFAULT COLLATE = utf8_bin;
+)ENGINE=TokuDB ROW_FORMAT=TOKUDB_SNAPPY, DEFAULT CHARACTER SET = utf8mb4, DEFAULT COLLATE = utf8mb4_bin;
 
 #-----------------------------------------------------------------------------
 #-- ar_problem_type
@@ -1185,7 +1170,7 @@ CREATE TABLE `ar_problem_type`
 	`id` INTEGER  NOT NULL,
 	`name` VARCHAR(512),
 	PRIMARY KEY (`id`)
-)Engine=tokudb COMPRESSION=tokudb_quicklz,DEFAULT CHARACTER SET = utf8, DEFAULT COLLATE = utf8_bin;
+)ENGINE=TokuDB ROW_FORMAT=TOKUDB_SNAPPY, DEFAULT CHARACTER SET = utf8mb4, DEFAULT COLLATE = utf8mb4_bin;
 
 #-----------------------------------------------------------------------------
 #-- ar_problem_domain
@@ -1199,7 +1184,7 @@ CREATE TABLE `ar_problem_domain`
 	`id` INTEGER  NOT NULL,
 	`name` VARCHAR(512),
 	PRIMARY KEY (`id`)
-)Engine=tokudb COMPRESSION=tokudb_quicklz,DEFAULT CHARACTER SET = utf8, DEFAULT COLLATE = utf8_bin;
+)ENGINE=TokuDB ROW_FORMAT=TOKUDB_SNAPPY, DEFAULT CHARACTER SET = utf8mb4, DEFAULT COLLATE = utf8mb4_bin;
 
 #-----------------------------------------------------------------------------
 #-- ar_problem_responsible
@@ -1213,7 +1198,7 @@ CREATE TABLE `ar_problem_responsible`
 	`id` INTEGER  NOT NULL,
 	`name` VARCHAR(512),
 	PRIMARY KEY (`id`)
-)Engine=tokudb COMPRESSION=tokudb_quicklz,DEFAULT CHARACTER SET = utf8, DEFAULT COLLATE = utf8_bin;
+)ENGINE=TokuDB ROW_FORMAT=TOKUDB_SNAPPY, DEFAULT CHARACTER SET = utf8mb4, DEFAULT COLLATE = utf8mb4_bin;
 
 #-----------------------------------------------------------------------------
 #-- ar_problem_default_responsible
@@ -1236,7 +1221,7 @@ CREATE TABLE `ar_problem_default_responsible`
 	CONSTRAINT `ar_problem_default_responsible_FK_2`
 		FOREIGN KEY (`ar_problem_responsible_id`)
 		REFERENCES `ar_problem_responsible` (`id`)
-)Engine=tokudb COMPRESSION=tokudb_quicklz,DEFAULT CHARACTER SET = utf8, DEFAULT COLLATE = utf8_bin;
+)ENGINE=TokuDB ROW_FORMAT=TOKUDB_SNAPPY, DEFAULT CHARACTER SET = utf8mb4, DEFAULT COLLATE = utf8mb4_bin;
 
 #-----------------------------------------------------------------------------
 #-- ar_current_problem
@@ -1259,7 +1244,7 @@ CREATE TABLE `ar_current_problem`
 	`effect` TEXT,
 	`proposed_solution` TEXT,
 	`signaled_to_admin` TINYINT default 0 NOT NULL,
-	`count_of_cdrs` INTEGER default 0 NOT NULL,
+	`count_of_cdrs` BIGINT default 0 NOT NULL,
 	PRIMARY KEY (`duplication_key`),
 	INDEX `ar_current_problem_FI_1` (`ar_problem_type_id`),
 	CONSTRAINT `ar_current_problem_FK_1`
@@ -1273,7 +1258,7 @@ CREATE TABLE `ar_current_problem`
 	CONSTRAINT `ar_current_problem_FK_3`
 		FOREIGN KEY (`ar_problem_responsible_id`)
 		REFERENCES `ar_problem_responsible` (`id`)
-)Engine=tokudb COMPRESSION=tokudb_quicklz,DEFAULT CHARACTER SET = utf8, DEFAULT COLLATE = utf8_bin;
+)ENGINE=TokuDB ROW_FORMAT=TOKUDB_SNAPPY, DEFAULT CHARACTER SET = utf8mb4, DEFAULT COLLATE = utf8mb4_bin;
 
 #-----------------------------------------------------------------------------
 #-- ar_new_problem
@@ -1296,7 +1281,7 @@ CREATE TABLE `ar_new_problem`
 	`effect` TEXT,
 	`proposed_solution` TEXT,
 	`signaled_to_admin` TINYINT default 0 NOT NULL,
-	`count_of_cdrs` INTEGER default 0 NOT NULL,
+	`count_of_cdrs` BIGINT default 0 NOT NULL,
 	PRIMARY KEY (`duplication_key`),
 	INDEX `ar_new_problem_FI_1` (`ar_problem_type_id`),
 	CONSTRAINT `ar_new_problem_FK_1`
@@ -1310,7 +1295,7 @@ CREATE TABLE `ar_new_problem`
 	CONSTRAINT `ar_new_problem_FK_3`
 		FOREIGN KEY (`ar_problem_responsible_id`)
 		REFERENCES `ar_problem_responsible` (`id`)
-)Engine=tokudb COMPRESSION=tokudb_quicklz,DEFAULT CHARACTER SET = utf8, DEFAULT COLLATE = utf8_bin;
+)ENGINE=TokuDB ROW_FORMAT=TOKUDB_SNAPPY, DEFAULT CHARACTER SET = utf8mb4, DEFAULT COLLATE = utf8mb4_bin;
 
 #-----------------------------------------------------------------------------
 #-- ar_job_queue
@@ -1322,19 +1307,20 @@ DROP TABLE IF EXISTS `ar_job_queue`;
 CREATE TABLE `ar_job_queue`
 (
 	`id` INTEGER  NOT NULL AUTO_INCREMENT,
-	`is_part_of` INTEGER  NOT NULL,
+	`is_part_of` INTEGER,
 	`state` INTEGER(1) default 0 NOT NULL,
-	`created_at` DATETIME,
+	`created_at` DATETIME  NOT NULL,
 	`start_at` DATETIME,
 	`end_at` DATETIME,
-	`description` VARCHAR(12000)  NOT NULL,
+	`description` VARCHAR(12000) default '' NOT NULL,
 	`php_data_job_serialization` LONGTEXT,
 	`internal_name` VARCHAR(512),
 	PRIMARY KEY (`id`),
 	KEY `ar_job_queue_I_1`(`is_part_of`),
 	KEY `ar_job_queue_I_2`(`state`),
-	KEY `ar_job_queue_I_3`(`internal_name`)
-)Engine=tokudb COMPRESSION=tokudb_quicklz,DEFAULT CHARACTER SET = utf8, DEFAULT COLLATE = utf8_bin;
+	KEY `ar_job_queue_I_3`(`created_at`),
+	KEY `ar_job_queue_I_4`(`internal_name`)
+)ENGINE=TokuDB ROW_FORMAT=TOKUDB_SNAPPY, DEFAULT CHARACTER SET = utf8mb4, DEFAULT COLLATE = utf8mb4_bin;
 
 #-----------------------------------------------------------------------------
 #-- ar_lock
@@ -1351,7 +1337,7 @@ CREATE TABLE `ar_lock`
 	`info` VARCHAR(255),
 	PRIMARY KEY (`id`),
 	UNIQUE KEY `ar_lock_U_1` (`name`)
-)Engine=tokudb COMPRESSION=tokudb_quicklz,DEFAULT CHARACTER SET = utf8, DEFAULT COLLATE = utf8_bin;
+)ENGINE=TokuDB ROW_FORMAT=TOKUDB_SNAPPY, DEFAULT CHARACTER SET = utf8mb4, DEFAULT COLLATE = utf8mb4_bin;
 
 #-----------------------------------------------------------------------------
 #-- ar_application_upgrade
@@ -1363,76 +1349,11 @@ DROP TABLE IF EXISTS `ar_application_upgrade`;
 CREATE TABLE `ar_application_upgrade`
 (
 	`id` INTEGER  NOT NULL AUTO_INCREMENT,
-	`upg_key` VARCHAR(24000),
+	`upg_key` VARCHAR(2048),
 	`upg_output` TEXT,
 	`installation_date` DATETIME,
 	PRIMARY KEY (`id`)
-)Engine=tokudb COMPRESSION=tokudb_quicklz,DEFAULT CHARACTER SET = utf8, DEFAULT COLLATE = utf8_bin;
-
-#-----------------------------------------------------------------------------
-#-- ar_itc_input_extensions_debug_copy
-#-----------------------------------------------------------------------------
-
-DROP TABLE IF EXISTS `ar_itc_input_extensions_debug_copy`;
-
-
-CREATE TABLE `ar_itc_input_extensions_debug_copy`
-(
-	`id` INTEGER  NOT NULL AUTO_INCREMENT,
-	`last_update` DATETIME,
-	`extension_code` VARCHAR(1024),
-	`dial_string` VARCHAR(1024),
-	`name` VARCHAR(1024),
-	`accountcode` VARCHAR(1024),
-	`accountcode_description` VARCHAR(1024),
-	PRIMARY KEY (`id`)
-)Engine=tokudb COMPRESSION=tokudb_quicklz,DEFAULT CHARACTER SET = utf8, DEFAULT COLLATE = utf8_bin;
-
-#-----------------------------------------------------------------------------
-#-- ar_itc_organizations
-#-----------------------------------------------------------------------------
-
-DROP TABLE IF EXISTS `ar_itc_organizations`;
-
-
-CREATE TABLE `ar_itc_organizations`
-(
-	`id` INTEGER  NOT NULL AUTO_INCREMENT,
-	`account_code` VARCHAR(255)  NOT NULL,
-	`definition_time` DATETIME,
-	`org` VARCHAR(1024),
-	`name` VARCHAR(1024),
-	`description` VARCHAR(1024),
-	`email` VARCHAR(1024),
-	`parent` VARCHAR(1024),
-	`calculated_account_code` VARCHAR(9046),
-	`is_new` TINYINT,
-	`is_maybe_modified` TINYINT,
-	`is_to_remove` TINYINT,
-	`can_be_removed` TINYINT,
-	PRIMARY KEY (`id`),
-	UNIQUE KEY `ar_itc_organizations_U_1` (`account_code`)
-)Engine=tokudb COMPRESSION=tokudb_quicklz,DEFAULT CHARACTER SET = utf8, DEFAULT COLLATE = utf8_bin;
-
-#-----------------------------------------------------------------------------
-#-- ar_itc_organizations_debug_copy
-#-----------------------------------------------------------------------------
-
-DROP TABLE IF EXISTS `ar_itc_organizations_debug_copy`;
-
-
-CREATE TABLE `ar_itc_organizations_debug_copy`
-(
-	`id` INTEGER  NOT NULL AUTO_INCREMENT,
-	`last_update` DATETIME,
-	`org` VARCHAR(2048),
-	`name` VARCHAR(2048),
-	`description` VARCHAR(2048),
-	`accountcode` VARCHAR(2048),
-	`parent` VARCHAR(2048),
-	`email` VARCHAR(1024),
-	PRIMARY KEY (`id`)
-)Engine=tokudb COMPRESSION=tokudb_quicklz,DEFAULT CHARACTER SET = utf8, DEFAULT COLLATE = utf8_bin;
+)ENGINE=TokuDB ROW_FORMAT=TOKUDB_SNAPPY, DEFAULT CHARACTER SET = utf8mb4, DEFAULT COLLATE = utf8mb4_bin;
 
 #-----------------------------------------------------------------------------
 #-- ar_logical_source
@@ -1448,7 +1369,7 @@ CREATE TABLE `ar_logical_source`
 	`description` VARCHAR(2048),
 	PRIMARY KEY (`id`),
 	UNIQUE KEY `ar_logical_source_U_1` (`name`)
-)Engine=tokudb COMPRESSION=tokudb_quicklz,DEFAULT CHARACTER SET = utf8, DEFAULT COLLATE = utf8_bin;
+)ENGINE=TokuDB ROW_FORMAT=TOKUDB_SNAPPY, DEFAULT CHARACTER SET = utf8mb4, DEFAULT COLLATE = utf8mb4_bin;
 
 #-----------------------------------------------------------------------------
 #-- ar_cdr_provider
@@ -1462,9 +1383,11 @@ CREATE TABLE `ar_cdr_provider`
 	`id` INTEGER  NOT NULL AUTO_INCREMENT,
 	`internal_name` VARCHAR(255),
 	`description` VARCHAR(2048),
+	`last_imported_id` BIGINT,
+	`last_imported_data` VARCHAR(2048),
 	PRIMARY KEY (`id`),
 	UNIQUE KEY `ar_cdr_provider_U_1` (`internal_name`)
-)Engine=tokudb COMPRESSION=tokudb_quicklz,DEFAULT CHARACTER SET = utf8, DEFAULT COLLATE = utf8_bin;
+)ENGINE=TokuDB ROW_FORMAT=TOKUDB_SNAPPY, DEFAULT CHARACTER SET = utf8mb4, DEFAULT COLLATE = utf8mb4_bin;
 
 #-----------------------------------------------------------------------------
 #-- ar_physical_format
@@ -1484,7 +1407,7 @@ CREATE TABLE `ar_physical_format`
 	CONSTRAINT `ar_physical_format_FK_1`
 		FOREIGN KEY (`ar_logical_source_id`)
 		REFERENCES `ar_logical_source` (`id`)
-)Engine=tokudb COMPRESSION=tokudb_quicklz,DEFAULT CHARACTER SET = utf8, DEFAULT COLLATE = utf8_bin;
+)ENGINE=TokuDB ROW_FORMAT=TOKUDB_SNAPPY, DEFAULT CHARACTER SET = utf8mb4, DEFAULT COLLATE = utf8mb4_bin;
 
 #-----------------------------------------------------------------------------
 #-- ar_source_csv_file
@@ -1528,7 +1451,7 @@ CREATE TABLE `ar_source_csv_file`
 	CONSTRAINT `ar_source_csv_file_FK_2`
 		FOREIGN KEY (`ar_physical_format_id`)
 		REFERENCES `ar_physical_format` (`id`)
-)Engine=tokudb COMPRESSION=tokudb_quicklz,DEFAULT CHARACTER SET = utf8, DEFAULT COLLATE = utf8_bin;
+)ENGINE=TokuDB ROW_FORMAT=TOKUDB_SNAPPY, DEFAULT CHARACTER SET = utf8mb4, DEFAULT COLLATE = utf8mb4_bin;
 
 #-----------------------------------------------------------------------------
 #-- ar_source_cdr
@@ -1539,23 +1462,13 @@ DROP TABLE IF EXISTS `ar_source_cdr`;
 
 CREATE TABLE `ar_source_cdr`
 (
-	`id` INTEGER  NOT NULL AUTO_INCREMENT,
-	`ar_cdr_provider_id` INTEGER,
-	`ar_physical_format_id` INTEGER,
 	`calldate` DATETIME  NOT NULL,
-	`is_imported_service_cdr` TINYINT default 0 NOT NULL,
-	`content` VARCHAR(51200),
-	PRIMARY KEY (`id`),
-	KEY `ar_source_cdr_I_1`(`calldate`),
-	INDEX `ar_source_cdr_FI_1` (`ar_cdr_provider_id`),
-	CONSTRAINT `ar_source_cdr_FK_1`
-		FOREIGN KEY (`ar_cdr_provider_id`)
-		REFERENCES `ar_cdr_provider` (`id`),
-	INDEX `ar_source_cdr_FI_2` (`ar_physical_format_id`),
-	CONSTRAINT `ar_source_cdr_FK_2`
-		FOREIGN KEY (`ar_physical_format_id`)
-		REFERENCES `ar_physical_format` (`id`)
-)Engine=tokudb COMPRESSION=tokudb_quicklz,DEFAULT CHARACTER SET = utf8, DEFAULT COLLATE = utf8_bin;
+	`id` INTEGER  NOT NULL,
+	`ar_cdr_provider_id` INTEGER  NOT NULL,
+	`ar_physical_format_id` INTEGER  NOT NULL,
+	`content` VARCHAR(10000),
+	PRIMARY KEY (`calldate`,`id`,`ar_cdr_provider_id`,`ar_physical_format_id`)
+)ENGINE=TokuDB ROW_FORMAT=TOKUDB_SNAPPY, DEFAULT CHARACTER SET = utf8mb4, DEFAULT COLLATE = utf8mb4_bin;
 
 #-----------------------------------------------------------------------------
 #-- ar_type_of_source_cdr
@@ -1569,7 +1482,7 @@ CREATE TABLE `ar_type_of_source_cdr`
 	`ar_cdr_provider_id` INTEGER  NOT NULL,
 	`ar_physical_format_id` INTEGER  NOT NULL,
 	PRIMARY KEY (`ar_cdr_provider_id`,`ar_physical_format_id`)
-)Engine=tokudb COMPRESSION=tokudb_quicklz,DEFAULT CHARACTER SET = utf8, DEFAULT COLLATE = utf8_bin;
+)ENGINE=TokuDB ROW_FORMAT=TOKUDB_SNAPPY, DEFAULT CHARACTER SET = utf8mb4, DEFAULT COLLATE = utf8mb4_bin;
 
 #-----------------------------------------------------------------------------
 #-- ar_voip_extension_to_move
@@ -1582,47 +1495,7 @@ CREATE TABLE `ar_voip_extension_to_move`
 (
 	`extension` VARCHAR(255)  NOT NULL,
 	PRIMARY KEY (`extension`)
-)Engine=tokudb COMPRESSION=tokudb_quicklz,DEFAULT CHARACTER SET = utf8, DEFAULT COLLATE = utf8_bin;
-
-#-----------------------------------------------------------------------------
-#-- ar_source_cdr_to_move
-#-----------------------------------------------------------------------------
-
-DROP TABLE IF EXISTS `ar_source_cdr_to_move`;
-
-
-CREATE TABLE `ar_source_cdr_to_move`
-(
-	`ar_source_cdr_id` INTEGER  NOT NULL,
-	PRIMARY KEY (`ar_source_cdr_id`)
-)Engine=tokudb COMPRESSION=tokudb_quicklz,DEFAULT CHARACTER SET = utf8, DEFAULT COLLATE = utf8_bin;
-
-#-----------------------------------------------------------------------------
-#-- ar_itc_source_csv_file
-#-----------------------------------------------------------------------------
-
-DROP TABLE IF EXISTS `ar_itc_source_csv_file`;
-
-
-CREATE TABLE `ar_itc_source_csv_file`
-(
-	`id` INTEGER  NOT NULL AUTO_INCREMENT,
-	`name` VARCHAR(255)  NOT NULL,
-	`checksum` VARCHAR(2048),
-	`processing_date` DATETIME,
-	`min_calldate` DATETIME,
-	`max_calldate` DATETIME,
-	`tot_lines` INTEGER,
-	`lines_with_errors` INTEGER,
-	`content_type` VARCHAR(255),
-	`retrieved_from_server` VARCHAR(1024),
-	`imported` TINYINT default 0 NOT NULL,
-	PRIMARY KEY (`id`),
-	UNIQUE KEY `ar_itc_source_csv_file_U_1` (`name`),
-	KEY `ar_itc_source_csv_file_I_1`(`min_calldate`),
-	KEY `ar_itc_source_csv_file_I_2`(`max_calldate`),
-	KEY `ar_itc_source_csv_file_I_3`(`imported`)
-)Engine=tokudb COMPRESSION=tokudb_quicklz,DEFAULT CHARACTER SET = utf8, DEFAULT COLLATE = utf8_bin;
+)ENGINE=TokuDB ROW_FORMAT=TOKUDB_SNAPPY, DEFAULT CHARACTER SET = utf8mb4, DEFAULT COLLATE = utf8mb4_bin;
 
 #-----------------------------------------------------------------------------
 #-- ar_remote_file
@@ -1644,7 +1517,21 @@ CREATE TABLE `ar_remote_file`
 	CONSTRAINT `ar_remote_file_FK_1`
 		FOREIGN KEY (`ar_cdr_provider_id`)
 		REFERENCES `ar_cdr_provider` (`id`)
-)Engine=tokudb COMPRESSION=tokudb_quicklz,DEFAULT CHARACTER SET = utf8, DEFAULT COLLATE = utf8_bin;
+)ENGINE=TokuDB ROW_FORMAT=TOKUDB_SNAPPY, DEFAULT CHARACTER SET = utf8mb4, DEFAULT COLLATE = utf8mb4_bin;
+
+#-----------------------------------------------------------------------------
+#-- ar_local_file_to_delete
+#-----------------------------------------------------------------------------
+
+DROP TABLE IF EXISTS `ar_local_file_to_delete`;
+
+
+CREATE TABLE `ar_local_file_to_delete`
+(
+	`name` VARCHAR(1024)  NOT NULL,
+	`id` INTEGER  NOT NULL AUTO_INCREMENT,
+	PRIMARY KEY (`id`)
+)ENGINE=TokuDB ROW_FORMAT=TOKUDB_SNAPPY, DEFAULT CHARACTER SET = utf8mb4, DEFAULT COLLATE = utf8mb4_bin;
 
 #-----------------------------------------------------------------------------
 #-- ar_temp_source_cdr
@@ -1657,7 +1544,7 @@ CREATE TABLE `ar_temp_source_cdr`
 (
 	`id` INTEGER  NOT NULL AUTO_INCREMENT,
 	PRIMARY KEY (`id`)
-)Engine=tokudb COMPRESSION=tokudb_quicklz,DEFAULT CHARACTER SET = utf8, DEFAULT COLLATE = utf8_bin;
+)ENGINE=TokuDB ROW_FORMAT=TOKUDB_SNAPPY, DEFAULT CHARACTER SET = utf8mb4, DEFAULT COLLATE = utf8mb4_bin;
 
 #-----------------------------------------------------------------------------
 #-- ar_temp_source_cdr_to_dest_cdr
@@ -1670,7 +1557,7 @@ CREATE TABLE `ar_temp_source_cdr_to_dest_cdr`
 (
 	`id` INTEGER  NOT NULL AUTO_INCREMENT,
 	PRIMARY KEY (`id`)
-)Engine=tokudb COMPRESSION=tokudb_quicklz,DEFAULT CHARACTER SET = utf8, DEFAULT COLLATE = utf8_bin;
+)ENGINE=TokuDB ROW_FORMAT=TOKUDB_SNAPPY, DEFAULT CHARACTER SET = utf8mb4, DEFAULT COLLATE = utf8mb4_bin;
 
 #-----------------------------------------------------------------------------
 #-- ar_temp_problem
@@ -1683,7 +1570,7 @@ CREATE TABLE `ar_temp_problem`
 (
 	`id` INTEGER  NOT NULL AUTO_INCREMENT,
 	PRIMARY KEY (`id`)
-)Engine=tokudb COMPRESSION=tokudb_quicklz,DEFAULT CHARACTER SET = utf8, DEFAULT COLLATE = utf8_bin;
+)ENGINE=TokuDB ROW_FORMAT=TOKUDB_SNAPPY, DEFAULT CHARACTER SET = utf8mb4, DEFAULT COLLATE = utf8mb4_bin;
 
 #-----------------------------------------------------------------------------
 #-- ar_instance_status
@@ -1724,7 +1611,7 @@ CREATE TABLE `ar_instance_status`
 	CONSTRAINT `ar_instance_status_FK_1`
 		FOREIGN KEY (`ar_organization_unit_id`)
 		REFERENCES `ar_organization_unit` (`id`)
-)Engine=tokudb COMPRESSION=tokudb_quicklz,DEFAULT CHARACTER SET = utf8, DEFAULT COLLATE = utf8_bin;
+)ENGINE=TokuDB ROW_FORMAT=TOKUDB_SNAPPY, DEFAULT CHARACTER SET = utf8mb4, DEFAULT COLLATE = utf8mb4_bin;
 
 #-----------------------------------------------------------------------------
 #-- ar_daily_status_job
@@ -1739,7 +1626,7 @@ CREATE TABLE `ar_daily_status_job`
 	`name` VARCHAR(200)  NOT NULL,
 	PRIMARY KEY (`id`),
 	UNIQUE KEY `ar_daily_status_job_U_1` (`name`)
-)Engine=tokudb COMPRESSION=tokudb_quicklz,DEFAULT CHARACTER SET = utf8, DEFAULT COLLATE = utf8_bin;
+)ENGINE=TokuDB ROW_FORMAT=TOKUDB_SNAPPY, DEFAULT CHARACTER SET = utf8mb4, DEFAULT COLLATE = utf8mb4_bin;
 
 #-----------------------------------------------------------------------------
 #-- ar_daily_status_change
@@ -1758,7 +1645,7 @@ CREATE TABLE `ar_daily_status_change`
 		FOREIGN KEY (`ar_daily_status_job_id`)
 		REFERENCES `ar_daily_status_job` (`id`)
 		ON DELETE CASCADE
-)Engine=tokudb COMPRESSION=tokudb_quicklz,DEFAULT CHARACTER SET = utf8, DEFAULT COLLATE = utf8_bin;
+)ENGINE=TokuDB ROW_FORMAT=TOKUDB_SNAPPY, DEFAULT CHARACTER SET = utf8mb4, DEFAULT COLLATE = utf8mb4_bin;
 
 #-----------------------------------------------------------------------------
 #-- ar_holiday
@@ -1774,9 +1661,14 @@ CREATE TABLE `ar_holiday`
 	`month` INTEGER,
 	`year` INTEGER,
 	`day_of_week` INTEGER,
-	PRIMARY KEY (`id`),
-	UNIQUE KEY `avoid_conflicting_on_the_same_holiday` (`day_of_month`, `month`, `year`, `day_of_week`)
-)Engine=tokudb COMPRESSION=tokudb_quicklz,DEFAULT CHARACTER SET = utf8, DEFAULT COLLATE = utf8_bin;
+	`from_hour` INTEGER,
+	`from_minutes` INTEGER,
+	`to_hour` INTEGER,
+	`to_minutes` INTEGER,
+	`peak_code` VARCHAR(255)  NOT NULL,
+	`name` VARCHAR(1024),
+	PRIMARY KEY (`id`)
+)ENGINE=TokuDB ROW_FORMAT=TOKUDB_SNAPPY, DEFAULT CHARACTER SET = utf8mb4, DEFAULT COLLATE = utf8mb4_bin;
 
 #-----------------------------------------------------------------------------
 #-- ar_cached_organization_info
@@ -1792,7 +1684,7 @@ CREATE TABLE `ar_cached_organization_info`
 	`content` LONGBLOB,
 	PRIMARY KEY (`id`),
 	UNIQUE KEY `ar_cached_organization_info_U_1` (`internal_name`)
-)Engine=tokudb COMPRESSION=tokudb_quicklz,DEFAULT CHARACTER SET = utf8, DEFAULT COLLATE = utf8_bin;
+)ENGINE=TokuDB ROW_FORMAT=TOKUDB_SNAPPY, DEFAULT CHARACTER SET = utf8mb4, DEFAULT COLLATE = utf8mb4_bin;
 
 #-----------------------------------------------------------------------------
 #-- ar_extension_to_pincode
@@ -1810,7 +1702,7 @@ CREATE TABLE `ar_extension_to_pincode`
 	PRIMARY KEY (`id`),
 	KEY `ar_extension_to_pincode_I_1`(`extension`),
 	KEY `ar_extension_to_pincode_I_2`(`pincode`)
-)Engine=tokudb COMPRESSION=tokudb_quicklz,DEFAULT CHARACTER SET = utf8, DEFAULT COLLATE = utf8_bin;
+)ENGINE=TokuDB ROW_FORMAT=TOKUDB_SNAPPY, DEFAULT CHARACTER SET = utf8mb4, DEFAULT COLLATE = utf8mb4_bin;
 
 #-----------------------------------------------------------------------------
 #-- ar_bundle_state
@@ -1826,7 +1718,7 @@ CREATE TABLE `ar_bundle_state`
 	`data_file` LONGBLOB,
 	PRIMARY KEY (`id`),
 	KEY `ar_bundle_state_I_1`(`to_time`)
-)Engine=tokudb COMPRESSION=tokudb_quicklz,DEFAULT CHARACTER SET = utf8, DEFAULT COLLATE = utf8_bin;
+)ENGINE=TokuDB ROW_FORMAT=TOKUDB_SNAPPY, DEFAULT CHARACTER SET = utf8mb4, DEFAULT COLLATE = utf8mb4_bin;
 
 #-----------------------------------------------------------------------------
 #-- ar_service
@@ -1851,10 +1743,11 @@ CREATE TABLE `ar_service`
 	`schedule_timeframe` VARCHAR(255),
 	`was_compiled` TINYINT default 0 NOT NULL,
 	`schedule_from` VARCHAR(255),
+	`schedule_at` TIME default '00:00:00',
 	PRIMARY KEY (`id`),
 	UNIQUE KEY `ar_service_U_1` (`internal_name`),
 	KEY `ar_service_I_1`(`was_compiled`)
-)Engine=tokudb COMPRESSION=tokudb_quicklz,DEFAULT CHARACTER SET = utf8, DEFAULT COLLATE = utf8_bin;
+)ENGINE=TokuDB ROW_FORMAT=TOKUDB_SNAPPY, DEFAULT CHARACTER SET = utf8mb4, DEFAULT COLLATE = utf8mb4_bin;
 
 #-----------------------------------------------------------------------------
 #-- ar_service_price
@@ -1877,7 +1770,7 @@ CREATE TABLE `ar_service_price`
 	CONSTRAINT `ar_service_price_FK_1`
 		FOREIGN KEY (`ar_service_id`)
 		REFERENCES `ar_service` (`id`)
-)Engine=tokudb COMPRESSION=tokudb_quicklz,DEFAULT CHARACTER SET = utf8, DEFAULT COLLATE = utf8_bin;
+)ENGINE=TokuDB ROW_FORMAT=TOKUDB_SNAPPY, DEFAULT CHARACTER SET = utf8mb4, DEFAULT COLLATE = utf8mb4_bin;
 
 #-----------------------------------------------------------------------------
 #-- ar_assigned_service
@@ -1908,7 +1801,91 @@ CREATE TABLE `ar_assigned_service`
 	CONSTRAINT `ar_assigned_service_FK_2`
 		FOREIGN KEY (`ar_organization_unit_id`)
 		REFERENCES `ar_organization_unit` (`id`)
-)Engine=tokudb COMPRESSION=tokudb_quicklz,DEFAULT CHARACTER SET = utf8, DEFAULT COLLATE = utf8_bin;
+)ENGINE=TokuDB ROW_FORMAT=TOKUDB_SNAPPY, DEFAULT CHARACTER SET = utf8mb4, DEFAULT COLLATE = utf8mb4_bin;
+
+#-----------------------------------------------------------------------------
+#-- ar_cached_grouped_cdr
+#-----------------------------------------------------------------------------
+
+DROP TABLE IF EXISTS `ar_cached_grouped_cdr`;
+
+
+CREATE TABLE `ar_cached_grouped_cdr`
+(
+	`cached_parent_id_hierarchy` VARBINARY(850)  NOT NULL,
+	`billable_ar_organization_unit_id` INTEGER  NOT NULL,
+	`calldate` DATE  NOT NULL,
+	`destination_type` SMALLINT  NOT NULL,
+	`ar_communication_channel_type_id` INTEGER  NOT NULL,
+	`operator_type` VARCHAR(255)  NOT NULL,
+	`ar_vendor_id` INTEGER  NOT NULL,
+	`geographic_location` VARCHAR(255)  NOT NULL,
+	`count_of_calls` BIGINT  NOT NULL,
+	`billsec` BIGINT  NOT NULL,
+	`income` BIGINT  NOT NULL,
+	`cost_saving` BIGINT  NOT NULL,
+	`cost` BIGINT  NOT NULL,
+	`id` SMALLINT default 0 NOT NULL,
+	PRIMARY KEY (`cached_parent_id_hierarchy`,`billable_ar_organization_unit_id`,`calldate`,`destination_type`,`ar_communication_channel_type_id`,`operator_type`,`ar_vendor_id`,`geographic_location`)
+)ENGINE=TokuDB ROW_FORMAT=TOKUDB_SNAPPY, DEFAULT CHARACTER SET = utf8mb4, DEFAULT COLLATE = utf8mb4_bin;
+
+#-----------------------------------------------------------------------------
+#-- ar_cached_errors
+#-----------------------------------------------------------------------------
+
+DROP TABLE IF EXISTS `ar_cached_errors`;
+
+
+CREATE TABLE `ar_cached_errors`
+(
+	`calldate` DATE  NOT NULL,
+	`destination_type` SMALLINT  NOT NULL,
+	`error_destination_type` SMALLINT default 0 NOT NULL,
+	`count_of_calls` BIGINT  NOT NULL,
+	PRIMARY KEY (`calldate`,`destination_type`,`error_destination_type`)
+)ENGINE=TokuDB ROW_FORMAT=TOKUDB_SNAPPY, DEFAULT CHARACTER SET = utf8mb4, DEFAULT COLLATE = utf8mb4_bin;
+
+#-----------------------------------------------------------------------------
+#-- ar_test_cached_grouped_cdr
+#-----------------------------------------------------------------------------
+
+DROP TABLE IF EXISTS `ar_test_cached_grouped_cdr`;
+
+
+CREATE TABLE `ar_test_cached_grouped_cdr`
+(
+	`cached_parent_id_hierarchy` VARBINARY(850)  NOT NULL,
+	`billable_ar_organization_unit_id` INTEGER  NOT NULL,
+	`calldate` DATE  NOT NULL,
+	`destination_type` SMALLINT  NOT NULL,
+	`ar_communication_channel_type_id` INTEGER  NOT NULL,
+	`operator_type` VARCHAR(255)  NOT NULL,
+	`ar_vendor_id` INTEGER  NOT NULL,
+	`geographic_location` VARCHAR(255)  NOT NULL,
+	`count_of_calls` BIGINT  NOT NULL,
+	`billsec` BIGINT  NOT NULL,
+	`income` BIGINT  NOT NULL,
+	`cost_saving` BIGINT  NOT NULL,
+	`cost` BIGINT  NOT NULL,
+	`id` SMALLINT default 0 NOT NULL,
+	PRIMARY KEY (`cached_parent_id_hierarchy`,`billable_ar_organization_unit_id`,`calldate`,`destination_type`,`ar_communication_channel_type_id`,`operator_type`,`ar_vendor_id`,`geographic_location`)
+)ENGINE=TokuDB ROW_FORMAT=TOKUDB_SNAPPY, DEFAULT CHARACTER SET = utf8mb4, DEFAULT COLLATE = utf8mb4_bin;
+
+#-----------------------------------------------------------------------------
+#-- ar_test_cached_errors
+#-----------------------------------------------------------------------------
+
+DROP TABLE IF EXISTS `ar_test_cached_errors`;
+
+
+CREATE TABLE `ar_test_cached_errors`
+(
+	`calldate` DATE  NOT NULL,
+	`destination_type` SMALLINT  NOT NULL,
+	`error_destination_type` SMALLINT default 0 NOT NULL,
+	`count_of_calls` BIGINT  NOT NULL,
+	PRIMARY KEY (`calldate`,`destination_type`,`error_destination_type`)
+)ENGINE=TokuDB ROW_FORMAT=TOKUDB_SNAPPY, DEFAULT CHARACTER SET = utf8mb4, DEFAULT COLLATE = utf8mb4_bin;
 
 # This restores the fkey checks, after having unset them earlier
 SET FOREIGN_KEY_CHECKS = 1;

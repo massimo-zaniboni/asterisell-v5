@@ -48,7 +48,6 @@ class ArCommunicationChannelTypeTableMap extends TableMap {
 	 */
 	public function buildRelations()
 	{
-    $this->addRelation('ArCdr', 'ArCdr', RelationMap::ONE_TO_MANY, array('id' => 'ar_communication_channel_type_id', ), null, null);
     $this->addRelation('ArVendorDomain', 'ArVendorDomain', RelationMap::ONE_TO_MANY, array('id' => 'ar_communication_channel_type_id', ), null, null);
 	} // buildRelations()
 

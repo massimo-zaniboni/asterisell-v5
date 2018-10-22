@@ -21,6 +21,7 @@ abstract class BaseArTelephonePrefixForm extends BaseFormPropel
       'geographic_location'              => new sfWidgetFormInputText(),
       'operator_type'                    => new sfWidgetFormInputText(),
       'display_priority_level'           => new sfWidgetFormInputText(),
+      'rating_code'                      => new sfWidgetFormInputText(),
     ));
 
     $this->setValidators(array(
@@ -28,9 +29,10 @@ abstract class BaseArTelephonePrefixForm extends BaseFormPropel
       'prefix'                           => new sfValidatorString(array('max_length' => 255)),
       'match_only_numbers_with_n_digits' => new sfValidatorInteger(array('min' => -2147483648, 'max' => 2147483647, 'required' => false)),
       'name'                             => new sfValidatorString(array('max_length' => 1024, 'required' => false)),
-      'geographic_location'              => new sfValidatorString(array('max_length' => 1024, 'required' => false)),
-      'operator_type'                    => new sfValidatorString(array('max_length' => 1024, 'required' => false)),
+      'geographic_location'              => new sfValidatorString(array('max_length' => 255, 'required' => false)),
+      'operator_type'                    => new sfValidatorString(array('max_length' => 255, 'required' => false)),
       'display_priority_level'           => new sfValidatorInteger(array('min' => -2147483648, 'max' => 2147483647)),
+      'rating_code'                      => new sfValidatorString(array('max_length' => 255)),
     ));
 
     $this->validatorSchema->setPostValidator(

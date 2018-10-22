@@ -37,6 +37,30 @@ abstract class BaseArOrganizationUnit extends BaseObject  implements Persistent 
 	protected $internal_name2;
 
 	/**
+	 * The value for the internal_checksum1 field.
+	 * @var        string
+	 */
+	protected $internal_checksum1;
+
+	/**
+	 * The value for the internal_checksum2 field.
+	 * @var        string
+	 */
+	protected $internal_checksum2;
+
+	/**
+	 * The value for the internal_checksum3 field.
+	 * @var        string
+	 */
+	protected $internal_checksum3;
+
+	/**
+	 * The value for the internal_checksum4 field.
+	 * @var        string
+	 */
+	protected $internal_checksum4;
+
+	/**
 	 * The value for the export_code field.
 	 * @var        string
 	 */
@@ -48,16 +72,6 @@ abstract class BaseArOrganizationUnit extends BaseObject  implements Persistent 
 	 * @var        int
 	 */
 	protected $automatically_managed_from;
-
-	/**
-	 * @var        array ArCdr[] Collection to store aggregation of ArCdr objects.
-	 */
-	protected $collArCdrs;
-
-	/**
-	 * @var        Criteria The criteria used to select the current contents of collArCdrs.
-	 */
-	private $lastArCdrCriteria = null;
 
 	/**
 	 * @var        array ArOrganizationUnitHasStructure[] Collection to store aggregation of ArOrganizationUnitHasStructure objects.
@@ -234,6 +248,46 @@ abstract class BaseArOrganizationUnit extends BaseObject  implements Persistent 
 	}
 
 	/**
+	 * Get the [internal_checksum1] column value.
+	 * 
+	 * @return     string
+	 */
+	public function getInternalChecksum1()
+	{
+		return $this->internal_checksum1;
+	}
+
+	/**
+	 * Get the [internal_checksum2] column value.
+	 * 
+	 * @return     string
+	 */
+	public function getInternalChecksum2()
+	{
+		return $this->internal_checksum2;
+	}
+
+	/**
+	 * Get the [internal_checksum3] column value.
+	 * 
+	 * @return     string
+	 */
+	public function getInternalChecksum3()
+	{
+		return $this->internal_checksum3;
+	}
+
+	/**
+	 * Get the [internal_checksum4] column value.
+	 * 
+	 * @return     string
+	 */
+	public function getInternalChecksum4()
+	{
+		return $this->internal_checksum4;
+	}
+
+	/**
 	 * Get the [export_code] column value.
 	 * 
 	 * @return     string
@@ -314,6 +368,86 @@ abstract class BaseArOrganizationUnit extends BaseObject  implements Persistent 
 	} // setInternalName2()
 
 	/**
+	 * Set the value of [internal_checksum1] column.
+	 * 
+	 * @param      string $v new value
+	 * @return     ArOrganizationUnit The current object (for fluent API support)
+	 */
+	public function setInternalChecksum1($v)
+	{
+		if ($v !== null) {
+			$v = (string) $v;
+		}
+
+		if ($this->internal_checksum1 !== $v) {
+			$this->internal_checksum1 = $v;
+			$this->modifiedColumns[] = ArOrganizationUnitPeer::INTERNAL_CHECKSUM1;
+		}
+
+		return $this;
+	} // setInternalChecksum1()
+
+	/**
+	 * Set the value of [internal_checksum2] column.
+	 * 
+	 * @param      string $v new value
+	 * @return     ArOrganizationUnit The current object (for fluent API support)
+	 */
+	public function setInternalChecksum2($v)
+	{
+		if ($v !== null) {
+			$v = (string) $v;
+		}
+
+		if ($this->internal_checksum2 !== $v) {
+			$this->internal_checksum2 = $v;
+			$this->modifiedColumns[] = ArOrganizationUnitPeer::INTERNAL_CHECKSUM2;
+		}
+
+		return $this;
+	} // setInternalChecksum2()
+
+	/**
+	 * Set the value of [internal_checksum3] column.
+	 * 
+	 * @param      string $v new value
+	 * @return     ArOrganizationUnit The current object (for fluent API support)
+	 */
+	public function setInternalChecksum3($v)
+	{
+		if ($v !== null) {
+			$v = (string) $v;
+		}
+
+		if ($this->internal_checksum3 !== $v) {
+			$this->internal_checksum3 = $v;
+			$this->modifiedColumns[] = ArOrganizationUnitPeer::INTERNAL_CHECKSUM3;
+		}
+
+		return $this;
+	} // setInternalChecksum3()
+
+	/**
+	 * Set the value of [internal_checksum4] column.
+	 * 
+	 * @param      string $v new value
+	 * @return     ArOrganizationUnit The current object (for fluent API support)
+	 */
+	public function setInternalChecksum4($v)
+	{
+		if ($v !== null) {
+			$v = (string) $v;
+		}
+
+		if ($this->internal_checksum4 !== $v) {
+			$this->internal_checksum4 = $v;
+			$this->modifiedColumns[] = ArOrganizationUnitPeer::INTERNAL_CHECKSUM4;
+		}
+
+		return $this;
+	} // setInternalChecksum4()
+
+	/**
 	 * Set the value of [export_code] column.
 	 * 
 	 * @param      string $v new value
@@ -392,8 +526,12 @@ abstract class BaseArOrganizationUnit extends BaseObject  implements Persistent 
 			$this->id = ($row[$startcol + 0] !== null) ? (int) $row[$startcol + 0] : null;
 			$this->internal_name = ($row[$startcol + 1] !== null) ? (string) $row[$startcol + 1] : null;
 			$this->internal_name2 = ($row[$startcol + 2] !== null) ? (string) $row[$startcol + 2] : null;
-			$this->export_code = ($row[$startcol + 3] !== null) ? (string) $row[$startcol + 3] : null;
-			$this->automatically_managed_from = ($row[$startcol + 4] !== null) ? (int) $row[$startcol + 4] : null;
+			$this->internal_checksum1 = ($row[$startcol + 3] !== null) ? (string) $row[$startcol + 3] : null;
+			$this->internal_checksum2 = ($row[$startcol + 4] !== null) ? (string) $row[$startcol + 4] : null;
+			$this->internal_checksum3 = ($row[$startcol + 5] !== null) ? (string) $row[$startcol + 5] : null;
+			$this->internal_checksum4 = ($row[$startcol + 6] !== null) ? (string) $row[$startcol + 6] : null;
+			$this->export_code = ($row[$startcol + 7] !== null) ? (string) $row[$startcol + 7] : null;
+			$this->automatically_managed_from = ($row[$startcol + 8] !== null) ? (int) $row[$startcol + 8] : null;
 			$this->resetModified();
 
 			$this->setNew(false);
@@ -403,7 +541,7 @@ abstract class BaseArOrganizationUnit extends BaseObject  implements Persistent 
 			}
 
 			// FIXME - using NUM_COLUMNS may be clearer.
-			return $startcol + 5; // 5 = ArOrganizationUnitPeer::NUM_COLUMNS - ArOrganizationUnitPeer::NUM_LAZY_LOAD_COLUMNS).
+			return $startcol + 9; // 9 = ArOrganizationUnitPeer::NUM_COLUMNS - ArOrganizationUnitPeer::NUM_LAZY_LOAD_COLUMNS).
 
 		} catch (Exception $e) {
 			throw new PropelException("Error populating ArOrganizationUnit object", $e);
@@ -464,9 +602,6 @@ abstract class BaseArOrganizationUnit extends BaseObject  implements Persistent 
 		$this->hydrate($row, 0, true); // rehydrate
 
 		if ($deep) {  // also de-associate any related objects?
-
-			$this->collArCdrs = null;
-			$this->lastArCdrCriteria = null;
 
 			$this->collArOrganizationUnitHasStructuresRelatedByArOrganizationUnitId = null;
 			$this->lastArOrganizationUnitHasStructureRelatedByArOrganizationUnitIdCriteria = null;
@@ -630,14 +765,6 @@ abstract class BaseArOrganizationUnit extends BaseObject  implements Persistent 
 				$this->resetModified(); // [HL] After being saved an object is no longer 'modified'
 			}
 
-			if ($this->collArCdrs !== null) {
-				foreach ($this->collArCdrs as $referrerFK) {
-					if (!$referrerFK->isDeleted()) {
-						$affectedRows += $referrerFK->save($con);
-					}
-				}
-			}
-
 			if ($this->collArOrganizationUnitHasStructuresRelatedByArOrganizationUnitId !== null) {
 				foreach ($this->collArOrganizationUnitHasStructuresRelatedByArOrganizationUnitId as $referrerFK) {
 					if (!$referrerFK->isDeleted()) {
@@ -795,14 +922,6 @@ abstract class BaseArOrganizationUnit extends BaseObject  implements Persistent 
 			}
 
 
-				if ($this->collArCdrs !== null) {
-					foreach ($this->collArCdrs as $referrerFK) {
-						if (!$referrerFK->validate($columns)) {
-							$failureMap = array_merge($failureMap, $referrerFK->getValidationFailures());
-						}
-					}
-				}
-
 				if ($this->collArOrganizationUnitHasStructuresRelatedByArOrganizationUnitId !== null) {
 					foreach ($this->collArOrganizationUnitHasStructuresRelatedByArOrganizationUnitId as $referrerFK) {
 						if (!$referrerFK->validate($columns)) {
@@ -932,9 +1051,21 @@ abstract class BaseArOrganizationUnit extends BaseObject  implements Persistent 
 				return $this->getInternalName2();
 				break;
 			case 3:
-				return $this->getExportCode();
+				return $this->getInternalChecksum1();
 				break;
 			case 4:
+				return $this->getInternalChecksum2();
+				break;
+			case 5:
+				return $this->getInternalChecksum3();
+				break;
+			case 6:
+				return $this->getInternalChecksum4();
+				break;
+			case 7:
+				return $this->getExportCode();
+				break;
+			case 8:
 				return $this->getAutomaticallyManagedFrom();
 				break;
 			default:
@@ -961,8 +1092,12 @@ abstract class BaseArOrganizationUnit extends BaseObject  implements Persistent 
 			$keys[0] => $this->getId(),
 			$keys[1] => $this->getInternalName(),
 			$keys[2] => $this->getInternalName2(),
-			$keys[3] => $this->getExportCode(),
-			$keys[4] => $this->getAutomaticallyManagedFrom(),
+			$keys[3] => $this->getInternalChecksum1(),
+			$keys[4] => $this->getInternalChecksum2(),
+			$keys[5] => $this->getInternalChecksum3(),
+			$keys[6] => $this->getInternalChecksum4(),
+			$keys[7] => $this->getExportCode(),
+			$keys[8] => $this->getAutomaticallyManagedFrom(),
 		);
 		return $result;
 	}
@@ -1004,9 +1139,21 @@ abstract class BaseArOrganizationUnit extends BaseObject  implements Persistent 
 				$this->setInternalName2($value);
 				break;
 			case 3:
-				$this->setExportCode($value);
+				$this->setInternalChecksum1($value);
 				break;
 			case 4:
+				$this->setInternalChecksum2($value);
+				break;
+			case 5:
+				$this->setInternalChecksum3($value);
+				break;
+			case 6:
+				$this->setInternalChecksum4($value);
+				break;
+			case 7:
+				$this->setExportCode($value);
+				break;
+			case 8:
 				$this->setAutomaticallyManagedFrom($value);
 				break;
 		} // switch()
@@ -1036,8 +1183,12 @@ abstract class BaseArOrganizationUnit extends BaseObject  implements Persistent 
 		if (array_key_exists($keys[0], $arr)) $this->setId($arr[$keys[0]]);
 		if (array_key_exists($keys[1], $arr)) $this->setInternalName($arr[$keys[1]]);
 		if (array_key_exists($keys[2], $arr)) $this->setInternalName2($arr[$keys[2]]);
-		if (array_key_exists($keys[3], $arr)) $this->setExportCode($arr[$keys[3]]);
-		if (array_key_exists($keys[4], $arr)) $this->setAutomaticallyManagedFrom($arr[$keys[4]]);
+		if (array_key_exists($keys[3], $arr)) $this->setInternalChecksum1($arr[$keys[3]]);
+		if (array_key_exists($keys[4], $arr)) $this->setInternalChecksum2($arr[$keys[4]]);
+		if (array_key_exists($keys[5], $arr)) $this->setInternalChecksum3($arr[$keys[5]]);
+		if (array_key_exists($keys[6], $arr)) $this->setInternalChecksum4($arr[$keys[6]]);
+		if (array_key_exists($keys[7], $arr)) $this->setExportCode($arr[$keys[7]]);
+		if (array_key_exists($keys[8], $arr)) $this->setAutomaticallyManagedFrom($arr[$keys[8]]);
 	}
 
 	/**
@@ -1052,6 +1203,10 @@ abstract class BaseArOrganizationUnit extends BaseObject  implements Persistent 
 		if ($this->isColumnModified(ArOrganizationUnitPeer::ID)) $criteria->add(ArOrganizationUnitPeer::ID, $this->id);
 		if ($this->isColumnModified(ArOrganizationUnitPeer::INTERNAL_NAME)) $criteria->add(ArOrganizationUnitPeer::INTERNAL_NAME, $this->internal_name);
 		if ($this->isColumnModified(ArOrganizationUnitPeer::INTERNAL_NAME2)) $criteria->add(ArOrganizationUnitPeer::INTERNAL_NAME2, $this->internal_name2);
+		if ($this->isColumnModified(ArOrganizationUnitPeer::INTERNAL_CHECKSUM1)) $criteria->add(ArOrganizationUnitPeer::INTERNAL_CHECKSUM1, $this->internal_checksum1);
+		if ($this->isColumnModified(ArOrganizationUnitPeer::INTERNAL_CHECKSUM2)) $criteria->add(ArOrganizationUnitPeer::INTERNAL_CHECKSUM2, $this->internal_checksum2);
+		if ($this->isColumnModified(ArOrganizationUnitPeer::INTERNAL_CHECKSUM3)) $criteria->add(ArOrganizationUnitPeer::INTERNAL_CHECKSUM3, $this->internal_checksum3);
+		if ($this->isColumnModified(ArOrganizationUnitPeer::INTERNAL_CHECKSUM4)) $criteria->add(ArOrganizationUnitPeer::INTERNAL_CHECKSUM4, $this->internal_checksum4);
 		if ($this->isColumnModified(ArOrganizationUnitPeer::EXPORT_CODE)) $criteria->add(ArOrganizationUnitPeer::EXPORT_CODE, $this->export_code);
 		if ($this->isColumnModified(ArOrganizationUnitPeer::AUTOMATICALLY_MANAGED_FROM)) $criteria->add(ArOrganizationUnitPeer::AUTOMATICALLY_MANAGED_FROM, $this->automatically_managed_from);
 
@@ -1112,6 +1267,14 @@ abstract class BaseArOrganizationUnit extends BaseObject  implements Persistent 
 
 		$copyObj->setInternalName2($this->internal_name2);
 
+		$copyObj->setInternalChecksum1($this->internal_checksum1);
+
+		$copyObj->setInternalChecksum2($this->internal_checksum2);
+
+		$copyObj->setInternalChecksum3($this->internal_checksum3);
+
+		$copyObj->setInternalChecksum4($this->internal_checksum4);
+
 		$copyObj->setExportCode($this->export_code);
 
 		$copyObj->setAutomaticallyManagedFrom($this->automatically_managed_from);
@@ -1121,12 +1284,6 @@ abstract class BaseArOrganizationUnit extends BaseObject  implements Persistent 
 			// important: temporarily setNew(false) because this affects the behavior of
 			// the getter/setter methods for fkey referrer objects.
 			$copyObj->setNew(false);
-
-			foreach ($this->getArCdrs() as $relObj) {
-				if ($relObj !== $this) {  // ensure that we don't try to copy a reference to ourselves
-					$copyObj->addArCdr($relObj->copy($deepCopy));
-				}
-			}
 
 			foreach ($this->getArOrganizationUnitHasStructuresRelatedByArOrganizationUnitId() as $relObj) {
 				if ($relObj !== $this) {  // ensure that we don't try to copy a reference to ourselves
@@ -1238,301 +1395,6 @@ abstract class BaseArOrganizationUnit extends BaseObject  implements Persistent 
 			self::$peer = new ArOrganizationUnitPeer();
 		}
 		return self::$peer;
-	}
-
-	/**
-	 * Clears out the collArCdrs collection (array).
-	 *
-	 * This does not modify the database; however, it will remove any associated objects, causing
-	 * them to be refetched by subsequent calls to accessor method.
-	 *
-	 * @return     void
-	 * @see        addArCdrs()
-	 */
-	public function clearArCdrs()
-	{
-		$this->collArCdrs = null; // important to set this to NULL since that means it is uninitialized
-	}
-
-	/**
-	 * Initializes the collArCdrs collection (array).
-	 *
-	 * By default this just sets the collArCdrs collection to an empty array (like clearcollArCdrs());
-	 * however, you may wish to override this method in your stub class to provide setting appropriate
-	 * to your application -- for example, setting the initial array to the values stored in database.
-	 *
-	 * @return     void
-	 */
-	public function initArCdrs()
-	{
-		$this->collArCdrs = array();
-	}
-
-	/**
-	 * Gets an array of ArCdr objects which contain a foreign key that references this object.
-	 *
-	 * If this collection has already been initialized with an identical Criteria, it returns the collection.
-	 * Otherwise if this ArOrganizationUnit has previously been saved, it will retrieve
-	 * related ArCdrs from storage. If this ArOrganizationUnit is new, it will return
-	 * an empty collection or the current collection, the criteria is ignored on a new object.
-	 *
-	 * @param      PropelPDO $con
-	 * @param      Criteria $criteria
-	 * @return     array ArCdr[]
-	 * @throws     PropelException
-	 */
-	public function getArCdrs($criteria = null, PropelPDO $con = null)
-	{
-		if ($criteria === null) {
-			$criteria = new Criteria(ArOrganizationUnitPeer::DATABASE_NAME);
-		}
-		elseif ($criteria instanceof Criteria)
-		{
-			$criteria = clone $criteria;
-		}
-
-		if ($this->collArCdrs === null) {
-			if ($this->isNew()) {
-			   $this->collArCdrs = array();
-			} else {
-
-				$criteria->add(ArCdrPeer::AR_ORGANIZATION_UNIT_ID, $this->id);
-
-				ArCdrPeer::addSelectColumns($criteria);
-				$this->collArCdrs = ArCdrPeer::doSelect($criteria, $con);
-			}
-		} else {
-			// criteria has no effect for a new object
-			if (!$this->isNew()) {
-				// the following code is to determine if a new query is
-				// called for.  If the criteria is the same as the last
-				// one, just return the collection.
-
-
-				$criteria->add(ArCdrPeer::AR_ORGANIZATION_UNIT_ID, $this->id);
-
-				ArCdrPeer::addSelectColumns($criteria);
-				if (!isset($this->lastArCdrCriteria) || !$this->lastArCdrCriteria->equals($criteria)) {
-					$this->collArCdrs = ArCdrPeer::doSelect($criteria, $con);
-				}
-			}
-		}
-		$this->lastArCdrCriteria = $criteria;
-		return $this->collArCdrs;
-	}
-
-	/**
-	 * Returns the number of related ArCdr objects.
-	 *
-	 * @param      Criteria $criteria
-	 * @param      boolean $distinct
-	 * @param      PropelPDO $con
-	 * @return     int Count of related ArCdr objects.
-	 * @throws     PropelException
-	 */
-	public function countArCdrs(Criteria $criteria = null, $distinct = false, PropelPDO $con = null)
-	{
-		if ($criteria === null) {
-			$criteria = new Criteria(ArOrganizationUnitPeer::DATABASE_NAME);
-		} else {
-			$criteria = clone $criteria;
-		}
-
-		if ($distinct) {
-			$criteria->setDistinct();
-		}
-
-		$count = null;
-
-		if ($this->collArCdrs === null) {
-			if ($this->isNew()) {
-				$count = 0;
-			} else {
-
-				$criteria->add(ArCdrPeer::AR_ORGANIZATION_UNIT_ID, $this->id);
-
-				$count = ArCdrPeer::doCount($criteria, false, $con);
-			}
-		} else {
-			// criteria has no effect for a new object
-			if (!$this->isNew()) {
-				// the following code is to determine if a new query is
-				// called for.  If the criteria is the same as the last
-				// one, just return count of the collection.
-
-
-				$criteria->add(ArCdrPeer::AR_ORGANIZATION_UNIT_ID, $this->id);
-
-				if (!isset($this->lastArCdrCriteria) || !$this->lastArCdrCriteria->equals($criteria)) {
-					$count = ArCdrPeer::doCount($criteria, false, $con);
-				} else {
-					$count = count($this->collArCdrs);
-				}
-			} else {
-				$count = count($this->collArCdrs);
-			}
-		}
-		return $count;
-	}
-
-	/**
-	 * Method called to associate a ArCdr object to this object
-	 * through the ArCdr foreign key attribute.
-	 *
-	 * @param      ArCdr $l ArCdr
-	 * @return     void
-	 * @throws     PropelException
-	 */
-	public function addArCdr(ArCdr $l)
-	{
-		if ($this->collArCdrs === null) {
-			$this->initArCdrs();
-		}
-		if (!in_array($l, $this->collArCdrs, true)) { // only add it if the **same** object is not already associated
-			array_push($this->collArCdrs, $l);
-			$l->setArOrganizationUnit($this);
-		}
-	}
-
-
-	/**
-	 * If this collection has already been initialized with
-	 * an identical criteria, it returns the collection.
-	 * Otherwise if this ArOrganizationUnit is new, it will return
-	 * an empty collection; or if this ArOrganizationUnit has previously
-	 * been saved, it will retrieve related ArCdrs from storage.
-	 *
-	 * This method is protected by default in order to keep the public
-	 * api reasonable.  You can provide public methods for those you
-	 * actually need in ArOrganizationUnit.
-	 */
-	public function getArCdrsJoinArVendor($criteria = null, $con = null, $join_behavior = Criteria::LEFT_JOIN)
-	{
-		if ($criteria === null) {
-			$criteria = new Criteria(ArOrganizationUnitPeer::DATABASE_NAME);
-		}
-		elseif ($criteria instanceof Criteria)
-		{
-			$criteria = clone $criteria;
-		}
-
-		if ($this->collArCdrs === null) {
-			if ($this->isNew()) {
-				$this->collArCdrs = array();
-			} else {
-
-				$criteria->add(ArCdrPeer::AR_ORGANIZATION_UNIT_ID, $this->id);
-
-				$this->collArCdrs = ArCdrPeer::doSelectJoinArVendor($criteria, $con, $join_behavior);
-			}
-		} else {
-			// the following code is to determine if a new query is
-			// called for.  If the criteria is the same as the last
-			// one, just return the collection.
-
-			$criteria->add(ArCdrPeer::AR_ORGANIZATION_UNIT_ID, $this->id);
-
-			if (!isset($this->lastArCdrCriteria) || !$this->lastArCdrCriteria->equals($criteria)) {
-				$this->collArCdrs = ArCdrPeer::doSelectJoinArVendor($criteria, $con, $join_behavior);
-			}
-		}
-		$this->lastArCdrCriteria = $criteria;
-
-		return $this->collArCdrs;
-	}
-
-
-	/**
-	 * If this collection has already been initialized with
-	 * an identical criteria, it returns the collection.
-	 * Otherwise if this ArOrganizationUnit is new, it will return
-	 * an empty collection; or if this ArOrganizationUnit has previously
-	 * been saved, it will retrieve related ArCdrs from storage.
-	 *
-	 * This method is protected by default in order to keep the public
-	 * api reasonable.  You can provide public methods for those you
-	 * actually need in ArOrganizationUnit.
-	 */
-	public function getArCdrsJoinArCommunicationChannelType($criteria = null, $con = null, $join_behavior = Criteria::LEFT_JOIN)
-	{
-		if ($criteria === null) {
-			$criteria = new Criteria(ArOrganizationUnitPeer::DATABASE_NAME);
-		}
-		elseif ($criteria instanceof Criteria)
-		{
-			$criteria = clone $criteria;
-		}
-
-		if ($this->collArCdrs === null) {
-			if ($this->isNew()) {
-				$this->collArCdrs = array();
-			} else {
-
-				$criteria->add(ArCdrPeer::AR_ORGANIZATION_UNIT_ID, $this->id);
-
-				$this->collArCdrs = ArCdrPeer::doSelectJoinArCommunicationChannelType($criteria, $con, $join_behavior);
-			}
-		} else {
-			// the following code is to determine if a new query is
-			// called for.  If the criteria is the same as the last
-			// one, just return the collection.
-
-			$criteria->add(ArCdrPeer::AR_ORGANIZATION_UNIT_ID, $this->id);
-
-			if (!isset($this->lastArCdrCriteria) || !$this->lastArCdrCriteria->equals($criteria)) {
-				$this->collArCdrs = ArCdrPeer::doSelectJoinArCommunicationChannelType($criteria, $con, $join_behavior);
-			}
-		}
-		$this->lastArCdrCriteria = $criteria;
-
-		return $this->collArCdrs;
-	}
-
-
-	/**
-	 * If this collection has already been initialized with
-	 * an identical criteria, it returns the collection.
-	 * Otherwise if this ArOrganizationUnit is new, it will return
-	 * an empty collection; or if this ArOrganizationUnit has previously
-	 * been saved, it will retrieve related ArCdrs from storage.
-	 *
-	 * This method is protected by default in order to keep the public
-	 * api reasonable.  You can provide public methods for those you
-	 * actually need in ArOrganizationUnit.
-	 */
-	public function getArCdrsJoinArTelephonePrefix($criteria = null, $con = null, $join_behavior = Criteria::LEFT_JOIN)
-	{
-		if ($criteria === null) {
-			$criteria = new Criteria(ArOrganizationUnitPeer::DATABASE_NAME);
-		}
-		elseif ($criteria instanceof Criteria)
-		{
-			$criteria = clone $criteria;
-		}
-
-		if ($this->collArCdrs === null) {
-			if ($this->isNew()) {
-				$this->collArCdrs = array();
-			} else {
-
-				$criteria->add(ArCdrPeer::AR_ORGANIZATION_UNIT_ID, $this->id);
-
-				$this->collArCdrs = ArCdrPeer::doSelectJoinArTelephonePrefix($criteria, $con, $join_behavior);
-			}
-		} else {
-			// the following code is to determine if a new query is
-			// called for.  If the criteria is the same as the last
-			// one, just return the collection.
-
-			$criteria->add(ArCdrPeer::AR_ORGANIZATION_UNIT_ID, $this->id);
-
-			if (!isset($this->lastArCdrCriteria) || !$this->lastArCdrCriteria->equals($criteria)) {
-				$this->collArCdrs = ArCdrPeer::doSelectJoinArTelephonePrefix($criteria, $con, $join_behavior);
-			}
-		}
-		$this->lastArCdrCriteria = $criteria;
-
-		return $this->collArCdrs;
 	}
 
 	/**
@@ -4063,11 +3925,6 @@ abstract class BaseArOrganizationUnit extends BaseObject  implements Persistent 
 	public function clearAllReferences($deep = false)
 	{
 		if ($deep) {
-			if ($this->collArCdrs) {
-				foreach ((array) $this->collArCdrs as $o) {
-					$o->clearAllReferences($deep);
-				}
-			}
 			if ($this->collArOrganizationUnitHasStructuresRelatedByArOrganizationUnitId) {
 				foreach ((array) $this->collArOrganizationUnitHasStructuresRelatedByArOrganizationUnitId as $o) {
 					$o->clearAllReferences($deep);
@@ -4123,7 +3980,6 @@ abstract class BaseArOrganizationUnit extends BaseObject  implements Persistent 
 			}
 		} // if ($deep)
 
-		$this->collArCdrs = null;
 		$this->collArOrganizationUnitHasStructuresRelatedByArOrganizationUnitId = null;
 		$this->collArOrganizationUnitHasStructuresRelatedByArParentOrganizationUnitId = null;
 		$this->collArExpandedExtensionss = null;

@@ -1,25 +1,6 @@
 <?php
 
-/* $LICENSE 2013, 2014, 2015, 2017:
- *
- * Copyright (C) 2013, 2014, 2015, 2017 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
- *
- * This file is part of Asterisell.
- *
- * Asterisell is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 3 of the License, or
- * (at your option) any later version.
- *
- * Asterisell is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with Asterisell. If not, see <http://www.gnu.org/licenses/>.
- * $
- */
+// SPDX-License-Identifier: GPL-3.0-or-later
 
 sfLoader::loadHelpers(array('I18N', 'Debug', 'Date', 'Asterisell'));
 
@@ -27,13 +8,8 @@ sfLoader::loadHelpers(array('I18N', 'Debug', 'Date', 'Asterisell'));
  * Rate the calls.
  * First CDRS are imported from `ImportDataFiles` into `ar_source_cdr` table, and the rerating fields are completed.
  * Then this job rate them, according the specified rerating time frame.
- * The rate engine delete all CDRs between MIN and MAX calldate, and import all CDRs within this date.
  *
  * Export rate configurations to the external rate engine, using textual files.
- * NOTE: MySQL driver license does not allow commercial licensed code, but only GPL code,
- * so PHP export the data using CSV files. PHP applications can instead connect to MySQL
- * without being forced to be GPL.
- * NOTE: MariaDB uses now a LGPL or BSD driver, so it can be used in the future.
  *
  * In case of a CSV line with import problems, generate a CDR with error, and link to an error message.
  * In case of a CDR with rate problems, generate a CDR with error, and link to an error message.
@@ -66,11 +42,10 @@ class ManageRateEvent extends FixedJobProcessor
 
     const SIGNAL_FILE_NAME = 'signal.lock';
 
-    const GARBAGE_KEY = 'rate calls event';
+    const GARBAGE_KEY = 'rating-calls-critical';
 
     const DEBUG_INFO_REPORT_INTERNAL_NAME = 'rating_debug_info';
 
-    const RATE_ENGINE_CHANGED_DAYS_JOB_NAME = 'external_haskell_rating_engine';
 
 
     // IMPORTANT: do not change nothing, because this value
@@ -79,50 +54,19 @@ class ManageRateEvent extends FixedJobProcessor
     const DONT_TOUCH_DEBUG_MODE_GHC_PARAMS = " ";
 
     /**
-     * @return int|null
+     * @var int|null a date to use for limiting (during testing) the ar_source_cdr to load
      */
-    static public function getRateEngineChangedDaysJobId()
-    {
-        static $id = null;
-
-        if (is_null($id)) {
-            $conn = Propel::getConnection();
-            $stm = $conn->prepare('SELECT id FROM ar_daily_status_job WHERE NAME = ?');
-            $stm->execute(array(self::RATE_ENGINE_CHANGED_DAYS_JOB_NAME));
-            while (($rs = $stm->fetch(PDO::FETCH_NUM)) !== false) {
-                $id = $rs[0];
-            }
-            $stm->closeCursor();
-        }
-
-        return $id;
-    }
+    public $testToDate = null;
 
     /**
-     * @param PDO $conn
-     * @param int $fromDate the timeframe with new/updated CDRs
-     * @param int $toDate
+     * @var int 0 for using all the cores
      */
-    static public function invalidatePendingReports($conn, $fromDate, $toDate) {
+    public $useCores = 0;
 
-        $rateFromDate = fromUnixTimestampToMySQLTimestamp($fromDate);
-        $rateToDate = fromUnixTimestampToMySQLTimestamp($toDate);
-
-        $conn->beginTransaction();
-
-        // A report is affected if its start or its end is inside the rerating time frame.
-
-        $query = 'UPDATE ar_report
-                  SET    produced_report_must_be_regenerated = 1
-                  WHERE  produced_report_already_reviewed = 0
-                  AND    (   (? <= from_date AND from_date < ?)
-                          OR (? < to_date AND to_date <= ?))';
-
-        $stm = $conn->prepare($query);
-        $stm->execute(array($rateFromDate, $rateToDate, $rateFromDate, $rateToDate));
-
-        self::commitTransactionOrSignalProblem_static($conn, 'invalidate pending reports');
-    }
+    /**
+     * @var int 1 for (experimental/buggy) fast grouping of CDRS
+     */
+    public $useFastGrouping = 1;
 
     public function process()
     {
@@ -130,13 +74,16 @@ class ManageRateEvent extends FixedJobProcessor
         $prof = new JobProfiler('rated CDRs');
         $conn = Propel::getConnection();
 
-        // Exit if rating event must be post-poned.
+        // NOTE: Now I rate always immediately, because if there are jobs
+        // changing continuosly the data, rating process can be postponed indefinitely
+        //
+        // if (self::getWaitForScheduledRerate($conn)) {
+        //    // Signal that at the next execution, it can start rating.
+        //    self::setWaitForScheduledRerate(false, $conn);
+        //    return "Rating event will be started at next cron job processor run, if there aren't meantime new changes in rating settings.";
+        // }
 
-        if (self::getWaitForScheduledRerate($conn)) {
-            // Signal that at the next execution, it can start rating.
-            self::setWaitForScheduledRerate(false, $conn);
-            return "Rating event will be started at next cron job processor run, if there aren't meantime new changes in rating settings.";
-        }
+        self::setWaitForScheduledRerate(false, $conn);
 
         //
         // Calculate the rating time frame
@@ -147,167 +94,61 @@ class ManageRateEvent extends FixedJobProcessor
         // case C) rate only/also user specified time frame
         //
         // Try to create the bigger time-frame containing all these events.
-        // If it is not possible, rate every different time-frame, at different execution runs, favoring:
-        // 1) user specified time time-frame
-        // 2) unbilled calls
-        // 3) new imported CDRS
-        //
-        // This order is important because new imported CDRs can postpone forever all rating events,
-        // if they have greather priority.
         //
 
         $globalStartingDate = $this->getGlobalStartingDate();
 
-        $somethingToDo = false;
+        $rateFromDate = null;
+
         $rateImportedCDRs = false;
-        $rateUnbilledCalls = false;
+        $rateUnbilledCalls = self::getRerateFromOfficialCallDate($conn);
         $rateUserSpecifiedTimeFrame = false;
-        $eventFromDate = null;
-        $eventToDate = null;
-        $unbilledCallsFrom = null;
 
-        list($newCDRSFromDate, $newCDRSToDate) = self::getNewImportedCdrsCallDate($conn);
-        list($serviceCDRSFromDate, $serviceCDRSToDate) = self::getScheduledImportedServicesRatingEvent($conn);
-        list($userRateFromDate, $userRateToDate) = self::getRerateTimeFrame($conn);
-        if (self::getRerateFromOfficialCallDate($conn)) {
-            $unbilledCallsFrom = self::getOfficialCallDate($conn);
-        }
-
-        // Decide which rate events activate
-
-        if (!is_null($newCDRSFromDate)) {
+        $d = self::getNewImportedCdrsCallDate($conn);
+        if (!is_null($d)) {
+            $rateFromDate = self::getMinFromDate($rateFromDate, $d);
             $rateImportedCDRs = true;
-            $somethingToDo = true;
-            $eventFromDate = $newCDRSFromDate;
-            $eventToDate = $newCDRSToDate;
         }
 
-        if (!is_null($serviceCDRSFromDate)) {
-            $somethingToDo = true;
-            $rateImportedCDRs = true;
-            // NOTE: service CDRs do not involve a complete rerating of all other CDRs,
-            // so their time-frame is always accepted.
+        $d = self::getRerateTimeFrame($conn);
+        if (!is_null($d)) {
+            $rateUserSpecifiedTimeFrame = true;
+            $rateFromDate = self::getMinFromDate($rateFromDate, $d);
         }
 
-        if (!is_null($unbilledCallsFrom)) {
-            $somethingToDo = true;
-            if (is_null($eventFromDate)) {
-                $rateUnbilledCalls = true;
-                $eventFromDate = $unbilledCallsFrom;
-                $eventToDate = null;
-            } else {
-                if (self::isTimeFrameJoinableWith($unbilledCallsFrom, null, $eventFromDate, $eventToDate)) {
-                    $rateUnbilledCalls = true;
-                    $eventFromDate = self::getMinFromDate($unbilledCallsFrom, $eventFromDate);
-                    $eventToDate = null;
-                } else {
-                    // Higher priority
-                    $rateUnbilledCalls = true;
-                    $rateImportedCDRs = false;
-                    $eventFromDate = $unbilledCallsFrom;
-                    $eventToDate = null;
-                }
-            }
+        if ($rateUnbilledCalls) {
+            $d = self::getOfficialCallDate($conn);
+            $rateFromDate = self::getMinFromDate($rateFromDate, $d);
         }
 
-        if (!is_null($userRateFromDate)) {
-            $somethingToDo = true;
-            if (is_null($eventFromDate)) {
-                $rateUserSpecifiedTimeFrame = true;
-                $eventFromDate = $userRateFromDate;
-                $eventToDate = $userRateToDate;
-            } else {
-                if (self::isTimeFrameJoinableWith($userRateFromDate, $userRateToDate, $eventFromDate, $eventToDate)) {
-                    $rateUserSpecifiedTimeFrame = true;
-                    $eventFromDate = self::getMinFromDate($eventFromDate, $userRateFromDate);
-                    $eventToDate = self::getMaxToDate($eventToDate, $userRateToDate);
-                } else {
-                  // highest priority
-                  $rateUnbilledCalls = false;
-                  $rateImportedCDRs = false;
-                  $rateUserSpecifiedTimeFrame = true;
-                  $eventFromDate = $userRateFromDate;
-                  $eventToDate = $userRateToDate;
-                }
-            }
+        // Normalize dates
+
+        if (!is_null($rateFromDate)) {
+            $rateFromDate = self::getMaxFromDate($rateFromDate, $globalStartingDate);
         }
 
-        if ($somethingToDo) {
-            // Sanitize call dates
+        // Prepare the string
 
-            if (is_null($eventFromDate)) {
-                $eventFromDateS = 'null';
-                $eventToDateS = 'null';
-            } else {
-                if (is_null($eventToDate)) {
-                    // If there is no specified end date, consider the maximum between now and the last CDR in the database.
-                    // In this way all the CDRs are rated, and all the services are generated, also if:
-                    // * case A) there are CDRs in the future
-                    // * case B) there are no many CDRs until current date
+        $executeRating = false;
+        if (!is_null($rateFromDate)) {
+            $rateFromDateS = fromUnixTimestampToMySQLTimestamp($rateFromDate);
+            $executeRating = true;
+        } else {
+            $rateFromDateS = 'null';
+        }
 
-                    $caseA = $this->getMaxCallDateInSourceCDRS();
-                    $caseB = time();
+        // Execute Rating
 
-                    if (!is_null($caseA)) {
-                        if ($caseA > $caseB) {
-                            // the call date must be exclusive, so consider a little bigger interval, for including
-                            // all the needed values. It is not a problem if some more CDR in the future is rated.
-                            $eventToDate = strtotime('+1 second', $caseA);
-                        } else {
-                            $eventToDate = $caseB;
-                        }
-                    }
-                }
-                if ($eventFromDate < $globalStartingDate) {
-                    $eventFromDate = $globalStartingDate;
-                }
-
-                assert(!is_null($eventToDate));
-                if ($eventToDate < $globalStartingDate) {
-                    $eventToDate = $globalStartingDate;
-                }
-
-                $eventFromDateS = fromUnixTimestampToMySQLTimestamp($eventFromDate);
-                $eventToDateS = fromUnixTimestampToMySQLTimestamp($eventToDate);
-            }
-
-            if (is_null($serviceCDRSFromDate)) {
-                $eventServiceFromDateS = 'null';
-                $eventServiceToDateS = 'null';
-            } else {
-                if ($serviceCDRSFromDate < $globalStartingDate) {
-                    $serviceCDRSFromDate = $globalStartingDate;
-                }
-
-                if ($serviceCDRSToDate < $globalStartingDate) {
-                    $serviceCDRSToDate = $globalStartingDate;
-                }
-
-                $eventServiceFromDateS = fromUnixTimestampToMySQLTimestamp($serviceCDRSFromDate);
-                $eventServiceToDateS = fromUnixTimestampToMySQLTimestamp($serviceCDRSToDate);
-            }
-
-            //
-            // Execute Rating Event
-            //
-
-            // Export the rating info
+        if ($executeRating) {
 
             self::startRatingProcess($conn);
-            ArProblemException::garbageCollect(self::GARBAGE_KEY, $eventFromDate, $eventToDate);
+            ArProblemException::garbageCollect(self::GARBAGE_KEY, null, null);
 
-            $exportFromDate = $eventFromDate;
-            if (is_null($exportFromDate) || (!is_null($serviceCDRSFromDate) && $serviceCDRSFromDate < $exportFromDate)) {
-                $exportFromDate = $serviceCDRSFromDate;
-            }
-
-            self::assertCondition(!is_null($exportFromDate), "Rate without an associated time-frame from which load rating params.");
+            $exportFromDate = $rateFromDate;
             $this->exportConfigurationFiles($exportFromDate);
 
             // Start with an empty state about this
             $conn->exec('TRUNCATE ar_expanded_extensions');
-
-            // Call the external rating engine.
 
             if ($this->getDebugMode()) {
                 $debugModeS = '1';
@@ -324,10 +165,14 @@ class ManageRateEvent extends FixedJobProcessor
             $debugFileName = normalizeFileNamePath(ImportDataFiles::getMySQLAccessibleTmpDirectory(self::GARBAGE_KEY) . '/' . self::RATE_DEBUG_FILE_NAME);
             @unlink($debugFileName);
 
+            $ratingParams = array();
             $cmd = RateEngineService::getToolExecutable()
                 . ' --rate '
+                . RateEngineService::writeWithDBAccessParams($ratingParams)
                 . ' --debug-mode ' . $debugModeS
                 . ' --run-level 0'
+                . ' --use-cores ' . $this->useCores
+                . ' --use-fast-grouping ' . $this->useFastGrouping
                 . ' --is-voip-reseller ' . $isBillingS;
 
             $mask = sfConfig::get('app_mask_for_external_telephone_number');
@@ -342,25 +187,25 @@ class ManageRateEvent extends FixedJobProcessor
             }
 
             $currencyPrecision = sfConfig::get('app_currency_decimal_places');
-
-            $cmd .= ' --digits-to-mask ' . $mask
-                . ' --default-telephone-prefix ' . $defaultTelephonePrefix
-                . ' --currency-precision ' . $currencyPrecision
-                . ' --debug-file ' . $debugFileName
-                . ' --from-date "' . $eventFromDateS . '" '
-                . ' --to-date "' . $eventToDateS . '" '
-                . ' --from-date "' . $eventServiceFromDateS . '" '
-                . ' --to-date "' . $eventServiceToDateS . '" ';
-
             if ($rateUnbilledCalls) {
                 $unbilledCallsS = 'true';
             } else {
                 $unbilledCallsS = 'false';
             }
-            $cmd .= ' --rate-unbilled-calls ' . $unbilledCallsS;
 
-            list($dbName, $dbUser, $dbPassword) = getDatabaseNameUserAndPassword(true);
-            $cmd .= " --db-name $dbName --db-user $dbUser --db-password $dbPassword";
+            $cmd .= ' --digits-to-mask ' . $mask
+                . ' --organization-to-ignore "' . sfConfig::get('app_organization_to_ignore') . '" '
+                . ' --default-telephone-prefix ' . $defaultTelephonePrefix
+                . ' --currency-precision ' . $currencyPrecision
+                . ' --debug-file ' . $debugFileName
+                . ' --from-date "' . $rateFromDateS . '" '
+                . ' --rate-unbilled-calls ' . $unbilledCallsS;
+
+            if (is_null($this->testToDate)) {
+                $cmd .= ' --test-to-date null';
+            } else {
+                $cmd .= ' --test-to-date "' . fromUnixTimestampToMySQLTimestamp($this->testToDate) . '"';
+            }
 
             $cmd .= self::DONT_TOUCH_DEBUG_MODE_GHC_PARAMS;
 
@@ -372,6 +217,10 @@ class ManageRateEvent extends FixedJobProcessor
             $output = array();
             $exitStatus = 0;
             $resultLine = exec($cmd, $output, $exitStatus);
+
+            if (JobQueueProcessor::$IS_INTERACTIVE) {
+                echo implode("\n", $output);
+            }
 
             //
             // Manage Result
@@ -398,8 +247,8 @@ class ManageRateEvent extends FixedJobProcessor
                         ArProblemResponsible::ADMIN,
                         'rate calls accounts - ' . md5($cmd),
                         self::GARBAGE_KEY,
-                        $eventFromDate,
-                        $eventToDate,
+                        $exportFromDate,
+                        null,
                         "There is an error in configurations,  not allowing the rating of CDRs. " . implode("\n", $output),
                         $defaultEffect,
                         $defaultSolution
@@ -412,8 +261,8 @@ class ManageRateEvent extends FixedJobProcessor
                         ArProblemResponsible::ADMIN,
                         'rate calls config - ' . md5($cmd),
                         self::GARBAGE_KEY,
-                        $eventFromDate,
-                        $eventToDate,
+                        $exportFromDate,
+                        null,
                         "There is an error in configurations of Telephone Prefixes,  not allowing the rating of CDRs. " . implode("\n", $output),
                         $defaultEffect,
                         $defaultSolution
@@ -426,8 +275,8 @@ class ManageRateEvent extends FixedJobProcessor
                         ArProblemResponsible::ADMIN,
                         'rate calls critical - ' . md5($cmd),
                         self::GARBAGE_KEY,
-                        $eventFromDate,
-                        $eventToDate,
+                        $exportFromDate,
+                        null,
                         "There is an error in configurations of Rates,  not allowing the rating of CDRs. " . implode("\n", $output),
                         $defaultEffect,
                         $defaultSolution
@@ -439,8 +288,8 @@ class ManageRateEvent extends FixedJobProcessor
                         null,
                         'rate calls application  - ' . md5($cmd),
                         self::GARBAGE_KEY,
-                        $eventFromDate,
-                        $eventToDate,
+                        $exportFromDate,
+                        null,
                         "Error executing command:\n\n$cmd\n\n" . implode("\n", $output),
                         $defaultEffect,
                         $defaultSolution
@@ -454,7 +303,7 @@ class ManageRateEvent extends FixedJobProcessor
                 // NOTE: it can execute this outside a transaction, because in worst case scenario, the rerating command will be executed again, without any loss of CDRs, but only a loss of time.
                 // NOTE: it can write many of these fields because they are managed only from cron-processor, so they are logically locked
 
-                self::invalidatePendingReports($conn, $eventFromDate, $eventToDate);
+                self::invalidatePendingReports($conn, $exportFromDate, null);
 
                 if ($rateImportedCDRs) {
                     self::resetImportedCDRSTimeFrame($conn);
@@ -465,8 +314,14 @@ class ManageRateEvent extends FixedJobProcessor
                 }
 
                 if ($rateUserSpecifiedTimeFrame) {
-                    self::rerateCalls(null, null, $conn);
+                    self::rerateCalls(null, $conn);
                 }
+
+                // Update stats about CDRS and errors
+                // NOTE: execute the task here, so it is executed only one time,
+                // when we are sure we have rerated the CDRS
+                $job = new GroupCDRSWithErrors();
+                $job->process();
 
                 // this is the last pass, mandatory, so it is signaled all ok only when it is all for sure ok.
                 self::correctEndOfRatingProcess($conn);
@@ -502,7 +357,6 @@ class ManageRateEvent extends FixedJobProcessor
         // nothing to do, because up to date all settings are read directly
         // from the DB from the rating engine
     }
-
 
     /**
      * @return int|null the max call date in CSV files.
@@ -543,165 +397,448 @@ class ManageRateEvent extends FixedJobProcessor
      * Execute different rerating events and checks if the totals are the same.
      *
      * @param int $maxDaysInThePast
-     * @param int $times
+     * @param int $hoursToAdvance
      * @param bool $interactive
      * @return bool true if all tests are ok
+     * @ensure if all tests are ok, all calls are rated, so there is no change in the DB
      */
-    public function stressRerating($maxDaysInThePast, $times, $interactive)
-    {
-        $minCallDate = strtotime('-' . $maxDaysInThePast . ' days');
-
-        // First rerate all the calls for starting with a sane configuration
-        self::rerateCalls($minCallDate, null);
-        JobQueueProcessor::setIsInteractive($interactive);
-        $msg = $this->process();
-        if ($interactive) {
-            echo "\n\nInitial complete rerating: $msg";
-        }
-
-        $cdrStats1 = $this->getCDRStats($minCallDate);
-
-        // Now try many rerates
-        while ($times > 0) {
-            $isOpenInterval = rand(0, 1);
-            $d1 = strtotime('-' . rand(0, $maxDaysInThePast) . ' days');
-            if ($isOpenInterval == 1) {
-                $d2 = null;
-            } else {
-                $d2 = strtotime('-' . rand(0, $maxDaysInThePast) . ' days');
-                if ($d1 > $d2) {
-                    $t = $d2;
-                    $d2 = $d1;
-                    $d1 = $t;
-                }
-            }
-            self::rerateCalls($d1, $d2);
-
-            $rateAlsoServiceCDRS = rand(0, 1);
-            if ($rateAlsoServiceCDRS == 1) {
-                $sd1 = strtotime('-' . rand(0, $maxDaysInThePast) . ' days');
-                $sd2 = strtotime('-' . rand(0, $maxDaysInThePast) . ' days');
-
-                if ($sd1 > $sd2) {
-                    $t = $sd2;
-                    $sd2 = $sd1;
-                    $sd1 = $t;
-                }
-                self::rerateImportedServicesCalls($sd1, $sd2);
-            } else {
-                $sd1 = null;
-                $sd2 = null;
-            }
-
-            JobQueueProcessor::setIsInteractive($interactive);
-            $msg = $this->process();
-            if ($interactive) {
-              echo "\nRerating $times: $msg";
-            }
-
-            $cdrStats2 = $this->getCDRStats($minCallDate);
-            // NOTE: calc all CDRS, not only the CDRS in the specified rating time frame
-
-            if (! $this->compareCDRStatsAndShowDifferences($cdrStats1, $cdrStats2, false, $interactive)) {
-                return false;
-            }
-            $times--;
-        }
-
-        return true;
-    }
-
-    /**
-     * @param int $minCallDate
-     * @return array with date, parent-id-hierachy and destination type as key string,
-     * and a string with the other fields as value.
-     */
-    public function getCDRStats($minCallDate)
+    public function stressRerating($maxDaysInThePast, $hoursToAdvance, $interactive)
     {
         $conn = Propel::getConnection();
 
-        // NOTE: I'm returning a date, without the time part.
-        $minCallDateS = fromUnixTimestampToMySQLDate($minCallDate);
-
-        $query = 'SELECT MAKEDATE(YEAR(calldate), DAYOFYEAR(calldate)),
-                         cached_parent_id_hierarchy,
-                         destination_type,
-                         SUM(count_of_calls),
-                         SUM(billsec),
-                         SUM(income),
-                         SUM(cost_saving),
-                         SUM(cost)
-                  FROM ar_cdr
-                  WHERE ar_cdr.calldate >= ?
-                  AND destination_type <> ?
-                  GROUP BY YEAR(calldate), DAYOFYEAR(calldate), cached_parent_id_hierarchy, destination_type
-                  ORDER BY YEAR(calldate), DAYOFYEAR(calldate), cached_parent_id_hierarchy, destination_type';
-
-        $stm = $conn->prepare($query);
-        $stm->execute(array($minCallDateS, DestinationType::ignored));
-        // NOTE: ignored calls can be produced by the system for different reasons, so we don't compare them.
-        // NOTE: errors, internal and system calls are important and they should be remain constant after each rating pass.
-
-        $r = array();
-        while (($rs = $stm->fetch(PDO::FETCH_NUM)) !== false) {
-            $key = $rs[0] . ',' . $rs[1] . ',' . $rs[2];
-            $value = $rs[3] . ',' . $rs[4] . ',' . $rs[5] . ',' .$rs[6] . ',' .$rs[7];
-            $r[$key] = $value;
+        $lock = new JobQueueProcessor();
+        if (!$lock->lock()) {
+            echo "\n!!! Can not acquire exclusive lock on the rating process. Tests are not performed !!!\n";
+            return false;
         }
-        $stm->closeCursor();
-        return $r;
+
+        try {
+
+            JobQueueProcessor::setIsInteractive($interactive);
+
+            $maxCallDate = $this->getMaxCallDateInSourceCDRS();
+            $minCallDate = $maxCallDate;
+            $minCallDate = strtotime('-' . $maxDaysInThePast . ' days', $minCallDate);
+
+            $this->deleteFromTable('ar_cdr', $minCallDate, false);
+            $this->deleteFromTable('ar_cached_grouped_cdr', $minCallDate, true);
+            $this->deleteFromTable('ar_cached_errors', $minCallDate, true);
+            $this->deleteFromTable('ar_test_cached_grouped_cdr', $minCallDate, true);
+            $this->deleteFromTable('ar_test_cached_errors', $minCallDate, true);
+
+            // Simulate incremental arrival of new CDRS
+            $d2 = $minCallDate;
+            while ($d2 <= $maxCallDate) {
+                // simulate previous pending calls
+                $d1 = $d2;
+                $d1 = strtotime('-' . rand(0, 4) . ' minutes', $d1);
+                if ($d1 < $minCallDate) {
+                    $d1 = $minCallDate;
+                }
+
+                // rate these new calls
+                $d2 = strtotime('+' . $hoursToAdvance . ' hours', $d2);
+                $d2 = strtotime('+' . rand(0, 59) . ' minutes', $d2);
+                $d2 = strtotime('+' . rand(0, 59) . ' seconds', $d2);
+
+                self::signalAsDoneRerateCallsFromOfficialCalldate($conn, true);
+                $this->testToDate = $d2;
+                self::rerateCalls($d1);
+                JobQueueProcessor::setIsInteractive($interactive);
+                $msg = $this->process();
+                if ($interactive) {
+                    echo "\n$msg";
+                }
+
+                $this->calcTestCachedCDRS($minCallDate);
+                $r = $this->compareTestCachedCDRS($minCallDate);
+                if ($r !== true) {
+                    echo "\nError: " . $r;
+                    return false;
+                }
+            }
+
+            echo "\nAll incremental rerating were successfull";
+
+            // Check if incremental rerating is equivalent to rerating from scratch
+            echo "\nCheck if incremental rerating is equivalent to rerating from scratch...\n";
+            $this->calcTestCachedCDRS($minCallDate);
+            self::signalAsDoneRerateCallsFromOfficialCalldate($conn, true);
+            $this->testToDate = null;
+            self::rerateCalls($minCallDate);
+            JobQueueProcessor::setIsInteractive($interactive);
+            $msg = $this->process();
+            if ($interactive) {
+                echo "\n$msg";
+            }
+
+            $r = $this->compareTestCachedCDRS($minCallDate);
+            if ($r !== true) {
+                echo "\nError: " . $r;
+                return false;
+            }
+
+            // Check if incremental rerating is equivalent to safe rerating from scratch using 1 thread
+            // IMPORTANT: leave the complete rerating at the end, so all calls are correctly rated
+            echo "\nCheck if incremental rerating is equivalent to rerating from scratch using only 1 thread...\n";
+            self::signalAsDoneRerateCallsFromOfficialCalldate($conn, true);
+            $this->testToDate = null;
+            $this->useCores = 1;
+            self::rerateCalls($minCallDate);
+            JobQueueProcessor::setIsInteractive($interactive);
+            $msg = $this->process();
+            $this->useCores = 0;
+            if ($interactive) {
+                echo "\n$msg";
+            }
+            $r = $this->compareTestCachedCDRS($minCallDate);
+            if ($r !== true) {
+                echo "\nError: " . $r;
+                return false;
+            }
+
+            // Try to execute random rating events inside the time-frame, for simulating different
+            // operations respect incremental rating.
+            // Execute the same number to test, as the incremental rerating test.
+
+            $secDiff = $maxCallDate - $minCallDate;
+            $maxSeconds = $hoursToAdvance * 60 * 60;
+            $testsToDo = (int) ($secDiff / $maxSeconds);
+            while ($testsToDo > 0) {
+                $testsToDo--;
+                echo "\n\n## Left tests: $testsToDo\n";
+
+                $secs = rand(10, $secDiff);
+                $rateFrom = strtotime('+' . $secs . ' seconds', $minCallDate);
+                self::signalAsDoneRerateCallsFromOfficialCalldate($conn, true);
+                $this->testToDate = null;
+                $this->useCores = 0;
+                self::rerateCalls($rateFrom);
+                JobQueueProcessor::setIsInteractive($interactive);
+                $msg = $this->process();
+                if ($interactive) {
+                    echo "\n$msg";
+                }
+
+                $this->calcTestCachedCDRS($minCallDate);
+                $r = $this->compareTestCachedCDRS($minCallDate);
+                if ($r !== true) {
+                    echo "\nError: " . $r;
+                    return false;
+                }
+            }
+
+            $lock->unlock();
+            return true;
+
+        } catch (Exception $e) {
+            $lock->unlock();
+            echo "\n" . $e->getTraceAsString();
+            echo "\n!!! Exception during execution of the code: " . $e->getMessage();
+            return false;
+        }
     }
 
     /**
-     * Show the differences in case
-     * @param array $stats1 the initial stats returned from `getCDRStats()`
-     * @param array $stats2 the last stats after the rerating
-     * @param bool $areReversed true if the first array is instead the array with the final stats
-     * @param bool $isInteractive true if it must show the differences
-     * @return bool true if the content is the same, false otherwise
-     *
+     * @param string $tableName
+     * @param int $fromDate
+     * @param bool $useWholeDay
      */
-    public function compareCDRStatsAndShowDifferences(&$stats1, &$stats2, $areReversed, $isInteractive) {
-        $count1 = count($stats1);
-        $count2 = count($stats2);
+    protected function deleteFromTable($tableName, $fromDate, $useWholeDay)
+    {
+        $conn = Propel::getConnection();
+        $query = "DELETE FROM $tableName WHERE calldate >= ?";
 
-        if ($count1 < $count2) {
-            return $this->compareCDRStatsAndShowDifferences($stats2, $stats1, ! $areReversed, $isInteractive);
+        if ($useWholeDay) {
+            $fromDateS = fromUnixTimestampToMySQLDate($fromDate);
+        } else {
+            $fromDateS = fromUnixTimestampToMySQLTimestamp($fromDate);
         }
 
-        $header1 = 'original stats';
-        $header2 = 'stats after rerating';
-        if ($areReversed) {
-            $t = $header2;
-            $header2 = $header1;
-            $header1 = $t;
+        $stm = $conn->prepare($query);
+        $stm->execute(array($fromDateS));
+    }
+
+    /**
+     * NOTE: it is important testing these, because in the rating-engine they are calculated
+     * using code, and not a query.
+     * @param int $fromDate
+     */
+    protected function calcTestCachedCDRS($fromDate)
+    {
+        $conn = Propel::getConnection();
+        $fromDateS = fromUnixTimestampToMySQLDate($fromDate);
+
+        $this->deleteFromTable('ar_test_cached_grouped_cdr', $fromDate, true);
+
+        // calculate totals grouped by customers
+        $query = '
+                 INSERT INTO ar_test_cached_grouped_cdr(
+                   cached_parent_id_hierarchy
+                 , billable_ar_organization_unit_id
+                 , `calldate`
+                 , `destination_type`
+                 , ar_communication_channel_type_id
+                 , operator_type
+                 , ar_vendor_id
+                 , geographic_location
+                 ,`count_of_calls`
+                 ,`billsec`
+                 ,`income`
+                 ,`cost_saving`
+                 ,`cost`)
+                 SELECT
+                   cached_parent_id_hierarchy
+                 , billable_ar_organization_unit_id
+                 , ANY_VALUE(MAKEDATE(YEAR(calldate), DAYOFYEAR(calldate)))
+                 , destination_type
+                 , ar_communication_channel_type_id
+                 , p.operator_type
+                 , ar_vendor_id
+                 , p.geographic_location
+                 , SUM(count_of_calls)
+                 , SUM(billsec)
+                 , SUM(income)
+                 , SUM(cost_saving)
+                 , SUM(cost)
+                 FROM ar_cdr
+                 INNER JOIN ar_telephone_prefix AS p
+                 ON ar_cdr.ar_telephone_prefix_id = p.id
+                 WHERE ar_cdr.calldate >= ?
+                 AND destination_type <> ?
+                 AND destination_type <> ?
+                 GROUP BY
+                   YEAR(calldate)
+                 , DAYOFYEAR(calldate)
+                 , cached_parent_id_hierarchy
+                 , billable_ar_organization_unit_id
+                 , destination_type
+                 , ar_communication_channel_type_id
+                 , p.operator_type
+                 , ar_vendor_id
+                 , p.geographic_location
+                 ;';
+        // DEV-NOTE: do not change the order of the `group by` because
+        // it uses the ar_cdr index on call-date.
+
+        $stmt = $conn->prepare($query);
+        $stmt->execute(array($fromDateS, DestinationType::error, DestinationType::ignored));
+
+        // calculate grand-totals of all customers
+        $query = '
+                 INSERT INTO ar_test_cached_grouped_cdr(
+                   cached_parent_id_hierarchy
+                 , billable_ar_organization_unit_id
+                 , `calldate`
+                 , `destination_type`
+                 , ar_communication_channel_type_id
+                 , operator_type
+                 , ar_vendor_id
+                 , geographic_location
+                 ,`count_of_calls`
+                 ,`billsec`
+                 ,`income`
+                 ,`cost_saving`
+                 ,`cost`)
+                 SELECT
+                   \'\'
+                 , 0
+                 , ANY_VALUE(MAKEDATE(YEAR(calldate), DAYOFYEAR(calldate)))
+                 , destination_type
+                 , ar_communication_channel_type_id
+                 , p.operator_type
+                 , ar_vendor_id
+                 , p.geographic_location
+                 , SUM(count_of_calls)
+                 , SUM(billsec)
+                 , SUM(income)
+                 , SUM(cost_saving)
+                 , SUM(cost)
+                 FROM ar_cdr
+                 INNER JOIN ar_telephone_prefix AS p
+                 ON ar_cdr.ar_telephone_prefix_id = p.id
+                 WHERE ar_cdr.calldate >= ?
+                 AND destination_type <> ?
+                 AND destination_type <> ?
+                 GROUP BY
+                   YEAR(calldate)
+                 , DAYOFYEAR(calldate)
+                 , destination_type
+                 , ar_communication_channel_type_id
+                 , p.operator_type
+                 , ar_vendor_id
+                 , p.geographic_location
+                 ;';
+
+        $stmt = $conn->prepare($query);
+        $stmt->execute(array($fromDateS, DestinationType::error, DestinationType::ignored));
+
+        $this->deleteFromTable('ar_test_cached_errors', $fromDate, true);
+        $query = 'INSERT INTO ar_test_cached_errors(
+                    `calldate`
+                    , `destination_type`
+                    , `error_destination_type`
+                    ,`count_of_calls`
+                    )
+                    SELECT
+                    ANY_VALUE(MAKEDATE(YEAR(calldate), DAYOFYEAR(calldate)))
+                    , destination_type
+                    , error_destination_type
+                    , SUM(count_of_calls)
+                    FROM ar_cdr
+                    WHERE ar_cdr.calldate >= ?
+                    AND destination_type <> ?
+                    GROUP BY
+                      YEAR(calldate)
+                    , DAYOFYEAR(calldate)
+                    , destination_type
+                    , error_destination_type
+                    ;';
+
+        $stmt = $conn->prepare($query);
+        $stmt->execute(array($fromDateS, DestinationType::ignored));
+    }
+
+    /**
+     * @param string $tableName1
+     * @param string $tableName2
+     * @param bool $areCDRS false for comparing the grand-totals
+     * @param array $fields
+     * @param string $fromDateS
+     * @return int
+     */
+    protected function getCountOfComparedTables($tableName1, $tableName2, $areCDRS, $fields, $fromDateS)
+    {
+        $conn = Propel::getConnection();
+
+        $query = "SELECT COUNT(*) FROM $tableName1 , $tableName2
+                  WHERE $tableName1.calldate >= ? AND $tableName2.calldate >= ? ";
+        foreach ($fields as $f) {
+            $query .= " AND $tableName1.$f = $tableName2.$f";
+        }
+        $stm = $conn->prepare($query);
+        $stm->execute(array($fromDateS, $fromDateS));
+        $count1 = 0;
+        while ((($rs = $stm->fetch(PDO::FETCH_NUM)) !== false)) {
+            $count1 = (int)$rs[0];
+        }
+        $stm->closeCursor();
+
+        return $count1;
+    }
+
+    /**
+     * @param string $tableName
+     * @param array $fields
+     * @param string $fromDateS
+     * @param string $fileName
+     */
+    protected function writeCachedTablesToCSVFile($tableName, $fields, $fromDateS, $fileName)
+    {
+        unlink($fileName);
+
+        $conn = Propel::getConnection();
+
+        $query = "SELECT ";
+        $isFirst = '';
+        foreach ($fields as $f) {
+            $query .= $isFirst . $f;
+            $isFirst = ',';
         }
 
-        $r = true;
-        foreach($stats1 as $key => $value1) {
-             $errorMsg = null;
-             if (array_key_exists($key, $stats2)) {
-                $value2 = $stats2[$key];
-                if ($value2 !== $value1) {
-                    $r = false;
-                    if ($isInteractive) {
-                        $errorMsg = $value2;
-                    }
-                }
-            } else {
-                $r = false;
-
-                if ($isInteractive) {
-                    $errorMsg = '<nothing>';
-                }
-            }
-
-            if (!is_null($errorMsg)) {
-                echo "\ndate, parent-hierachy, destination-type\n$key\nthe $header1 has\ncount_of_calls, billsec, sum_of_income, sum_of_cost_saving, sum_of_cost\n$value1\nwhile the $header2\n$errorMsg";
-            }
+        $query .= " INTO OUTFILE '$fileName' FROM $tableName WHERE calldate >= ? ORDER BY ";
+        $isFirst = '';
+        foreach ($fields as $f) {
+            $query .= $isFirst . $f;
+            $isFirst = ',';
         }
 
-        return $r;
+        $stm = $conn->prepare($query);
+        $stm->execute(array($fromDateS));
+        $stm->closeCursor();
+    }
+
+    /**
+     * @param string $tableName1
+     * @param bool $areCDRS
+     * @param string $fromDateS
+     * @return int
+     */
+    protected function getCountOfTable($tableName1, $areCDRS, $fromDateS)
+    {
+        $conn = Propel::getConnection();
+
+        $query = 'SELECT COUNT(*) FROM ' . $tableName1
+            . ' WHERE calldate >= ? ';
+
+        $stm = $conn->prepare($query);
+        $stm->execute(array($fromDateS));
+        $count1 = 0;
+        while ((($rs = $stm->fetch(PDO::FETCH_NUM)) !== false)) {
+            $count1 = (int)$rs[0];
+        }
+        $stm->closeCursor();
+
+        return $count1;
+    }
+
+    /**
+     * Compare `ar_test_cached_grouped_cdr` with `ar_cached_grouped_cdr`,
+     * and `ar_cached_errors` with `ar_test_cached_errors`.
+     *
+     * NOTE: it is important testing these, because in the rating-engine they are calculated
+     * using code, and not a query.
+     * @param int $fromDate
+     * @return true|string if the tables are equals, the error otherwise
+     */
+    protected function compareTestCachedCDRS($fromDate)
+    {
+        $conn = Propel::getConnection();
+        $fromDateS = fromUnixTimestampToMySQLDate($fromDate);
+
+        $fields = array(
+          'cached_parent_id_hierarchy'
+        , 'billable_ar_organization_unit_id'
+        , 'calldate'
+        , 'destination_type'
+        , 'ar_communication_channel_type_id'
+        , 'operator_type'
+        , 'ar_vendor_id'
+        , 'geographic_location'
+        , 'count_of_calls'
+        , 'billsec'
+        , 'income'
+        , 'cost_saving'
+        , 'cost');
+
+        $count1 = $this->getCountOfComparedTables('ar_test_cached_grouped_cdr', 'ar_cached_grouped_cdr', true, $fields, $fromDateS);
+        $count2 = $this->getCountOfTable('ar_test_cached_grouped_cdr', true, $fromDateS);
+        if ($count1 !== $count2) {
+            $fastCalcs = '/var/tmp/' . getInstanceCodeName() . '_fast_calcs.csv';
+            $safeCalcs = '/var/tmp/' . getInstanceCodeName() . '_safe_calcs.csv';
+            $this->writeCachedTablesToCSVFile('ar_cached_grouped_cdr', $fields, $fromDateS, $fastCalcs);
+            $this->writeCachedTablesToCSVFile('ar_test_cached_grouped_cdr', $fields, $fromDateS, $safeCalcs);
+            return ("There are " . ($count2 - $count1) . " differences in cached CDRS.\nThey are written in $fastCalcs and $safeCalcs\n");
+        }
+
+        $fields = array(
+          'calldate'
+        , 'destination_type'
+        , 'error_destination_type'
+        , 'count_of_calls'
+        );
+
+        $count1 = $this->getCountOfComparedTables('ar_test_cached_errors', 'ar_cached_errors', false, $fields, $fromDateS);
+        $count2 = $this->getCountOfTable('ar_test_cached_errors', false, $fromDateS);
+        if ($count1 !== $count2) {
+            $fastCalcs = '/var/tmp/' . getInstanceCodeName() . '_fast_errors.csv';
+            $safeCalcs = '/var/tmp/' . getInstanceCodeName() . '_safe_errors.csv';
+            $this->writeCachedTablesToCSVFile('ar_cached_errors', $fields, $fromDateS, $fastCalcs);
+            $this->writeCachedTablesToCSVFile('ar_test_cached_errors', $fields, $fromDateS, $safeCalcs);
+            return ("There are " . ($count2 - $count1) . " differences in cached errors.\nThey are written in $fastCalcs and $safeCalcs\n");
+        }
+
+        return true;
     }
 
 ///////////////////////

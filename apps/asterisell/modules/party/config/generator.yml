@@ -9,6 +9,7 @@ generator:
       mycv:                 { name: Type, sort_on_column: customer_or_vendor }
       name:                 { name: Name, help: "The name identifing the customer / vendor. It will be used also in invoices." }
       compact_name:         { name: Short Name, help: "Optional short name used only in internal parts of the user interface, but not in official reports. " }
+      note:                 { name: Note }
       external_crm_code:    { name: CRM Code, help: "The code associated to the customer in you Customer Relationship Management (CRM) tool." }
       vat:                  { name: VAT, help: "VAT Registration Number" }
       legal_address:        { name: Address }
@@ -32,11 +33,15 @@ generator:
       payment_bic:          { name: Bank BIC, help: "Customer Bank BIC" }
       payment_sepa:         { name: Bank SEPA, help: "SEPA Issue Number" }
       payment_info:         { name: Additional Payment Info, help: "Used for alternative Customer payment methods. Payment info can be inserted also in TAGS." }
+      contract_number:      { name: "Contract Id.", help: "The customer contract identifier." }
+      legal_registration_number: { name: "Reg.Num.", help: "The company/activity registration number." }
+      contact_name: { name: "Contact name", help: "The name of the contact inside the company, responsible for the contract." }
+      web_site: { name: "Website", help: "The company website" }
 
     list:
       title: Customers and Vendors
-      display: [is_active, is_billable, =name, external_crm_code, legal_city, legal_state_province, legal_country, _my_max_limit]
-      filters: [name, external_crm_code, legal_city, legal_state_province, is_billable, ar_reseller_id]
+      display: [is_billable, =name, external_crm_code, note, legal_city, legal_state_province, _my_max_limit]
+      filters: [name, external_crm_code, note, legal_city, legal_state_province, is_billable, ar_reseller_id]
       sort: [name, asc]
 
     edit:
@@ -50,9 +55,9 @@ generator:
         tags: { name: "TAGS", help: "TAGS can be used from invoices and reports and other jobs for processing customers in specific ways.", type: admin_check_list, params: through_class=ArPartyHasTag }
 
       display:
-        State: [name, compact_name, is_active, is_billable, _associated_organization, _associated_user, _associated_vendor, tags]
-        Contacts: [email, phone, phone2, fax]
+        State: [name, compact_name, is_active, is_billable, _associated_organization, _associated_user, _associated_vendor, tags, note]
+        Contacts: [email, phone, phone2, fax, web_site, contact_name]
         Reseller: [ar_reseller_id]
-        Invoicing: [vat, external_crm_code, legal_address, legal_city, legal_zipcode, legal_state_province, legal_country, payment_iban, payment_bic, payment_sepa, payment_info]
+        Invoicing: [vat, legal_registration_number, external_crm_code, contract_number, legal_address, legal_city, legal_zipcode, legal_state_province, legal_country, payment_iban, payment_bic, payment_sepa, payment_info]
         Service Migrations: [migration_field_for_telephone, migration_field_for_adsl]
         Calls Cost Limit for last 30 days: [_insert_money_value]

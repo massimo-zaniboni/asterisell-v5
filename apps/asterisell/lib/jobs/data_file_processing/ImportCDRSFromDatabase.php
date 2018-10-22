@@ -1,25 +1,6 @@
 <?php
 
-/* $LICENSE 2014:
- *
- * Copyright (C) 2014 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
- *
- * This file is part of Asterisell.
- *
- * Asterisell is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 3 of the License, or
- * (at your option) any later version.
- *
- * Asterisell is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with Asterisell. If not, see <http://www.gnu.org/licenses/>.
- * $
- */
+// SPDX-License-Identifier: GPL-3.0-or-later
 
 sfLoader::loadHelpers(array('I18N', 'Debug', 'Date', 'Asterisell'));
 
@@ -34,10 +15,6 @@ sfLoader::loadHelpers(array('I18N', 'Debug', 'Date', 'Asterisell'));
  *
  * DEV-NOTE: an imported CDR can not be converted to a standard rating format in this phase, because
  * otherwise the backup of CSV files is not a exact copy of the source table content.
- *
- * DEV-NOTE: storing some info on file-system, and other info on the database can broke some ACID properties
- * of the involved transactions, because the database can not be in sync with file-system, in case of server fault during writings.
- * So special code is added, for discovering and signaling these problems. Then missing CDRs can be manually imported again.
  */
 abstract class ImportCDRSFromDatabase extends FixedJobProcessor
 {
@@ -107,7 +84,7 @@ abstract class ImportCDRSFromDatabase extends FixedJobProcessor
     abstract public function getListOfFields();
 
     /**
-     * The name of the field on getLocalTableName() that indicates if the CDR is exported or not.
+     * The name of the field on the remote CDRS table, that indicates if the CDR is exported or not.
      *
      * There should be an index on this field, for a speedup of the exporting process.
      * Usual something like:
@@ -115,18 +92,27 @@ abstract class ImportCDRSFromDatabase extends FixedJobProcessor
      * > ALTER TABLE <collector_table> ADD COLUMN is_exported_to_asterisell TINYINT(1) NOT NULL DEFAULT 0;
      * > ALTER TABLE <collector_table> ADD INDEX index_cdr_is_exported_to_asterisell(is_exported_to_asterisell);
      *
-     * @return string SQL table field name
+     * @return string|null SQL table field name
+     * null for not using this method of retrieving, but one based on `getProgressiveField()`
      */
     abstract public function getExportedStatusBooleanField();
 
     /**
-     * @return bool true if CDRs to be exported have getExportedStatusBooleanField equal to 1,
-     * false if CDRs to be exported have value 0 on this field.
+     * @return bool true if the CDRS on remote table are exported using the ID field.
+     */
+    public function manageExportUsingIdField() {
+        return is_null($this->getExportedStatusBooleanField());
+    }
+
+    /**
+     * @return bool|null true if CDRs to be exported have `getExportedStatusBooleanField` equal to 1,
+     * false if CDRs to be exported have value 0 on this field,
+     * null if this method of retrieving is not used.
      */
     abstract public function getValueOfCDRToBeExported();
 
     /**
-     * A field in the getLocalTableName() that is progressive on the new generated CDRs.
+     * A field in the `getCollectorTableName()` that is progressive on the new generated CDRs.
      * The requirements are that a new generated CDR has a value of this field greater than previous CDRs.
      * Do not use the calldate, because there can be pending calls, started before already finished and added calls.
      * Usually this field is an autoincrement ID.
@@ -179,6 +165,14 @@ abstract class ImportCDRSFromDatabase extends FixedJobProcessor
     //
 
     /**
+     * Customizable garbage-key.
+     * @return string
+     */
+    protected function getGarbageKey() {
+        return get_class($this);
+    }
+
+    /**
      * @return bool true for using the same connection of Asterisell instance.
      */
     protected function isLocalConnection()
@@ -207,22 +201,57 @@ abstract class ImportCDRSFromDatabase extends FixedJobProcessor
      * @param bool $filterToBeExported true for selecting the CDRs to be exported, false for selecting the exported CDRs
      * @param bool $useForSet true for use in a set command
      * @return string
+     * @throws ArProblemException
      */
     protected function getConditionOnCDRToBeExported($filterToBeExported, $useForSet = false)
     {
-        if ($this->getValueOfCDRToBeExported()) {
-            $exported = '1';
-            $notExported = '0';
-        } else {
-            $exported = '0';
-            $notExported = '1';
-        }
+        $r = '';
 
-        $r = ' ' . $this->getExportedStatusBooleanField() . ' = ';
-        if ($filterToBeExported) {
-            $r .= $exported;
+        if (is_null($this->getExportedStatusBooleanField())) {
+            // Use a retrieve method based on the ID number
+
+            $provider = ArCdrProviderPeer::retrieveByName($this->getCdrProvider());
+            if (is_null($provider)) {
+                $problemDuplicationKey = "Missing provider " . $this->getCdrProvider() . " - " . get_class($this);
+                $problemDescription = "The provider " . $this->getCdrProvider() . " is not configured on the Asterisell side.";
+                $problemEffect = "CDRs of the provider \"" . $this->getCdrProvider() . "\", will not be imported and rated.";
+                $problemProposedSolution = "Add the provider.";
+                $p = ArProblemException::createWithGarbageCollection(
+                    ArProblemType::TYPE_CRITICAL,
+                    ArProblemDomain::CONFIGURATIONS,
+                    null,
+                    $problemDuplicationKey,
+                    $this->getGarbageKey(),
+                    $this->getGarbageFromDate(),
+                    $this->getGarbageToDate(),
+                    $problemDescription,
+                    $problemEffect,
+                    $problemProposedSolution);
+                throw ($p);
+            }
+            $fromId = $provider->getLastImportedId();
+            if (is_null($fromId)) {
+                $fromId = 0;
+            }
+
+            $r .= ' ' . $this->getProgressiveField() . ' > ' . $fromId . ' ';
         } else {
-            $r .= $notExported;
+            // Use a retrieve method based on a flag on the collector table
+
+            if ($this->getValueOfCDRToBeExported()) {
+                $exported = '1';
+                $notExported = '0';
+            } else {
+                $exported = '0';
+                $notExported = '1';
+            }
+
+            $r .= ' ' . $this->getExportedStatusBooleanField() . ' = ';
+            if ($filterToBeExported) {
+                $r .= $exported;
+            } else {
+                $r .= $notExported;
+            }
         }
 
         if ($useForSet === FALSE) {
@@ -230,10 +259,11 @@ abstract class ImportCDRSFromDatabase extends FixedJobProcessor
         }
 
         return $r;
+
     }
 
     /**
-     * @param string|null $fileName the file containing the result if it is a local connection
+     * @param string $fileName the file containing the result if it is a local connection
      * @return string the MySQL query for exporting the data, with a parameter on max progressive id
      */
     protected function getCSVExportingQuery($fileName)
@@ -269,15 +299,20 @@ NOWDOC;
     }
 
     /**
-     * @return string the query for signaling the CDRs as exported, with a parameter on progressive limit
+     * @return string|null the query for signaling the CDRs as exported, with a parameter on progressive limit.
+     * null if the method is not applicable.
      */
     protected function getSetExportedCDRSQuery()
     {
-        $r = 'UPDATE ' . $this->getCollectorTableName() . ' SET ' . $this->getConditionOnCDRToBeExported(false, true);
-        $r .= ' WHERE ' . $this->getConditionOnCDRToBeExported(true);
-        $r .= ' AND ' . $this->getProgressiveField() . ' <= ? ;';
+        if (is_null($this->getExportedStatusBooleanField())) {
+            return null;
+        } else {
+            $r = 'UPDATE ' . $this->getCollectorTableName() . ' SET ' . $this->getConditionOnCDRToBeExported(false, true);
+            $r .= ' WHERE ' . $this->getConditionOnCDRToBeExported(true);
+            $r .= ' AND ' . $this->getProgressiveField() . ' <= ? ;';
 
-        return $r;
+            return $r;
+        }
     }
 
     /**
@@ -296,7 +331,8 @@ NOWDOC;
         return 'cdrs_' . get_ordered_timeprefix_with_unique_id() . '.' . $this->getCdrProvider() . '__' . $this->getLogicalType() . '__' . $this->getPhysicalType();
     }
 
-    public function getDevNotes() {
+    public function getDevNotes()
+    {
         $r = "### Haskell Rating Engine Code Template\n";
         $r .= $this->getHaskellCodeTemplate();
         $r .= "\n";
@@ -322,7 +358,8 @@ NOWDOC;
      * @return PDO
      * @throws ArProblemException
      */
-    protected function getConnection() {
+    protected function getConnection()
+    {
         $conf_connectionString = null;
 
         $conn = null;
@@ -346,7 +383,7 @@ NOWDOC;
                     ArProblemDomain::APPLICATION,
                     null,
                     $problemDuplicationKey,
-                    get_class($this),
+                    $this->getGarbageKey(),
                     $this->getGarbageFromDate(),
                     $this->getGarbageToDate(),
                     $problemDescription,
@@ -374,7 +411,7 @@ NOWDOC;
                     $e,
                     ArProblemType::TYPE_CRITICAL,
                     $problemDuplicationKey,
-                    get_class($this),
+                    $this->getGarbageKey(),
                     $this->getGarbageFromDate(),
                     $this->getGarbageToDate(),
                     "Unable to retrieve and process CDRs from provider \"" . $this->getCdrProvider() . "\", using a database connection/table, according the code in class " . get_class($this) . ". There is an error opening the connection with name \"$connectionName\".",
@@ -398,7 +435,7 @@ NOWDOC;
     {
         $prof = new JobProfiler('bytes');
 
-        ArProblemException::garbageCollect(get_class($this), $this->getGarbageFromDate(), $this->getGarbageToDate());
+        ArProblemException::garbageCollect($this->getGarbageKey(), $this->getGarbageFromDate(), $this->getGarbageToDate());
 
         $conn = $this->getConnection();
 
@@ -409,7 +446,12 @@ NOWDOC;
         $fileImportJob = new ImportDataFiles();
 
         try {
-            $conn->beginTransaction();
+            if ($this->manageExportUsingIdField()) {
+                // NOTE: in this case there is no transaction for signaling the already transferred CDRS
+                // because it is a simply annotation of last retrieved ID.
+            } else {
+                $conn->beginTransaction();
+            }
 
             // NOTE: I'm using maxId because during query execution new CDRs can be inserted in the collector table,
             // and they will be processed in the next run of the job.
@@ -417,7 +459,7 @@ NOWDOC;
             $stmt = $conn->prepare($query);
             $stmt->execute();
             $maxId = NULL;
-            while ((($rs = $stmt->fetch(PDO::FETCH_NUM)) !== false)) {
+            while (($rs = $stmt->fetch(PDO::FETCH_NUM)) !== false) {
                 $maxId = $rs[0];
             }
             $stmt->closeCursor();
@@ -444,7 +486,7 @@ NOWDOC;
                             ArProblemDomain::APPLICATION,
                             null,
                             $problemDuplicationKey,
-                            get_class($this),
+                            $this->getGarbageKey(),
                             $this->getGarbageFromDate(),
                             $this->getGarbageToDate(),
                             $problemDescription,
@@ -484,7 +526,7 @@ NOWDOC;
                             ArProblemDomain::APPLICATION,
                             null,
                             $problemDuplicationKey,
-                            get_class($this),
+                            $this->getGarbageKey(),
                             $this->getGarbageFromDate(),
                             $this->getGarbageToDate(),
                             $problemDescription,
@@ -517,7 +559,7 @@ NOWDOC;
                         ArProblemDomain::APPLICATION,
                         null,
                         $problemDuplicationKey,
-                        get_class($this),
+                        $this->getGarbageKey(),
                         $this->getGarbageFromDate(),
                         $this->getGarbageToDate(),
                         $problemDescription,
@@ -526,35 +568,41 @@ NOWDOC;
                     throw ($p);
                 }
 
-                $query = $this->getSetExportedCDRSQuery();
-                $stmt = $conn->prepare($query);
-                if ($stmt === FALSE) {
-                    $isOk = FALSE;
+               $query = $this->getSetExportedCDRSQuery();
+               if (!is_null($query)) {
+                    // signal on the remote table the CDRS that are already imported
+                    $stmt = $conn->prepare($query);
+                    if ($stmt === FALSE) {
+                        $isOk = FALSE;
+                    } else {
+                        $isOk = $stmt->execute(array($maxId));
+                    }
+                    if ($isOk === FALSE) {
+                        $problemDuplicationKey = "Can not execute CDR set as imported query - " . get_class($this);
+                        $problemDescription = "Unable to set as already processed the CDRs of the provider \"" . $this->getCdrProvider() . "\", using a database connection/table, according the code in class " . get_class($this) . '.' . "\nThe executed query is \n$query\n";
+                        $problemEffect = "CDRs of the provider \"" . $this->getCdrProvider() . "\", will not be rated.";
+                        $problemProposedSolution = "If the problem persist, contact the assistance.";
+                        $p = ArProblemException::createWithGarbageCollection(
+                            ArProblemType::TYPE_CRITICAL,
+                            ArProblemDomain::APPLICATION,
+                            null,
+                            $problemDuplicationKey,
+                            $this->getGarbageKey(),
+                            $this->getGarbageFromDate(),
+                            $this->getGarbageToDate(),
+                            $problemDescription,
+                            $problemEffect,
+                            $problemProposedSolution);
+                        throw ($p);
+                    }
                 } else {
-                    $isOk = $stmt->execute(array($maxId));
-                }
-                if ($isOk === FALSE) {
-                    $problemDuplicationKey = "Can not execute CDR set as imported query - " . get_class($this);
-                    $problemDescription = "Unable to set as already processed the CDRs of the provider \"" . $this->getCdrProvider() . "\", using a database connection/table, according the code in class " . get_class($this) . '.' . "\nThe executed query is \n$query\n";
-                    $problemEffect = "CDRs of the provider \"" . $this->getCdrProvider() . "\", will not be rated.";
-                    $problemProposedSolution = "If the problem persist, contact the assistance.";
-                    $p = ArProblemException::createWithGarbageCollection(
-                        ArProblemType::TYPE_CRITICAL,
-                        ArProblemDomain::APPLICATION,
-                        null,
-                        $problemDuplicationKey,
-                        get_class($this),
-                        $this->getGarbageFromDate(),
-                        $this->getGarbageToDate(),
-                        $problemDescription,
-                        $problemEffect,
-                        $problemProposedSolution);
-                    throw ($p);
+                    // take note of the imported ID later
                 }
 
+                // Move the file to the input directory. It will be imported later.
                 $isOk = @rename($tmpResultFileName, $dstResultFileName);
                 if ($isOk === FALSE) {
-                    $problemDuplicationKey = "Can not move file - " . get_class($this);
+                    $problemDuplicationKey = "Can not move file - " . $this->getGarbageKey();
                     $problemDescription = "Unable to move file \"$tmpResultFileName\" to \"$dstResultFileName\".";
                     $problemEffect = "CDRs of the provider \"" . $this->getCdrProvider() . "\", will not be rated.";
                     $problemProposedSolution = "If the problem persist, contact the assistance.";
@@ -563,7 +611,7 @@ NOWDOC;
                         ArProblemDomain::APPLICATION,
                         null,
                         $problemDuplicationKey,
-                        get_class($this),
+                        $this->getGarbageKey(),
                         $this->getGarbageFromDate(),
                         $this->getGarbageToDate(),
                         $problemDescription,
@@ -571,20 +619,31 @@ NOWDOC;
                         $problemProposedSolution);
                     throw ($p);
                 }
+                // NOTE: PHP has no fsync support, so hope that the file is effectively written on the file system.
+                // NOTE: also in case of direct writing to the database, we can not close at the same time the remote
+                // and local connection, for being sure it is all ok.
 
-                $fileImportJob->processFile($dstResultFileName, $debugFileName);
-                // DEV-NOTE: import the file in the database archive.
-                // In this way if there is a successfull COMMIT in the database,
-                // but the file is not correctly transferred due to some fsync problem,
-                // then the application will warn about a missing input file.
-                // On the contrary if the file is moved, but the database does not commit,
-                // then the CDRs will be exported again, and some space will be lost in the archive, until next garbage collection.
-                // DEV-NOTE: when PHP support fsync, the best option is forcing an fsync before committing, in order to having the database and filesystem synchronized
+                if ($this->manageExportUsingIdField()) {
+                    $fileImportJob->processFile($dstResultFileName, $debugFileName);
+                    // NOTE: in case of ID method, we can safely import the file,
+                    // and if it is all ok (committed on local DB) signal the imported ID at the end.
+                    // Signaling the ID is a fast operation and likely to be committed.
+
+                    $provider = ArCdrProviderPeer::retrieveByName($this->getCdrProvider());
+                    $provider->setLastImportedId($maxId);
+                    $provider->save();
+                }
 
                 $prof->addToProcessedUnits(filesize($dstResultFileName));
 
             }
-            $this->commitTransactionOrSignalProblem($conn);
+            if ($this->manageExportUsingIdField()) {
+                // NOTE: in this case there is no transaction for signaling the already transferred CDRS
+                // because it is a simply annotation of last retrieved ID.
+            } else {
+                $this->commitTransactionOrSignalProblem($conn);
+            }
+
         } catch (ArProblemException $e) {
             if (!is_null($dstResultFileName)) {
                 @unlink($dstResultFileName);
@@ -607,12 +666,12 @@ NOWDOC;
 
             $this->maybeRollbackTransaction($conn);
 
-            $problemDuplicationKey = get_class($this) . " - unexpected error - " . $e->getCode();
+            $problemDuplicationKey = $this->getGarbageKey() . " - unexpected error - " . $e->getCode();
             $p = ArProblemException::createFromGenericExceptionWithGarbageCollection(
                 $e,
                 ArProblemType::TYPE_CRITICAL,
                 $problemDuplicationKey,
-                get_class($this),
+                $this->getGarbageKey(),
                 $this->getGarbageFromDate(),
                 $this->getGarbageToDate(),
                 "Unable to retrieve and process CDRs from provider \"" . $this->getCdrProvider() . "\", using a database connection/table, according the code in class " . get_class($this),
@@ -638,12 +697,12 @@ NOWDOC;
         if ($this->removeExportedCDRSOlderThanDays() > 0) {
             // use a separate garbage key because it is a separated logical job,
             // otherwise every time it is not executed, the error is removed.
-            $garbageKey = "delete-cdrs-" . get_class($this);
+            $garbageKey = "delete-cdrs-" . $this->getGarbageKey();
             ArProblemException::garbageCollect($garbageKey, null, null);
 
             $conn = $this->getConnection();
 
-            $checkFile = self::ARCHIVE_JOB_PREFIX . get_class($this);
+            $checkFile = self::ARCHIVE_JOB_PREFIX . $this->getGarbageKey();
             $checkLimit = strtotime("-" . $this->getHowMuchCheckCDRSOlderThanDays() . " minutes");
             $mutex = new Mutex($checkFile);
             if ($mutex->maybeTouch($checkLimit)) {
@@ -666,7 +725,7 @@ NOWDOC;
                 } catch (ArProblemException $e) {
                     $this->maybeRollbackTransaction($conn);
 
-                    $problemDuplicationKey = get_class($this) . " - unexpected error during delete - " . $e->getCode();
+                    $problemDuplicationKey = $this->getGarbageKey() . " - unexpected error during delete - " . $e->getCode();
                     $p = ArProblemException::createWithGarbageCollection(
                         ArProblemType::TYPE_ERROR,
                         $problemDuplicationKey,
@@ -682,7 +741,7 @@ NOWDOC;
                 } catch (Exception $e) {
                     $this->maybeRollbackTransaction($conn);
 
-                    $problemDuplicationKey = get_class($this) . " - unexpected error during delete - " . $e->getCode();
+                    $problemDuplicationKey = $this->getGarbageKey() . " - unexpected error during delete - " . $e->getCode();
                     $p = ArProblemException::createFromGenericExceptionWithGarbageCollection(
                         $e,
                         ArProblemType::TYPE_ERROR,
@@ -712,7 +771,8 @@ NOWDOC;
 // Utility Functions
 //
 
-    protected function strHaskellize($str) {
+    protected function strHaskellize($str)
+    {
         $s1 = str_replace('-', '_', $str);
         return $s1;
     }

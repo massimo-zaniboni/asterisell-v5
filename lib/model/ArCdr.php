@@ -85,7 +85,7 @@ class ArCdr extends BaseArCdr
             . "\ncount_of_calls: " . self::showMyValue($this->getCountOfCalls())
             . "\ndestination_type: " . self::showDestinationType($this->getDestinationType())
             . "\nis_redirect: " . self::showMyBool($this->getIsRedirect())
-            . "\nerror_destination_type: " . self::showMyValue($this->getErrorDestinationType())
+            . "\nerror_destination_type: " . self::showDestinationType($this->getErrorDestinationType())
             . "\nduration: " . self::showMyValue($this->getDuration())
             . "\nbillsec: " . self::showMyValue($this->getBillsec())
             . "\nar_organization_unit_id: " . self::showMyValue($this->getArOrganizationUnitId())
@@ -98,7 +98,8 @@ class ArCdr extends BaseArCdr
             . "\ncost: " . self::showMyValue($this->getCost())
             . "\nexpected_cost: " . self::showMyValue($this->getExpectedCost())
             . "\ncost_saving: " . self::showMyValue($this->getCostSaving())
-            . "\nar_telephone_prefix_id:  " . self::showMyValue($this->getArTelephonePrefixId())
+            . "\nar_telephone_prefix_id: " . self::showMyValue($this->getArTelephonePrefixId())
+            . "\nrating_code: " . self::showMyValue(ArTelephonePrefixPeer::retrieveByPK($this->getArTelephonePrefixId())->getRatingCode())
             . "\ncached_external_telephone_number: " . self::showMyValue($this->calcMaskedTelephoneNumber($this->getCachedExternalTelephoneNumber(), false, false))
             . "\ncached_masked_external_telephone_number: " . self::showMyValue($this->getCachedMaskedExternalTelephoneNumber())
             . "\nexternal_telephone_number_with_applied_portability: " . self::showMyValue($this->calcMaskedTelephoneNumber($this->getExternalTelephoneNumberWithAppliedPortability(), false, false))
@@ -206,6 +207,34 @@ class ArCdr extends BaseArCdr
         }
 
         return $unmasked;
+    }
+
+    /**
+     * @return ArTelephonePrefix
+     */
+    public function getArTelephonePrefix() {
+        return ArTelephonePrefixPeer::retrieveByPK($this->getArTelephonePrefixId());
+    }
+
+    /**
+     * @return ArVendor
+     */
+    public function getArVendor() {
+        return ArVendorPeer::retrieveByPK($this->getArVendorId());
+    }
+
+    /**
+     * @return ArOrganizationUnit
+     */
+    public function getArOrganizationUnit() {
+        return ArOrganizationUnitPeer::retrieveByPK($this->getArOrganizationUnitId());
+    }
+
+    /**
+     * @return ArCommunicationChannelType
+     */
+    public function getArCommunicationChannelType() {
+        return ArCommunicationChannelTypePeer::retrieveByPK($this->getArCommunicationChannelTypeId());
     }
 
 }

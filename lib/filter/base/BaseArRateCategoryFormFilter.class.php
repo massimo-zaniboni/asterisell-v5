@@ -12,7 +12,7 @@ abstract class BaseArRateCategoryFormFilter extends BaseFormFilterPropel
   public function setup()
   {
     $this->setWidgets(array(
-      'internal_name'     => new sfWidgetFormFilterInput(),
+      'internal_name'     => new sfWidgetFormFilterInput(array('with_empty' => false)),
       'short_description' => new sfWidgetFormFilterInput(),
     ));
 

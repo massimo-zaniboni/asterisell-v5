@@ -11,6 +11,8 @@ class ArOrganizationUnitType extends BaseArOrganizationUnitType
 {
     /**
      * Used in `internal_name` field.
+     * IMPORTANT: in case of changes mantain in synchro with `OrganizationHierarchy`
+     * on the Haskell side.
      */
     const ID_FOR_EXTENSION = 'extension';
 

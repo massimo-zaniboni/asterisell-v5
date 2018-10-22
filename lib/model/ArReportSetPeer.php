@@ -119,10 +119,10 @@ class ArReportSetPeer extends BaseArReportSetPeer
             SET produced_report_already_reviewed = ?
             WHERE (ar_report_set_id = ?
             OR about_ar_report_set_id = ?)');
-            $stmt->execute(array($isPublish, $reportSetId, $reportSetId));
+            $stmt->execute(array((int)$isPublish, $reportSetId, $reportSetId));
 
             $stmt = $conn->prepare('UPDATE ar_report_set SET must_be_reviewed = ? WHERE id = ?');
-            $stmt->execute(array(!$isPublish, $reportSetId));
+            $stmt->execute(array((int)!$isPublish, $reportSetId));
 
             $stm = $conn->prepare('
             SELECT ar_report.id

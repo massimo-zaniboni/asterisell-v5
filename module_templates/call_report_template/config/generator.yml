@@ -38,7 +38,7 @@ generator:
       fields:
         internal_telephone_number: { name: Account, help: "The internal VoIP account that is target or source of the incoming / outgoing call." }
         external_location:        { name: Location, help: "Where resides the called / calling external telephone number." }
-        external_connection_type: { name: Connection, help: "The technology used for telephone connection: fixed line, mobile line and so on." }
+        external_connection_type: { name: Type, help: "The telephone number type." }
         owner:                   { name: Customer, help: "The owner of called / calling internal VoIP account." }
         office:                  { name: Office, help: "The office where resides the called / calling internal VoIP account." }
         calldate:                { name: Date, sort_on_column: calldate }
@@ -52,8 +52,6 @@ generator:
         ar_vendor_id:            { name: Vendor, help: "The telephone vendor that routed / managed the call." }
         earn:                    { name: Earn, help: "The difference between the income and the cost of the call." }
         filter_grouping:         { name: Group by, help: "Show totals grouping by some criteria"}
-        filter_on_party:         { name: Customer, filter_criteria_disabled: true }
-        filter_on_office:        { name: Office, filter_criteria_disabled: true }
         filter_on_account:       { name: "VoIP account", filter_criteria_disabled: true }
         filter_on_timeframe:     { name: "Time frame", filter_criteria_disabled: true }
         filter_on_calldate_from: { name: "From (inclusive)", filter_criteria_disabled: true }
@@ -62,7 +60,11 @@ generator:
         filter_on_dst_operator_type:  { name: "Tel. number connection type", filter_criteria_disabled: true }
         filter_on_vendor_cost:  { name: "Vendor Cost", filter_criteria_disabled: true }
         filter_on_dst_geographic_location: { name: "Tel. number location", filter_criteria_disabled: true }
+        filter_on_vendor:       { name: "Vendor", filter_criteria_disabled: true }
+        filter_on_dst_operator_type: { name: "Tel. number type", filter_criteria_disabled: true }
+        filter_on_communication_channel:       { name: "Communication channel", filter_criteria_disabled: true }
         filter_on_destination_type:  { name: "Call Direction", filter_criteria_disabled: true }
+        filter_info_label: { name: "Warning"  }
         is_redirect:                 { name: "Is redirected", filter_criteria_disabled: true }
         ar_call_end_point_type_id: { name: "Tel. Operator"    }
         end_point_type:            { name: "Tel. Number Type" }
@@ -84,13 +86,15 @@ generator:
     $fieldsToShow = FieldsToShow::getFieldsToShowInCallReport($generateForAdmin);
 
     $display = '_internal_telephone_number';
-    $filter = '_filter_grouping, _filter_on_proper_organization, _filter_on_voip_account';
+    $filter = '_filter_grouping, _filter_on_timeframe, _filter_on_calldate_from, _filter_on_calldate_to';
+    $filter .= ', _filter_on_proper_organization, _filter_on_voip_account';
 
     if (sfConfig::get('app_show_extension_code')) {
       $filter .= ',_filter_on_voip_account_short_code';
     }
 
-    // the order of fields, is the same showing order
+    // First add inexpensive filters, and complete display info.
+    // DEV-NOTE: the order of fields is important.
     foreach($fieldsToShow as $fieldToShow) {
         switch($fieldToShow) {
             case FieldsToShow::ORGANIZATION_ID:
@@ -99,12 +103,11 @@ generator:
 
             case FieldsToShow::CALL_DIRECTION:
             $display .= ',_direction';
-            $filter .= ', _filter_on_destination_type, is_redirect';
+            $filter .= ', _filter_on_destination_type';
             break;
 
             case FieldsToShow::EXTERNAL_TELEPHONE_NUMBER:
             $display .= ', _external_telephone_number';
-            $filter .= ', _filter_on_external_telephone_number';
             break;
 
             case FieldsToShow::GEOGRAPHIC_LOCATION:
@@ -119,7 +122,6 @@ generator:
 
             case FieldsToShow::CALL_DATE:
             $display .= ', _mycalldate';
-            $filter .= ', _filter_on_timeframe, _filter_on_calldate_from, _filter_on_calldate_to';
             break;
 
             case FieldsToShow::BILL_SEC:
@@ -144,12 +146,12 @@ generator:
 
             case FieldsToShow::VENDOR:
             $display .= ', ar_vendor';
-            $filter .= ', ar_vendor_id, _filter_on_vendor_cost';
+            $filter .= ', _filter_on_vendor';
             break;
 
             case FieldsToShow::COMMUNICATION_CHANNEL:
             $display .= ', communication_channel';
-            $filter .= ', ar_communication_channel_type_id';
+            $filter .= ', _filter_on_communication_channel';
             break;
 
             case FieldsToShow::COUNT_OF_CALLS:
@@ -196,6 +198,27 @@ generator:
 
     if ($generateForAdmin) {
       $filter .= ', _show_masked_telephone_numbers';
+
+      // Show expensive filters only for ADMIN
+
+      $filter .= ', _filter_info_label';
+
+      // Then show expensive index
+      foreach($fieldsToShow as $fieldToShow) {
+        switch($fieldToShow) {
+            case FieldsToShow::EXTERNAL_TELEPHONE_NUMBER:
+            $filter .= ', _filter_on_external_telephone_number';
+            break;
+
+            case FieldsToShow::VENDOR:
+            $filter .= ', _filter_on_vendor_cost';
+            break;
+
+            case FieldsToShow::CALL_DIRECTION:
+            $filter .= ', is_redirect';
+            break;
+        }
+      }
     }
 
 ?>

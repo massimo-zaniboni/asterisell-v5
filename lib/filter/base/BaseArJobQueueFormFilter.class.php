@@ -12,9 +12,9 @@ abstract class BaseArJobQueueFormFilter extends BaseFormFilterPropel
   public function setup()
   {
     $this->setWidgets(array(
-      'is_part_of'                 => new sfWidgetFormFilterInput(array('with_empty' => false)),
+      'is_part_of'                 => new sfWidgetFormFilterInput(),
       'state'                      => new sfWidgetFormFilterInput(array('with_empty' => false)),
-      'created_at'                 => new sfWidgetFormFilterDate(array('from_date' => new sfWidgetFormDate(), 'to_date' => new sfWidgetFormDate())),
+      'created_at'                 => new sfWidgetFormFilterDate(array('from_date' => new sfWidgetFormDate(), 'to_date' => new sfWidgetFormDate(), 'with_empty' => false)),
       'start_at'                   => new sfWidgetFormFilterDate(array('from_date' => new sfWidgetFormDate(), 'to_date' => new sfWidgetFormDate())),
       'end_at'                     => new sfWidgetFormFilterDate(array('from_date' => new sfWidgetFormDate(), 'to_date' => new sfWidgetFormDate())),
       'description'                => new sfWidgetFormFilterInput(array('with_empty' => false)),

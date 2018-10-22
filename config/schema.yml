@@ -12,47 +12,51 @@ propel:
   # - BackupCDRS
   # - create an upgrade job, signaling that CDR table is changed
 
-    id:
+    calldate: { type: timestamp, required: true, primaryKey: true }
+    # start of call (date/time)
 
-    calldate:    { type: timestamp, required: true }
-    # start of call (date/time).
-    # NOTE: disable the index in this place,
-    # but enable the index on this field later in index section, giving the exact name.
+    id: { type: integer, required: true, default: 0, primaryKey: true }
+    # Used for making unique two calls with the same calldate
+    # DEV-NOTE: auto-increment will be managed by code, because it is more reliable
 
-    to_calldate: { type: timestamp, index: true }
+    is_service_cdr: { type: boolean, required: true, default: false, primaryKey: true }
+    # true for bundle rates and service cdrs
+    # NOTE: it is a primary-key because the service-cdrs can be written (in case) also from distinct providers
+    # respect the normal CDRS
+
+    to_calldate: { type: timestamp, required: false }
     # For normal CDR is NULL.
     # In case of ServiceCDRS associated to bundle-rates,
     # the `calldate` represent the start date of the timeframe (inclusive),
     # while this field the ending calldate of the timeframe (exclusive).
     # So this field identifies in an explicit way service-cdrs, from normal calls.
-
-    is_imported_service_cdr: { type: boolean, required: true, default: false }
-    # 1 (true) if it is a service-cdr imported from an external provider.
-    # 0 (false) if it is a normal-cdr or a service-cdr calculated from this instance.
+    # NOTE: is_service_cdr <--> to_calldate IS NULL,
+    # but this replication is needed because there can not be NULL values
+    # on primary-keys, and many code works querying `is_service_cdr` instead of `to_calldate`
 
     count_of_calls: { type: integer, required: true, default: 1 }
     # how many calls are associated to this line.
     # Usually 1.
     # Used for storing aggregate totals on some CDR.
 
-    destination_type: { type: integer, size: 1, required: true, default: 0 }
+    destination_type: { type: smallint, required: true, default: 0 }
     # the direction of the call
     # See "apps/asterisell/lib/DestinationType.php" for a list of available
     # "destination_type": for incoming/outgoing/internal/ignorable calls.
 
     is_redirect: { type: boolean, required: true, default: false }
 
-    duration:    { type: integer, required: true }
+    duration:    { type: integer, required: true, default: 0 }
     # total time in system, in seconds from ring to hangup,
     # NOTE: it is different from billsec, that is when the call was answered (and it is billed)
 
-    billsec:     { type: integer, required: true }
+    billsec:     { type: integer, required: true, default: 0 }
     # total time call is up, in seconds, from answer to hangup
 
-    ar_organization_unit_id:
+    ar_organization_unit_id: integer
     # the most specific `ar_organization_unit` that is responsable of the call.
 
-    cached_parent_id_hierarchy: { type: varchar, size: 850, required: false }
+    cached_parent_id_hierarchy: { type: varbinary, size: 850, required: false }
     # a string like "123/45/456" identifying the root parent, and other parents in the hierarchy.
     # In this way are possible efficient queries in the call report, about all the accountcode owned
     # from a certain organization.
@@ -71,20 +75,20 @@ propel:
     # what the customer saved if there were no discounts.
     # Used for showing possible savings to customers.
 
-    ar_vendor_id:
+    ar_vendor_id: integer
     # NULL before the rating process,
     # the ar_vendor which must be paid for call routing service
 
-    ar_communication_channel_type_id:
+    ar_communication_channel_type_id: integer
     # NULL before rating process
 
     cost: { type: bigint, required: false, default: null }
     # the income of the vendor that has managed the call
 
-    expected_cost: { type: bigint, required: false, default: null }
-    # the expected cost, according the calculations on the service provider side.
+    expected_cost: { type: bigint, required: false }
+    # the expected cost, according the calculations on the serv$ice provider side.
 
-    ar_telephone_prefix_id:
+    ar_telephone_prefix_id: integer
     # the prefix associated to the called telephone number.
     # This association: 
     #   * is made during rating process;
@@ -112,7 +116,7 @@ propel:
     # as "cached_external_telephone_number" but with a mask on its last part
     # if it is specified in the application configuration file.
 
-    error_destination_type: { type: integer, size: 1, required: true, default: 0 }
+    error_destination_type: { type: smallint, required: true, default: 0 }
     # in case of an imported CDR with an error, the probably destination_type of the CDR,
     # if it can be rated correctly.
     # 0 if there is no error.
@@ -126,13 +130,15 @@ propel:
     # NOTE: I don't need to speed-up with an index because the link is between the CDR and the
     # problem, and on the side of the problem this link has an index.
 
-    debug_cost_rate: varchar(2048)
+    debug_cost_rate: varchar(512)
     # NULL for pure service CDRS, not NULL for bundle rates, and normal calls
+    # DEV-NOTE: this info (despite the name) is not used only for debug, but also for production code.
 
-    debug_income_rate: varchar(2048)
+    debug_income_rate: varchar(512)
     # NULL for pure service CDRS, not NULL for bundle rates, and normal calls
+    # DEV-NOTE: this info (despite the name) is not used only for debug, but also for production code.
 
-    debug_residual_income_rate: varchar(2048)
+    debug_residual_income_rate: varchar(512)
 
     debug_residual_call_duration: integer
 
@@ -142,17 +148,12 @@ propel:
 
     debug_bundle_left_cost: bigint
 
-    debug_rating_details: varchar(10000)
-
-    _indexes:
-
-      ar_cdr_calldate_index: [calldate, cached_parent_id_hierarchy]
-      # added cached_parent_id_hierarchy for speeding up reports on a specific organization
+    debug_rating_details: varchar(5000)
 
   ar_destination_type:
     id:
 
-    internal_id: integer
+    internal_id: smallint
 
     name: varchar(1024)
 
@@ -161,23 +162,17 @@ propel:
   # mantain info about known telephone numbers that are ported to a new number.
   # DEV-NOTE: the better behaviour is adding info to this table:
   # * the "from_date" invalidate previous version of a record
-  # * each deletion causes the entire export of the table again
   #
-  # DEV-NOTE: se si aggiungono fields, occorre rivedere i triggers in InitWithDefaultMySQLStoredProcedures
+  # DEV-NOTE: if changed update triggers in InitWithDefaultMySQLStoredProcedures
 
-    id:
-
-    telephone_number: { type: varchar, size: 255, required: true, index: true }
-    #
+    telephone_number: { type: varchar, size: 255, primaryKey: true }
     # the source telephone number
 
+    from_date:    { type: timestamp, primaryKey: true }
+    # it is exported from this date inclusive
+
     ported_telephone_number: { type: varchar, size: 255, required: true }
-    #
-    # the destination telephone number
-
-    from_date:    { type: timestamp, required: false, index: true }
-
-    is_exported_to_rating_engine: { type: boolean, index: true, required: true, default: false }
+    # the destination telephone number, or the same number in case of porting back
 
   ar_rating_engine_export_status:
   # info about the synchro status of the external rating engine, and internal data
@@ -202,11 +197,21 @@ propel:
     # a compact/very-short name used, where space is a premium, and in internal/local communications/filters,
     # because to the external it is better using the complete name
 
+    note: varchar(1024)
+
     external_crm_code: varchar(255)
+
+    contract_number: varchar(255)
+    #
+    # contract signed from the customer
 
     vat: varchar(255)
     #
     # VAT registration number
+
+    legal_registration_number: varchar(255)
+    #
+    # commercial company registration number
 
     is_billable: { type: boolean, index: true, required: true, default: false }
     #
@@ -225,13 +230,18 @@ propel:
 
     email: varchar(255)
 
+    contact_name: varchar(255)
+    # the responsible inside the party/company of the contract
+
     phone: varchar(255)
 
     phone2: varchar(255)
 
     fax: varchar(255)
 
-    max_limit_30: { type: integer, required: false, default: NULL }
+    web_site: varchar(120)
+
+    max_limit_30: { type: bigint, required: false, default: NULL }
     #
     # the max cost of calls for last 30 days.
 
@@ -394,21 +404,9 @@ propel:
     new_imported_cdrs_from_calldate: timestamp
     # not NULL if there are new imported CDRs to rate
 
-    new_imported_cdrs_to_calldate: timestamp
-    # not NULL if there are new imported CDRs to rate
-
     scheduled_rerate_from_specific_calldate: timestamp
     # not NULL for forcing a rerate.
     # This is a user specified time-frame.
-
-    scheduled_rerate_to_specific_calldate: timestamp
-    # NULL for rating all CDRs (only in case scheduled_rerate_from_specific_calldate is not NULL)
-    # a specific calldate for rating all CDRs until this date (exclusive).
-
-    scheduled_imported_services_rerate_from_specific_calldate: timestamp
-    # not NULL for forcing a rerate only of imported services
-
-    scheduled_imported_services_rerate_to_specific_calldate: timestamp
 
     current_count_of_rerating_failed_attempts: { type: integer, required: true, default: 0 }
 
@@ -428,8 +426,6 @@ propel:
     # 1 for scheduled cleaning
     # 2 for activated cleaning
 
-
-
   ar_reseller:
   # a VoIP vendor reselling the calls of this Asterisell instance, to his own customers.
     id:
@@ -444,7 +440,7 @@ propel:
   # every customer can be assigned to a certain rate_category
     id:
 
-    internal_name: { type: varchar, size: 255, required: false, unique: true, index: unique }
+    internal_name: { type: varchar, size: 255, required: true, unique: true, index: unique }
     # an internal name, used from management jobs for recognizing the ar_rate_category.
     # I'm using only an "internal_name" and not also a "name", because rate categories are used internally,
     # and the name is directly the internal_name
@@ -550,13 +546,15 @@ propel:
     # This has always the priority respect also longer prefixes.
 
     name: varchar(1024)
+    #
+    # the name of the operator
     
-    geographic_location: varchar(1024)
+    geographic_location: varchar(255)
     #
     # where (mainly) user of the prefix are geographically located.
     # In case of pseudo calls like ServiceCDRS, this is the detailed description of the type of the call.
     
-    operator_type: { type: varchar(1024), index: true }
+    operator_type: { type: varchar(255), index: true }
     #
     # something like "mobile" or "fixed" or "VoIP"
     # that describes the type of transmission technology
@@ -566,9 +564,16 @@ propel:
     # In case of pseudo calls like ServiceCDRS, this is the main type of the service, or a generic "Sevice"
 
     display_priority_level: { type: integer, required: true, default: 0 }
+    #
     # a progressive number indicating the priority class of this prefix.
     # 0 for normal priority.
     # 1 for higher priority and so on.
+    # DEV-NOTE: not supported any more
+
+    rating_code: { type: varchar(255), required: true, default: '' }
+    #
+    # an internal code sent to the rating engine, and that can be used for rating the call.
+    # Usually it is associated to some hard-coded prefix, installed for specific customers.
 
   ar_organization_unit:
   #
@@ -583,6 +588,22 @@ propel:
     internal_name2: { type: varchar, size: 200, required: false, unique: true, index: unique }
     #
     # another internal name, used from management jobs for recognizing the ar_organization_unit.
+
+    internal_checksum1: { type: varchar, size: 200, required: false }
+    #
+    # optionally used from automatic importing jobs
+
+    internal_checksum2: { type: varchar, size: 200, required: false }
+    #
+    # optionally used from automatic importing jobs
+
+    internal_checksum3: { type: varchar, size: 200, required: false }
+    #
+    # optionally used from automatic importing jobs
+
+    internal_checksum4: { type: varchar, size: 200, required: false }
+    #
+    # optionally used from automatic importing jobs
 
     export_code: { type: varchar, size: 200, required: false, unique: true, index: unique }
     # in case of extensions exported to resellers, this is the code used as extension/internal number
@@ -825,6 +846,11 @@ propel:
     #
     # md5 hashed password
 
+    clear_password_to_import: { type: varchar, required: false, index: true }
+    #
+    # if not null, contains a password in clear to import for the user.
+    # After the import the password will be cleared.
+
     is_enabled: { type: boolean, required: true, default: true }
 
     is_root_admin: { type: boolean, required: true, default: false }
@@ -1040,11 +1066,11 @@ propel:
     # a short name for the report. NULL for using the default report name.
     # In this way the user can specify a custom name for the report.
 
-    produced_report_short_description: varchar(2048)
+    produced_report_short_description: varchar(512)
     #
     # short description for the report
 
-    produced_report_additional_description: varchar(2048)
+    produced_report_additional_description: varchar(1024)
     #
     # description for the meaning of the report,
 
@@ -1068,9 +1094,9 @@ propel:
 
     produced_report_document_checksum: varchar(1024)
 
-    report_mail_subject: varchar(1024)
+    report_mail_subject: varchar(512)
 
-    report_mail_body: varchar(5024)
+    report_mail_body: varchar(2048)
 
     report_attachment_file_name: varchar(255)
     # NULL or empty for using a default name
@@ -1082,13 +1108,13 @@ propel:
     #
     # an internal name, used from management jobs
 
-    cached_parent_id_hierarchy: { type: varchar, size: 2024, index: true, required: false }
+    cached_parent_id_hierarchy: { type: varbinary, size: 850, index: true, required: false }
     #
     # a string like "123/45/456/" identifying the root parent, and other parents in the hierarchy.
     # In this way are possible efficient queries in the call report, about all the accountcode owned
     # from a certain organization.
 
-    legal_nr_prefix: { type: varchar, size: 255, index: false, required: true }
+    legal_nr_prefix: { type: varchar, size: 80, index: false, required: true, default: '' }
     # a prefix to use before the number of the invoice
 
     legal_consecutive_nr: integer
@@ -1107,13 +1133,13 @@ propel:
     legal_receiver_vat: varchar(255)
     legal_receiver_address: varchar(1024)
 
-    total_without_tax: { type: bigint, required: false, default: null }
+    total_without_tax: { type: bigint, required: true, default: 0 }
 
-    tax: { type: bigint, required: false, default: null }
+    tax: { type: bigint, required: true, default: 0 }
 
-    applied_vat: { type: bigint, required: false, default: null }
+    applied_vat: { type: bigint, required: true, default: 0 }
 
-    total_with_tax: { type: bigint, required: false, default: null }
+    total_with_tax: { type: bigint, required: true, default: 0 }
 
   ar_report_also_for:
   # the users with the specified role for the organization report, can view the report
@@ -1454,7 +1480,7 @@ propel:
     # true if the problem was signaled to the administrator
     # via mail or other method
 
-    count_of_cdrs: { type: integer, required: true, default: 0 }
+    count_of_cdrs: { type: bigint, required: true, default: 0 }
     # how many CDRs are associated to this error.
 
   ar_new_problem:
@@ -1508,7 +1534,7 @@ propel:
     # true if the problem was signaled to the administrator
     # via mail or other method
 
-    count_of_cdrs: { type: integer, required: true, default: 0 }
+    count_of_cdrs: { type: bigint, required: true, default: 0 }
     # how many CDRs are associated to this error.
 
   ar_job_queue:
@@ -1517,10 +1543,10 @@ propel:
 
     id:
 
-    is_part_of: { type: integer, required: true, index: true, unique: false }
+    is_part_of: { type: integer, index: true }
     #
     # is-part-of relationship.
-    # It is equal to "id" when this job is not part of another
+    # It is equal to NULL when this job is not part of another
     # job. It is equal to the parent job when the parent were
     # decomposed in different jobs.
     # The job queue processor enforces the execution first of all ar_job_queue_id with lover values.
@@ -1533,7 +1559,7 @@ propel:
     # 2 for DONE
     # 3 for ERROR
 
-    created_at: timestamp
+    created_at: { type: timestamp, required: true, index: true }
     #
     # when the job was added to the queue
 
@@ -1541,7 +1567,7 @@ propel:
 
     end_at: timestamp
 
-    description: { type: varchar, size: 12000, required: true }
+    description: { type: varchar, size: 12000, required: true, default: '' }
     #
     # a user readable detailed description of the job
 
@@ -1571,88 +1597,11 @@ propel:
 
     id:
 
-    upg_key: varchar(24000)
+    upg_key: varchar(2048)
 
     upg_output: longvarchar
 
     installation_date: timestamp
-
-  ar_itc_input_extensions_debug_copy:
-  #
-  # used for debugging the changes of data, without changing the external table with real data
-
-    id:
-
-    last_update: timestamp
-
-    extension_code: varchar(1024)
-
-    dial_string: varchar(1024)
-
-    name: varchar(1024)
-
-    accountcode: varchar(1024)
-
-    accountcode_description: varchar(1024)
-
-
-  ar_itc_organizations:
-  #
-  # ITC specific table, containing the last defined organizations to process.
-  #
-  # This info is put on this table, before processing, because the query on true tables can be slow,
-  # and can be not accessible into development environment.
-
-      id:
-
-      account_code: { type: varchar, size: 255, required: true, unique: true, index: unique }
-      # as specified in the remote database
-      # note: I'm using the maximum allowed for index unique field
-      # note: I'm using a unique index for taking advantage of REPLACE semantic
-
-      definition_time: timestamp
-      # when this data was retrieved, or when it must be considered valid
-
-      org: varchar(1024)
-
-      name: varchar(1024)
-
-      description: varchar(1024)
-
-      email: varchar(1024)
-
-      parent: varchar(1024)
-
-      calculated_account_code: varchar(9046)
-      # internally calculated account code, respecting the "parent.child.sub-child" format
-
-      is_new: boolean
-
-      is_maybe_modified: boolean
-
-      is_to_remove: boolean
-
-      can_be_removed: boolean
-
-  ar_itc_organizations_debug_copy:
-  #
-  # used for debugging the changes of data, without changing the external table with real data
-
-    id:
-
-    last_update: timestamp
-
-    org: varchar(2048)
-
-    name: varchar(2048)
-
-    description: varchar(2048)
-
-    accountcode: varchar(2048)
-
-    parent: varchar(2048)
-
-    email: varchar(1024)
 
   ar_logical_source:
   #
@@ -1675,6 +1624,12 @@ propel:
     # the name/id used for identifying the source, and that can be used also on file names
 
     description: varchar(2048)
+
+    last_imported_id: { type: bigint }
+    # an optional indication of the last imported CDR.id on the external table
+
+    last_imported_data: varchar(2048)
+    # an optional indication of the last imported CDR in some ad-hoc format
 
   ar_physical_format:
   #
@@ -1765,20 +1720,23 @@ propel:
   #
   # a CDR in original source format, as received from VoIP servers.
 
-      id:
+      calldate: { type: timestamp, required: true, primaryKey: true }
 
-      ar_cdr_provider_id:
+      id: {type: integer, primaryKey: true }
+      # DEV-NOTE: managed from the code for making unique two CDRS with the same calldate
+      # NOTE: maintain as second position, otherwise parse query is not efficient
 
-      ar_physical_format_id:
+      ar_cdr_provider_id: { type: integer, required: true, primaryKey: true }
+      # NOTE: use `integer` so no index is created
+      # NOTE: mantain as primaryKey beacuse source cdrs are imported in different phases, according the provider,
+      # and so they can conflict without this key.
+
+      ar_physical_format_id: { type: integer, required: true, primaryKey: true }
       # identifies also the logical source format, using join
+      # NOTE: mantain as primaryKey beacuse source cdrs are imported in different phases, according the provider,
+      # and so they can conflict without this key.
 
-      calldate: { type: timestamp, required: true, index: true }
-
-      is_imported_service_cdr: { type: boolean, required: true, default: false }
-      # 1 (true) if it is a service-cdr imported from an external provider.
-      # 0 (false) if it is a normal-cdr or a service-cdr calculated from this instance.
-
-      content: varchar(51200)
+      content: varchar(10000)
 
   ar_type_of_source_cdr:
   #
@@ -1792,50 +1750,6 @@ propel:
   # a list of extensions to move/export to another database.
   # Used from maintanance jobs.
     extension: { type: varchar, size: 255, primaryKey: true }
-
-  ar_source_cdr_to_move:
-    # a source_cdr to move/export to another database.
-    # Used from maintanance jobs.
-    ar_source_cdr_id: { type: integer, primaryKey: true }
-
-  ar_itc_source_csv_file:
-  #
-  # ITC specific source data files, with CDRs from various IPBX servers.
-
-      id:
-      # NOTE: I use this, because I need a compact way for referencing these files, during CDR importing
-
-      name: { type: varchar, size: 255, required: true, unique: true, index: unique }
-      # NOTE: I'm using the maximum size allowed for a varchar acting like a primary key
-      # NOTE: do not remove this unique index, because it is needed for `REPLACE` semantic
-
-      checksum: varchar(2048)
-
-      processing_date: timestamp
-
-      min_calldate: { type: timestamp, required: false, unique: false, index: true }
-
-      max_calldate: { type: timestamp, required: false, unique: false, index: true }
-
-      tot_lines: integer
-
-      lines_with_errors: integer
-
-      content_type: varchar(255)
-      # identifies the content of logical fields, to pass as parameter to the merge tool, also
-
-      retrieved_from_server: varchar(1024)
-      # identifies the server from wich the file was retrieved
-
-      tot_lines: integer
-
-      lines_with_errors: integer
-
-      imported: { type: boolean, required: true, default: false, index: true }
-      # false for forcing a import of the file,
-      # true for CDRs sucessfully imported.
-      # When import is false, then the related meta info is assumed to be invalid,
-      # and the file must be imported again.
 
   ar_remote_file:
   #
@@ -1856,6 +1770,13 @@ propel:
 
       receiving_date: timestamp
       # when the file was received/downloaded
+
+  ar_local_file_to_delete:
+  #
+  # a local file already processed, and to delete
+
+    name: { type: varchar, size: 1024, required: true, primayKey: true }
+    # NOTE: it must contain the complete path of the file
 
   ar_temp_source_cdr:
   #
@@ -1947,7 +1868,7 @@ propel:
 
   ar_holiday:
   #
-  # Specify holidays, because ome rates can be different on holidays.
+  # Specify holidays, to use in peak/off-peak based rates
 
     id:
 
@@ -1969,11 +1890,29 @@ propel:
     # ...
     # 7 Sunday
 
-    _uniques:
-      avoid_conflicting_on_the_same_holiday: [day_of_month, month, year, day_of_week]
+    from_hour: integer
+    # null for every hour
+    # 00 - 23
+
+    from_minutes: integer
+    # null for every minute
+    # 00 - 59
+
+    to_hour: integer
+    # accept times between from_hour : from_minutes, to to_hour : to_minutes
+
+    to_minutes: integer
+
+    peak_code: { type: varchar(255), required: true }
+    # a rating code to use in the `match-peak-code` filter condition
+    # for rating according different conditions.
+    # Suggested codes are: "peak", "off-peak"
+
+    name: varchar(1024)
 
   ar_cached_organization_info:
-  # info about organization info, cached as precalculated value, and invalidated from triggers
+  # info about organization info, cached as precalculated value, and invalidated from triggers.
+  # In this table will be stored also other cached values, indexed by `internal_name`.
 
     id:
 
@@ -2047,6 +1986,10 @@ propel:
     # specify the day of the month, or the day of the week,
     # when starting the service count.
 
+    schedule_at: { type: time, default: "00:00:00" }
+    # usually midnight, or the time when the service start (inclusive),
+    # and the old service end (exclusive)
+
   ar_service_price:
   # the price associated to a service at a certain date
 
@@ -2080,3 +2023,121 @@ propel:
 
     note: varchar(1024)
 
+  ar_cached_grouped_cdr:
+  # store precomputed CDRS sums, for speeding up the web interface on common filters.
+  # NOTE: clustered by primary key and fields are ordered according the most
+  # recurrent access.
+
+   cached_parent_id_hierarchy: { type: varbinary, size: 850, required: true, primaryKey: true }
+   # DEV-NOTE: first index on this, because the WEB work or on all customers ("/"),
+   # or on a specific customer selection, and so this is the most important clustering factor.
+
+   billable_ar_organization_unit_id: { type: integer, required: true, primaryKey: true }
+
+   calldate:    { type: date, required: true, primaryKey: true }
+   # a day of the year like YYYY-MM-DD, without the date part
+
+   destination_type: { type: smallint, required: true, primaryKey: true  }
+   # the direction of the call
+   # See "apps/asterisell/lib/DestinationType.php" for a list of available
+   # "destination_type": for incoming/outgoing/internal/ignorable calls.
+
+   ar_communication_channel_type_id: { type: integer, required: true, primaryKey: true  }
+   # DEV-NOTE: use `integer` for avoiding implicit creation of index
+
+   operator_type: { type: varchar, size: 255, required: true, primaryKey: true  }
+
+   ar_vendor_id: { type: integer, required: true, primaryKey: true  }
+
+   geographic_location: { type: varchar, size: 255, required: true, primaryKey: true  }
+
+   count_of_calls: { type: bigint, required: true }
+
+   billsec:     { type: bigint, required: true  }
+
+   income: { type: bigint, required: true  }
+
+   cost_saving: { type: bigint, required: true  }
+
+   cost: { type: bigint, required: true }
+
+   id: { type: smallint, required: true, default: 0 }
+   # not used, but required for not breaking some queries
+
+  ar_cached_errors:
+  # store precomputed errors, for speeding up the web interface
+  # NOTE: here there are stats both for CDRS correctly rated, and CDRS with errors
+  # Some of the same stats can be also found on ar_cached_grouped_cdr, but
+  # here are in a more compact form, because there is a group only on call_direction.
+
+   calldate:    { type: date, required: true, primaryKey: true }
+   # a day of the year like YYYY-MM-DD, without the date part
+
+   destination_type: { type: smallint, required: true, primaryKey: true }
+   # the direction of the call
+   # See "apps/asterisell/lib/DestinationType.php" for a list of available
+   # "destination_type": for incoming/outgoing/internal/ignorable calls.
+
+   error_destination_type: { type: smallint, required: true, default: 0, primaryKey: true }
+   # in case of an imported CDR with an error, the probably destination_type of the CDR,
+   # if it can be rated correctly.
+   # 0 if there is no error.
+
+   count_of_calls: { type: bigint, required: true }
+
+  ar_test_cached_grouped_cdr:
+  # used during regression tests
+
+   cached_parent_id_hierarchy: { type: varbinary, size: 850, required: true, primaryKey: true }
+   # DEV-NOTE: first index on this, because the WEB work or on all customers ("/"),
+   # or on a specific customer selection, and so this is the most important clustering factor.
+
+   billable_ar_organization_unit_id: { type: integer, required: true, primaryKey: true }
+
+   calldate:    { type: date, required: true, primaryKey: true }
+   # a day of the year like YYYY-MM-DD, without the date part
+
+   destination_type: { type: smallint, required: true, primaryKey: true  }
+   # the direction of the call
+   # See "apps/asterisell/lib/DestinationType.php" for a list of available
+   # "destination_type": for incoming/outgoing/internal/ignorable calls.
+
+   ar_communication_channel_type_id: { type: integer, required: true, primaryKey: true  }
+   # DEV-NOTE: use `integer` for avoiding implicit creation of index
+
+   operator_type: { type: varchar, size: 255, required: true, primaryKey: true  }
+
+   ar_vendor_id: { type: integer, required: true, primaryKey: true  }
+
+   geographic_location: { type: varchar, size: 255, required: true, primaryKey: true  }
+
+   count_of_calls: { type: bigint, required: true }
+
+   billsec:     { type: bigint, required: true  }
+
+   income: { type: bigint, required: true  }
+
+   cost_saving: { type: bigint, required: true  }
+
+   cost: { type: bigint, required: true }
+
+   id: { type: smallint, required: true, default: 0 }
+   # not used, but required for not breaking some queries
+
+  ar_test_cached_errors:
+  # used during regression testing
+
+   calldate:    { type: date, required: true, primaryKey: true }
+   # a day of the year like YYYY-MM-DD, without the date part
+
+   destination_type: { type: smallint, required: true, primaryKey: true }
+   # the direction of the call
+   # See "apps/asterisell/lib/DestinationType.php" for a list of available
+   # "destination_type": for incoming/outgoing/internal/ignorable calls.
+
+   error_destination_type: { type: smallint, required: true, default: 0, primaryKey: true }
+   # in case of an imported CDR with an error, the probably destination_type of the CDR,
+   # if it can be rated correctly.
+   # 0 if there is no error.
+
+   count_of_calls: { type: bigint, required: true }

@@ -1,36 +1,15 @@
 <?php
 
-/* $LICENSE 2009, 2010, 2011, 2012:
- *
- * Copyright (C) 2009, 2010, 2011, 2012 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
- *
- * This file is part of Asterisell.
- *
- * Asterisell is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 3 of the License, or
- * (at your option) any later version.
- *
- * Asterisell is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with Asterisell. If not, see <http://www.gnu.org/licenses/>.
- * $
- */
+// SPDX-License-Identifier: GPL-3.0-or-later
 
 sfLoader::loadHelpers(array('I18N', 'Debug', 'Date', 'Asterisell'));
 
 /**
- * A series of CDR related services, that can be customized from Asterisell instances
- * deriving specialized subclasses.
+ * A series of CDR related services.
  *
- * It is created using self::getInstance(),
- * that reads from the app.yml file.
+ * For historical reason it is defined as a distinct class, because in the past it can be customized.
  *
- * A user can change the setting in app.yml, and derive a specialized sub class.
+ * TODO move these methods inside Service or other Classes.
  */
 class CustomCDRServices
 {
@@ -43,8 +22,7 @@ class CustomCDRServices
     public static function getInstance()
     {
         if (is_null(self::$cachedInstance)) {
-            $className = sfConfig::get('app_custom_cdr_services');
-            self::$cachedInstance = new $className();
+            self::$cachedInstance = new CustomCDRServices();
         }
 
         return self::$cachedInstance;
@@ -147,109 +125,77 @@ class CustomCDRServices
      * @param int|null $fromDate
      * @param int|null $toDate
      * @param array $params where adding the conditions on date
+     * @param bool $useWholeDay true for using datetime without timestamp
      * @return string
      */
-    public function getConditionOnDate($fromDate, $toDate, & $params)
+    public function getConditionOnDate($fromDate, $toDate, & $params, $useWholeDay = false)
     {
 
         $condOnDate = ' ';
         if (!is_null($fromDate)) {
             $condOnDate .= ' AND calldate >= ? ';
-            $params[] = fromUnixTimestampToMySQLTimestamp($fromDate);
+            if ($useWholeDay) {
+                $params[] = fromUnixTimestampToMySQLDate(fromUnixTimestampToWholeDayStart($fromDate));
+            } else {
+                $params[] = fromUnixTimestampToMySQLTimestamp($fromDate);
+            }
         }
 
         if (!is_null($toDate)) {
             $condOnDate .= ' AND calldate < ? ';
-            $params[] = fromUnixTimestampToMySQLTimestamp($toDate);
+            if ($useWholeDay) {
+                $params[] = fromUnixTimestampToMySQLDate(fromUnixTimestampToWholeDayEnd($toDate));
+            } else {
+                $params[] = fromUnixTimestampToMySQLTimestamp($toDate);
+            }
         }
 
         return $condOnDate;
     }
 
     /**
-     * Calculate the CDRs according the type of error.
+     * Get stats on correctly rated and uncorrectly rated CDRS.
      *
-     * @param int|null $fromDate
-     * @param int|null $toDate
+     * @param int|null $fromDate the date is aproximate to whole-day, for taking advantage of pre-calculated tables
+     * @param int|null $toDate the date is aproximete to whole-day
      * @param PDO|null $conn
-     * @return array from DestinationType to numbers of CDRs with this type of error.
+     * @return array list(array $correctlyRatedCDRS, array $cdrsWithErrors)
+     * Every sub array has DestinationType as key, and the number of CDRs with this type of error as value.
      */
-    public function getCDRsWithErrorsByDestinationType($fromDate, $toDate, $conn = null)
+    public function getRatedCDRStats($fromDate, $toDate, $conn = null)
     {
-
         if (is_null($conn)) {
             $conn = Propel::getConnection();
         }
 
-        // Retrieve CDRs with errors in the call flow merging phase.
-
-        $mergeParams = array();
-        $mergeParams[] = DestinationType::error;
-
-        $condOnDate = $this->getConditionOnDate($fromDate, $toDate, $mergeParams);
+        $c = array();
+        $condOnDate = $this->getConditionOnDate($fromDate, $toDate, $c, true);
 
         // Retrieve CDRs with errors in the call rating phase
-
-        $query = 'SELECT error_destination_type, sum(count_of_calls)
-                  FROM   ar_cdr
-                  WHERE  destination_type = ? '
-                . $condOnDate
-                . ' GROUP BY error_destination_type';
+        $query = 'SELECT destination_type, error_destination_type, sum(count_of_calls)
+                  FROM   ar_cached_errors
+                  WHERE  1 ' . $condOnDate . '
+                  GROUP BY destination_type, error_destination_type';
 
         $stmt = $conn->prepare($query);
-        $stmt->execute($mergeParams);
+        $stmt->execute($c);
 
-        $r = array();
-        while ((($rs = $stmt->fetch(PDO::FETCH_NUM)) !== false)) {
-            $errorType = intval($rs[0]);
-            $count = intval($rs[1]);
+        $correctCDRS = array();
+        $uncorrectCDRS = array();
+        while (($rs = $stmt->fetch(PDO::FETCH_NUM)) !== false) {
+            $destType = $rs[0];
+            $errorType = $rs[1];
+            $count = $rs[2];
 
-            $r[$errorType] = $count;
+            if ($destType == DestinationType::error) {
+                addToStatsArray($uncorrectCDRS, $errorType, $count);
+            } else {
+                addToStatsArray($correctCDRS, $destType, $count);
+            }
         }
         $stmt->closeCursor();
 
-        return $r;
-    }
-
-    /**
-     * Calculate the CDRs correctly rated, grouped by type of destination type.
-     *
-     * @param int|null $fromDate
-     * @param int|null $toDate
-     * @param PDO|null $conn
-     * @return array from DestinationType to numbers of CDRs with this type of error.
-     */
-    public function getRatedCDRsByDestinationType($fromDate, $toDate, $conn = null)
-    {
-
-        if (is_null($conn)) {
-            $conn = Propel::getConnection();
-        }
-
-        $mergeParams = array();
-        $mergeParams[] = DestinationType::error;
-
-        $condOnDate = $this->getConditionOnDate($fromDate, $toDate, $mergeParams);
-
-        $query = 'SELECT destination_type, sum(count_of_calls)
-                  FROM   ar_cdr
-                  WHERE  destination_type <> ? '
-                . $condOnDate
-                . ' GROUP BY destination_type';
-
-        $stmt = $conn->prepare($query);
-        $stmt->execute($mergeParams);
-
-        $r = array();
-        while ((($rs = $stmt->fetch(PDO::FETCH_NUM)) !== false)) {
-            $destType = intval($rs[0]);
-            $count = intval($rs[1]);
-
-            $r[$destType] = $count;
-        }
-        $stmt->closeCursor();
-
-        return $r;
+        return array($correctCDRS, $uncorrectCDRS);
     }
 
     /**
@@ -384,8 +330,7 @@ class CustomCDRServices
             }
         }
 
-        $errorsByDirection = $this->getCDRsWithErrorsByDestinationType($fromDate, null);
-        $ratedByDirection = $this->getRatedCDRsByDestinationType($fromDate, null);
+        list($ratedByDirection, $errorsByDirection) = $this->getRatedCDRStats($fromDate, null);
 
         $tot = 0;
         foreach ($errorsByDirection as $v) {

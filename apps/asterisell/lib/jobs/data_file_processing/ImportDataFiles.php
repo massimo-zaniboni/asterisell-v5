@@ -1,25 +1,6 @@
 <?php
 
-/* $LICENSE 2013, 2014, 2017:
- *
- * Copyright (C) 2013, 2014, 2017 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
- *
- * This file is part of Asterisell.
- *
- * Asterisell is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 3 of the License, or
- * (at your option) any later version.
- *
- * Asterisell is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with Asterisell. If not, see <http://www.gnu.org/licenses/>.
- * $
- */
+// SPDX-License-Identifier: GPL-3.0-or-later
 
 sfLoader::loadHelpers(array('I18N', 'Debug', 'Date', 'Asterisell'));
 
@@ -51,6 +32,9 @@ sfLoader::loadHelpers(array('I18N', 'Debug', 'Date', 'Asterisell'));
  * - 2013-01-00 represent all the data at month 2013-01
  * - 2013-00-00 represent all the data of the year 2013
  * - 0000-00-00 represent a status info without a specific time (for example a ping message)
+ *
+ * The operation is transaction safe, because processed file are saved (temporarly)
+ * in `ar_local_file_to_delete` table.
  */
 class ImportDataFiles extends FixedJobProcessor
 {
@@ -108,14 +92,6 @@ class ImportDataFiles extends FixedJobProcessor
         }
 
         return $resultDirectory;
-    }
-
-    /**
-     * @return bool true for deleting processed files, false for moving in ARCHIVE_DIRECTORY.
-     */
-    public function deleteProcessedFiles()
-    {
-        return true;
     }
 
     /**
@@ -361,12 +337,14 @@ class ImportDataFiles extends FixedJobProcessor
             );
         }
 
-        $debugFileName = normalizeFileNamePath(self::getMySQLAccessibleTmpDirectory(self::GARBAGE_KEY) . '/' . ManageRateEvent::IMPORT_DEBUG_FILE_NAME);
-
         if ($this->getDebugMode()) {
+            $debugFileName = normalizeFileNamePath(self::getMySQLAccessibleTmpDirectory(self::GARBAGE_KEY) . '/' . ManageRateEvent::IMPORT_DEBUG_FILE_NAME);
             if (file_exists($debugFileName)) {
                 @unlink($debugFileName);
             }
+        } else {
+            $debugFileName = null;
+            // mandatory for signaling that there is no debug, and it is normal processing
         }
 
         // the files sent from the client, can be ordered according the generation date,
@@ -403,7 +381,7 @@ class ImportDataFiles extends FixedJobProcessor
 
     /**
      * @param string $sourceFile file name inside input directory, to import.
-     * @param string $debugFileName
+     * @param string|null $debugFileName null for normal processing
      * @return int processed CDRs
      */
     public function processFile($sourceFile, $debugFileName)
@@ -525,29 +503,19 @@ class ImportDataFiles extends FixedJobProcessor
                 $maxDateS = '"' . fromUnixTimestampToMySQLTimestamp($maxDate) . '"';
             }
 
-            list($database, $user, $password) = getDatabaseNameUserAndPassword(true);
-
             if (JobQueueProcessor::$IS_INTERACTIVE) {
                 echo "\n      import $completeSourceFile";
             }
 
-            if ($this->getDebugMode()) {
-                $debugModeS = '1';
-            } else {
-                $debugModeS = '0';
+            if (is_null($debugFileName)) {
+                $debugFileName = 'null';
             }
 
-            if ($this->deleteProcessedFiles()) {
-                $deleteFileS = 'true';
-            } else {
-                $deleteFileS = 'false';
-            }
-
+            $ratingParams = array();
             $cmd = RateEngineService::getToolExecutable()
                 . ' --import-data-file ' . $completeSourceFile
-                . ' --debug-mode ' . $debugModeS
+                . RateEngineService::writeWithDBAccessParams($ratingParams)
                 . ' --debug-file ' . $debugFileName
-                . ' --delete-data-file ' . $deleteFileS
                 . ' --provider ' . $cdrProvider
                 . ' --provider-id ' . $cdrProviderId
                 . ' --file-logical-type ' . $logicalType
@@ -558,9 +526,8 @@ class ImportDataFiles extends FixedJobProcessor
                 . ' --is-status-file ' . $isStatusF
                 . ' --from-date ' . $minDateS
                 . ' --to-date ' . $maxDateS
-                . ' --db-name ' . $database
-                . ' --db-user ' . $user
-                . ' --db-password ' . $password;
+                . ' '
+                . ManageRateEvent::DONT_TOUCH_DEBUG_MODE_GHC_PARAMS;
 
             if ($this->getDebugMode()) {
                 echo "\nExecute command: \n$cmd\n";
@@ -568,74 +535,73 @@ class ImportDataFiles extends FixedJobProcessor
 
             $output = array();
             $exitStatus = 0;
-            exec($cmd, $output, $exitStatus);
+            $resultLine = exec($cmd, $output, $exitStatus);
+
+            // Check if there are CDRS in the past respect the billing time-frame
+            $p = ArParamsPeer::getDefaultParams();
+            $d1 = fromMySQLTimestampToUnixTimestamp($p->getNewImportedCdrsFromCalldate());
+            $d2 = fromMySQLTimestampToUnixTimestamp($p->getOfficialCalldate());
+            if ($d1 < $d2) {
+                self::signalError(
+                    "cdrs in the past - $completeSourceFile - " . get_ordered_timeprefix_with_unique_id(),
+                    "The file \"$completeSourceFile\" contains new CDRS from date " . fromUnixTimestampToMySQLTimestamp($d1)
+                    . ", that are in an already billed time-frame. The new billing time-frame starts from date  "
+                    . fromUnixTimestampToMySQLTimestamp($d2),
+                    "Only CDRS in the unbilled time-frame will be rated, in order to not modify the already billed time-frame. "
+                    . "But doing so there can be CDRS not billed, or CDRS billed but having different prices. "
+                    . "They can be rerated selecting the proper time-frame, and pressing the re-rating button, because they are in the ar_source_cdr table. ",
+                    "Someone of your VoIP providers sent new CDRS or recalculated them, in a time-frame you already billed. So you had to coordinate better with them in order to bill CDRS only when they are confirmed. "
+                    . "NOTE: unlikely other error messages you will be informed only one time of this event. If you delete this message, it will be not generated again, except another file with the same problem will be received.",
+                    false,
+                    ArProblemDomain::CONFIGURATIONS
+                );
+
+                // Rate only unbilled calls.
+                $p->setNewImportedCdrsFromCalldate($d2);
+                $p->save();
+            }
 
             // NOTE: the file will be signaled as imported, from the Haskell rating engine
 
             $totLines = 0;
-            $isFirstLine = true;
             if ($exitStatus == 0) {
 
-                // Archive the input file
-                if (!$this->deleteProcessedFiles()) {
-                    $archiveTime = $minDate;
-                    if (is_null($archiveTime)) {
-                        $archiveTime = time();
-                    }
-                    $completeSourceFile2 = normalizeFileNamePath(self::getAbsoluteArchiveDirectory($cdrProvider, $logicalType, $versionType, $archiveTime) . '/' . $sourceFile);
-                    if (file_exists($completeSourceFile2)) {
-                        @unlink($completeSourceFile2);
-                    }
-                    $isOk = @rename($completeSourceFile, $completeSourceFile2);
+                $results = explode(',', $resultLine);
+                $i = 0;
 
-                    if ($isOk === FALSE) {
-                        self::signalError(
-                            "error moving file $completeSourceFile",
-                            "Error moving file \"$completeSourceFile\" into \"" . $completeSourceFile2 . "\".",
-                            "Rating process is interrupted. Repeated CDRs can be added in the database if the file is not a status file. ",
-                            "Check directory permissions. If the error persist contact the assistance.",
-                            true,
-                            ArProblemDomain::APPLICATION
-                        );
+                // The result is composed of values separated from a ",":
+                // - minimum date
+                // - maximum date
+                // - total lines
+                // - tot lines with errors
+
+                if (count($results) < 4) {
+                    self::signalError(
+                        "error in result executing command $cmd",
+                        "Error executing command \"$cmd\". Unexpected result \"$resultLine\"",
+                        "This Source Data CSV file will be not imported. Stats about not rated CDRs are not updated in this case, and all the CDRs on the CSV file are not rated.",
+                        "",
+                        true,
+                        ArProblemDomain::APPLICATION
+                    );
+                }
+
+                $minDateStr = $results[$i++];
+                $maxDateStr = $results[$i++];
+                $totLines = intval($results[$i++]);
+                $totLinesWithErrors = intval($results[$i++]);
+
+                // Preserve profiling files
+                $profilingFiles = array('RateEngine.prof' => 'RateEngineImport.prof', 'RateEngine.hp' => 'RateEngineImport.hp');
+                foreach ($profilingFiles as $pf => $pfi) {
+                    $pff = normalizeFileNamePath(getAsterisellCompleteAdminDirectory() . '/' . $pf);
+                    $pfii = normalizeFileNamePath(getAsterisellCompleteAdminDirectory() . '/' . $pfi);
+                    if (file_exists($pff)) {
+                        @unlink($pfii);
+                        @rename($pff, $pfii);
                     }
                 }
 
-                // Return info to the user
-                foreach ($output as $resultLine) {
-                    if ($isFirstLine) {
-                        $isFirstLine = false;
-
-                        // The first line contains the result
-
-                        $results = explode(',', $resultLine);
-                        $i = 0;
-
-                        // The result is composed of values separated from a ",":
-                        // - minimum date
-                        // - maximum date
-                        // - total lines
-                        // - tot lines with errors
-
-                        if (count($results) < 4) {
-                            self::signalError(
-                                "error in result executing command $cmd",
-                                "Error executing command \"$cmd\". Unexpected result \"$resultLine\"",
-                                "This Source Data CSV file will be not imported. Stats about not rated CDRs are not updated in this case, and all the CDRs on the CSV file are not rated.",
-                                "",
-                                true,
-                                ArProblemDomain::APPLICATION
-                            );
-                        }
-
-                        $minDateStr = $results[$i++];
-                        $maxDateStr = $results[$i++];
-                        $totLines = intval($results[$i++]);
-                        $totLinesWithErrors = intval($results[$i++]);
-
-                    } else {
-                        // do nothing
-                    }
-                }
             } else {
                 self::signalError(
                     "error executing command $cmd",
@@ -811,10 +777,10 @@ class ImportDataFiles extends FixedJobProcessor
         $minDateS = '"' . fromUnixTimestampToMySQLTimestamp($fromDate) . '"';
         $maxDateS = '"' . fromUnixTimestampToMySQLTimestamp($toDate) . '"';
 
-        list($database, $user, $password) = getDatabaseNameUserAndPassword(true);
-
+        $ratingParams = array();
         $cmd = RateEngineService::getToolExecutable()
             . ' --export-cdrs ' . $completeSourceFile
+            . RateEngineService::writeWithDBAccessParams($ratingParams)
             . ' --provider ' . $cdrProviderName
             . ' --provider-id ' . $cdrProviderId
             . ' --file-logical-type ' . $logicalTypeName
@@ -823,21 +789,18 @@ class ImportDataFiles extends FixedJobProcessor
             . ' --file-version-type-id ' . $versionTypeId
             . ' --from-date ' . $minDateS
             . ' --to-date ' . $maxDateS
-            . ' --use-only-cdrs-to-move ' . $onlyCdrsToMoveS
-            . ' --db-name ' . $database
-            . ' --db-user ' . $user
-            . ' --db-password ' . $password;
+            . ' --use-only-cdrs-to-move ' . $onlyCdrsToMoveS;
 
-        if ($this->getDebugMode()) {
-            echo "\nExecute command: \n$cmd\n";
-        }
 
+        $output = array();
         $exitStatus = 0;
         exec($cmd, $output, $exitStatus);
 
         if ($exitStatus == 0) {
             return $completeSourceFile;
         } else {
+            echo "Error executing:\n\n$cmd\n\n";
+            echo implode("\n", $output);
             return null;
         }
     }

@@ -1,25 +1,6 @@
 <?php
 
-/* $LICENSE 2014:
- *
- * Copyright (C) 2014 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
- *
- * This file is part of Asterisell.
- *
- * Asterisell is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 3 of the License, or
- * (at your option) any later version.
- *
- * Asterisell is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with Asterisell. If not, see <http://www.gnu.org/licenses/>.
- * $
- */
+// SPDX-License-Identifier: GPL-3.0-or-later
 
 sfLoader::loadHelpers(array('I18N', 'Debug', 'Date', 'Asterisell'));
 
@@ -121,6 +102,8 @@ abstract class ImportCSVFilesFromRemoteServer extends FixedJobProcessor
      * @param string $completeFileName complete file name with path
      * @return bool true for archiving the file and processing it also from the RatingEngine,
      * false for not archiving the file and not process it from the RatingEngine.
+     * In any cases the name of the source file is stored in the table of downloaded files,
+     * and it will be not downloaded/processed another time.
      * @throws ArProblemException
      */
     public function processFile($completeFileName)
@@ -363,8 +346,9 @@ abstract class ImportCSVFilesFromRemoteServer extends FixedJobProcessor
      * Called from jobs for archiving the file, if the flag is activated.
      * @param string $sourceFile the name of the file on the provider side, without directories
      * @param string $completeSourceFile the file to copy/archive on the local file system
+     * @param bool $useMove True for moving inside the same filesystem instead of copying
      */
-    public function maybeArchiveFile($sourceFile, $completeSourceFile)
+    public function maybeArchiveFile($sourceFile, $completeSourceFile, $useMove = false)
     {
         $destFileName = $this->fileArchiveName($sourceFile);
         if (!isEmptyOrNull($destFileName)) {
@@ -375,7 +359,11 @@ abstract class ImportCSVFilesFromRemoteServer extends FixedJobProcessor
                 @unlink($completeSourceFile2);
             }
             @mkdir($dirName, 0777, true);
-            $isOk = @copy($completeSourceFile, $completeSourceFile2);
+            if ($useMove) {
+                $isOk = @rename($completeSourceFile, $completeSourceFile2);
+            } else {
+                $isOk = @copy($completeSourceFile, $completeSourceFile2);
+            }
 
             if ($isOk === FALSE) {
                 $key = 'can not archive ' . $completeSourceFile2;

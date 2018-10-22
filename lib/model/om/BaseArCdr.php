@@ -19,29 +19,30 @@ abstract class BaseArCdr extends BaseObject  implements Persistent {
 	protected static $peer;
 
 	/**
-	 * The value for the id field.
-	 * @var        int
-	 */
-	protected $id;
-
-	/**
 	 * The value for the calldate field.
 	 * @var        string
 	 */
 	protected $calldate;
 
 	/**
+	 * The value for the id field.
+	 * Note: this column has a database default value of: 0
+	 * @var        int
+	 */
+	protected $id;
+
+	/**
+	 * The value for the is_service_cdr field.
+	 * Note: this column has a database default value of: false
+	 * @var        boolean
+	 */
+	protected $is_service_cdr;
+
+	/**
 	 * The value for the to_calldate field.
 	 * @var        string
 	 */
 	protected $to_calldate;
-
-	/**
-	 * The value for the is_imported_service_cdr field.
-	 * Note: this column has a database default value of: false
-	 * @var        boolean
-	 */
-	protected $is_imported_service_cdr;
 
 	/**
 	 * The value for the count_of_calls field.
@@ -66,12 +67,14 @@ abstract class BaseArCdr extends BaseObject  implements Persistent {
 
 	/**
 	 * The value for the duration field.
+	 * Note: this column has a database default value of: 0
 	 * @var        int
 	 */
 	protected $duration;
 
 	/**
 	 * The value for the billsec field.
+	 * Note: this column has a database default value of: 0
 	 * @var        int
 	 */
 	protected $billsec;
@@ -222,26 +225,6 @@ abstract class BaseArCdr extends BaseObject  implements Persistent {
 	protected $debug_rating_details;
 
 	/**
-	 * @var        ArOrganizationUnit
-	 */
-	protected $aArOrganizationUnit;
-
-	/**
-	 * @var        ArVendor
-	 */
-	protected $aArVendor;
-
-	/**
-	 * @var        ArCommunicationChannelType
-	 */
-	protected $aArCommunicationChannelType;
-
-	/**
-	 * @var        ArTelephonePrefix
-	 */
-	protected $aArTelephonePrefix;
-
-	/**
 	 * Flag to prevent endless save loop, if this object is referenced
 	 * by another object which falls in this transaction.
 	 * @var        boolean
@@ -267,10 +250,13 @@ abstract class BaseArCdr extends BaseObject  implements Persistent {
 	 */
 	public function applyDefaultValues()
 	{
-		$this->is_imported_service_cdr = false;
+		$this->id = 0;
+		$this->is_service_cdr = false;
 		$this->count_of_calls = 1;
 		$this->destination_type = 0;
 		$this->is_redirect = false;
+		$this->duration = 0;
+		$this->billsec = 0;
 		$this->error_destination_type = 0;
 	}
 
@@ -282,16 +268,6 @@ abstract class BaseArCdr extends BaseObject  implements Persistent {
 	{
 		parent::__construct();
 		$this->applyDefaultValues();
-	}
-
-	/**
-	 * Get the [id] column value.
-	 * 
-	 * @return     int
-	 */
-	public function getId()
-	{
-		return $this->id;
 	}
 
 	/**
@@ -333,6 +309,26 @@ abstract class BaseArCdr extends BaseObject  implements Persistent {
 	}
 
 	/**
+	 * Get the [id] column value.
+	 * 
+	 * @return     int
+	 */
+	public function getId()
+	{
+		return $this->id;
+	}
+
+	/**
+	 * Get the [is_service_cdr] column value.
+	 * 
+	 * @return     boolean
+	 */
+	public function getIsServiceCdr()
+	{
+		return $this->is_service_cdr;
+	}
+
+	/**
 	 * Get the [optionally formatted] temporal [to_calldate] column value.
 	 * 
 	 *
@@ -368,16 +364,6 @@ abstract class BaseArCdr extends BaseObject  implements Persistent {
 		} else {
 			return $dt->format($format);
 		}
-	}
-
-	/**
-	 * Get the [is_imported_service_cdr] column value.
-	 * 
-	 * @return     boolean
-	 */
-	public function getIsImportedServiceCdr()
-	{
-		return $this->is_imported_service_cdr;
 	}
 
 	/**
@@ -671,26 +657,6 @@ abstract class BaseArCdr extends BaseObject  implements Persistent {
 	}
 
 	/**
-	 * Set the value of [id] column.
-	 * 
-	 * @param      int $v new value
-	 * @return     ArCdr The current object (for fluent API support)
-	 */
-	public function setId($v)
-	{
-		if ($v !== null) {
-			$v = (int) $v;
-		}
-
-		if ($this->id !== $v) {
-			$this->id = $v;
-			$this->modifiedColumns[] = ArCdrPeer::ID;
-		}
-
-		return $this;
-	} // setId()
-
-	/**
 	 * Sets the value of [calldate] column to a normalized version of the date/time value specified.
 	 * 
 	 * @param      mixed $v string, integer (timestamp), or DateTime value.  Empty string will
@@ -740,6 +706,46 @@ abstract class BaseArCdr extends BaseObject  implements Persistent {
 	} // setCalldate()
 
 	/**
+	 * Set the value of [id] column.
+	 * 
+	 * @param      int $v new value
+	 * @return     ArCdr The current object (for fluent API support)
+	 */
+	public function setId($v)
+	{
+		if ($v !== null) {
+			$v = (int) $v;
+		}
+
+		if ($this->id !== $v || $this->isNew()) {
+			$this->id = $v;
+			$this->modifiedColumns[] = ArCdrPeer::ID;
+		}
+
+		return $this;
+	} // setId()
+
+	/**
+	 * Set the value of [is_service_cdr] column.
+	 * 
+	 * @param      boolean $v new value
+	 * @return     ArCdr The current object (for fluent API support)
+	 */
+	public function setIsServiceCdr($v)
+	{
+		if ($v !== null) {
+			$v = (boolean) $v;
+		}
+
+		if ($this->is_service_cdr !== $v || $this->isNew()) {
+			$this->is_service_cdr = $v;
+			$this->modifiedColumns[] = ArCdrPeer::IS_SERVICE_CDR;
+		}
+
+		return $this;
+	} // setIsServiceCdr()
+
+	/**
 	 * Sets the value of [to_calldate] column to a normalized version of the date/time value specified.
 	 * 
 	 * @param      mixed $v string, integer (timestamp), or DateTime value.  Empty string will
@@ -787,26 +793,6 @@ abstract class BaseArCdr extends BaseObject  implements Persistent {
 
 		return $this;
 	} // setToCalldate()
-
-	/**
-	 * Set the value of [is_imported_service_cdr] column.
-	 * 
-	 * @param      boolean $v new value
-	 * @return     ArCdr The current object (for fluent API support)
-	 */
-	public function setIsImportedServiceCdr($v)
-	{
-		if ($v !== null) {
-			$v = (boolean) $v;
-		}
-
-		if ($this->is_imported_service_cdr !== $v || $this->isNew()) {
-			$this->is_imported_service_cdr = $v;
-			$this->modifiedColumns[] = ArCdrPeer::IS_IMPORTED_SERVICE_CDR;
-		}
-
-		return $this;
-	} // setIsImportedServiceCdr()
 
 	/**
 	 * Set the value of [count_of_calls] column.
@@ -880,7 +866,7 @@ abstract class BaseArCdr extends BaseObject  implements Persistent {
 			$v = (int) $v;
 		}
 
-		if ($this->duration !== $v) {
+		if ($this->duration !== $v || $this->isNew()) {
 			$this->duration = $v;
 			$this->modifiedColumns[] = ArCdrPeer::DURATION;
 		}
@@ -900,7 +886,7 @@ abstract class BaseArCdr extends BaseObject  implements Persistent {
 			$v = (int) $v;
 		}
 
-		if ($this->billsec !== $v) {
+		if ($this->billsec !== $v || $this->isNew()) {
 			$this->billsec = $v;
 			$this->modifiedColumns[] = ArCdrPeer::BILLSEC;
 		}
@@ -925,10 +911,6 @@ abstract class BaseArCdr extends BaseObject  implements Persistent {
 			$this->modifiedColumns[] = ArCdrPeer::AR_ORGANIZATION_UNIT_ID;
 		}
 
-		if ($this->aArOrganizationUnit !== null && $this->aArOrganizationUnit->getId() !== $v) {
-			$this->aArOrganizationUnit = null;
-		}
-
 		return $this;
 	} // setArOrganizationUnitId()
 
@@ -940,14 +922,17 @@ abstract class BaseArCdr extends BaseObject  implements Persistent {
 	 */
 	public function setCachedParentIdHierarchy($v)
 	{
-		if ($v !== null) {
-			$v = (string) $v;
-		}
-
-		if ($this->cached_parent_id_hierarchy !== $v) {
+		// Because BLOB columns are streams in PDO we have to assume that they are
+		// always modified when a new value is passed in.  For example, the contents
+		// of the stream itself may have changed externally.
+		if (!is_resource($v) && $v !== null) {
+			$this->cached_parent_id_hierarchy = fopen('php://memory', 'r+');
+			fwrite($this->cached_parent_id_hierarchy, $v);
+			rewind($this->cached_parent_id_hierarchy);
+		} else { // it's already a stream
 			$this->cached_parent_id_hierarchy = $v;
-			$this->modifiedColumns[] = ArCdrPeer::CACHED_PARENT_ID_HIERARCHY;
 		}
+		$this->modifiedColumns[] = ArCdrPeer::CACHED_PARENT_ID_HIERARCHY;
 
 		return $this;
 	} // setCachedParentIdHierarchy()
@@ -1049,10 +1034,6 @@ abstract class BaseArCdr extends BaseObject  implements Persistent {
 			$this->modifiedColumns[] = ArCdrPeer::AR_VENDOR_ID;
 		}
 
-		if ($this->aArVendor !== null && $this->aArVendor->getId() !== $v) {
-			$this->aArVendor = null;
-		}
-
 		return $this;
 	} // setArVendorId()
 
@@ -1071,10 +1052,6 @@ abstract class BaseArCdr extends BaseObject  implements Persistent {
 		if ($this->ar_communication_channel_type_id !== $v) {
 			$this->ar_communication_channel_type_id = $v;
 			$this->modifiedColumns[] = ArCdrPeer::AR_COMMUNICATION_CHANNEL_TYPE_ID;
-		}
-
-		if ($this->aArCommunicationChannelType !== null && $this->aArCommunicationChannelType->getId() !== $v) {
-			$this->aArCommunicationChannelType = null;
 		}
 
 		return $this;
@@ -1135,10 +1112,6 @@ abstract class BaseArCdr extends BaseObject  implements Persistent {
 		if ($this->ar_telephone_prefix_id !== $v) {
 			$this->ar_telephone_prefix_id = $v;
 			$this->modifiedColumns[] = ArCdrPeer::AR_TELEPHONE_PREFIX_ID;
-		}
-
-		if ($this->aArTelephonePrefix !== null && $this->aArTelephonePrefix->getId() !== $v) {
-			$this->aArTelephonePrefix = null;
 		}
 
 		return $this;
@@ -1414,7 +1387,11 @@ abstract class BaseArCdr extends BaseObject  implements Persistent {
 	 */
 	public function hasOnlyDefaultValues()
 	{
-			if ($this->is_imported_service_cdr !== false) {
+			if ($this->id !== 0) {
+				return false;
+			}
+
+			if ($this->is_service_cdr !== false) {
 				return false;
 			}
 
@@ -1427,6 +1404,14 @@ abstract class BaseArCdr extends BaseObject  implements Persistent {
 			}
 
 			if ($this->is_redirect !== false) {
+				return false;
+			}
+
+			if ($this->duration !== 0) {
+				return false;
+			}
+
+			if ($this->billsec !== 0) {
 				return false;
 			}
 
@@ -1456,17 +1441,23 @@ abstract class BaseArCdr extends BaseObject  implements Persistent {
 	{
 		try {
 
-			$this->id = ($row[$startcol + 0] !== null) ? (int) $row[$startcol + 0] : null;
-			$this->calldate = ($row[$startcol + 1] !== null) ? (string) $row[$startcol + 1] : null;
-			$this->to_calldate = ($row[$startcol + 2] !== null) ? (string) $row[$startcol + 2] : null;
-			$this->is_imported_service_cdr = ($row[$startcol + 3] !== null) ? (boolean) $row[$startcol + 3] : null;
+			$this->calldate = ($row[$startcol + 0] !== null) ? (string) $row[$startcol + 0] : null;
+			$this->id = ($row[$startcol + 1] !== null) ? (int) $row[$startcol + 1] : null;
+			$this->is_service_cdr = ($row[$startcol + 2] !== null) ? (boolean) $row[$startcol + 2] : null;
+			$this->to_calldate = ($row[$startcol + 3] !== null) ? (string) $row[$startcol + 3] : null;
 			$this->count_of_calls = ($row[$startcol + 4] !== null) ? (int) $row[$startcol + 4] : null;
 			$this->destination_type = ($row[$startcol + 5] !== null) ? (int) $row[$startcol + 5] : null;
 			$this->is_redirect = ($row[$startcol + 6] !== null) ? (boolean) $row[$startcol + 6] : null;
 			$this->duration = ($row[$startcol + 7] !== null) ? (int) $row[$startcol + 7] : null;
 			$this->billsec = ($row[$startcol + 8] !== null) ? (int) $row[$startcol + 8] : null;
 			$this->ar_organization_unit_id = ($row[$startcol + 9] !== null) ? (int) $row[$startcol + 9] : null;
-			$this->cached_parent_id_hierarchy = ($row[$startcol + 10] !== null) ? (string) $row[$startcol + 10] : null;
+			if ($row[$startcol + 10] !== null) {
+				$this->cached_parent_id_hierarchy = fopen('php://memory', 'r+');
+				fwrite($this->cached_parent_id_hierarchy, $row[$startcol + 10]);
+				rewind($this->cached_parent_id_hierarchy);
+			} else {
+				$this->cached_parent_id_hierarchy = null;
+			}
 			$this->billable_ar_organization_unit_id = ($row[$startcol + 11] !== null) ? (int) $row[$startcol + 11] : null;
 			$this->bundle_ar_organization_unit_id = ($row[$startcol + 12] !== null) ? (int) $row[$startcol + 12] : null;
 			$this->income = ($row[$startcol + 13] !== null) ? (string) $row[$startcol + 13] : null;
@@ -1521,18 +1512,6 @@ abstract class BaseArCdr extends BaseObject  implements Persistent {
 	public function ensureConsistency()
 	{
 
-		if ($this->aArOrganizationUnit !== null && $this->ar_organization_unit_id !== $this->aArOrganizationUnit->getId()) {
-			$this->aArOrganizationUnit = null;
-		}
-		if ($this->aArVendor !== null && $this->ar_vendor_id !== $this->aArVendor->getId()) {
-			$this->aArVendor = null;
-		}
-		if ($this->aArCommunicationChannelType !== null && $this->ar_communication_channel_type_id !== $this->aArCommunicationChannelType->getId()) {
-			$this->aArCommunicationChannelType = null;
-		}
-		if ($this->aArTelephonePrefix !== null && $this->ar_telephone_prefix_id !== $this->aArTelephonePrefix->getId()) {
-			$this->aArTelephonePrefix = null;
-		}
 	} // ensureConsistency
 
 	/**
@@ -1572,10 +1551,6 @@ abstract class BaseArCdr extends BaseObject  implements Persistent {
 
 		if ($deep) {  // also de-associate any related objects?
 
-			$this->aArOrganizationUnit = null;
-			$this->aArVendor = null;
-			$this->aArCommunicationChannelType = null;
-			$this->aArTelephonePrefix = null;
 		} // if (deep)
 	}
 
@@ -1684,42 +1659,6 @@ abstract class BaseArCdr extends BaseObject  implements Persistent {
 		if (!$this->alreadyInSave) {
 			$this->alreadyInSave = true;
 
-			// We call the save method on the following object(s) if they
-			// were passed to this object by their coresponding set
-			// method.  This object relates to these object(s) by a
-			// foreign key reference.
-
-			if ($this->aArOrganizationUnit !== null) {
-				if ($this->aArOrganizationUnit->isModified() || $this->aArOrganizationUnit->isNew()) {
-					$affectedRows += $this->aArOrganizationUnit->save($con);
-				}
-				$this->setArOrganizationUnit($this->aArOrganizationUnit);
-			}
-
-			if ($this->aArVendor !== null) {
-				if ($this->aArVendor->isModified() || $this->aArVendor->isNew()) {
-					$affectedRows += $this->aArVendor->save($con);
-				}
-				$this->setArVendor($this->aArVendor);
-			}
-
-			if ($this->aArCommunicationChannelType !== null) {
-				if ($this->aArCommunicationChannelType->isModified() || $this->aArCommunicationChannelType->isNew()) {
-					$affectedRows += $this->aArCommunicationChannelType->save($con);
-				}
-				$this->setArCommunicationChannelType($this->aArCommunicationChannelType);
-			}
-
-			if ($this->aArTelephonePrefix !== null) {
-				if ($this->aArTelephonePrefix->isModified() || $this->aArTelephonePrefix->isNew()) {
-					$affectedRows += $this->aArTelephonePrefix->save($con);
-				}
-				$this->setArTelephonePrefix($this->aArTelephonePrefix);
-			}
-
-			if ($this->isNew() ) {
-				$this->modifiedColumns[] = ArCdrPeer::ID;
-			}
 
 			// If this object has been modified, then save it to the database.
 			if ($this->isModified()) {
@@ -1729,11 +1668,14 @@ abstract class BaseArCdr extends BaseObject  implements Persistent {
 										 // should always be true here (even though technically
 										 // BasePeer::doInsert() can insert multiple rows).
 
-					$this->setId($pk);  //[IMV] update autoincrement primary key
-
 					$this->setNew(false);
 				} else {
 					$affectedRows += ArCdrPeer::doUpdate($this, $con);
+				}
+
+				// Rewind the cached_parent_id_hierarchy LOB column, since PDO does not rewind after inserting value.
+				if ($this->cached_parent_id_hierarchy !== null && is_resource($this->cached_parent_id_hierarchy)) {
+					rewind($this->cached_parent_id_hierarchy);
 				}
 
 				$this->resetModified(); // [HL] After being saved an object is no longer 'modified'
@@ -1805,36 +1747,6 @@ abstract class BaseArCdr extends BaseObject  implements Persistent {
 			$failureMap = array();
 
 
-			// We call the validate method on the following object(s) if they
-			// were passed to this object by their coresponding set
-			// method.  This object relates to these object(s) by a
-			// foreign key reference.
-
-			if ($this->aArOrganizationUnit !== null) {
-				if (!$this->aArOrganizationUnit->validate($columns)) {
-					$failureMap = array_merge($failureMap, $this->aArOrganizationUnit->getValidationFailures());
-				}
-			}
-
-			if ($this->aArVendor !== null) {
-				if (!$this->aArVendor->validate($columns)) {
-					$failureMap = array_merge($failureMap, $this->aArVendor->getValidationFailures());
-				}
-			}
-
-			if ($this->aArCommunicationChannelType !== null) {
-				if (!$this->aArCommunicationChannelType->validate($columns)) {
-					$failureMap = array_merge($failureMap, $this->aArCommunicationChannelType->getValidationFailures());
-				}
-			}
-
-			if ($this->aArTelephonePrefix !== null) {
-				if (!$this->aArTelephonePrefix->validate($columns)) {
-					$failureMap = array_merge($failureMap, $this->aArTelephonePrefix->getValidationFailures());
-				}
-			}
-
-
 			if (($retval = ArCdrPeer::doValidate($this, $columns)) !== true) {
 				$failureMap = array_merge($failureMap, $retval);
 			}
@@ -1874,16 +1786,16 @@ abstract class BaseArCdr extends BaseObject  implements Persistent {
 	{
 		switch($pos) {
 			case 0:
-				return $this->getId();
-				break;
-			case 1:
 				return $this->getCalldate();
 				break;
+			case 1:
+				return $this->getId();
+				break;
 			case 2:
-				return $this->getToCalldate();
+				return $this->getIsServiceCdr();
 				break;
 			case 3:
-				return $this->getIsImportedServiceCdr();
+				return $this->getToCalldate();
 				break;
 			case 4:
 				return $this->getCountOfCalls();
@@ -1993,10 +1905,10 @@ abstract class BaseArCdr extends BaseObject  implements Persistent {
 	{
 		$keys = ArCdrPeer::getFieldNames($keyType);
 		$result = array(
-			$keys[0] => $this->getId(),
-			$keys[1] => $this->getCalldate(),
-			$keys[2] => $this->getToCalldate(),
-			$keys[3] => $this->getIsImportedServiceCdr(),
+			$keys[0] => $this->getCalldate(),
+			$keys[1] => $this->getId(),
+			$keys[2] => $this->getIsServiceCdr(),
+			$keys[3] => $this->getToCalldate(),
 			$keys[4] => $this->getCountOfCalls(),
 			$keys[5] => $this->getDestinationType(),
 			$keys[6] => $this->getIsRedirect(),
@@ -2058,16 +1970,16 @@ abstract class BaseArCdr extends BaseObject  implements Persistent {
 	{
 		switch($pos) {
 			case 0:
-				$this->setId($value);
-				break;
-			case 1:
 				$this->setCalldate($value);
 				break;
+			case 1:
+				$this->setId($value);
+				break;
 			case 2:
-				$this->setToCalldate($value);
+				$this->setIsServiceCdr($value);
 				break;
 			case 3:
-				$this->setIsImportedServiceCdr($value);
+				$this->setToCalldate($value);
 				break;
 			case 4:
 				$this->setCountOfCalls($value);
@@ -2180,10 +2092,10 @@ abstract class BaseArCdr extends BaseObject  implements Persistent {
 	{
 		$keys = ArCdrPeer::getFieldNames($keyType);
 
-		if (array_key_exists($keys[0], $arr)) $this->setId($arr[$keys[0]]);
-		if (array_key_exists($keys[1], $arr)) $this->setCalldate($arr[$keys[1]]);
-		if (array_key_exists($keys[2], $arr)) $this->setToCalldate($arr[$keys[2]]);
-		if (array_key_exists($keys[3], $arr)) $this->setIsImportedServiceCdr($arr[$keys[3]]);
+		if (array_key_exists($keys[0], $arr)) $this->setCalldate($arr[$keys[0]]);
+		if (array_key_exists($keys[1], $arr)) $this->setId($arr[$keys[1]]);
+		if (array_key_exists($keys[2], $arr)) $this->setIsServiceCdr($arr[$keys[2]]);
+		if (array_key_exists($keys[3], $arr)) $this->setToCalldate($arr[$keys[3]]);
 		if (array_key_exists($keys[4], $arr)) $this->setCountOfCalls($arr[$keys[4]]);
 		if (array_key_exists($keys[5], $arr)) $this->setDestinationType($arr[$keys[5]]);
 		if (array_key_exists($keys[6], $arr)) $this->setIsRedirect($arr[$keys[6]]);
@@ -2224,10 +2136,10 @@ abstract class BaseArCdr extends BaseObject  implements Persistent {
 	{
 		$criteria = new Criteria(ArCdrPeer::DATABASE_NAME);
 
-		if ($this->isColumnModified(ArCdrPeer::ID)) $criteria->add(ArCdrPeer::ID, $this->id);
 		if ($this->isColumnModified(ArCdrPeer::CALLDATE)) $criteria->add(ArCdrPeer::CALLDATE, $this->calldate);
+		if ($this->isColumnModified(ArCdrPeer::ID)) $criteria->add(ArCdrPeer::ID, $this->id);
+		if ($this->isColumnModified(ArCdrPeer::IS_SERVICE_CDR)) $criteria->add(ArCdrPeer::IS_SERVICE_CDR, $this->is_service_cdr);
 		if ($this->isColumnModified(ArCdrPeer::TO_CALLDATE)) $criteria->add(ArCdrPeer::TO_CALLDATE, $this->to_calldate);
-		if ($this->isColumnModified(ArCdrPeer::IS_IMPORTED_SERVICE_CDR)) $criteria->add(ArCdrPeer::IS_IMPORTED_SERVICE_CDR, $this->is_imported_service_cdr);
 		if ($this->isColumnModified(ArCdrPeer::COUNT_OF_CALLS)) $criteria->add(ArCdrPeer::COUNT_OF_CALLS, $this->count_of_calls);
 		if ($this->isColumnModified(ArCdrPeer::DESTINATION_TYPE)) $criteria->add(ArCdrPeer::DESTINATION_TYPE, $this->destination_type);
 		if ($this->isColumnModified(ArCdrPeer::IS_REDIRECT)) $criteria->add(ArCdrPeer::IS_REDIRECT, $this->is_redirect);
@@ -2273,29 +2185,46 @@ abstract class BaseArCdr extends BaseObject  implements Persistent {
 	{
 		$criteria = new Criteria(ArCdrPeer::DATABASE_NAME);
 
+		$criteria->add(ArCdrPeer::CALLDATE, $this->calldate);
 		$criteria->add(ArCdrPeer::ID, $this->id);
+		$criteria->add(ArCdrPeer::IS_SERVICE_CDR, $this->is_service_cdr);
 
 		return $criteria;
 	}
 
 	/**
-	 * Returns the primary key for this object (row).
-	 * @return     int
+	 * Returns the composite primary key for this object.
+	 * The array elements will be in same order as specified in XML.
+	 * @return     array
 	 */
 	public function getPrimaryKey()
 	{
-		return $this->getId();
+		$pks = array();
+
+		$pks[0] = $this->getCalldate();
+
+		$pks[1] = $this->getId();
+
+		$pks[2] = $this->getIsServiceCdr();
+
+		return $pks;
 	}
 
 	/**
-	 * Generic method to set the primary key (id column).
+	 * Set the [composite] primary key.
 	 *
-	 * @param      int $key Primary key.
+	 * @param      array $keys The elements of the composite key (order must match the order in XML file).
 	 * @return     void
 	 */
-	public function setPrimaryKey($key)
+	public function setPrimaryKey($keys)
 	{
-		$this->setId($key);
+
+		$this->setCalldate($keys[0]);
+
+		$this->setId($keys[1]);
+
+		$this->setIsServiceCdr($keys[2]);
+
 	}
 
 	/**
@@ -2313,9 +2242,11 @@ abstract class BaseArCdr extends BaseObject  implements Persistent {
 
 		$copyObj->setCalldate($this->calldate);
 
-		$copyObj->setToCalldate($this->to_calldate);
+		$copyObj->setId($this->id);
 
-		$copyObj->setIsImportedServiceCdr($this->is_imported_service_cdr);
+		$copyObj->setIsServiceCdr($this->is_service_cdr);
+
+		$copyObj->setToCalldate($this->to_calldate);
 
 		$copyObj->setCountOfCalls($this->count_of_calls);
 
@@ -2378,8 +2309,6 @@ abstract class BaseArCdr extends BaseObject  implements Persistent {
 
 		$copyObj->setNew(true);
 
-		$copyObj->setId(NULL); // this is a auto-increment column, so set to default value
-
 	}
 
 	/**
@@ -2421,202 +2350,6 @@ abstract class BaseArCdr extends BaseObject  implements Persistent {
 	}
 
 	/**
-	 * Declares an association between this object and a ArOrganizationUnit object.
-	 *
-	 * @param      ArOrganizationUnit $v
-	 * @return     ArCdr The current object (for fluent API support)
-	 * @throws     PropelException
-	 */
-	public function setArOrganizationUnit(ArOrganizationUnit $v = null)
-	{
-		if ($v === null) {
-			$this->setArOrganizationUnitId(NULL);
-		} else {
-			$this->setArOrganizationUnitId($v->getId());
-		}
-
-		$this->aArOrganizationUnit = $v;
-
-		// Add binding for other direction of this n:n relationship.
-		// If this object has already been added to the ArOrganizationUnit object, it will not be re-added.
-		if ($v !== null) {
-			$v->addArCdr($this);
-		}
-
-		return $this;
-	}
-
-
-	/**
-	 * Get the associated ArOrganizationUnit object
-	 *
-	 * @param      PropelPDO Optional Connection object.
-	 * @return     ArOrganizationUnit The associated ArOrganizationUnit object.
-	 * @throws     PropelException
-	 */
-	public function getArOrganizationUnit(PropelPDO $con = null)
-	{
-		if ($this->aArOrganizationUnit === null && ($this->ar_organization_unit_id !== null)) {
-			$this->aArOrganizationUnit = ArOrganizationUnitPeer::retrieveByPk($this->ar_organization_unit_id);
-			/* The following can be used additionally to
-			   guarantee the related object contains a reference
-			   to this object.  This level of coupling may, however, be
-			   undesirable since it could result in an only partially populated collection
-			   in the referenced object.
-			   $this->aArOrganizationUnit->addArCdrs($this);
-			 */
-		}
-		return $this->aArOrganizationUnit;
-	}
-
-	/**
-	 * Declares an association between this object and a ArVendor object.
-	 *
-	 * @param      ArVendor $v
-	 * @return     ArCdr The current object (for fluent API support)
-	 * @throws     PropelException
-	 */
-	public function setArVendor(ArVendor $v = null)
-	{
-		if ($v === null) {
-			$this->setArVendorId(NULL);
-		} else {
-			$this->setArVendorId($v->getId());
-		}
-
-		$this->aArVendor = $v;
-
-		// Add binding for other direction of this n:n relationship.
-		// If this object has already been added to the ArVendor object, it will not be re-added.
-		if ($v !== null) {
-			$v->addArCdr($this);
-		}
-
-		return $this;
-	}
-
-
-	/**
-	 * Get the associated ArVendor object
-	 *
-	 * @param      PropelPDO Optional Connection object.
-	 * @return     ArVendor The associated ArVendor object.
-	 * @throws     PropelException
-	 */
-	public function getArVendor(PropelPDO $con = null)
-	{
-		if ($this->aArVendor === null && ($this->ar_vendor_id !== null)) {
-			$this->aArVendor = ArVendorPeer::retrieveByPk($this->ar_vendor_id);
-			/* The following can be used additionally to
-			   guarantee the related object contains a reference
-			   to this object.  This level of coupling may, however, be
-			   undesirable since it could result in an only partially populated collection
-			   in the referenced object.
-			   $this->aArVendor->addArCdrs($this);
-			 */
-		}
-		return $this->aArVendor;
-	}
-
-	/**
-	 * Declares an association between this object and a ArCommunicationChannelType object.
-	 *
-	 * @param      ArCommunicationChannelType $v
-	 * @return     ArCdr The current object (for fluent API support)
-	 * @throws     PropelException
-	 */
-	public function setArCommunicationChannelType(ArCommunicationChannelType $v = null)
-	{
-		if ($v === null) {
-			$this->setArCommunicationChannelTypeId(NULL);
-		} else {
-			$this->setArCommunicationChannelTypeId($v->getId());
-		}
-
-		$this->aArCommunicationChannelType = $v;
-
-		// Add binding for other direction of this n:n relationship.
-		// If this object has already been added to the ArCommunicationChannelType object, it will not be re-added.
-		if ($v !== null) {
-			$v->addArCdr($this);
-		}
-
-		return $this;
-	}
-
-
-	/**
-	 * Get the associated ArCommunicationChannelType object
-	 *
-	 * @param      PropelPDO Optional Connection object.
-	 * @return     ArCommunicationChannelType The associated ArCommunicationChannelType object.
-	 * @throws     PropelException
-	 */
-	public function getArCommunicationChannelType(PropelPDO $con = null)
-	{
-		if ($this->aArCommunicationChannelType === null && ($this->ar_communication_channel_type_id !== null)) {
-			$this->aArCommunicationChannelType = ArCommunicationChannelTypePeer::retrieveByPk($this->ar_communication_channel_type_id);
-			/* The following can be used additionally to
-			   guarantee the related object contains a reference
-			   to this object.  This level of coupling may, however, be
-			   undesirable since it could result in an only partially populated collection
-			   in the referenced object.
-			   $this->aArCommunicationChannelType->addArCdrs($this);
-			 */
-		}
-		return $this->aArCommunicationChannelType;
-	}
-
-	/**
-	 * Declares an association between this object and a ArTelephonePrefix object.
-	 *
-	 * @param      ArTelephonePrefix $v
-	 * @return     ArCdr The current object (for fluent API support)
-	 * @throws     PropelException
-	 */
-	public function setArTelephonePrefix(ArTelephonePrefix $v = null)
-	{
-		if ($v === null) {
-			$this->setArTelephonePrefixId(NULL);
-		} else {
-			$this->setArTelephonePrefixId($v->getId());
-		}
-
-		$this->aArTelephonePrefix = $v;
-
-		// Add binding for other direction of this n:n relationship.
-		// If this object has already been added to the ArTelephonePrefix object, it will not be re-added.
-		if ($v !== null) {
-			$v->addArCdr($this);
-		}
-
-		return $this;
-	}
-
-
-	/**
-	 * Get the associated ArTelephonePrefix object
-	 *
-	 * @param      PropelPDO Optional Connection object.
-	 * @return     ArTelephonePrefix The associated ArTelephonePrefix object.
-	 * @throws     PropelException
-	 */
-	public function getArTelephonePrefix(PropelPDO $con = null)
-	{
-		if ($this->aArTelephonePrefix === null && ($this->ar_telephone_prefix_id !== null)) {
-			$this->aArTelephonePrefix = ArTelephonePrefixPeer::retrieveByPk($this->ar_telephone_prefix_id);
-			/* The following can be used additionally to
-			   guarantee the related object contains a reference
-			   to this object.  This level of coupling may, however, be
-			   undesirable since it could result in an only partially populated collection
-			   in the referenced object.
-			   $this->aArTelephonePrefix->addArCdrs($this);
-			 */
-		}
-		return $this->aArTelephonePrefix;
-	}
-
-	/**
 	 * Resets all collections of referencing foreign keys.
 	 *
 	 * This method is a user-space workaround for PHP's inability to garbage collect objects
@@ -2630,10 +2363,6 @@ abstract class BaseArCdr extends BaseObject  implements Persistent {
 		if ($deep) {
 		} // if ($deep)
 
-			$this->aArOrganizationUnit = null;
-			$this->aArVendor = null;
-			$this->aArCommunicationChannelType = null;
-			$this->aArTelephonePrefix = null;
 	}
 
 } // BaseArCdr

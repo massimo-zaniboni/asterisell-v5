@@ -1,27 +1,20 @@
 {-# LANGUAGE ScopedTypeVariables, BangPatterns, OverloadedStrings, ExistentialQuantification, RankNTypes, QuasiQuotes, DeriveGeneric, DeriveAnyClass  #-}
 
-{- $LICENSE 2013, 2014, 2015, 2016, 2017
- * Copyright (C) 2013-2017 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
- *
- * This file is part of Asterisell.
- *
- * Asterisell is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 3 of the License, or
- * (at your option) any later version.
- *
- * Asterisell is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with Asterisell. If not, see <http://www.gnu.org/licenses/>.
- * $
--}
-
+-- SPDX-License-Identifier: GPL-3.0-or-later
 
 -- | Import specific format for a Customer.
+--   The import guidelines are:
+--   * in external telephone number there are all info used for calculating the income of a call,
+--     and that can be exposed to the customer, using the prefix table, and the displayed external telephone number
+--  * the external telephone number and the ported table, should be sufficient for individuating the destination
+--    provider (telephone operator) of the destination number, and if it is geographical, mobile, and so on
+--  * in vendor there is the vendor used for routing the call, and it is a field used for calculating cost,
+--    but usually not the income, because it is hidden to customers usually
+--  * the channel type contains info about the technology/trunk used for routing the call, and it affects the cost,
+--    but usually not the income, because it is hidden to customers
+--  * the channel type and vendor is matched using vendor-domain and related table, if left specified,
+--    or explicitely from import routines.
+--
 module Asterisell.CustomerSpecificImporters (
     getSupportedCDRSImporters
   , deriveFastLookupCDRImportes
@@ -37,6 +30,7 @@ module Asterisell.CustomerSpecificImporters (
   , CSVFormat_digitelNNG__v1
   , CSVFormat_colt
   , CSVFormat_colt43
+  , CSVFormat_rolf1
   , const_digitelHeader
   , const_digitelNNGTimeBandPrefix
   , digitel_normalizeCalledNumber
@@ -59,7 +53,12 @@ import Asterisell.OrganizationHierarchy
 import Data.List as List
 import qualified Data.Set as Set
 import qualified Data.Text as Text
+import qualified Data.ByteString.Builder as BS
+import qualified Data.Text.Lazy.Builder as LTB
+import qualified Data.Text.Lazy as LT
+import qualified Data.Text.Lazy.Builder.Int as LTB
 import Control.Monad
+import Data.Monoid
 import Data.Vector as V hiding((++))
 import Data.Hashable
 import Data.Maybe
@@ -106,13 +105,14 @@ deriveFastLookupCDRImportes conn = do
               |ORDER BY v.id
               |]
 
-  (colDefs, inS) <- DB.query_ conn q 
+  (colDefs, inS) <- DB.query_ conn q
   S.fold (\m r -> case r of
                     [i, fName, vName]
                       -> case getSupportedCDRSImporters (fromDBText fName) (fromDBText vName) of
                            Nothing -> m
                            Just s -> IntMap.insert (fromDBInt i) (s, fromDBText fName, fromDBText vName) m
-                    unexpected -> error ("Error 11776 in application code. Unexpected result: " ++ show unexpected ++ ", with column defs " ++ show colDefs)
+                    unexpected
+                      -> error ("Error 11776 in application code. Unexpected result: " ++ show unexpected ++ ", with column defs " ++ show colDefs) 
          ) IntMap.empty inS
 
 -- | The default CDRs parsers to use for importing CDRs.
@@ -155,7 +155,11 @@ supportedSourceCDRImporters
       , (("colt","v1"), CDRFormatSpec decodeAlternativeCSV (AType::(AType CSVFormat_colt)))
       , (("colt43","v1"), CDRFormatSpec decodeAlternativeCSV (AType::(AType CSVFormat_colt43)))
       , (("abilis-collector","v1"), CDRFormatSpec  decodeStandardCSV (AType::(AType CSVFormat_tsnet_abilis_collector_v1)))
-
+      , (("rolf1","v1"), CDRFormatSpec (SourceCDRParamsCSVFile
+                                          (Just "id,sessionid,uniqueid,card_id,nasipaddress,starttime,stoptime,sessiontime,calledstation,sessionbill,id_tariffgroup,id_tariffplan,id_ratecard,id_trunk,sipiax,src,id_did,buycost,id_card_package_offer,real_sessiontime,dnid,terminatecauseid,destination")
+                                          ','
+                                          False
+                                          UseUTF8) (AType::(AType CSVFormat_rolf1)))
       ]
 
 -- ---------------------------------------------------------
@@ -1959,7 +1963,7 @@ convert_CSVFormat_tsnet_abilis_collector_v1_toCDR a b cdr
      = asterisellError_empty {
          asterisellError_type = errType
        , asterisellError_domain = errDomain
-       , asterisellError_key = key
+       , asterisellError_key =  fromStringToByteString key
        , asterisellError_description = descr ++ "\nSource CDR:\n" ++ (show cdr)
        , asterisellError_effect = effect
        , asterisellError_proposedSolution = solution
@@ -1985,7 +1989,7 @@ convert_CSVFormat_tsnet_abilis_collector_v1_toCDR1
 convert_CSVFormat_tsnet_abilis_collector_v1_toCDR1 precision provider cdr
   = do callDate <- convertExported "call_start" (\s-> fromMySQLDateTimeAsTextToLocalTime s) $ tsnet_abilis_collector_v1__call_start cdr
        isSuccessfullCall01 <- exported "call_result" $ tsnet_abilis_collector_v1__call_result cdr
-       sellIncomingCallsTo800 <$> 
+       sellIncomingCallsTo800 <$>
         case isSuccessfullCall01 of
          0 -> return []
          1 -> do  abilisCallDirection <- exported "call_direction" $ tsnet_abilis_collector_v1__call_direction cdr
@@ -2024,7 +2028,7 @@ convert_CSVFormat_tsnet_abilis_collector_v1_toCDR1 precision provider cdr
                                                       const_TO_DSTCHANNEL_INTERNAL_TRANSIT  -- vendor
                                                       const_INTERNAL_TRANSIT_VOIP_ACCOUNT   -- account
                                                       (toMaybe in_calling_num)              -- internal
-                                                      (fromExport in_called_num)            -- external
+                                                      (fromExport1 provider id in_called_num)            -- external
                                                       False
                                         ])
                            ,(do guard (orig_cluster_name /= const_TGP256_CLUSTER_NAME
@@ -2036,7 +2040,7 @@ convert_CSVFormat_tsnet_abilis_collector_v1_toCDR1 precision provider cdr
                                                       const_TO_DSTCHANNEL_INTERNAL_TRANSIT
                                                       const_INTERNAL_TRANSIT_VOIP_ACCOUNT
                                                       (toMaybe out_calling_num)
-                                                      (fromExport out_called_num)
+                                                      (fromExport1 provider id out_called_num)
                                                       False
                                         ])
                            ])
@@ -2053,9 +2057,9 @@ convert_CSVFormat_tsnet_abilis_collector_v1_toCDR1 precision provider cdr
 
                                 return [createResult CDR_outgoing
                                                      const_TO_DSTCHANNEL_TWT
-                                                     (fromExport user_in)
+                                                     (fromExport1 provider id user_in)
                                                      (toMaybe out_calling_num)
-                                                     (fromExport out_called_num)
+                                                     (fromExport1 provider id out_called_num)
                                                      False])
                            ,(do guard (orig_cluster_name == const_STP256_CLUSTER_NAME
                                        && conn_type == 3
@@ -2064,7 +2068,7 @@ convert_CSVFormat_tsnet_abilis_collector_v1_toCDR1 precision provider cdr
                                        && isNotNullOrEmpty in_called_num)
                                 return  [createResult CDR_incoming
                                                       const_TO_DSTCHANNEL_TWT
-                                                      (fromExport user_out)
+                                                      (fromExport1 provider id user_out)
                                                       (toMaybe in_called_num)
                                                       (getNumberOrAnonymous in_calling_num)
                                                       False])
@@ -2087,10 +2091,10 @@ convert_CSVFormat_tsnet_abilis_collector_v1_toCDR1 precision provider cdr
 
                                        let originalCaller = getNumberOrAnonymous in_calling_num
                                        let originalCalled = toMaybe in_called_num
-                                       let voipAccount = fromExport out_calling_subaddr
+                                       let voipAccount = fromExport1 provider id out_calling_subaddr
 
                                        let redirectedCaller = getNumberOrAnonymous out_calling_num
-                                       let redirectedCalled = fromExport out_called_num
+                                       let redirectedCalled = fromExport1 provider id out_called_num
 
                                        return  [createResult CDR_incoming
                                                              const_TO_DSTCHANNEL_TWT -- vendor
@@ -2121,10 +2125,10 @@ convert_CSVFormat_tsnet_abilis_collector_v1_toCDR1 precision provider cdr
 
                                        let originalCaller = getNumberOrAnonymous in_calling_num
                                        let originalCalled = toMaybe in_called_num
-                                       let voipAccount = fromExport in_called_num
+                                       let voipAccount = fromExport1 provider id in_called_num
 
                                        let redirectedCaller = getNumberOrAnonymous out_calling_num
-                                       let redirectedCalled = fromExport out_called_num
+                                       let redirectedCalled = fromExport1 provider id out_called_num
 
                                        return  [createResult CDR_incoming
                                                              const_TO_DSTCHANNEL_TWT -- vendor
@@ -2150,7 +2154,7 @@ convert_CSVFormat_tsnet_abilis_collector_v1_toCDR1 precision provider cdr
                                 -- Issue #328 and #1703
                                 return  [createResult CDR_outgoing
                                                  const_TO_DSTCHANNEL_TWT -- vendor
-                                                 (fromExport user_in) -- voip-account
+                                                 (fromExport1 provider id user_in) -- voip-account
                                                  (case in_calling_num of
                                                     ExportNull
                                                       -> Just "--unspecified-telephone-number--"
@@ -2158,7 +2162,7 @@ convert_CSVFormat_tsnet_abilis_collector_v1_toCDR1 precision provider cdr
                                                     Export v
                                                       -> Just v
                                                  )
-                                                 (fromExport out_called_num) -- the called external telephone number
+                                                 (fromExport1 provider id out_called_num) -- the called external telephone number
                                                  False
                                         ])
 
@@ -2172,9 +2176,9 @@ convert_CSVFormat_tsnet_abilis_collector_v1_toCDR1 precision provider cdr
                                 -- Issue #334
                                 return  [createResult CDR_outgoing
                                                       const_TO_DSTCHANNEL_TWT -- vendor
-                                                      (fromExport user_in) -- voip-account
+                                                      (fromExport1 provider id  user_in) -- voip-account
                                                       (toMaybe in_calling_num) -- the internal telephone number
-                                                      (fromExport out_called_num) -- the called external telephone number
+                                                      (fromExport1 provider id  out_called_num) -- the called external telephone number
                                                       False
                                         ])
                            ,(do guard (conn_type == 32
@@ -2187,7 +2191,7 @@ convert_CSVFormat_tsnet_abilis_collector_v1_toCDR1 precision provider cdr
                                 -- Issue #335
                                 return  [createResult CDR_incoming
                                                       const_TO_DSTCHANNEL_TWT -- vendor
-                                                      (fromExport user_out) -- voip-account
+                                                      (fromExport1 provider id  user_out) -- voip-account
                                                       (toMaybe out_called_num)  -- the internal telephone number
                                                       (getNumberOrAnonymous in_calling_num) -- the calling external telephone number
                                                       False
@@ -2202,7 +2206,7 @@ convert_CSVFormat_tsnet_abilis_collector_v1_toCDR1 precision provider cdr
                                 -- Issue #337
                                 return  [createResult CDR_incoming
                                                       const_TO_DSTCHANNEL_TWT -- vendor
-                                                      (fromExport user_out) -- voip-account
+                                                      (fromExport1 provider id  user_out) -- voip-account
                                                       (toMaybe out_called_num) -- the internal telephone number
                                                       (getNumberOrAnonymous in_calling_num) -- the calling external telephone number
                                                       False
@@ -2218,9 +2222,9 @@ convert_CSVFormat_tsnet_abilis_collector_v1_toCDR1 precision provider cdr
                                 -- Issue #332
                                 return  [createResult CDR_outgoing
                                                       const_TO_DSTCHANNEL_TWT -- vendor
-                                                      (fromExport user_in) -- voip-account
+                                                      (fromExport1 provider id  user_in) -- voip-account
                                                       (toMaybe in_calling_num) -- the internal telephone number
-                                                      (fromExport out_called_num) -- the called external telephone number
+                                                      (fromExport1 provider id  out_called_num) -- the called external telephone number
                                                       False
                                         ])
                            ,(do guard (conn_type == 40
@@ -2232,7 +2236,7 @@ convert_CSVFormat_tsnet_abilis_collector_v1_toCDR1 precision provider cdr
                                 -- Issue #333
                                 return  [createResult CDR_incoming
                                                       const_TO_DSTCHANNEL_TWT -- vendor
-                                                      (fromExport user_out) -- voip-account
+                                                      (fromExport1 provider id  user_out) -- voip-account
                                                       (toMaybe out_called_num) -- the internal telephone number
                                                       (getNumberOrAnonymous in_calling_num) -- the calling external telephone number
                                                       False
@@ -2244,14 +2248,14 @@ convert_CSVFormat_tsnet_abilis_collector_v1_toCDR1 precision provider cdr
                            [(do guard (isNotNullOrEmpty out_called_num && isNotNullOrEmpty user_in)
                                 return  [createResult CDR_outgoing
                                                       const_TO_DSTCHANNEL_TWT
-                                                      (fromExport user_in)
+                                                      (fromExport1 provider id  user_in)
                                                       Nothing
-                                                      (fromExport out_called_num)
+                                                      (fromExport1 provider id  out_called_num)
                                                       False
                                         ])
                            ])
                     ,(do guard (isNotNullOrEmpty user_out
-                                && (Text.toLower $ fromExport user_out) == (fromExport const_USER_OUT_TISCALI))
+                                && (Text.toLower $ fromExport1 provider id  user_out) == (fromExport1 provider id  const_USER_OUT_TISCALI))
                          ruleCaseFor
                            "SIP calls from Tiscali."
                            [(do guard ((abilisCallDirection == 1 || abilisCallDirection == 3)
@@ -2263,9 +2267,9 @@ convert_CSVFormat_tsnet_abilis_collector_v1_toCDR1 precision provider cdr
 
                                 return  [createResult CDR_outgoing
                                                       const_TO_DSTCHANNEL_TISCALI
-                                                      (fromExport user_in)
+                                                      (fromExport1 provider id  user_in)
                                                       (toMaybe in_calling_num)
-                                                      (normalizeTiscaliExternalNumber $ fromExport out_called_num)
+                                                      (normalizeTiscaliExternalNumber $ fromExport1 provider id  out_called_num)
                                                       False
                                         ])
                            ])
@@ -2277,7 +2281,7 @@ convert_CSVFormat_tsnet_abilis_collector_v1_toCDR1 precision provider cdr
                                        && isNotNullOrEmpty out_called_subaddr)
                                 return  [createResult CDR_incoming
                                                       const_TO_DSTCHANNEL_TWT
-                                                      (fromExport out_called_subaddr)
+                                                      (fromExport1 provider id  out_called_subaddr)
                                                       Nothing
                                                       (getNumberOrAnonymous in_called_num)
                                                       False
@@ -2289,43 +2293,43 @@ convert_CSVFormat_tsnet_abilis_collector_v1_toCDR1 precision provider cdr
                     ,(do guard  ((isNotEmptyOrNull user_out)
                                   && (isNotEmptyOrNull user_in)
                                   && (isNotEmptyOrNull in_calling_subaddr)
-                                  && ((Text.toLower $ fromExport user_in) == (Text.toLower $ fromExport in_calling_subaddr)))
+                                  && ((Text.toLower $ fromExport1 provider id  user_in) == (Text.toLower $ fromExport1 provider id  in_calling_subaddr)))
 
                          ruleCaseFor
                            "Calls between internal customers, that are routed using Abilis servers, and not VoIP providers, according #1951 "
                            [(do guard (conn_type == 3 && abilisCallDirection == 2 && not (isNullExport in_called_num))
                                 return [createResult CDR_outgoing
                                                      const_TO_DSTCHANNEL_INTERNAL_TRANSIT -- vendor
-                                                     (fromExport user_in)                 -- voip-account
+                                                     (fromExport1 provider id  user_in)                 -- voip-account
                                                      (toMaybe in_calling_num)             -- the internal telephone number
-                                                     (fromExport in_called_num)           -- the external telephone number
+                                                     (fromExport1 provider id  in_called_num)           -- the external telephone number
                                                      False                                -- is redirected
 
                                        ])
                            ,(do guard (conn_type == 36 && abilisCallDirection == 1 && not (isNullExport in_called_num))
                                 return [createResult CDR_outgoing
                                                      const_TO_DSTCHANNEL_INTERNAL_TRANSIT -- vendor
-                                                     (fromExport user_in)                 -- voip-account
+                                                     (fromExport1 provider id  user_in)                 -- voip-account
                                                      (toMaybe in_calling_num)             -- the internal telephone number
-                                                     (fromExport in_called_num)           -- the external telephone number
+                                                     (fromExport1 provider id  in_called_num)           -- the external telephone number
                                                      False                                -- is redirected
 
                                        ])
                            ,(do guard (conn_type == 31 && abilisCallDirection == 0 && not (isNullExport in_called_num))
                                 return [createResult CDR_outgoing
                                                      const_TO_DSTCHANNEL_INTERNAL_TRANSIT -- vendor
-                                                     (fromExport user_in)                 -- voip-account
+                                                     (fromExport1 provider id  user_in)                 -- voip-account
                                                      (toMaybe in_calling_num)             -- the internal telephone number
-                                                     (fromExport in_called_num)           -- the external telephone number
+                                                     (fromExport1 provider id  in_called_num)           -- the external telephone number
                                                      False                                -- is redirected
 
                                        ])
                             ,(do guard (conn_type == 40 && abilisCallDirection == 3 && not (isNullExport in_called_num))
                                  return [createResult CDR_outgoing
                                                      const_TO_DSTCHANNEL_INTERNAL_TRANSIT -- vendor
-                                                     (fromExport user_in)                 -- voip-account
+                                                     (fromExport1 provider id  user_in)                 -- voip-account
                                                      (toMaybe in_calling_num)             -- the internal telephone number
-                                                     (fromExport in_called_num)           -- the external telephone number
+                                                     (fromExport1 provider id  in_called_num)           -- the external telephone number
                                                      False                                -- is redirected
 
                                         ])
@@ -2341,9 +2345,9 @@ convert_CSVFormat_tsnet_abilis_collector_v1_toCDR1 precision provider cdr
 
                                 return  [createResult CDR_outgoing
                                                       const_TO_DSTCHANNEL_TWT
-                                                      (fromExport in_calling_subaddr)
+                                                      (fromExport1 provider id  in_calling_subaddr)
                                                       Nothing
-                                                      (fromExport out_called_num)
+                                                      (fromExport1 provider id  out_called_num)
                                                       False
                                         ])
                            ,(do guard ((conn_type == 30 || conn_type == 12)
@@ -2353,9 +2357,9 @@ convert_CSVFormat_tsnet_abilis_collector_v1_toCDR1 precision provider cdr
 
                                 return  [createResult CDR_outgoing
                                                       const_TO_DSTCHANNEL_TWT
-                                                      (fromExport user_in)
+                                                      (fromExport1 provider id  user_in)
                                                       Nothing
-                                                      (fromExport out_called_num)
+                                                      (fromExport1 provider id  out_called_num)
                                                       False
                                         ])
                            ,(do guard (conn_type == 4
@@ -2364,9 +2368,9 @@ convert_CSVFormat_tsnet_abilis_collector_v1_toCDR1 precision provider cdr
                                        && isNotNullOrEmpty in_calling_subaddr)
                                 return  [createResult CDR_incoming
                                                       const_TO_DSTCHANNEL_TWT
-                                                      (fromExport in_calling_subaddr)
+                                                      (fromExport1 provider id  in_calling_subaddr)
                                                       Nothing
-                                                      (fromExport out_called_num)
+                                                      (fromExport1 provider id  out_called_num)
                                                       False
                                         ])
                            ,(do guard ((conn_type == 11 || conn_type == 35)
@@ -2375,7 +2379,7 @@ convert_CSVFormat_tsnet_abilis_collector_v1_toCDR1 precision provider cdr
 
                                 return  [createResult CDR_incoming
                                                       const_TO_DSTCHANNEL_TWT
-                                                      (fromExport user_out)
+                                                      (fromExport1 provider id  user_out)
                                                       (toMaybe out_called_num)  -- according #1267
                                                       (getNumberOrAnonymous out_calling_num)
                                                       False
@@ -2393,17 +2397,17 @@ convert_CSVFormat_tsnet_abilis_collector_v1_toCDR1 precision provider cdr
 
                                        return  [createResult CDR_outgoing
                                                              const_TO_DSTCHANNEL_TWT
-                                                             (fromExport out_calling_subaddr)
+                                                             (fromExport1 provider id  out_calling_subaddr)
                                                              (toMaybe in_calling_num)
-                                                             (fromExport out_called_num)
+                                                             (fromExport1 provider id  out_called_num)
                                                              False
                                                ])
                                   ,(do guard (isNotNullOrEmpty user_in)
                                        return  [createResult CDR_outgoing
                                                              const_TO_DSTCHANNEL_TWT
-                                                             (fromExport user_in)
+                                                             (fromExport1 provider id  user_in)
                                                              (toMaybe in_calling_num)
-                                                             (fromExport out_called_num)
+                                                             (fromExport1 provider id  out_called_num)
                                                              False
                                                ])
                                   ])
@@ -2421,9 +2425,9 @@ convert_CSVFormat_tsnet_abilis_collector_v1_toCDR1 precision provider cdr
 
                                 return  [createResult CDR_outgoing
                                                       const_TO_DSTCHANNEL_TWT
-                                                      (fromExport out_called_num) -- voip-account
+                                                      (fromExport1 provider id  out_called_num) -- voip-account
                                                       (toMaybe out_called_num) -- internal telephone number
-                                                      (fromExport out_calling_num) -- external telephone number
+                                                      (fromExport1 provider id  out_calling_num) -- external telephone number
                                                       False
                                         ])
                            ,(do guard (conn_type == 1
@@ -2439,7 +2443,7 @@ convert_CSVFormat_tsnet_abilis_collector_v1_toCDR1 precision provider cdr
 
                                 return  [createResult CDR_incoming
                                                       const_TO_DSTCHANNEL_TWT
-                                                      (fromExport user_out)
+                                                      (fromExport1 provider id  user_out)
                                                       (toMaybe out_called_num) -- according #1266
                                                       (getNumberOrAnonymous out_calling_num)
                                                       False
@@ -2469,15 +2473,15 @@ convert_CSVFormat_tsnet_abilis_collector_v1_toCDR1 precision provider cdr
 
                                        return  [createResult CDR_outgoing
                                                              const_TO_DSTCHANNEL_TWT
-                                                             (fromExport originalVoIPAccount)
+                                                             (fromExport1 provider id  originalVoIPAccount)
                                                              Nothing
-                                                             (fromExport finalCalled)
+                                                             (fromExport1 provider id  finalCalled)
                                                              True
                                                ,createResult CDR_incoming
                                                              const_TO_DSTCHANNEL_TWT
-                                                             (fromExport originalVoIPAccount)
+                                                             (fromExport1 provider id  originalVoIPAccount)
                                                              Nothing
-                                                             (fromExport originalCalling)
+                                                             (fromExport1 provider id  originalCalling)
                                                              True
                                                ])
                                   ,(do guard (isNotNullOrEmpty out_called_num
@@ -2498,9 +2502,9 @@ convert_CSVFormat_tsnet_abilis_collector_v1_toCDR1 precision provider cdr
 
                                        return  [createResult CDR_outgoing
                                                              const_TO_DSTCHANNEL_TWT
-                                                             (fromExport originalVoIPAccount) -- voip-account
+                                                             (fromExport1 provider id  originalVoIPAccount) -- voip-account
                                                              Nothing -- internal telephone number
-                                                             (fromExport finalCalled) -- external telephone number
+                                                             (fromExport1 provider id  finalCalled) -- external telephone number
                                                              False
                                                ])
                                   ])
@@ -2511,9 +2515,9 @@ convert_CSVFormat_tsnet_abilis_collector_v1_toCDR1 precision provider cdr
                                 -- Backup Call
                                 return  [createResult CDR_outgoing
                                                       const_TO_DSTCHANNEL_TWT
-                                                      (fromExport out_calling_subaddr) -- voip-account
+                                                      (fromExport1 provider id  out_calling_subaddr) -- voip-account
                                                       Nothing          -- internal telephone number
-                                                      (fromExport out_called_num)      -- external telephone number
+                                                      (fromExport1 provider id  out_called_num)      -- external telephone number
                                                       False
                                         ]
                             )
@@ -2530,7 +2534,7 @@ convert_CSVFormat_tsnet_abilis_collector_v1_toCDR1 precision provider cdr
                      && Text.isPrefixOf (Text.pack "800") (cdr_internalTelephoneNumber cdr))
                  then (cdr { cdr_direction = CDR_outgoing })
                  else cdr
-     in List.map f cdrs 
+     in List.map f cdrs
 
   exported fieldName mv
     = case mv of
@@ -2641,7 +2645,7 @@ convert_CSVFormat_tsnet_abilis_collector_v1_toCDR1 precision provider cdr
 
           duration = fromExport $ tsnet_abilis_collector_v1__call_time cdr
 
-          callDate = fromJust1 "csi1" $ fromMySQLDateTimeAsTextToLocalTime $ fromExport $ tsnet_abilis_collector_v1__call_start cdr
+          callDate = fromJust1 "csi1" $ fromMySQLDateTimeAsTextToLocalTime $ fromExport1 provider id  $ tsnet_abilis_collector_v1__call_start cdr
 
      in (cdr_empty callDate precision) {
                 cdr_countOfCalls = 1
@@ -2655,6 +2659,140 @@ convert_CSVFormat_tsnet_abilis_collector_v1_toCDR1 precision provider cdr
               , cdr_externalTelephoneNumber = getCompleteWithCountryPrefix externalTelephoneNumber
               , cdr_channel = Just vendor
               }
+
+-- ---------------------------------------------
+-- Rolf1
+
+-- | A format like
+--
+-- > 4493947	SIP/326XXXX-b01ad7f0	SERVER1-1366457084.2786	48		2013-04-20 13:24:53	2013-04-20 13:26:12	79	079235XXX	1.486	19	33	4373	6	0	hidden	(null)	1.26400	0	(null)		1	vodacom
+--
+data CSVFormat_rolf1
+  = CSVFormat_rolf1 {
+        rolf1_call_id :: !(ExportMaybeNull Text.Text)
+      , rolf1_card_id :: !(ExportMaybeNull Text.Text)
+      , rolf1_starttime :: !(ExportMaybeNull Text.Text)
+      , rolf1_stoptime :: !(ExportMaybeNull Text.Text)
+      , rolf1_sessiontime :: !(ExportMaybeNull Text.Text)
+      , rolf1_calledstation :: !(ExportMaybeNull Text.Text)
+      , rolf1_sessionbill :: !(ExportMaybeNull Text.Text)
+      , rolf1_buycost :: !(ExportMaybeNull Text.Text)
+      , rolf1_src :: !(ExportMaybeNull Text.Text)
+      , rolf1_destination :: !(ExportMaybeNull Text.Text)
+      , rolf1_account :: !(ExportMaybeNull Text.Text)
+      , rolf1_trunkcode :: !(ExportMaybeNull Text.Text)
+      , rolf1_provider_name :: !(ExportMaybeNull Text.Text)
+   } deriving(Show, Generic, NFData)
+
+instance CSV.FromRecord CSVFormat_rolf1 where
+     parseRecord v =
+         case V.length v of
+              13   -- NOTE: important to use a number instead of an identifier
+                   -- otherwise it is assigned instead of selected as pattern matching.
+                -> CSVFormat_rolf1 <$>
+                     v .! 0<*>
+                     v .! 1<*>
+                     v .! 2<*>
+                     v .! 3<*>
+                     v .! 4<*>
+                     v .! 5<*>
+                     v .! 6<*>
+                     v .! 7<*>
+                     v .! 8<*>
+                     v .! 9<*>
+                     v .! 10<*>
+                     v .! 11<*>
+                     v .! 12
+
+              l -> fail $ "There are " ++ show l ++ " columns instead of the expected " ++ (show 13)
+
+instance CDRFormat CSVFormat_rolf1 where
+  getCallDate record = rolf1_convertCallDate (rolf1_starttime record)
+
+  toCDR precision provider record = rolf1_toCDR record precision provider
+
+rolf1_convertCallDate :: ExportMaybeNull Text.Text -> Either AsterisellError (Maybe LocalTime)
+rolf1_convertCallDate t1
+    = Just <$> importAndConvertNotNullValue t1 fromDateFormat1ToLocalTime "starttime" "call date"
+
+rolf1_toCDR :: CSVFormat_rolf1 -> CurrencyPrecisionDigits -> CDRProviderName -> Either AsterisellError [CDR]
+rolf1_toCDR record precision provider
+    = do callDate
+           <- rolf1_convertCallDate (rolf1_starttime record)
+
+         let direction
+               = case rolf1_trunkcode record of
+                   ExportNull -> CDR_outgoing
+                   Export v -> case v == "DID" of
+                                 True -> CDR_incoming
+                                 False -> CDR_outgoing
+
+         let billsec
+               = case rolf1_sessiontime record of
+                   ExportNull -> 0
+                   Export v -> case fromTextToInt v of
+                                 Nothing -> 0
+                                 Just vv -> vv
+
+         let internalNumber = fromExport1 provider (\t -> Text.concat [t, "-ext"]) $ rolf1_account record
+         -- DEV-NOTE: mantain in synchro with `rolf1_synchro`
+
+         let externalNumberField
+               = case direction of
+                   CDR_outgoing -> rolf1_calledstation
+                   CDR_incoming -> rolf1_src
+                   CDR_internal -> rolf1_src
+                   _ -> rolf1_calledstation
+
+         externalNumber
+           <- importAndConvertNotNullValue (externalNumberField record) normalizeCalledNumber "calledstation" "called"
+
+         let importedIncome
+               = case rolf1_sessionbill record of
+                   ExportNull -> 0
+                   Export v -> case fromTextToRational v of
+                                 Nothing -> 0
+                                 Just vv -> vv
+             -- NOTE: used for importing old calculated incomes
+
+         let trunkCode
+               = case rolf1_trunkcode record of
+                   ExportNull -> "UNKNOWN TRUNK"
+                   Export v -> v
+
+         return $ case (billsec > 0) && (isJust callDate) of
+                    True -> [(cdr_empty (fromJust callDate) precision) {
+                                   cdr_duration = Just billsec
+                                 , cdr_billsec = Just billsec
+                                 , cdr_direction = direction
+                                 , cdr_channel = Just trunkCode
+                                 , cdr_externalTelephoneNumber = externalNumber
+                                 , cdr_internalTelephoneNumber = internalNumber
+                                 , cdr_expectedCost = Just importedIncome
+                                 }
+                            ]
+                    False -> []
+ where
+
+   removeAll00 :: Text.Text -> Text.Text
+   removeAll00 n
+     = case Text.isPrefixOf "00" n of
+         True -> removeAll00 (Text.drop 2 n)
+         False -> n
+   
+   normalizeCalledNumber :: Text.Text -> Maybe Text.Text
+   normalizeCalledNumber n1
+     = let n2 = Text.strip n1
+           n3 = case Text.isPrefixOf "SIP/" n2 of
+                  True  -> Text.drop 4 n2
+                  False -> n2
+       in  case Text.isPrefixOf "+" n3 of
+                  True -> Just $ Text.drop 1 n3
+                  False -> case Text.isPrefixOf "00" n3 of
+                             True  -> Just $ removeAll00 n3 
+                             False -> case Text.isPrefixOf "0" n3 of
+                                        True -> Just $ Text.append "27" $ Text.drop 1 n3
+                                        False -> Just $ Text.append "27" n3
 
 -- ---------------------------------------------
 -- TESTS
@@ -2690,5 +2828,3 @@ tt_customerSpecificImporters
     = case digitel_normalizeCalledNumber True time n1 of
         Just (nn1, nn2) -> Text.isPrefixOf n2 nn1
         Nothing -> False
-
-

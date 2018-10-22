@@ -19,22 +19,10 @@ abstract class BaseArNumberPortability extends BaseObject  implements Persistent
 	protected static $peer;
 
 	/**
-	 * The value for the id field.
-	 * @var        int
-	 */
-	protected $id;
-
-	/**
 	 * The value for the telephone_number field.
 	 * @var        string
 	 */
 	protected $telephone_number;
-
-	/**
-	 * The value for the ported_telephone_number field.
-	 * @var        string
-	 */
-	protected $ported_telephone_number;
 
 	/**
 	 * The value for the from_date field.
@@ -43,11 +31,10 @@ abstract class BaseArNumberPortability extends BaseObject  implements Persistent
 	protected $from_date;
 
 	/**
-	 * The value for the is_exported_to_rating_engine field.
-	 * Note: this column has a database default value of: false
-	 * @var        boolean
+	 * The value for the ported_telephone_number field.
+	 * @var        string
 	 */
-	protected $is_exported_to_rating_engine;
+	protected $ported_telephone_number;
 
 	/**
 	 * Flag to prevent endless save loop, if this object is referenced
@@ -68,37 +55,6 @@ abstract class BaseArNumberPortability extends BaseObject  implements Persistent
 	const PEER = 'ArNumberPortabilityPeer';
 
 	/**
-	 * Applies default values to this object.
-	 * This method should be called from the object's constructor (or
-	 * equivalent initialization method).
-	 * @see        __construct()
-	 */
-	public function applyDefaultValues()
-	{
-		$this->is_exported_to_rating_engine = false;
-	}
-
-	/**
-	 * Initializes internal state of BaseArNumberPortability object.
-	 * @see        applyDefaults()
-	 */
-	public function __construct()
-	{
-		parent::__construct();
-		$this->applyDefaultValues();
-	}
-
-	/**
-	 * Get the [id] column value.
-	 * 
-	 * @return     int
-	 */
-	public function getId()
-	{
-		return $this->id;
-	}
-
-	/**
 	 * Get the [telephone_number] column value.
 	 * 
 	 * @return     string
@@ -106,16 +62,6 @@ abstract class BaseArNumberPortability extends BaseObject  implements Persistent
 	public function getTelephoneNumber()
 	{
 		return $this->telephone_number;
-	}
-
-	/**
-	 * Get the [ported_telephone_number] column value.
-	 * 
-	 * @return     string
-	 */
-	public function getPortedTelephoneNumber()
-	{
-		return $this->ported_telephone_number;
 	}
 
 	/**
@@ -157,34 +103,14 @@ abstract class BaseArNumberPortability extends BaseObject  implements Persistent
 	}
 
 	/**
-	 * Get the [is_exported_to_rating_engine] column value.
+	 * Get the [ported_telephone_number] column value.
 	 * 
-	 * @return     boolean
+	 * @return     string
 	 */
-	public function getIsExportedToRatingEngine()
+	public function getPortedTelephoneNumber()
 	{
-		return $this->is_exported_to_rating_engine;
+		return $this->ported_telephone_number;
 	}
-
-	/**
-	 * Set the value of [id] column.
-	 * 
-	 * @param      int $v new value
-	 * @return     ArNumberPortability The current object (for fluent API support)
-	 */
-	public function setId($v)
-	{
-		if ($v !== null) {
-			$v = (int) $v;
-		}
-
-		if ($this->id !== $v) {
-			$this->id = $v;
-			$this->modifiedColumns[] = ArNumberPortabilityPeer::ID;
-		}
-
-		return $this;
-	} // setId()
 
 	/**
 	 * Set the value of [telephone_number] column.
@@ -205,26 +131,6 @@ abstract class BaseArNumberPortability extends BaseObject  implements Persistent
 
 		return $this;
 	} // setTelephoneNumber()
-
-	/**
-	 * Set the value of [ported_telephone_number] column.
-	 * 
-	 * @param      string $v new value
-	 * @return     ArNumberPortability The current object (for fluent API support)
-	 */
-	public function setPortedTelephoneNumber($v)
-	{
-		if ($v !== null) {
-			$v = (string) $v;
-		}
-
-		if ($this->ported_telephone_number !== $v) {
-			$this->ported_telephone_number = $v;
-			$this->modifiedColumns[] = ArNumberPortabilityPeer::PORTED_TELEPHONE_NUMBER;
-		}
-
-		return $this;
-	} // setPortedTelephoneNumber()
 
 	/**
 	 * Sets the value of [from_date] column to a normalized version of the date/time value specified.
@@ -276,24 +182,24 @@ abstract class BaseArNumberPortability extends BaseObject  implements Persistent
 	} // setFromDate()
 
 	/**
-	 * Set the value of [is_exported_to_rating_engine] column.
+	 * Set the value of [ported_telephone_number] column.
 	 * 
-	 * @param      boolean $v new value
+	 * @param      string $v new value
 	 * @return     ArNumberPortability The current object (for fluent API support)
 	 */
-	public function setIsExportedToRatingEngine($v)
+	public function setPortedTelephoneNumber($v)
 	{
 		if ($v !== null) {
-			$v = (boolean) $v;
+			$v = (string) $v;
 		}
 
-		if ($this->is_exported_to_rating_engine !== $v || $this->isNew()) {
-			$this->is_exported_to_rating_engine = $v;
-			$this->modifiedColumns[] = ArNumberPortabilityPeer::IS_EXPORTED_TO_RATING_ENGINE;
+		if ($this->ported_telephone_number !== $v) {
+			$this->ported_telephone_number = $v;
+			$this->modifiedColumns[] = ArNumberPortabilityPeer::PORTED_TELEPHONE_NUMBER;
 		}
 
 		return $this;
-	} // setIsExportedToRatingEngine()
+	} // setPortedTelephoneNumber()
 
 	/**
 	 * Indicates whether the columns in this object are only set to default values.
@@ -305,10 +211,6 @@ abstract class BaseArNumberPortability extends BaseObject  implements Persistent
 	 */
 	public function hasOnlyDefaultValues()
 	{
-			if ($this->is_exported_to_rating_engine !== false) {
-				return false;
-			}
-
 		// otherwise, everything was equal, so return TRUE
 		return true;
 	} // hasOnlyDefaultValues()
@@ -331,11 +233,9 @@ abstract class BaseArNumberPortability extends BaseObject  implements Persistent
 	{
 		try {
 
-			$this->id = ($row[$startcol + 0] !== null) ? (int) $row[$startcol + 0] : null;
-			$this->telephone_number = ($row[$startcol + 1] !== null) ? (string) $row[$startcol + 1] : null;
+			$this->telephone_number = ($row[$startcol + 0] !== null) ? (string) $row[$startcol + 0] : null;
+			$this->from_date = ($row[$startcol + 1] !== null) ? (string) $row[$startcol + 1] : null;
 			$this->ported_telephone_number = ($row[$startcol + 2] !== null) ? (string) $row[$startcol + 2] : null;
-			$this->from_date = ($row[$startcol + 3] !== null) ? (string) $row[$startcol + 3] : null;
-			$this->is_exported_to_rating_engine = ($row[$startcol + 4] !== null) ? (boolean) $row[$startcol + 4] : null;
 			$this->resetModified();
 
 			$this->setNew(false);
@@ -345,7 +245,7 @@ abstract class BaseArNumberPortability extends BaseObject  implements Persistent
 			}
 
 			// FIXME - using NUM_COLUMNS may be clearer.
-			return $startcol + 5; // 5 = ArNumberPortabilityPeer::NUM_COLUMNS - ArNumberPortabilityPeer::NUM_LAZY_LOAD_COLUMNS).
+			return $startcol + 3; // 3 = ArNumberPortabilityPeer::NUM_COLUMNS - ArNumberPortabilityPeer::NUM_LAZY_LOAD_COLUMNS).
 
 		} catch (Exception $e) {
 			throw new PropelException("Error populating ArNumberPortability object", $e);
@@ -515,9 +415,6 @@ abstract class BaseArNumberPortability extends BaseObject  implements Persistent
 		if (!$this->alreadyInSave) {
 			$this->alreadyInSave = true;
 
-			if ($this->isNew() ) {
-				$this->modifiedColumns[] = ArNumberPortabilityPeer::ID;
-			}
 
 			// If this object has been modified, then save it to the database.
 			if ($this->isModified()) {
@@ -526,8 +423,6 @@ abstract class BaseArNumberPortability extends BaseObject  implements Persistent
 					$affectedRows += 1; // we are assuming that there is only 1 row per doInsert() which
 										 // should always be true here (even though technically
 										 // BasePeer::doInsert() can insert multiple rows).
-
-					$this->setId($pk);  //[IMV] update autoincrement primary key
 
 					$this->setNew(false);
 				} else {
@@ -642,19 +537,13 @@ abstract class BaseArNumberPortability extends BaseObject  implements Persistent
 	{
 		switch($pos) {
 			case 0:
-				return $this->getId();
+				return $this->getTelephoneNumber();
 				break;
 			case 1:
-				return $this->getTelephoneNumber();
+				return $this->getFromDate();
 				break;
 			case 2:
 				return $this->getPortedTelephoneNumber();
-				break;
-			case 3:
-				return $this->getFromDate();
-				break;
-			case 4:
-				return $this->getIsExportedToRatingEngine();
 				break;
 			default:
 				return null;
@@ -677,11 +566,9 @@ abstract class BaseArNumberPortability extends BaseObject  implements Persistent
 	{
 		$keys = ArNumberPortabilityPeer::getFieldNames($keyType);
 		$result = array(
-			$keys[0] => $this->getId(),
-			$keys[1] => $this->getTelephoneNumber(),
+			$keys[0] => $this->getTelephoneNumber(),
+			$keys[1] => $this->getFromDate(),
 			$keys[2] => $this->getPortedTelephoneNumber(),
-			$keys[3] => $this->getFromDate(),
-			$keys[4] => $this->getIsExportedToRatingEngine(),
 		);
 		return $result;
 	}
@@ -714,19 +601,13 @@ abstract class BaseArNumberPortability extends BaseObject  implements Persistent
 	{
 		switch($pos) {
 			case 0:
-				$this->setId($value);
+				$this->setTelephoneNumber($value);
 				break;
 			case 1:
-				$this->setTelephoneNumber($value);
+				$this->setFromDate($value);
 				break;
 			case 2:
 				$this->setPortedTelephoneNumber($value);
-				break;
-			case 3:
-				$this->setFromDate($value);
-				break;
-			case 4:
-				$this->setIsExportedToRatingEngine($value);
 				break;
 		} // switch()
 	}
@@ -752,11 +633,9 @@ abstract class BaseArNumberPortability extends BaseObject  implements Persistent
 	{
 		$keys = ArNumberPortabilityPeer::getFieldNames($keyType);
 
-		if (array_key_exists($keys[0], $arr)) $this->setId($arr[$keys[0]]);
-		if (array_key_exists($keys[1], $arr)) $this->setTelephoneNumber($arr[$keys[1]]);
+		if (array_key_exists($keys[0], $arr)) $this->setTelephoneNumber($arr[$keys[0]]);
+		if (array_key_exists($keys[1], $arr)) $this->setFromDate($arr[$keys[1]]);
 		if (array_key_exists($keys[2], $arr)) $this->setPortedTelephoneNumber($arr[$keys[2]]);
-		if (array_key_exists($keys[3], $arr)) $this->setFromDate($arr[$keys[3]]);
-		if (array_key_exists($keys[4], $arr)) $this->setIsExportedToRatingEngine($arr[$keys[4]]);
 	}
 
 	/**
@@ -768,11 +647,9 @@ abstract class BaseArNumberPortability extends BaseObject  implements Persistent
 	{
 		$criteria = new Criteria(ArNumberPortabilityPeer::DATABASE_NAME);
 
-		if ($this->isColumnModified(ArNumberPortabilityPeer::ID)) $criteria->add(ArNumberPortabilityPeer::ID, $this->id);
 		if ($this->isColumnModified(ArNumberPortabilityPeer::TELEPHONE_NUMBER)) $criteria->add(ArNumberPortabilityPeer::TELEPHONE_NUMBER, $this->telephone_number);
-		if ($this->isColumnModified(ArNumberPortabilityPeer::PORTED_TELEPHONE_NUMBER)) $criteria->add(ArNumberPortabilityPeer::PORTED_TELEPHONE_NUMBER, $this->ported_telephone_number);
 		if ($this->isColumnModified(ArNumberPortabilityPeer::FROM_DATE)) $criteria->add(ArNumberPortabilityPeer::FROM_DATE, $this->from_date);
-		if ($this->isColumnModified(ArNumberPortabilityPeer::IS_EXPORTED_TO_RATING_ENGINE)) $criteria->add(ArNumberPortabilityPeer::IS_EXPORTED_TO_RATING_ENGINE, $this->is_exported_to_rating_engine);
+		if ($this->isColumnModified(ArNumberPortabilityPeer::PORTED_TELEPHONE_NUMBER)) $criteria->add(ArNumberPortabilityPeer::PORTED_TELEPHONE_NUMBER, $this->ported_telephone_number);
 
 		return $criteria;
 	}
@@ -789,29 +666,41 @@ abstract class BaseArNumberPortability extends BaseObject  implements Persistent
 	{
 		$criteria = new Criteria(ArNumberPortabilityPeer::DATABASE_NAME);
 
-		$criteria->add(ArNumberPortabilityPeer::ID, $this->id);
+		$criteria->add(ArNumberPortabilityPeer::TELEPHONE_NUMBER, $this->telephone_number);
+		$criteria->add(ArNumberPortabilityPeer::FROM_DATE, $this->from_date);
 
 		return $criteria;
 	}
 
 	/**
-	 * Returns the primary key for this object (row).
-	 * @return     int
+	 * Returns the composite primary key for this object.
+	 * The array elements will be in same order as specified in XML.
+	 * @return     array
 	 */
 	public function getPrimaryKey()
 	{
-		return $this->getId();
+		$pks = array();
+
+		$pks[0] = $this->getTelephoneNumber();
+
+		$pks[1] = $this->getFromDate();
+
+		return $pks;
 	}
 
 	/**
-	 * Generic method to set the primary key (id column).
+	 * Set the [composite] primary key.
 	 *
-	 * @param      int $key Primary key.
+	 * @param      array $keys The elements of the composite key (order must match the order in XML file).
 	 * @return     void
 	 */
-	public function setPrimaryKey($key)
+	public function setPrimaryKey($keys)
 	{
-		$this->setId($key);
+
+		$this->setTelephoneNumber($keys[0]);
+
+		$this->setFromDate($keys[1]);
+
 	}
 
 	/**
@@ -829,16 +718,12 @@ abstract class BaseArNumberPortability extends BaseObject  implements Persistent
 
 		$copyObj->setTelephoneNumber($this->telephone_number);
 
-		$copyObj->setPortedTelephoneNumber($this->ported_telephone_number);
-
 		$copyObj->setFromDate($this->from_date);
 
-		$copyObj->setIsExportedToRatingEngine($this->is_exported_to_rating_engine);
+		$copyObj->setPortedTelephoneNumber($this->ported_telephone_number);
 
 
 		$copyObj->setNew(true);
-
-		$copyObj->setId(NULL); // this is a auto-increment column, so set to default value
 
 	}
 

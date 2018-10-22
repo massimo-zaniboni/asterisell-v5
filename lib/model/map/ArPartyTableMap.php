@@ -39,8 +39,11 @@ class ArPartyTableMap extends TableMap {
 		$this->addPrimaryKey('ID', 'Id', 'INTEGER', true, null, null);
 		$this->addColumn('NAME', 'Name', 'VARCHAR', false, 255, null);
 		$this->addColumn('COMPACT_NAME', 'CompactName', 'VARCHAR', false, 255, null);
+		$this->addColumn('NOTE', 'Note', 'VARCHAR', false, 1024, null);
 		$this->addColumn('EXTERNAL_CRM_CODE', 'ExternalCrmCode', 'VARCHAR', false, 255, null);
+		$this->addColumn('CONTRACT_NUMBER', 'ContractNumber', 'VARCHAR', false, 255, null);
 		$this->addColumn('VAT', 'Vat', 'VARCHAR', false, 255, null);
+		$this->addColumn('LEGAL_REGISTRATION_NUMBER', 'LegalRegistrationNumber', 'VARCHAR', false, 255, null);
 		$this->addColumn('IS_BILLABLE', 'IsBillable', 'BOOLEAN', true, null, false);
 		$this->addColumn('LEGAL_ADDRESS', 'LegalAddress', 'VARCHAR', false, 255, null);
 		$this->addColumn('LEGAL_CITY', 'LegalCity', 'VARCHAR', false, 255, null);
@@ -48,10 +51,12 @@ class ArPartyTableMap extends TableMap {
 		$this->addColumn('LEGAL_STATE_PROVINCE', 'LegalStateProvince', 'VARCHAR', false, 255, null);
 		$this->addColumn('LEGAL_COUNTRY', 'LegalCountry', 'VARCHAR', false, 255, null);
 		$this->addColumn('EMAIL', 'Email', 'VARCHAR', false, 255, null);
+		$this->addColumn('CONTACT_NAME', 'ContactName', 'VARCHAR', false, 255, null);
 		$this->addColumn('PHONE', 'Phone', 'VARCHAR', false, 255, null);
 		$this->addColumn('PHONE2', 'Phone2', 'VARCHAR', false, 255, null);
 		$this->addColumn('FAX', 'Fax', 'VARCHAR', false, 255, null);
-		$this->addColumn('MAX_LIMIT_30', 'MaxLimit30', 'INTEGER', false, null, null);
+		$this->addColumn('WEB_SITE', 'WebSite', 'VARCHAR', false, 120, null);
+		$this->addColumn('MAX_LIMIT_30', 'MaxLimit30', 'BIGINT', false, null, null);
 		$this->addColumn('LAST_EMAIL_ADVISE_FOR_MAX_LIMIT_30', 'LastEmailAdviseForMaxLimit30', 'TIMESTAMP', false, null, null);
 		$this->addColumn('IS_ACTIVE', 'IsActive', 'BOOLEAN', true, null, true);
 		$this->addForeignKey('AR_RESELLER_ID', 'ArResellerId', 'INTEGER', 'ar_reseller', 'ID', false, null, null);

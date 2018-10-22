@@ -37,7 +37,7 @@ class ArApplicationUpgradeTableMap extends TableMap {
 		$this->setUseIdGenerator(true);
 		// columns
 		$this->addPrimaryKey('ID', 'Id', 'INTEGER', true, null, null);
-		$this->addColumn('UPG_KEY', 'UpgKey', 'VARCHAR', false, 24000, null);
+		$this->addColumn('UPG_KEY', 'UpgKey', 'VARCHAR', false, 2048, null);
 		$this->addColumn('UPG_OUTPUT', 'UpgOutput', 'LONGVARCHAR', false, null, null);
 		$this->addColumn('INSTALLATION_DATE', 'InstallationDate', 'TIMESTAMP', false, null, null);
 		// validators

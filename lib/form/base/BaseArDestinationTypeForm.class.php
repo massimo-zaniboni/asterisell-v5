@@ -21,7 +21,7 @@ abstract class BaseArDestinationTypeForm extends BaseFormPropel
 
     $this->setValidators(array(
       'id'          => new sfValidatorChoice(array('choices' => array($this->getObject()->getId()), 'empty_value' => $this->getObject()->getId(), 'required' => false)),
-      'internal_id' => new sfValidatorInteger(array('min' => -2147483648, 'max' => 2147483647, 'required' => false)),
+      'internal_id' => new sfValidatorInteger(array('min' => -32768, 'max' => 32767, 'required' => false)),
       'name'        => new sfValidatorString(array('max_length' => 1024, 'required' => false)),
     ));
 

@@ -1,25 +1,6 @@
 <?php
 
-/* $LICENSE 2012:
- *
- * Copyright (C) 2012 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
- *
- * This file is part of Asterisell.
- *
- * Asterisell is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 3 of the License, or
- * (at your option) any later version.
- *
- * Asterisell is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with Asterisell. If not, see <http://www.gnu.org/licenses/>.
- * $
- */
+// SPDX-License-Identifier: GPL-3.0-or-later
 
 sfLoader::loadHelpers(array('I18N', 'Debug', 'Date', 'Asterisell'));
 
@@ -37,42 +18,69 @@ class ConfigureHolidays extends AdminJobProcessor
 
     public function process()
     {
+        // The first of year
         $h = new ArHoliday();
         $h->setDayOfMonth(1);
         $h->setMonth(1);
+        $h->setPeakCode(ArHoliday::OFF_PEAK);
         $h->save();
 
+        // Christmash
         $h = new ArHoliday();
         $h->setDayOfMonth(25);
         $h->setMonth(12);
+        $h->setPeakCode(ArHoliday::OFF_PEAK);
         $h->save();
 
+        // Christmash + 1
         $h = new ArHoliday();
         $h->setDayOfMonth(26);
         $h->setMonth(12);
+        $h->setPeakCode(ArHoliday::OFF_PEAK);
         $h->save();
 
+        // Every Sunday
         $h = new ArHoliday();
         $h->setDayOfWeek(7);
+        $h->setPeakCode(ArHoliday::OFF_PEAK);
         $h->save();
 
+        // Every Saturday afternoon
         $h = new ArHoliday();
-        $h->setDayOfWeek(7);
+        $h->setDayOfWeek(6);
+        $h->setFromHour(14);
+        $h->setFromMinutes(0);
+        $h->setToHour(23);
+        $h->setToMinutes(59);
+        $h->setPeakCode(ArHoliday::OFF_PEAK);
         $h->save();
 
+        // Every Saturday morning, before working hours
         $h = new ArHoliday();
-        $h->setDayOfMonth(1);
-        $h->setMonth(6);
+        $h->setDayOfWeek(6);
+        $h->setFromHour(0);
+        $h->setFromMinutes(0);
+        $h->setToHour(8);
+        $h->setToMinutes(0);
+        $h->setPeakCode(ArHoliday::OFF_PEAK);
         $h->save();
 
+        // Every morning, before working hours
         $h = new ArHoliday();
-        $h->setDayOfMonth(15);
-        $h->setMonth(8);
+        $h->setFromHour(0);
+        $h->setFromMinutes(0);
+        $h->setToHour(8);
+        $h->setToMinutes(0);
+        $h->setPeakCode(ArHoliday::OFF_PEAK);
         $h->save();
 
+        // Every night, after working hours
         $h = new ArHoliday();
-        $h->setDayOfMonth(1);
-        $h->setMonth(11);
+        $h->setFromHour(19);
+        $h->setFromMinutes(0);
+        $h->setToHour(23);
+        $h->setToMinutes(59);
+        $h->setPeakCode(ArHoliday::OFF_PEAK);
         $h->save();
 
         return '';

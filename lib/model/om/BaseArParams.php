@@ -231,34 +231,10 @@ abstract class BaseArParams extends BaseObject  implements Persistent {
 	protected $new_imported_cdrs_from_calldate;
 
 	/**
-	 * The value for the new_imported_cdrs_to_calldate field.
-	 * @var        string
-	 */
-	protected $new_imported_cdrs_to_calldate;
-
-	/**
 	 * The value for the scheduled_rerate_from_specific_calldate field.
 	 * @var        string
 	 */
 	protected $scheduled_rerate_from_specific_calldate;
-
-	/**
-	 * The value for the scheduled_rerate_to_specific_calldate field.
-	 * @var        string
-	 */
-	protected $scheduled_rerate_to_specific_calldate;
-
-	/**
-	 * The value for the scheduled_imported_services_rerate_from_specific_calldate field.
-	 * @var        string
-	 */
-	protected $scheduled_imported_services_rerate_from_specific_calldate;
-
-	/**
-	 * The value for the scheduled_imported_services_rerate_to_specific_calldate field.
-	 * @var        string
-	 */
-	protected $scheduled_imported_services_rerate_to_specific_calldate;
 
 	/**
 	 * The value for the current_count_of_rerating_failed_attempts field.
@@ -747,44 +723,6 @@ abstract class BaseArParams extends BaseObject  implements Persistent {
 	}
 
 	/**
-	 * Get the [optionally formatted] temporal [new_imported_cdrs_to_calldate] column value.
-	 * 
-	 *
-	 * @param      string $format The date/time format string (either date()-style or strftime()-style).
-	 *							If format is NULL, then the raw DateTime object will be returned.
-	 * @return     mixed Formatted date/time value as string or DateTime object (if format is NULL), NULL if column is NULL, and 0 if column value is 0000-00-00 00:00:00
-	 * @throws     PropelException - if unable to parse/validate the date/time value.
-	 */
-	public function getNewImportedCdrsToCalldate($format = 'Y-m-d H:i:s')
-	{
-		if ($this->new_imported_cdrs_to_calldate === null) {
-			return null;
-		}
-
-
-		if ($this->new_imported_cdrs_to_calldate === '0000-00-00 00:00:00') {
-			// while technically this is not a default value of NULL,
-			// this seems to be closest in meaning.
-			return null;
-		} else {
-			try {
-				$dt = new DateTime($this->new_imported_cdrs_to_calldate);
-			} catch (Exception $x) {
-				throw new PropelException("Internally stored date/time/timestamp value could not be converted to DateTime: " . var_export($this->new_imported_cdrs_to_calldate, true), $x);
-			}
-		}
-
-		if ($format === null) {
-			// Because propel.useDateTimeClass is TRUE, we return a DateTime object.
-			return $dt;
-		} elseif (strpos($format, '%') !== false) {
-			return strftime($format, $dt->format('U'));
-		} else {
-			return $dt->format($format);
-		}
-	}
-
-	/**
 	 * Get the [optionally formatted] temporal [scheduled_rerate_from_specific_calldate] column value.
 	 * 
 	 *
@@ -809,120 +747,6 @@ abstract class BaseArParams extends BaseObject  implements Persistent {
 				$dt = new DateTime($this->scheduled_rerate_from_specific_calldate);
 			} catch (Exception $x) {
 				throw new PropelException("Internally stored date/time/timestamp value could not be converted to DateTime: " . var_export($this->scheduled_rerate_from_specific_calldate, true), $x);
-			}
-		}
-
-		if ($format === null) {
-			// Because propel.useDateTimeClass is TRUE, we return a DateTime object.
-			return $dt;
-		} elseif (strpos($format, '%') !== false) {
-			return strftime($format, $dt->format('U'));
-		} else {
-			return $dt->format($format);
-		}
-	}
-
-	/**
-	 * Get the [optionally formatted] temporal [scheduled_rerate_to_specific_calldate] column value.
-	 * 
-	 *
-	 * @param      string $format The date/time format string (either date()-style or strftime()-style).
-	 *							If format is NULL, then the raw DateTime object will be returned.
-	 * @return     mixed Formatted date/time value as string or DateTime object (if format is NULL), NULL if column is NULL, and 0 if column value is 0000-00-00 00:00:00
-	 * @throws     PropelException - if unable to parse/validate the date/time value.
-	 */
-	public function getScheduledRerateToSpecificCalldate($format = 'Y-m-d H:i:s')
-	{
-		if ($this->scheduled_rerate_to_specific_calldate === null) {
-			return null;
-		}
-
-
-		if ($this->scheduled_rerate_to_specific_calldate === '0000-00-00 00:00:00') {
-			// while technically this is not a default value of NULL,
-			// this seems to be closest in meaning.
-			return null;
-		} else {
-			try {
-				$dt = new DateTime($this->scheduled_rerate_to_specific_calldate);
-			} catch (Exception $x) {
-				throw new PropelException("Internally stored date/time/timestamp value could not be converted to DateTime: " . var_export($this->scheduled_rerate_to_specific_calldate, true), $x);
-			}
-		}
-
-		if ($format === null) {
-			// Because propel.useDateTimeClass is TRUE, we return a DateTime object.
-			return $dt;
-		} elseif (strpos($format, '%') !== false) {
-			return strftime($format, $dt->format('U'));
-		} else {
-			return $dt->format($format);
-		}
-	}
-
-	/**
-	 * Get the [optionally formatted] temporal [scheduled_imported_services_rerate_from_specific_calldate] column value.
-	 * 
-	 *
-	 * @param      string $format The date/time format string (either date()-style or strftime()-style).
-	 *							If format is NULL, then the raw DateTime object will be returned.
-	 * @return     mixed Formatted date/time value as string or DateTime object (if format is NULL), NULL if column is NULL, and 0 if column value is 0000-00-00 00:00:00
-	 * @throws     PropelException - if unable to parse/validate the date/time value.
-	 */
-	public function getScheduledImportedServicesRerateFromSpecificCalldate($format = 'Y-m-d H:i:s')
-	{
-		if ($this->scheduled_imported_services_rerate_from_specific_calldate === null) {
-			return null;
-		}
-
-
-		if ($this->scheduled_imported_services_rerate_from_specific_calldate === '0000-00-00 00:00:00') {
-			// while technically this is not a default value of NULL,
-			// this seems to be closest in meaning.
-			return null;
-		} else {
-			try {
-				$dt = new DateTime($this->scheduled_imported_services_rerate_from_specific_calldate);
-			} catch (Exception $x) {
-				throw new PropelException("Internally stored date/time/timestamp value could not be converted to DateTime: " . var_export($this->scheduled_imported_services_rerate_from_specific_calldate, true), $x);
-			}
-		}
-
-		if ($format === null) {
-			// Because propel.useDateTimeClass is TRUE, we return a DateTime object.
-			return $dt;
-		} elseif (strpos($format, '%') !== false) {
-			return strftime($format, $dt->format('U'));
-		} else {
-			return $dt->format($format);
-		}
-	}
-
-	/**
-	 * Get the [optionally formatted] temporal [scheduled_imported_services_rerate_to_specific_calldate] column value.
-	 * 
-	 *
-	 * @param      string $format The date/time format string (either date()-style or strftime()-style).
-	 *							If format is NULL, then the raw DateTime object will be returned.
-	 * @return     mixed Formatted date/time value as string or DateTime object (if format is NULL), NULL if column is NULL, and 0 if column value is 0000-00-00 00:00:00
-	 * @throws     PropelException - if unable to parse/validate the date/time value.
-	 */
-	public function getScheduledImportedServicesRerateToSpecificCalldate($format = 'Y-m-d H:i:s')
-	{
-		if ($this->scheduled_imported_services_rerate_to_specific_calldate === null) {
-			return null;
-		}
-
-
-		if ($this->scheduled_imported_services_rerate_to_specific_calldate === '0000-00-00 00:00:00') {
-			// while technically this is not a default value of NULL,
-			// this seems to be closest in meaning.
-			return null;
-		} else {
-			try {
-				$dt = new DateTime($this->scheduled_imported_services_rerate_to_specific_calldate);
-			} catch (Exception $x) {
-				throw new PropelException("Internally stored date/time/timestamp value could not be converted to DateTime: " . var_export($this->scheduled_imported_services_rerate_to_specific_calldate, true), $x);
 			}
 		}
 
@@ -1745,55 +1569,6 @@ abstract class BaseArParams extends BaseObject  implements Persistent {
 	} // setNewImportedCdrsFromCalldate()
 
 	/**
-	 * Sets the value of [new_imported_cdrs_to_calldate] column to a normalized version of the date/time value specified.
-	 * 
-	 * @param      mixed $v string, integer (timestamp), or DateTime value.  Empty string will
-	 *						be treated as NULL for temporal objects.
-	 * @return     ArParams The current object (for fluent API support)
-	 */
-	public function setNewImportedCdrsToCalldate($v)
-	{
-		// we treat '' as NULL for temporal objects because DateTime('') == DateTime('now')
-		// -- which is unexpected, to say the least.
-		if ($v === null || $v === '') {
-			$dt = null;
-		} elseif ($v instanceof DateTime) {
-			$dt = $v;
-		} else {
-			// some string/numeric value passed; we normalize that so that we can
-			// validate it.
-			try {
-				if (is_numeric($v)) { // if it's a unix timestamp
-					$dt = new DateTime('@'.$v, new DateTimeZone('UTC'));
-					// We have to explicitly specify and then change the time zone because of a
-					// DateTime bug: http://bugs.php.net/bug.php?id=43003
-					$dt->setTimeZone(new DateTimeZone(date_default_timezone_get()));
-				} else {
-					$dt = new DateTime($v);
-				}
-			} catch (Exception $x) {
-				throw new PropelException('Error parsing date/time value: ' . var_export($v, true), $x);
-			}
-		}
-
-		if ( $this->new_imported_cdrs_to_calldate !== null || $dt !== null ) {
-			// (nested ifs are a little easier to read in this case)
-
-			$currNorm = ($this->new_imported_cdrs_to_calldate !== null && $tmpDt = new DateTime($this->new_imported_cdrs_to_calldate)) ? $tmpDt->format('Y-m-d H:i:s') : null;
-			$newNorm = ($dt !== null) ? $dt->format('Y-m-d H:i:s') : null;
-
-			if ( ($currNorm !== $newNorm) // normalized values don't match 
-					)
-			{
-				$this->new_imported_cdrs_to_calldate = ($dt ? $dt->format('Y-m-d H:i:s') : null);
-				$this->modifiedColumns[] = ArParamsPeer::NEW_IMPORTED_CDRS_TO_CALLDATE;
-			}
-		} // if either are not null
-
-		return $this;
-	} // setNewImportedCdrsToCalldate()
-
-	/**
 	 * Sets the value of [scheduled_rerate_from_specific_calldate] column to a normalized version of the date/time value specified.
 	 * 
 	 * @param      mixed $v string, integer (timestamp), or DateTime value.  Empty string will
@@ -1841,153 +1616,6 @@ abstract class BaseArParams extends BaseObject  implements Persistent {
 
 		return $this;
 	} // setScheduledRerateFromSpecificCalldate()
-
-	/**
-	 * Sets the value of [scheduled_rerate_to_specific_calldate] column to a normalized version of the date/time value specified.
-	 * 
-	 * @param      mixed $v string, integer (timestamp), or DateTime value.  Empty string will
-	 *						be treated as NULL for temporal objects.
-	 * @return     ArParams The current object (for fluent API support)
-	 */
-	public function setScheduledRerateToSpecificCalldate($v)
-	{
-		// we treat '' as NULL for temporal objects because DateTime('') == DateTime('now')
-		// -- which is unexpected, to say the least.
-		if ($v === null || $v === '') {
-			$dt = null;
-		} elseif ($v instanceof DateTime) {
-			$dt = $v;
-		} else {
-			// some string/numeric value passed; we normalize that so that we can
-			// validate it.
-			try {
-				if (is_numeric($v)) { // if it's a unix timestamp
-					$dt = new DateTime('@'.$v, new DateTimeZone('UTC'));
-					// We have to explicitly specify and then change the time zone because of a
-					// DateTime bug: http://bugs.php.net/bug.php?id=43003
-					$dt->setTimeZone(new DateTimeZone(date_default_timezone_get()));
-				} else {
-					$dt = new DateTime($v);
-				}
-			} catch (Exception $x) {
-				throw new PropelException('Error parsing date/time value: ' . var_export($v, true), $x);
-			}
-		}
-
-		if ( $this->scheduled_rerate_to_specific_calldate !== null || $dt !== null ) {
-			// (nested ifs are a little easier to read in this case)
-
-			$currNorm = ($this->scheduled_rerate_to_specific_calldate !== null && $tmpDt = new DateTime($this->scheduled_rerate_to_specific_calldate)) ? $tmpDt->format('Y-m-d H:i:s') : null;
-			$newNorm = ($dt !== null) ? $dt->format('Y-m-d H:i:s') : null;
-
-			if ( ($currNorm !== $newNorm) // normalized values don't match 
-					)
-			{
-				$this->scheduled_rerate_to_specific_calldate = ($dt ? $dt->format('Y-m-d H:i:s') : null);
-				$this->modifiedColumns[] = ArParamsPeer::SCHEDULED_RERATE_TO_SPECIFIC_CALLDATE;
-			}
-		} // if either are not null
-
-		return $this;
-	} // setScheduledRerateToSpecificCalldate()
-
-	/**
-	 * Sets the value of [scheduled_imported_services_rerate_from_specific_calldate] column to a normalized version of the date/time value specified.
-	 * 
-	 * @param      mixed $v string, integer (timestamp), or DateTime value.  Empty string will
-	 *						be treated as NULL for temporal objects.
-	 * @return     ArParams The current object (for fluent API support)
-	 */
-	public function setScheduledImportedServicesRerateFromSpecificCalldate($v)
-	{
-		// we treat '' as NULL for temporal objects because DateTime('') == DateTime('now')
-		// -- which is unexpected, to say the least.
-		if ($v === null || $v === '') {
-			$dt = null;
-		} elseif ($v instanceof DateTime) {
-			$dt = $v;
-		} else {
-			// some string/numeric value passed; we normalize that so that we can
-			// validate it.
-			try {
-				if (is_numeric($v)) { // if it's a unix timestamp
-					$dt = new DateTime('@'.$v, new DateTimeZone('UTC'));
-					// We have to explicitly specify and then change the time zone because of a
-					// DateTime bug: http://bugs.php.net/bug.php?id=43003
-					$dt->setTimeZone(new DateTimeZone(date_default_timezone_get()));
-				} else {
-					$dt = new DateTime($v);
-				}
-			} catch (Exception $x) {
-				throw new PropelException('Error parsing date/time value: ' . var_export($v, true), $x);
-			}
-		}
-
-		if ( $this->scheduled_imported_services_rerate_from_specific_calldate !== null || $dt !== null ) {
-			// (nested ifs are a little easier to read in this case)
-
-			$currNorm = ($this->scheduled_imported_services_rerate_from_specific_calldate !== null && $tmpDt = new DateTime($this->scheduled_imported_services_rerate_from_specific_calldate)) ? $tmpDt->format('Y-m-d H:i:s') : null;
-			$newNorm = ($dt !== null) ? $dt->format('Y-m-d H:i:s') : null;
-
-			if ( ($currNorm !== $newNorm) // normalized values don't match 
-					)
-			{
-				$this->scheduled_imported_services_rerate_from_specific_calldate = ($dt ? $dt->format('Y-m-d H:i:s') : null);
-				$this->modifiedColumns[] = ArParamsPeer::SCHEDULED_IMPORTED_SERVICES_RERATE_FROM_SPECIFIC_CALLDATE;
-			}
-		} // if either are not null
-
-		return $this;
-	} // setScheduledImportedServicesRerateFromSpecificCalldate()
-
-	/**
-	 * Sets the value of [scheduled_imported_services_rerate_to_specific_calldate] column to a normalized version of the date/time value specified.
-	 * 
-	 * @param      mixed $v string, integer (timestamp), or DateTime value.  Empty string will
-	 *						be treated as NULL for temporal objects.
-	 * @return     ArParams The current object (for fluent API support)
-	 */
-	public function setScheduledImportedServicesRerateToSpecificCalldate($v)
-	{
-		// we treat '' as NULL for temporal objects because DateTime('') == DateTime('now')
-		// -- which is unexpected, to say the least.
-		if ($v === null || $v === '') {
-			$dt = null;
-		} elseif ($v instanceof DateTime) {
-			$dt = $v;
-		} else {
-			// some string/numeric value passed; we normalize that so that we can
-			// validate it.
-			try {
-				if (is_numeric($v)) { // if it's a unix timestamp
-					$dt = new DateTime('@'.$v, new DateTimeZone('UTC'));
-					// We have to explicitly specify and then change the time zone because of a
-					// DateTime bug: http://bugs.php.net/bug.php?id=43003
-					$dt->setTimeZone(new DateTimeZone(date_default_timezone_get()));
-				} else {
-					$dt = new DateTime($v);
-				}
-			} catch (Exception $x) {
-				throw new PropelException('Error parsing date/time value: ' . var_export($v, true), $x);
-			}
-		}
-
-		if ( $this->scheduled_imported_services_rerate_to_specific_calldate !== null || $dt !== null ) {
-			// (nested ifs are a little easier to read in this case)
-
-			$currNorm = ($this->scheduled_imported_services_rerate_to_specific_calldate !== null && $tmpDt = new DateTime($this->scheduled_imported_services_rerate_to_specific_calldate)) ? $tmpDt->format('Y-m-d H:i:s') : null;
-			$newNorm = ($dt !== null) ? $dt->format('Y-m-d H:i:s') : null;
-
-			if ( ($currNorm !== $newNorm) // normalized values don't match 
-					)
-			{
-				$this->scheduled_imported_services_rerate_to_specific_calldate = ($dt ? $dt->format('Y-m-d H:i:s') : null);
-				$this->modifiedColumns[] = ArParamsPeer::SCHEDULED_IMPORTED_SERVICES_RERATE_TO_SPECIFIC_CALLDATE;
-			}
-		} // if either are not null
-
-		return $this;
-	} // setScheduledImportedServicesRerateToSpecificCalldate()
 
 	/**
 	 * Set the value of [current_count_of_rerating_failed_attempts] column.
@@ -2184,16 +1812,12 @@ abstract class BaseArParams extends BaseObject  implements Persistent {
 			$this->official_calldate = ($row[$startcol + 32] !== null) ? (string) $row[$startcol + 32] : null;
 			$this->scheduled_rerate_from_official_calldate = ($row[$startcol + 33] !== null) ? (boolean) $row[$startcol + 33] : null;
 			$this->new_imported_cdrs_from_calldate = ($row[$startcol + 34] !== null) ? (string) $row[$startcol + 34] : null;
-			$this->new_imported_cdrs_to_calldate = ($row[$startcol + 35] !== null) ? (string) $row[$startcol + 35] : null;
-			$this->scheduled_rerate_from_specific_calldate = ($row[$startcol + 36] !== null) ? (string) $row[$startcol + 36] : null;
-			$this->scheduled_rerate_to_specific_calldate = ($row[$startcol + 37] !== null) ? (string) $row[$startcol + 37] : null;
-			$this->scheduled_imported_services_rerate_from_specific_calldate = ($row[$startcol + 38] !== null) ? (string) $row[$startcol + 38] : null;
-			$this->scheduled_imported_services_rerate_to_specific_calldate = ($row[$startcol + 39] !== null) ? (string) $row[$startcol + 39] : null;
-			$this->current_count_of_rerating_failed_attempts = ($row[$startcol + 40] !== null) ? (int) $row[$startcol + 40] : null;
-			$this->current_rerating_event_is_running = ($row[$startcol + 41] !== null) ? (boolean) $row[$startcol + 41] : null;
-			$this->should_reschedule_rerate_from_official_calldate = ($row[$startcol + 42] !== null) ? (boolean) $row[$startcol + 42] : null;
-			$this->wait_for_scheduled_rerate = ($row[$startcol + 43] !== null) ? (boolean) $row[$startcol + 43] : null;
-			$this->clean_error_table = ($row[$startcol + 44] !== null) ? (int) $row[$startcol + 44] : null;
+			$this->scheduled_rerate_from_specific_calldate = ($row[$startcol + 35] !== null) ? (string) $row[$startcol + 35] : null;
+			$this->current_count_of_rerating_failed_attempts = ($row[$startcol + 36] !== null) ? (int) $row[$startcol + 36] : null;
+			$this->current_rerating_event_is_running = ($row[$startcol + 37] !== null) ? (boolean) $row[$startcol + 37] : null;
+			$this->should_reschedule_rerate_from_official_calldate = ($row[$startcol + 38] !== null) ? (boolean) $row[$startcol + 38] : null;
+			$this->wait_for_scheduled_rerate = ($row[$startcol + 39] !== null) ? (boolean) $row[$startcol + 39] : null;
+			$this->clean_error_table = ($row[$startcol + 40] !== null) ? (int) $row[$startcol + 40] : null;
 			$this->resetModified();
 
 			$this->setNew(false);
@@ -2203,7 +1827,7 @@ abstract class BaseArParams extends BaseObject  implements Persistent {
 			}
 
 			// FIXME - using NUM_COLUMNS may be clearer.
-			return $startcol + 45; // 45 = ArParamsPeer::NUM_COLUMNS - ArParamsPeer::NUM_LAZY_LOAD_COLUMNS).
+			return $startcol + 41; // 41 = ArParamsPeer::NUM_COLUMNS - ArParamsPeer::NUM_LAZY_LOAD_COLUMNS).
 
 		} catch (Exception $e) {
 			throw new PropelException("Error populating ArParams object", $e);
@@ -2605,33 +2229,21 @@ abstract class BaseArParams extends BaseObject  implements Persistent {
 				return $this->getNewImportedCdrsFromCalldate();
 				break;
 			case 35:
-				return $this->getNewImportedCdrsToCalldate();
-				break;
-			case 36:
 				return $this->getScheduledRerateFromSpecificCalldate();
 				break;
-			case 37:
-				return $this->getScheduledRerateToSpecificCalldate();
-				break;
-			case 38:
-				return $this->getScheduledImportedServicesRerateFromSpecificCalldate();
-				break;
-			case 39:
-				return $this->getScheduledImportedServicesRerateToSpecificCalldate();
-				break;
-			case 40:
+			case 36:
 				return $this->getCurrentCountOfReratingFailedAttempts();
 				break;
-			case 41:
+			case 37:
 				return $this->getCurrentReratingEventIsRunning();
 				break;
-			case 42:
+			case 38:
 				return $this->getShouldRescheduleRerateFromOfficialCalldate();
 				break;
-			case 43:
+			case 39:
 				return $this->getWaitForScheduledRerate();
 				break;
-			case 44:
+			case 40:
 				return $this->getCleanErrorTable();
 				break;
 			default:
@@ -2690,16 +2302,12 @@ abstract class BaseArParams extends BaseObject  implements Persistent {
 			$keys[32] => $this->getOfficialCalldate(),
 			$keys[33] => $this->getScheduledRerateFromOfficialCalldate(),
 			$keys[34] => $this->getNewImportedCdrsFromCalldate(),
-			$keys[35] => $this->getNewImportedCdrsToCalldate(),
-			$keys[36] => $this->getScheduledRerateFromSpecificCalldate(),
-			$keys[37] => $this->getScheduledRerateToSpecificCalldate(),
-			$keys[38] => $this->getScheduledImportedServicesRerateFromSpecificCalldate(),
-			$keys[39] => $this->getScheduledImportedServicesRerateToSpecificCalldate(),
-			$keys[40] => $this->getCurrentCountOfReratingFailedAttempts(),
-			$keys[41] => $this->getCurrentReratingEventIsRunning(),
-			$keys[42] => $this->getShouldRescheduleRerateFromOfficialCalldate(),
-			$keys[43] => $this->getWaitForScheduledRerate(),
-			$keys[44] => $this->getCleanErrorTable(),
+			$keys[35] => $this->getScheduledRerateFromSpecificCalldate(),
+			$keys[36] => $this->getCurrentCountOfReratingFailedAttempts(),
+			$keys[37] => $this->getCurrentReratingEventIsRunning(),
+			$keys[38] => $this->getShouldRescheduleRerateFromOfficialCalldate(),
+			$keys[39] => $this->getWaitForScheduledRerate(),
+			$keys[40] => $this->getCleanErrorTable(),
 		);
 		return $result;
 	}
@@ -2837,33 +2445,21 @@ abstract class BaseArParams extends BaseObject  implements Persistent {
 				$this->setNewImportedCdrsFromCalldate($value);
 				break;
 			case 35:
-				$this->setNewImportedCdrsToCalldate($value);
-				break;
-			case 36:
 				$this->setScheduledRerateFromSpecificCalldate($value);
 				break;
-			case 37:
-				$this->setScheduledRerateToSpecificCalldate($value);
-				break;
-			case 38:
-				$this->setScheduledImportedServicesRerateFromSpecificCalldate($value);
-				break;
-			case 39:
-				$this->setScheduledImportedServicesRerateToSpecificCalldate($value);
-				break;
-			case 40:
+			case 36:
 				$this->setCurrentCountOfReratingFailedAttempts($value);
 				break;
-			case 41:
+			case 37:
 				$this->setCurrentReratingEventIsRunning($value);
 				break;
-			case 42:
+			case 38:
 				$this->setShouldRescheduleRerateFromOfficialCalldate($value);
 				break;
-			case 43:
+			case 39:
 				$this->setWaitForScheduledRerate($value);
 				break;
-			case 44:
+			case 40:
 				$this->setCleanErrorTable($value);
 				break;
 		} // switch()
@@ -2925,16 +2521,12 @@ abstract class BaseArParams extends BaseObject  implements Persistent {
 		if (array_key_exists($keys[32], $arr)) $this->setOfficialCalldate($arr[$keys[32]]);
 		if (array_key_exists($keys[33], $arr)) $this->setScheduledRerateFromOfficialCalldate($arr[$keys[33]]);
 		if (array_key_exists($keys[34], $arr)) $this->setNewImportedCdrsFromCalldate($arr[$keys[34]]);
-		if (array_key_exists($keys[35], $arr)) $this->setNewImportedCdrsToCalldate($arr[$keys[35]]);
-		if (array_key_exists($keys[36], $arr)) $this->setScheduledRerateFromSpecificCalldate($arr[$keys[36]]);
-		if (array_key_exists($keys[37], $arr)) $this->setScheduledRerateToSpecificCalldate($arr[$keys[37]]);
-		if (array_key_exists($keys[38], $arr)) $this->setScheduledImportedServicesRerateFromSpecificCalldate($arr[$keys[38]]);
-		if (array_key_exists($keys[39], $arr)) $this->setScheduledImportedServicesRerateToSpecificCalldate($arr[$keys[39]]);
-		if (array_key_exists($keys[40], $arr)) $this->setCurrentCountOfReratingFailedAttempts($arr[$keys[40]]);
-		if (array_key_exists($keys[41], $arr)) $this->setCurrentReratingEventIsRunning($arr[$keys[41]]);
-		if (array_key_exists($keys[42], $arr)) $this->setShouldRescheduleRerateFromOfficialCalldate($arr[$keys[42]]);
-		if (array_key_exists($keys[43], $arr)) $this->setWaitForScheduledRerate($arr[$keys[43]]);
-		if (array_key_exists($keys[44], $arr)) $this->setCleanErrorTable($arr[$keys[44]]);
+		if (array_key_exists($keys[35], $arr)) $this->setScheduledRerateFromSpecificCalldate($arr[$keys[35]]);
+		if (array_key_exists($keys[36], $arr)) $this->setCurrentCountOfReratingFailedAttempts($arr[$keys[36]]);
+		if (array_key_exists($keys[37], $arr)) $this->setCurrentReratingEventIsRunning($arr[$keys[37]]);
+		if (array_key_exists($keys[38], $arr)) $this->setShouldRescheduleRerateFromOfficialCalldate($arr[$keys[38]]);
+		if (array_key_exists($keys[39], $arr)) $this->setWaitForScheduledRerate($arr[$keys[39]]);
+		if (array_key_exists($keys[40], $arr)) $this->setCleanErrorTable($arr[$keys[40]]);
 	}
 
 	/**
@@ -2981,11 +2573,7 @@ abstract class BaseArParams extends BaseObject  implements Persistent {
 		if ($this->isColumnModified(ArParamsPeer::OFFICIAL_CALLDATE)) $criteria->add(ArParamsPeer::OFFICIAL_CALLDATE, $this->official_calldate);
 		if ($this->isColumnModified(ArParamsPeer::SCHEDULED_RERATE_FROM_OFFICIAL_CALLDATE)) $criteria->add(ArParamsPeer::SCHEDULED_RERATE_FROM_OFFICIAL_CALLDATE, $this->scheduled_rerate_from_official_calldate);
 		if ($this->isColumnModified(ArParamsPeer::NEW_IMPORTED_CDRS_FROM_CALLDATE)) $criteria->add(ArParamsPeer::NEW_IMPORTED_CDRS_FROM_CALLDATE, $this->new_imported_cdrs_from_calldate);
-		if ($this->isColumnModified(ArParamsPeer::NEW_IMPORTED_CDRS_TO_CALLDATE)) $criteria->add(ArParamsPeer::NEW_IMPORTED_CDRS_TO_CALLDATE, $this->new_imported_cdrs_to_calldate);
 		if ($this->isColumnModified(ArParamsPeer::SCHEDULED_RERATE_FROM_SPECIFIC_CALLDATE)) $criteria->add(ArParamsPeer::SCHEDULED_RERATE_FROM_SPECIFIC_CALLDATE, $this->scheduled_rerate_from_specific_calldate);
-		if ($this->isColumnModified(ArParamsPeer::SCHEDULED_RERATE_TO_SPECIFIC_CALLDATE)) $criteria->add(ArParamsPeer::SCHEDULED_RERATE_TO_SPECIFIC_CALLDATE, $this->scheduled_rerate_to_specific_calldate);
-		if ($this->isColumnModified(ArParamsPeer::SCHEDULED_IMPORTED_SERVICES_RERATE_FROM_SPECIFIC_CALLDATE)) $criteria->add(ArParamsPeer::SCHEDULED_IMPORTED_SERVICES_RERATE_FROM_SPECIFIC_CALLDATE, $this->scheduled_imported_services_rerate_from_specific_calldate);
-		if ($this->isColumnModified(ArParamsPeer::SCHEDULED_IMPORTED_SERVICES_RERATE_TO_SPECIFIC_CALLDATE)) $criteria->add(ArParamsPeer::SCHEDULED_IMPORTED_SERVICES_RERATE_TO_SPECIFIC_CALLDATE, $this->scheduled_imported_services_rerate_to_specific_calldate);
 		if ($this->isColumnModified(ArParamsPeer::CURRENT_COUNT_OF_RERATING_FAILED_ATTEMPTS)) $criteria->add(ArParamsPeer::CURRENT_COUNT_OF_RERATING_FAILED_ATTEMPTS, $this->current_count_of_rerating_failed_attempts);
 		if ($this->isColumnModified(ArParamsPeer::CURRENT_RERATING_EVENT_IS_RUNNING)) $criteria->add(ArParamsPeer::CURRENT_RERATING_EVENT_IS_RUNNING, $this->current_rerating_event_is_running);
 		if ($this->isColumnModified(ArParamsPeer::SHOULD_RESCHEDULE_RERATE_FROM_OFFICIAL_CALLDATE)) $criteria->add(ArParamsPeer::SHOULD_RESCHEDULE_RERATE_FROM_OFFICIAL_CALLDATE, $this->should_reschedule_rerate_from_official_calldate);
@@ -3113,15 +2701,7 @@ abstract class BaseArParams extends BaseObject  implements Persistent {
 
 		$copyObj->setNewImportedCdrsFromCalldate($this->new_imported_cdrs_from_calldate);
 
-		$copyObj->setNewImportedCdrsToCalldate($this->new_imported_cdrs_to_calldate);
-
 		$copyObj->setScheduledRerateFromSpecificCalldate($this->scheduled_rerate_from_specific_calldate);
-
-		$copyObj->setScheduledRerateToSpecificCalldate($this->scheduled_rerate_to_specific_calldate);
-
-		$copyObj->setScheduledImportedServicesRerateFromSpecificCalldate($this->scheduled_imported_services_rerate_from_specific_calldate);
-
-		$copyObj->setScheduledImportedServicesRerateToSpecificCalldate($this->scheduled_imported_services_rerate_to_specific_calldate);
 
 		$copyObj->setCurrentCountOfReratingFailedAttempts($this->current_count_of_rerating_failed_attempts);
 

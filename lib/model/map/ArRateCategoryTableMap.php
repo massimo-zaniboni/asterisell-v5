@@ -37,7 +37,7 @@ class ArRateCategoryTableMap extends TableMap {
 		$this->setUseIdGenerator(true);
 		// columns
 		$this->addPrimaryKey('ID', 'Id', 'INTEGER', true, null, null);
-		$this->addColumn('INTERNAL_NAME', 'InternalName', 'VARCHAR', false, 255, null);
+		$this->addColumn('INTERNAL_NAME', 'InternalName', 'VARCHAR', true, 255, null);
 		$this->addColumn('SHORT_DESCRIPTION', 'ShortDescription', 'LONGVARCHAR', false, null, null);
 		// validators
 	} // initialize()

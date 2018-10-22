@@ -37,7 +37,7 @@ class ArDestinationTypeTableMap extends TableMap {
 		$this->setUseIdGenerator(true);
 		// columns
 		$this->addPrimaryKey('ID', 'Id', 'INTEGER', true, null, null);
-		$this->addColumn('INTERNAL_ID', 'InternalId', 'INTEGER', false, null, null);
+		$this->addColumn('INTERNAL_ID', 'InternalId', 'SMALLINT', false, null, null);
 		$this->addColumn('NAME', 'Name', 'VARCHAR', false, 1024, null);
 		// validators
 	} // initialize()

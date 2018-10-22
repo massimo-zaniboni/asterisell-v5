@@ -1,25 +1,6 @@
 <?php
 
-/* $LICENSE 2012:
- *
- * Copyright (C) 2012 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
- *
- * This file is part of Asterisell.
- *
- * Asterisell is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 3 of the License, or
- * (at your option) any later version.
- *
- * Asterisell is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with Asterisell. If not, see <http://www.gnu.org/licenses/>.
- * $
- */
+// SPDX-License-Identifier: GPL-3.0-or-later
 
 sfLoader::loadHelpers(array('I18N', 'Debug', 'Date', 'Asterisell', 'CustomLocaleConversions'));
 
@@ -321,7 +302,7 @@ abstract class ReportGenerator
     {
         $report = $this->getArReport();
 
-        $errorsByDirection = CustomCDRServices::getInstance()->getCDRsWithErrorsByDestinationType(fromMySQLTimestampToUnixTimestamp($report->getFromDate()), fromMySQLTimestampToUnixTimestamp($report->getToDate()), Propel::getConnection());
+        list($correctCDRSByDirection, $errorsByDirection) = CustomCDRServices::getInstance()->getRatedCDRStats(fromMySQLTimestampToUnixTimestamp($report->getFromDate()), fromMySQLTimestampToUnixTimestamp($report->getToDate()), Propel::getConnection());
 
         // Signal the errror only if it is relevant to the data displayed in the report
 
@@ -378,10 +359,10 @@ abstract class ReportGenerator
         // first reset the report, because in case of errors,
         // the old report must not be considered as the new generated report
         $report->setProducedReportDocument(null);
-        $report->setTotalWithoutTax(null);
-        $report->setTotalWithTax(null);
-        $report->setTax(null);
-        $report->setAppliedVat(null);
+        $report->setTotalWithoutTax(0);
+        $report->setTotalWithTax(0);
+        $report->setTax(0);
+        $report->setAppliedVat(0);
         $report->save($conn);
 
         $fromDate = fromMySQLTimestampToUnixTimestamp($report->getFromDate());
@@ -391,7 +372,7 @@ abstract class ReportGenerator
         $this->deriveReportParams();
         $this->generateOnlyNames();
         $report->setProducedReportGenerationDate(time());
-        $report->setProducedReportAlreadyReviewed(false);
+        $report->setProducedReportAlreadyReviewed(0);
         $report->setProducedReportIsDraft($this->calcIfReportIsDraft($conn));
         $report->setCachedParentIdHierarchy(OrganizationUnitInfo::getInstance()->getFullIds($report->getArOrganizationUnitId(), $fromDate));
         if (!$this->getStore()->isEmpty()) {

@@ -7,6 +7,19 @@ class ArVendorDomainPeer extends BaseArVendorDomainPeer
 {
 
     /**
+     * @static
+     * @param string $internalName
+     * @return ArVendorDomain|null
+     */
+    public static function retrieveByInternalName($internalName)
+    {
+        $criteria = new Criteria();
+        $criteria->add(ArVendorDomainPeer::INTERNAL_NAME, $internalName);
+
+        return ArVendorDomainPeer::doSelectOne($criteria);
+    }
+
+    /**
      * Search first for an exact match, then for the best prefix.
      *
      * Add an error message (not throwing it), in case of deprecated result.

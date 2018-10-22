@@ -5,7 +5,7 @@ use_helper('I18N', 'Debug', 'Date', 'Asterisell');
 $info = OrganizationUnitInfo::getInstance();
 $ids = $info->getOrganizationIds();
 
-$time = VariableFrame::$startFilterDate;
+$time = VariableFrame::$fromDate;
 if (is_null($time)) {
     $time = time();
 }
@@ -27,6 +27,7 @@ echo csv_field("Active at date", true);
 echo csv_field("Extension codes", false);
 echo csv_field("Organization", false);
 echo csv_field("Price category", false);
+echo csv_field("Note", false);
 echo csv_field("Billable organization", false);
 echo csv_field("Billable CRM", false);
 echo "\n";
@@ -53,7 +54,7 @@ foreach ($sortedIds as $id => $organizationName) {
     } catch (ArProblemException $ex) {
         echo csv_field("!!error!!", false);
     }
-
+    echo csv_field($info->getPartyNote($id, $time), false);
     $billableId = $info->getBillableArOrganizationId($info->getFullIds($id, $time), $time);
     echo csv_field($info->getFullNameAtDate($billableId, $time, false, false, null, false, false), false);
     echo csv_field($info->getPartyCRM($billableId, $time), false);

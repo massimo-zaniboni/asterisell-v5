@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+   <head><meta charset="UTF-8" />
+      <title>Code development</title><link href="res/webhelp.css" rel="stylesheet" type="text/css" /><meta content="These notes are interesting only if you want to extend the Asterisell application source code." name="description" />
+      <meta content="XMLmind DITA Converter 3.3.0" name="generator" />
+   <script charset="UTF-8" defer="defer" src="_wh/snowball_en.min.js" type="text/javascript"></script><link href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/themes/smoothness/jquery-ui.css" rel="stylesheet" type="text/css" /><link href="_wh/wh.css" rel="stylesheet" type="text/css" /><script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js" type="text/javascript">
+    </script><script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js" type="text/javascript">
+    </script><script charset="UTF-8" src="_wh/wh.min.js" type="text/javascript">
+    </script><script charset="UTF-8" defer="defer" src="_wh/search.js" type="text/javascript">
+    </script></head>
+   
+<body>
+    
+
+    <div id="wh-body">
+      <div id="wh-navigation">
+        <ul id="wh-tabs">
+          <li id="wh-toc-tab"><a href="#wh-toc-pane"><span>Contents</span></a></li>
+          
+          <li id="wh-search-tab"><a href="#wh-search-pane"><span>Search</span></a></li>
+        </ul>
+        <div id="wh-toc-pane">
+          <div id="wh-toc-form">
+            <span id="wh-toc-control"><a href="#">Collapse 
+            All</a><a href="#">Expand All</a></span>
+            <button id="wh-toc-previous">Previous</button>
+            <button id="wh-toc-next">Next</button>
+            <button id="wh-toc-print">Print</button>
+          </div>
+          <script charset="UTF-8" src="_wh/toc.js" type="text/javascript">
+          </script>
+        </div>
+        
+        <div id="wh-search-pane">
+          <div id="wh-search-form">
+            <input id="wh-search-field" type="text" /><button id="wh-search-button">Search</button><span id="wh-highlight-group"><input checked="checked" id="wh-highlight-toggle" type="checkbox" /><label for="wh-highlight-toggle" id="wh-highlight-icon"><span class="ui-icon ui-icon-flag"></span></label></span>
+          </div>
+          <div id="wh-search-results">
+          </div>
+        </div>
+      </div>
+      <div id="wh-separator">
+      </div>
+      <div id="wh-content">
+      
+      <header class="page-navigation-header">
+         <table class="page-navigation-layout" style="width: 100%;">
+            <tr>
+               <td style="text-align: left;vertical-align: top;"><a class="navigation-link" href="manual.html" title="First page: Asterisell Manual"><img alt="First page" class="navigation-icon" height="16" src="res/first.png" width="16" /></a></td>
+               <td style="text-align: left;vertical-align: top;"><a class="navigation-link" href="cdrs-data-files.html" title="Previous page: CDRS data files"><img alt="Previous page" class="navigation-icon" height="16" src="res/previous.png" width="16" /></a></td>
+               <td style="width: 25%;text-align: left;vertical-align: top;"><span class="page-navigation-previous">CDRS data files</span></td>
+               <td style="width: 40%;text-align: center;vertical-align: top;"><span class="page-navigation-current">Code development</span> <span class="page-navigation-page">(70 / 71)</span></td>
+               <td style="width: 25%;text-align: right;vertical-align: top;"><span class="page-navigation-next">About</span></td>
+               <td style="text-align: right;vertical-align: top;"><a class="navigation-link" href="about.html" title="Next page: About"><img alt="Next page" class="navigation-icon" height="16" src="res/next.png" width="16" /></a></td>
+               <td style="text-align: right;vertical-align: top;"><a class="navigation-link" href="about.html" title="Last page: About"><img alt="Last page" class="navigation-icon" height="16" src="res/last.png" width="16" /></a></td>
+            </tr>
+         </table>
+      </header>
+      <section class="topic" id="Code_development">
+         <h2 class="section2-title">Code development</h2>
+         <p class="shortdesc">These notes are interesting only if you want to extend the Asterisell application
+            source code.
+         </p>
+         <div class="body">
+            <section class="section" id="Code_development__I_fadbfq_">
+               <h3 class="section-title">How changing the database schema</h3>
+               <div class="p">Change the file <code class="codeph">config/schema.yml</code>.
+               </div><pre class="pre">./fab.sh
+
+cd /asterisell/scripts
+./makedb.sh
+</pre><div class="p">The new SQL model will be generated inside <code class="codeph">data/sql/lib.model.schema.sql</code>.
+               </div>
+               <div class="p">Test the application.</div>
+               <div class="p">Add upgrade jobs extending the database also in already production instances. TODO
+                  complete this
+               </div>
+            </section>
+            <section class="section" id="Code_development__I_pzatn2_">
+               <h3 class="section-title">How changing the content of the management container</h3>
+               <div class="p">Customize <code class="codeph">Dockerfile</code>, then tart the management tool with
+               </div><pre class="pre">./fab.sh --upgrade
+</pre><div class="p">for updating the image with only the last changes, and starting a new container.</div>
+               <div class="p">Use</div><pre class="pre">./fab.sh --rebuild
+</pre><div class="p">for recreating the image, from scratch, rexecuting all commands inside Dockerfile.
+                  Very slow, but useful for very old images, in case new/fresh packages had to be loaded
+                  instead.
+               </div>
+               <div class="p">After many operations of image recreation consider to execute</div><pre class="pre">docker volume prune
+docker image prune
+</pre><div class="p">for removing data not anymore used.</div>
+            </section>
+            <section class="section" id="Code_development__I_iun4uu_">
+               <h3 class="section-title">How generating UI web modules</h3><pre class="pre">./fab.sh
+
+php symfony propel:generate-admin asterisell ArReportScheduler --module=report_scheduling
+</pre><div class="p">if you add a new class, update also init database scripts, and deletion related.</div>
+               <ul class="ul">
+                  <li class="li">generate module normally</li>
+                  <li class="li">in generator.yml change generator.class to sfPropelAdminGenerator</li>
+                  <li class="li">in actions.class.php:
+                     
+                     <ul class="ul">
+                        <li class="li">remove the initial require once of lib files</li>
+                        <li class="li">consider using the option for sorting pagination also on ID</li>
+                     </ul>
+                     
+                  </li>
+                  <li class="li">remove in lib of module the two configuration files</li>
+                  <li class="li">in apps/asterisell/config/routing.yml remove the initial code</li>
+                  <li class="li">in config, add security settings for admin access</li>
+                  <li class="li">add the module into the Asterisell Menu</li>
+               </ul>
+               <div class="p">From <code class="codeph">config/routing.yml</code> remove code like:
+               </div><pre class="pre">    ar_role:
+      class: sfPropelRouteCollection
+      options:
+        model:                ArRole
+        module:               role
+        prefix_path:          /role
+        column:               id
+        with_wildcard_routes: true
+    
+    ar_user:
+      class: sfPropelRouteCollection
+      options:
+        model:                ArUser
+        module:               user
+        prefix_path:          /user
+        column:               id
+        with_wildcard_routes: true
+    
+    ar_extension_has_code:
+      class: sfPropelRouteCollection
+      options:
+        model:                ArExtensionHasCode
+        module:               extension_code
+        prefix_path:          /extension_code
+        column:               id
+        with_wildcard_routes: true
+    
+    ar_organization_unit:
+      class: sfPropelRouteCollection
+      options:
+        model:                ArOrganizationUnit
+        module:               organization_unit
+        prefix_path:          /organization_unit
+        column:               id
+        with_wildcard_routes: true
+</pre><div class="p">Use code like this:</div><pre class="pre">    generator:
+      class: sfPropelAdminGenerator
+      param:
+        model_class:           ArExtensionHasCode
+        theme:                 admin
+        non_verbose_templates: true
+        with_show:             false
+        singular:              ArExtensionHasCode
+        plural:                ArExtensionHasCodes
+        route_prefix:          ar_extension_has_code
+        with_propel_route:     1
+        actions_base_class:    sfActions
+    
+        fields:
+          ar_extension_id: { name: Extension }
+          ar_extension: { name: Extension }
+          code: { name: Code, help: &quot;An extension can have one or more code (telephone numbers) that are valid alias of them.&quot; }
+    
+        list:
+          title: Extension Codes (alias telephone numbers associated to an Extension)
+    
+          display: [ar_extension, =code]
+          filters: [ar_extension_id, code]
+          sort: [code, asc]
+    
+        edit:
+          title: Extension Codes (alias telephone numbers associated to an Extension)
+          display: [ar_extension, code]
+</pre></section>
+            <section class="section" id="Code_development__I_gvelim_">
+               <h3 class="section-title">How profiling and solve speace leaks of the Haskell Rating Engine</h3>
+               <ul class="ul">
+                  <li class="li">Enable <code class="codeph">debug_mode</code> in the instance params.
+                  </li>
+                  <li class="li">Choose the profiling options to execute, according notes on <a class="xref" href="https://downloads.haskell.org/~ghc/latest/docs/html/users_guide/profiling.hl" target="_blank">https://downloads.haskell.org/~ghc/latest/docs/html/users_guide/profiling.hl</a></li>
+                  <li class="li">The first time execute a <code class="codeph">fab upgrade_app:instance_name</code>, for recompiling from scratch with enabled profiling instructions.
+                  </li>
+                  <li class="li"><code class="codeph">fab connect:instance_name</code> and then <code class="codeph">php asterisell.php debug rerate</code> and <code class="codeph">php asterisell.php run jobs</code> for executing a rating pass with the profiling enabled.
+                  </li>
+                  <li class="li">Inspect the “.hp” and “.prof” produced files. Use as example <code class="codeph">rating_tools/utilities/process-haskell-profiling.sh</code>.
+                  </li>
+                  <li class="li">If you change the code <code class="codeph">fab upgrade_conf:instance_name</code> for updating it in a fast way.
+                  </li>
+                  <li class="li">At the end of the profiling process, disable <code class="codeph">debug_mode</code>, and execute a <code class="codeph">fab upgrade_app:instance_name</code> again.
+                  </li>
+               </ul>
+               <div class="p">It is possible executing only specific parts of the rating engine using the <code class="codeph">--run-level</code> options. See the source code of the rating engine for more info.
+               </div>
+            </section>
+            <section class="section" id="Code_development__I_ug1vl3_">
+               <h3 class="section-title">Adding LOG message</h3>
+               <div class="p">Inside an action</div><pre class="pre">    $this-&gt;logMessage('help me!', 'info');
+</pre><div class="p">Outside an action</div><pre class="pre">    sfContext::getInstance()-&gt;getLogger()-&gt;info($message);
+    sfContext::getInstance()-&gt;getLogger()-&gt;err($message);
+</pre><div class="p">Inside a template if the error must be viewed on the web toolbar</div><pre class="pre">    echo log_message(...);
+</pre></section>
+         </div>
+      </section>
+      <footer class="page-navigation-footer">
+         <table class="page-navigation-layout" style="width: 100%;">
+            <tr>
+               <td style="text-align: left;vertical-align: top;"><a class="navigation-link" href="manual.html" title="First page: Asterisell Manual"><img alt="First page" class="navigation-icon" height="16" src="res/first.png" width="16" /></a></td>
+               <td style="text-align: left;vertical-align: top;"><a class="navigation-link" href="cdrs-data-files.html" title="Previous page: CDRS data files"><img alt="Previous page" class="navigation-icon" height="16" src="res/previous.png" width="16" /></a></td>
+               <td style="width: 25%;text-align: left;vertical-align: top;"><span class="page-navigation-previous">CDRS data files</span></td>
+               <td style="width: 40%;text-align: center;vertical-align: top;"><span class="page-navigation-current">Code development</span> <span class="page-navigation-page">(70 / 71)</span></td>
+               <td style="width: 25%;text-align: right;vertical-align: top;"><span class="page-navigation-next">About</span></td>
+               <td style="text-align: right;vertical-align: top;"><a class="navigation-link" href="about.html" title="Next page: About"><img alt="Next page" class="navigation-icon" height="16" src="res/next.png" width="16" /></a></td>
+               <td style="text-align: right;vertical-align: top;"><a class="navigation-link" href="about.html" title="Last page: About"><img alt="Last page" class="navigation-icon" height="16" src="res/last.png" width="16" /></a></td>
+            </tr>
+         </table>
+      </footer>
+   </div>
+    </div>
+
+    
+  </body></html>

@@ -1,25 +1,6 @@
 <?php
 
-/* $LICENSE 2009, 2010:
- *
- * Copyright (C) 2009, 2010 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
- *
- * This file is part of Asterisell.
- *
- * Asterisell is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 3 of the License, or
- * (at your option) any later version.
- *
- * Asterisell is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with Asterisell. If not, see <http://www.gnu.org/licenses/>.
- * $
- */
+// SPDX-License-Identifier: GPL-3.0-or-later
 
 /**
  * Contains static variables references.
@@ -35,86 +16,184 @@ class VariableFrame
     const CREATE_NEW_PARTY_ID = '-- Create New --';
     const USE_ORGANIZATION_PARTY_ID = '-- Use Associated Organization Info --';
 
-    // Call report related
-    //
-    public static $showChannelUsage;
+    // --------------------------
+    // Info passed to call-report
 
     /**
-     * @var Criteria
+     * @var int
      */
-    public static $filterCondition;
+    public static $fromDate;
 
     /**
-     * @var Criteria
+     * @var int|null
      */
-    public static $filterConditionWithOrder;
+    public static $toDate;
 
-    public static $startFilterDate;
-    public static $endFilterDate;
-    public static $defaultTimeFrameValue;
+    /**
+     * @var int
+     */
     public static $countOfRecords;
-    public static $totSeconds;
-    public static $totIncomes;
-    public static $totCosts;
-    public static $totSavingCosts;
-    public static $totEarn;
-    public static $geographicLocationsInTimeRange;
-    public static $startOrganizationId;
-    public static $showMaskedTelephoneNumbers;
+
+    /**
+     * @var bool
+     */
+    public static $srcCanBeGrouped;
+
+    /**
+     * @var bool
+     */
+    public static $isWholeDay;
+
+   /**
+     * @var int
+     */
     public static $groupOn;
+
+    /**
+     * @var bool true if there is a filter on some field involving organizations,
+     * false if all organizations are considered, and so cached_parent_id_hierarchy = ''
+     * and billable_ar_organization_unit_id = 0 can be used in ar_cached_grouped_cdr
+     */
+    public static $filterOnOrganization;
+
+    /**
+     * @var bool true for showing fields like call direction, geographic location, and so on.
+     */
+    public static $showCallDetails;
+
+   /**
+     * @var array the SQL query with the filter conditions for showing all the CDRS.
+     * Every element of the array is an AND condition to add to the query.
+     * It is the WHERE part, without the SELECT and FROM part.
+     * The GROUP part is implicit by the used $listViewName.
+     */
+    public static $listCondition;
+
+   /**
+     * @var array the SQL query with the filter conditions for showing the sum/header of the CDRS.
+     * Every element of the array is an AND condition to add to the query.
+     * It is the WHERE part, without the SELECT and FROM part.$
+     * The GROUP part is implicit by the used $listViewName.
+     */
+    public static $listHeaderCondition;
+
+    /**
+     * @var array the params of $listCondition
+     */
+    public static $listHeaderParams;
+
+    /**
+     * @var string
+     */
+    public static $listFrom;
+
+    /**
+     * @var array
+     */
+    public static $listGroupBy;
+
+    /**
+     * @var array SQL sort conditions
+     */
+    public static $listSort;
+
+    /**
+     * @var array the params of $listCondition
+     */
+    public static $listParams;
+
+    /**
+     * @var array
+     */
+    public static $listSelect;
+
+    /**
+     * @var array
+     */
+    public static $exportToCSVSelect;
+
+    /**
+     * @var int
+     */
+    public static $startOrganizationId;
+
+    /**
+     * @var bool
+     */
+    public static $showMaskedTelephoneNumbers;
+
+    /**
+     * @var bool
+     */
+    public static $showCommunicationChannel;
+
+    /**
+     * @var bool false if only outgoing calls are showed
+     */
+    public static $showMoreDirections;
+
+    /**
+     * @var array
+     */
+    public static $headerTable;
+
+    /**
+     * @var array
+     */
+    public static $headerTotals;
+
+    /**
+     * @var array
+     */
+    public static $headerColNames;
+
+    /**
+     * @var array for each col contains 0 for a simple number, 1 for monetary value, 2 for hours/minutes
+    */
+    public static $headerColFormat;
+
+   /**
+    * @var array values in order of appareance
+    */
+    public static $headerColOrder;
+
+    /**
+     * @var array values in order of appareance
+     */
+    public static $headerRowOrder;
+
+   /**
+    * @var array
+    */
+   public static $headerRowNames;
+
+   /**
+     * @var array
+     */
+   public static $filterOnOperatorType;
+
+    /**
+     * @var array
+     */
+    public static $filterOnCommunicationChannel;
+
+    /**
+     * @var array
+     */
+    public static $filterOnGeographicLocation;
+
+    /**
+     * @var array
+     */
+    public static $filterOnVendor;
 
     /**
      * @var string
      */
     public static $filterDescription;
 
-    /**
-     * @var ArNumberPortabilityCache|null
-     */
-  protected static $numberPortabilityCache = null;
 
-    /**
-     * @var PhpTelephonePrefixesCache|null
-     */
-  protected static $telephonePrefixCache= null;
 
-    /**
-     * @static
-     * @return PhpTelephonePrefixesCache
-     */
-    static public function getTelephonePrefixCache() {
-      if (is_null(VariableFrame::$telephonePrefixCache)) {
-        VariableFrame::$telephonePrefixCache = new PhpTelephonePrefixesCache();
-      }
 
-      return VariableFrame::$telephonePrefixCache;
-    }
-
-    static public function resetTelephonePrefixCache() {
-        VariableFrame::$telephonePrefixCache = null;
-    }
-
-    /**
-     * @static
-     * @param int $id
-     * @return string
-     */
-    static public function getCommunicationChannelName($id) {
-        static $cache = null;
-
-        if (is_null($cache)) {
-            // they are few codes, so I can retrieve and store them using only one query
-
-            $cache = array();
-            $conn = Propel::getConnection();
-            $stm = $conn->prepare("SELECT id, name FROM ar_communication_channel_type");
-            $stm->execute();
-            while (($rs = $stm->fetch(PDO::FETCH_NUM)) !== false) {
-                $cache[$rs[0]] = $rs[1];
-            }
-            $stm->closeCursor();
-        }
-
-        return $cache[$id];
-    }
 }
+

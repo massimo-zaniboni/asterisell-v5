@@ -39,6 +39,8 @@ class ArCdrProviderTableMap extends TableMap {
 		$this->addPrimaryKey('ID', 'Id', 'INTEGER', true, null, null);
 		$this->addColumn('INTERNAL_NAME', 'InternalName', 'VARCHAR', false, 255, null);
 		$this->addColumn('DESCRIPTION', 'Description', 'VARCHAR', false, 2048, null);
+		$this->addColumn('LAST_IMPORTED_ID', 'LastImportedId', 'BIGINT', false, null, null);
+		$this->addColumn('LAST_IMPORTED_DATA', 'LastImportedData', 'VARCHAR', false, 2048, null);
 		// validators
 	} // initialize()
 
@@ -48,7 +50,6 @@ class ArCdrProviderTableMap extends TableMap {
 	public function buildRelations()
 	{
     $this->addRelation('ArSourceCsvFile', 'ArSourceCsvFile', RelationMap::ONE_TO_MANY, array('id' => 'ar_cdr_provider_id', ), null, null);
-    $this->addRelation('ArSourceCdr', 'ArSourceCdr', RelationMap::ONE_TO_MANY, array('id' => 'ar_cdr_provider_id', ), null, null);
     $this->addRelation('ArRemoteFile', 'ArRemoteFile', RelationMap::ONE_TO_MANY, array('id' => 'ar_cdr_provider_id', ), null, null);
 	} // buildRelations()
 

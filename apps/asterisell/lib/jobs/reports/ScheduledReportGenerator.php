@@ -1,24 +1,5 @@
 <?php
-/* $LICENSE 2012, 2013, 2017, 2018:
- *
- * Copyright (C) 2012, 2013, 2017, 2018 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
- *
- * This file is part of Asterisell.
- *
- * Asterisell is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 3 of the License, or
- * (at your option) any later version.
- *
- * Asterisell is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with Asterisell. If not, see <http://www.gnu.org/licenses/>.
- * $
- */
+// SPDX-License-Identifier: GPL-3.0-or-later
 
 sfLoader::loadHelpers(array('I18N', 'Debug', 'Date', 'Asterisell'));
 
@@ -285,12 +266,12 @@ class ScheduledReportGenerator
         $this->sharedReportCalcStore = $report->generateDocument($conn, $this->sharedReportCalcStore, $this->getArReportScheduler()->getId());
 
         if ($report->getProducedReportIsDraft()) {
-            $report->setProducedReportAlreadyReviewed(false);
+            $report->setProducedReportAlreadyReviewed(0);
         } else {
             if ($this->getArReportScheduler()->getProducedReportMustBeReviewed()) {
-                $report->setProducedReportAlreadyReviewed(false);
+                $report->setProducedReportAlreadyReviewed(0);
             } else {
-                $report->setProducedReportAlreadyReviewed(true);
+                $report->setProducedReportAlreadyReviewed(1);
             }
         }
 
@@ -797,6 +778,7 @@ class ScheduledReportGenerator
         // Get more recent report-sets
         $queryReportSets = '
           SELECT DISTINCT ss.id AS id
+                        , ss.from_date
            FROM ar_report_set AS s1
            ,    ar_report_set AS ss
            WHERE s1.id = ?
@@ -869,7 +851,7 @@ class ScheduledReportGenerator
         $sql2 = '
         SELECT billable_ar_organization_unit_id AS unit_id
         ,      SUM(income)
-        FROM ar_cdr FORCE INDEX (ar_cdr_calldate_index)
+        FROM ar_cdr 
         WHERE calldate >= ?
         AND   calldate < ?
         GROUP BY billable_ar_organization_unit_id

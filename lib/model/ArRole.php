@@ -17,6 +17,8 @@ class ArRole extends BaseArRole
     //
     // > apps/asterisell/lib/jobs/admin/ConfigureDefaultParamsAndSettings.php
 
+    // DEV-NOTE: mantain is synchro with `OrganizationHierarchy.hs`
+
     const ADMIN = 'admin';
 
     const USER = 'user';

@@ -1,24 +1,6 @@
 {-# LANGUAGE ScopedTypeVariables, BangPatterns, OverloadedStrings, QuasiQuotes #-}
 
-{- $LICENSE 2013, 2014, 2015, 2016, 2017
- * Copyright (C) 2013-2017 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
- *
- * This file is part of Asterisell.
- *
- * Asterisell is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 3 of the License, or
- * (at your option) any later version.
- *
- * Asterisell is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with Asterisell. If not, see <http://www.gnu.org/licenses/>.
- * $
--}
+-- SPDX-License-Identifier: GPL-3.0-or-later
 
 
 -- | Support the MainRatePlan format.
@@ -43,6 +25,7 @@ import Asterisell.TelephonePrefixes
 import Asterisell.VoIPChannelAndVendor
 import Asterisell.RateCategories
 import Asterisell.OrganizationHierarchy
+import Asterisell.Holiday
 
 import Numeric
 
@@ -67,6 +50,8 @@ import Debug.Trace
 import Data.Maybe
 import Data.Set as Set
 import Text.Heredoc
+import Control.Monad
+import Data.Time.LocalTime
 
 ------------------------------------
 -- PARSE MAIN RATE SPECIFICATIONS --
@@ -92,11 +77,10 @@ mainRatePlanParser_parse :: RatingParams -> Parsec.Parser MainRatePlan
 mainRatePlanParser_parse env
   = do
        rates :: [Either RootBundleRatePlan RatePlan]
-         <- Parsec.many1
-                  ((Parsec.try (do r <- p_rateOrClassPlan env
-                                   return $ Right r)
-                   ) <|> (do r <- p_rootBundleRate env
-                             return $ Left r))
+         <- Parsec.many1 $ do
+             p_spacesAndComments
+             (Right <$> p_rateOrClassPlan False env) <|> (Left <$> p_rootBundleRate False env)
+
        Parsec.eof
 
        let (bundleRates, normalRates)
@@ -116,12 +100,20 @@ mainRatePlanParser_parse env
          Right r
            -> return r
 
+p_spacesAndComments :: Parsec.Parser ()
+p_spacesAndComments = do
+  p_freeSpaces
+  _ <- Parsec.many p_comment
+  p_freeSpaces
+  return ()
+
 -- | Used for specifying different types of rates.
-p_rateOrClassPlan :: RatingParams -> Parsec.Parser RatePlan
-p_rateOrClassPlan env
-  = do p_freeSpaces
-       Parsec.many p_comment
-       p_freeSpaces
+p_rateOrClassPlan :: Bool -> RatingParams -> Parsec.Parser RatePlan
+p_rateOrClassPlan withComments env
+  = do
+       case withComments of
+         True -> p_spacesAndComments
+         False -> return ()
 
        isExternalRate
          <-     (do p_symbol "rate"
@@ -146,7 +138,7 @@ p_rateOrClassPlan env
 
        children <- case isExternalRate of
                      True -> return children
-                     False -> do r <- Parsec.many (p_rateOrClassPlan env)
+                     False -> do r <- Parsec.many (p_rateOrClassPlan True env)
                                  return $ Right r
 
        p_endDef
@@ -156,7 +148,7 @@ p_rateOrClassPlan env
          <- Parsec.option [] $ do
               p_symbol "else"
               p_beginDef
-              elseRates <- Parsec.many1 $ p_rateOrClassPlan env
+              elseRates <- Parsec.many1 $ p_rateOrClassPlan True env
               p_endDef
               return elseRates
 
@@ -180,11 +172,11 @@ p_rateOrClassPlan env
        return plan
 
 -- | Used for specifying different types of rates.
-p_rootBundleRate :: RatingParams -> Parsec.Parser RootBundleRatePlan
-p_rootBundleRate env
-  = do p_freeSpaces
-       Parsec.many p_comment
-       p_freeSpaces
+p_rootBundleRate :: Bool -> RatingParams -> Parsec.Parser RootBundleRatePlan
+p_rootBundleRate withSpacesAndComments env
+  = do case withSpacesAndComments of
+         True -> p_spacesAndComments
+         False -> return ()
 
        p_symbol "bundle-rate"
        p_beginDef
@@ -198,8 +190,14 @@ p_rootBundleRate env
 
        p_symbol "schedule:"
        schedule <- p_schedule
+
        p_symbol "schedule-from:"
        schedule <- p_scheduleFrom schedule
+
+       schedule <- (do 
+                       p_symbol "schedule-at:"
+                       p_scheduleAt schedule
+                   ) <|> (return schedule)
 
        p_symbol "apply-for-each:"
        priceCategories <- p_referenceList "price category" (fst $ params_rateCategories env)
@@ -217,7 +215,6 @@ p_rootBundleRate env
        onlyForCallsWithACost <- p_bool
 
        bundleInitialCost <- p_moneyParamOrDefaultValue "set-bundle-initial-cost:" 0
-       bundleMinCost <- p_moneyParamOrDefaultValue "set-bundle-min-cost:" 0
 
        filters <- p_filters env False
        calcParams <- p_commonCalcParams
@@ -240,9 +237,9 @@ p_rootBundleRate env
        let bundleParams
              = BundleParams {
                  bundle_initialCost = bundleInitialCost
-               , bundle_minCost = bundleMinCost
                , bundle_leftCalls = leftCalls
                , bundle_leftDuration = leftDuration
+               , bundle_leftCost = Nothing
                , bundle_appliedCost = 0
                }
 
@@ -273,17 +270,17 @@ p_rootBundleRate env
   p_schedule
     = (do p_symbol "monthly"
           p_nl
-          return $ MonthlyTimeFrame 0
+          return $ MonthlyTimeFrame 0 midnight
       )
       <|> (do p_symbol "weekly"
               p_nl
-              return $ WeeklyTimeFrame 0
+              return $ WeeklyTimeFrame 0 midnight
           )
 
   p_scheduleFrom :: BundleRateTimeFrame -> Parsec.Parser BundleRateTimeFrame
   p_scheduleFrom f
     = case f of
-        WeeklyTimeFrame _
+        WeeklyTimeFrame _ _
           -> do d <- p_dayOfWeek 1 ["Monday"
                                    ,"Tuesday"
                                    ,"Wednesday"
@@ -291,12 +288,26 @@ p_rootBundleRate env
                                    ,"Friday"
                                    ,"Saturday"
                                    ,"Sunday"]
-                return $ WeeklyTimeFrame d
-        MonthlyTimeFrame _
+                return $ WeeklyTimeFrame d midnight
+        MonthlyTimeFrame _ _
          -> do i <- p_integer
                case i >= 1 && i <= 28 of
-                 True -> return $ MonthlyTimeFrame i
+                 True -> return $ MonthlyTimeFrame i midnight
                  False -> fail $ show i ++ " day of month can not be accepted: it must be between 1 and 28."
+
+  p_scheduleAt :: BundleRateTimeFrame -> Parsec.Parser BundleRateTimeFrame
+  p_scheduleAt f = do
+    hh <- p_integer
+    p_symbol ":"
+    mm <- p_integer
+    p_symbol ":"
+    ss <- p_integer
+    let td = TimeOfDay hh mm (fromInteger $ toInteger ss)
+    let f' = case f of
+               WeeklyTimeFrame a1 _ -> WeeklyTimeFrame a1 td
+               MonthlyTimeFrame a1 _ -> MonthlyTimeFrame a1 td
+               EveryDaysTimeFrame a1 a2 _ -> EveryDaysTimeFrame a1 a2 td
+    return f'
 
   p_dayOfWeek n (v:r)
     = (do p_symbol v
@@ -326,7 +337,6 @@ p_bundleRatePlan env
        leftCalls <- p_maybeIntOrNothing "none" "limit-on-first-calls:"
        leftDuration <- p_maybeIntOrNothing "none" "limit-on-first-seconds:"
        bundleInitialCost <- p_moneyParamOrDefaultValue "set-bundle-initial-cost:" 0.0
-       bundleMinCost <- p_moneyParamOrDefaultValue "set-bundle-min-cost:" 0.0
        calcParams <- p_commonCalcParams
        children <- case isExternalRate of
                      True
@@ -351,9 +361,9 @@ p_bundleRatePlan env
        let bundleParams
              = BundleParams {
                  bundle_initialCost = bundleInitialCost
-               , bundle_minCost = bundleMinCost
                , bundle_leftCalls = leftCalls
                , bundle_leftDuration = leftDuration
+               , bundle_leftCost = Nothing
                , bundle_appliedCost = 0
                }
 
@@ -439,33 +449,81 @@ p_filter env acceptAlsoPriceCategory
            ids <- p_referenceList "vendor" (params_vendors env)
            return $ filterFun_matchOneOfIds ids (\cdr -> fromJust1 "m2" $ cdr_vendorId cdr)
 
-    <|> case acceptAlsoPriceCategory of
-          True
-            -> do p_symbol "match-price-category:"
-                  ids <- p_referenceList "price category"  (fst $ params_rateCategories env)
-                  return $ filterFun_matchOneOfIds ids (\cdr -> fromJust1 "m3" $ cdr_priceCategoryId cdr)
-          False
-            -> fail "match-price-category is not accepted"
+    <|> do p_symbol "match-price-category:"
+           when (not acceptAlsoPriceCategory) (fail "match-price-category is not accepted")
+           ids <- p_referenceList "price category"  (fst $ params_rateCategories env)
+           return $ filterFun_matchOneOfIds ids (\cdr -> fromJust1 "m3" $ cdr_priceCategoryId cdr)
 
     <|> do p_symbol "match-call-direction:"
            direction <- p_direction
-           return $ (\env cdr -> if cdr_direction cdr == direction
-                                 then Just matchStrenght_initial
-                                 else Nothing
+           return $ (\_ cdr -> if cdr_direction cdr == direction
+                               then Just matchStrenght_initial
+                               else Nothing
                     )
 
+    <|> do p_symbol "match-rating-code:"
+           ids <- p_referenceTextL "rating code" (params_ratingCodes env) <?> "rating codes"
+           return $ filterFun_matchOneOfIds ids cdr_ratingCode
+
+    <|> do p_symbol "match-peak-code:"
+           allowedPeakCodes <- Set.fromList <$> p_referenceTextL "peak code" (params_peakCodes env) <?> "peak codes"
+           return $ (\env2 cdr
+                       -> let cdrPeakCodes = holidays_match (params_holidays env) (cdr_calldate cdr)
+                              commonCodes = Set.intersection allowedPeakCodes cdrPeakCodes
+                          in  case Set.null commonCodes of
+                                True ->  Nothing
+                                False -> Just matchStrenght_initial)
+ 
     <|> do p_symbol "match-telephone-number:"
            telephoneNumbers <- p_telephoneNumbers
-           let trie = List.foldl' (\t c -> trie_addExtensionCode t c ()) trie_empty (List.map Text.unpack telephoneNumbers)
-           return $ (\env cdr
+           let trie = List.foldl' (\t c -> trie_insertExtension t c ()) trie_empty (List.map fromTextToByteString telephoneNumbers)
+           return $ (\env2 cdr
                        -> let cdrTelephoneNumber = fromJust1 "m4" $ cdr_externalTelephoneNumberWithAppliedPortability cdr
-                              maybeResult = trie_getMatch trie_getMatch_initial trie (Text.unpack cdrTelephoneNumber)
+                              maybeResult = trie_match trie (fromTextToByteString cdrTelephoneNumber)
                           in  case maybeResult of
                                 Nothing
                                   -> Nothing
-                                Just ((m, _), _)
+                                Just (m, _, _)
                                   -> Just (MatchStrenght { matchStrenght_telephoneNumber = m })
                     )
+
+p_referenceBSS :: Text -> Set.Set BS.ByteString -> Parsec.Parser [BS.ByteString]
+p_referenceBSS errorSubject dictionary 
+    = do v <- Parsec.sepBy1 (p_referenceBS errorSubject dictionary) (Parsec.char ',')
+         p_nl
+         _ <- Parsec.many p_comment
+         p_freeSpaces
+         return v
+
+p_referenceBS :: Text -> Set.Set BS.ByteString -> Parsec.Parser BS.ByteString
+p_referenceBS errorSubject dictionary
+    = do n <- fromTextToByteString <$> p_referenceName
+         case Set.member n dictionary of
+           True -> return n
+           False -> fail $ "unknown " ++ Text.unpack errorSubject ++ " \"" ++ fromByteStringToString n ++ "\". Expected values are: " ++ expectedValues
+ where
+
+  expectedValues
+    = List.concat $ List.intersperse "," $ List.map fromByteStringToString (Set.elems dictionary)
+
+p_referenceTextL :: Text -> Set.Set Text.Text -> Parsec.Parser [Text.Text]
+p_referenceTextL errorSubject dictionary 
+    = do v <- Parsec.sepBy1 (p_referenceText errorSubject dictionary) (Parsec.char ',')
+         p_nl
+         _ <- Parsec.many p_comment
+         p_freeSpaces
+         return v
+
+p_referenceText :: Text -> Set.Set Text.Text -> Parsec.Parser Text.Text
+p_referenceText errorSubject dictionary
+    = do n <- p_referenceName
+         case Set.member n dictionary of
+           True -> return n
+           False -> fail $ "unknown " ++ Text.unpack errorSubject ++ " \"" ++ Text.unpack n ++ "\". Expected values are: " ++ expectedValues
+ where
+
+  expectedValues
+    = List.concat $ List.intersperse "," $ List.map Text.unpack (Set.elems dictionary)
 
 p_referenceList :: Text -> Map.Map Text Int -> Parsec.Parser [Int]
 p_referenceList errorSubject dictionay
@@ -474,6 +532,7 @@ p_referenceList errorSubject dictionay
          Parsec.many p_comment
          p_freeSpaces
          return v
+
 
 p_reference :: Text -> Map.Map Text Int -> Parsec.Parser Int
 p_reference errorSubject dictionary
@@ -585,41 +644,40 @@ p_direction
            return CDR_system
 
 p_descriptionValue :: Parsec.Parser Text
-p_descriptionValue
-  = (do p_spaces
-        v <- Parsec.manyTill Parsec.anyChar (Parsec.newline <|> Parsec.char '\r')
-        Parsec.many p_comment
-        p_freeSpaces
-        return $ Text.pack v)
+p_descriptionValue = Parsec.try $ do
+  p_spaces
+  v <- Parsec.manyTill Parsec.anyChar (Parsec.newline <|> Parsec.char '\r')
+  Parsec.many p_comment
+  p_freeSpaces
+  return $ Text.pack v
 
 p_referenceName :: Parsec.Parser Text
-p_referenceName
-  = (do p_spaces
-        v <- Parsec.many1 validChar
-        p_spaces
-        return $ Text.pack v)
+p_referenceName = Parsec.try $ do
+  p_spaces
+  v <- Parsec.many1 validChar
+  p_spaces
+  return $ Text.pack v
  where
 
   validChar = Parsec.alphaNum <|> Parsec.char '_' <|> Parsec.char '-' <|> Parsec.char '/'
 
-p_referenceNameValue
-  = (do v <- p_referenceName
-        p_nl
-        Parsec.many p_comment
-        p_freeSpaces
-        return v)
+p_referenceNameValue = do
+  v <- p_referenceName
+  p_nl
+  Parsec.many p_comment
+  p_freeSpaces
+  return v
 
 p_telephoneNumbers :: Parsec.Parser [Text]
-p_telephoneNumbers
-  = do line <- p_descriptionValue
-       return $ List.map Text.pack $ extensionCodes_extractFromUserSpecification line
+p_telephoneNumbers = do
+  line <- p_descriptionValue
+  return $ List.map fromByteStringToText $ extensionCodes_extractFromUserSpecification line
 
 p_thisOrParentOrValue valueParser
-  = do r <- Parsec.try (do  r <- p_symbol "parent" <|> p_symbol "this"
-                            p_nl
-                            return Nothing
-                       ) <|> (do r <- valueParser
-                                 return $ Just r)
+  = do r <- (do  r <- p_symbol "parent" <|> p_symbol "this"
+                 p_nl
+                 return Nothing
+            ) <|> (Just <$> valueParser)
 
        Parsec.many p_comment
        p_freeSpaces
@@ -637,40 +695,40 @@ p_bool
             p_freeSpaces
             return False)
 
-p_integer
-  = (do -- NOTE: manage in this way for not introducing binary decimal conversion errors
-        p_spaces
-        integerPart <- Parsec.many1 Parsec.digit
-        p_nl
-        let r1 :: [(Int, String)] = readDec integerPart
-        r <- case r1 of
-               [(r2, s2)] -> case List.null s2 of
-                               True -> return r2
-                               False -> fail ("unrecognized integer number \"" ++ integerPart ++ "\"")
-               _    -> fail ("unrecognized number \"" ++ integerPart ++ "\"")
-        Parsec.many p_comment
-        p_freeSpaces
-        return r) <?> "integer"
+p_integer = Parsec.try (do 
+  -- NOTE: manage in this way for not introducing binary decimal conversion errors
+  p_spaces
+  integerPart <- Parsec.many1 Parsec.digit
+  p_nl
+  let r1 :: [(Int, String)] = readDec integerPart
+  r <- case r1 of
+         [(r2, s2)] -> case List.null s2 of
+                         True -> return r2
+                         False -> fail ("unrecognized integer number \"" ++ integerPart ++ "\"")
+         _    -> fail ("unrecognized number \"" ++ integerPart ++ "\"")
+  Parsec.many p_comment
+  p_freeSpaces
+  return r) <?> "integer"
 
-p_float
-  = (do -- NOTE: manage in this way for not introducing binary decimal conversion errors
-        p_spaces
-        sign <- (Parsec.char '-' <|> Parsec.char '+' <|> return ' ')
-        integerPart <- Parsec.many1 Parsec.digit
-        decimalPart <- Parsec.option
-                         "" (do Parsec.char '.'
-                                ds <- Parsec.many1 Parsec.digit
-                                return $ "." ++ ds
-                            )
-        p_nl
-        let sn = (if sign == '-' then "-" else "") ++ integerPart ++ decimalPart
-        let r1 :: [(MonetaryValue, String)] = readSigned readFloat sn
-        r <- case r1 of
-               [(r2, [])] -> return r2
-               _  -> fail ("unrecognized float number \"" ++ sn ++ "\"")
-        Parsec.many p_comment
-        p_freeSpaces
-        return r) <?> "float number"
+p_float = Parsec.try (do
+  -- NOTE: manage in this way for not introducing binary decimal conversion errors
+  p_spaces
+  sign <- (Parsec.char '-' <|> Parsec.char '+' <|> return ' ')
+  integerPart <- Parsec.many1 Parsec.digit
+  decimalPart <- Parsec.option
+                     "" (do Parsec.char '.'
+                            ds <- Parsec.many1 Parsec.digit
+                            return $ "." ++ ds
+                        )
+  p_nl
+  let sn = (if sign == '-' then "-" else "") ++ integerPart ++ decimalPart
+  let r1 :: [(MonetaryValue, String)] = readSigned readFloat sn
+  r <- case r1 of
+         [(r2, [])] -> return r2
+         _  -> fail ("unrecognized float number \"" ++ sn ++ "\"")
+  Parsec.many p_comment
+  p_freeSpaces
+  return r) <?> "float number"
 
 p_comment
   = Parsec.try (do p_freeSpaces
@@ -753,14 +811,14 @@ test_interactiveDebug :: IO ()
          let mainRate :: MainRatePlan
                = case Parsec.runP (mainRatePlanParser_parse env) () "" (Text.pack rateContent) of
                    Left err
-                     -> error $ show err
+                     -> error (show err) 
                    Right r
                      -> r
 
          putStrLn $ show mainRate
          putStrLn ""
-         putStrLn "after mainRatePlan_assignSharedUniqueSystemId"
-         putStrLn $ show $ mainRatePlan_assignSharedUniqueSystemId mainRate bundleState
+         putStrLn "after mainRatePlan_assignUniqueSystemId"
+         putStrLn $ show $ mainRatePlan_assignUniqueSystemId mainRate 
          putStrLn ""
 
   name1 = "Parsing of main rate plans"
@@ -780,6 +838,7 @@ rate {
     match-vendor: vendor-A, vendor-B
     match-price-category: price-A, price-B
     match-call-direction: outgoing
+    match-rating-code: fixed-line
 
     set-free-seconds: 50
     set-duration-discrete-increments: 1
@@ -914,8 +973,11 @@ test_parser testName p source expectedResult
 
 tt_rateSpecificationsTests
   = [HUnit.TestCase $ test_rateSpecificationSyntax name1 (mainRatePlanParser_parse env) case1
-    ,HUnit.TestCase $ test_rateSpecificationSyntax "test 2" (p_filters env True) "match-communication-channel: ch1, ch2\nmatch-vendor: vendor1\n"
-    ,HUnit.TestCase $ test_rateSpecificationSyntax "test 2" (p_commonCalcParams) "cost-on-call: 1.5\nset-max-cost-of-call:-5.53\n"
+    ,HUnit.TestCase $ test_rateSpecificationSyntax name1 (mainRatePlanParser_parse env) case2
+    ,HUnit.TestCase $ test_rateSpecificationSyntax "test 2.1" (p_filters env True) "match-communication-channel: ch1, ch2\nmatch-vendor: vendor1\n"
+    ,HUnit.TestCase $ test_rateSpecificationSyntax "test 2.2" (p_commonCalcParams) "cost-on-call: 1.5\nset-max-cost-of-call:-5.53\n"
+    ,HUnit.TestCase $ test_rateSpecificationSyntax "test 2.3" (p_filters env True) "match-rating-code: fixed-line"
+    ,HUnit.TestCase $ test_rateSpecificationSyntax "test 2.4" (p_filters env True) "match-rating-code: fixed-line"
     ,HUnit.TestCase $ test_rateSpecificationSyntax "test on 10" p_integer "10"
     ,HUnit.TestCase $ test_rateSpecificationSyntax "test on 1.5" p_float "-1.5"
     ,HUnit.TestCase $ test_rateSpecificationSyntax "test p_telephoneNumbers syntax 1" p_telephoneNumbers  "059\n"
@@ -930,7 +992,6 @@ tt_rateSpecificationsTests
     ,HUnit.TestCase $ test_parser "test p_telephoneNumbers 7" p_telephoneNumbers  "\\ 059,\\ 051\\ \n" [" 059"," 051 "]
     ,HUnit.TestCase $ test_parser "test p_telephoneNumbers 8" p_telephoneNumbers  "059\\,051,052\n" ["059,051","052"]
     ,HUnit.TestCase $ test_parser "test p_telephoneNumbers 8" p_telephoneNumbers  "\\ 059, \\ 4 5 6\n" [" 059"," 4 5 6"]
-     -- TODO support in the correct way quoted chars, maybe merging with the code of othe parts
     ]
 
  where
@@ -940,6 +1001,7 @@ tt_rateSpecificationsTests
     params_rateCategories = rateCategories_create $ Map.fromList [("price-A", 1), ("price-B", 2), ("price-C", 3)]
   , params_channelTypes = Map.fromList [("local", 1), ("sip", 2), ("ch1", 3), ("ch2", 4)]
   , params_vendors = Map.fromList [("vendor-A", 1), ("vendor-B", 2), ("vendor1", 3)]
+  , params_ratingCodes = Set.fromList ["fixed-line", "mobile-line", "external"]
   }
 
   name1 = "Parsing of main rate plans"
@@ -959,6 +1021,7 @@ rate {
     match-vendor: vendor-A, vendor-B
     match-price-category: price-A, price-B
     match-call-direction: outgoing
+    match-rating-code: fixed-line
 
     set-free-seconds: 50
     set-duration-discrete-increments: 1
@@ -1011,7 +1074,7 @@ bundle-rate {
   }
 
   rate {
-    id: fixed-line2
+    id: fixed-line
     match-communication-channel: sip
     match-telephone-number: 39*
     limit-on-first-seconds: 3600
@@ -1020,3 +1083,157 @@ bundle-rate {
 }
 
 |]
+
+  case2 = [here|
+# Test bundle rate before rate and different orders
+
+bundle-rate {
+  id: cooptel-1
+
+  service-cdr-type: Canone Fisso
+  service-cdr-description: Canone mensile tutto incluso sui primi 120 minuti di chiamate nazionali e i primi 60 minuti di chiamate verso operatori mobile.
+
+  schedule: monthly
+  schedule-from: 1
+  apply-for-each: price-A
+
+  limit-on-first-calls: none
+  limit-on-first-seconds: none
+
+  limits-are-proportionals-to-activation-date: true
+  calls-can-be-split: false
+  only-for-calls-with-a-cost: true
+
+  set-bundle-initial-cost: 25
+
+  rate {
+    id: fixed-line1
+    match-communication-channel: local
+    match-telephone-number: 39*
+    limit-on-first-seconds: 7200
+    # 120 minuti
+  }
+
+  rate {
+    id: fixed-line
+    match-communication-channel: sip
+    match-telephone-number: 39*
+    limit-on-first-seconds: 3600
+    # 60 minuti
+  }
+}
+
+
+rate {
+  id: start
+
+  rate {
+    id: rate-1
+
+    # another comment
+
+    match-communication-channel: local, sip
+    match-vendor: vendor-A, vendor-B
+    match-price-category: price-A, price-B
+    match-call-direction: outgoing
+    match-rating-code: fixed-line
+
+    set-free-seconds: 50
+    set-duration-discrete-increments: 1
+    set-at-least-seconds: 10
+
+    set-cost-on-call: 1.5
+    set-cost-for-minute: 2.5
+    set-max-cost-of-call: 5.50
+    set-min-cost-of-call: 2.0
+    set-round-to-decimal-digits: 4
+
+    rate {
+      id: child-rate
+
+      match-price-category: price-C
+
+      set-cost-on-call: -5.0
+      # test negative numbers
+
+      set-max-cost-of-call: 6
+    }
+  }
+}
+
+bundle-rate {
+  id: cooptel-2
+
+  service-cdr-type: Canone Fisso
+  service-cdr-description: Canone mensile tutto incluso sui primi 120 minuti di chiamate nazionali e i primi 60 minuti di chiamate verso operatori mobile.
+
+  schedule: monthly
+  schedule-from: 1
+  apply-for-each: price-A
+
+  limit-on-first-calls: none
+  limit-on-first-seconds: none
+
+  limits-are-proportionals-to-activation-date: true
+  calls-can-be-split: false
+  only-for-calls-with-a-cost: true
+
+  set-bundle-initial-cost: 25
+
+  rate {
+    id: fixed-line1
+    match-communication-channel: local
+    match-telephone-number: 39*
+    limit-on-first-seconds: 7200
+    # 120 minuti
+  }
+
+  rate {
+    id: fixed-line
+    match-communication-channel: sip
+    match-telephone-number: 39*
+    limit-on-first-seconds: 3600
+    # 60 minuti
+  }
+}
+
+rate {
+  id: start2
+
+  rate {
+    id: rate-1
+
+    # another comment
+
+    match-communication-channel: local, sip
+    match-vendor: vendor-A, vendor-B
+    match-price-category: price-A, price-B
+    match-call-direction: outgoing
+    match-rating-code: fixed-line
+
+    set-free-seconds: 50
+    set-duration-discrete-increments: 1
+    set-at-least-seconds: 10
+
+    set-cost-on-call: 1.5
+    set-cost-for-minute: 2.5
+    set-max-cost-of-call: 5.50
+    set-min-cost-of-call: 2.0
+    set-round-to-decimal-digits: 4
+
+    rate {
+      id: child-rate
+
+      match-price-category: price-C
+
+      set-cost-on-call: -5.0
+      # test negative numbers
+
+      set-max-cost-of-call: 6
+    }
+  }
+}
+
+
+|]
+

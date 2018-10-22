@@ -28,6 +28,7 @@ abstract class BaseArServiceForm extends BaseFormPropel
       'schedule_timeframe'                         => new sfWidgetFormInputText(),
       'was_compiled'                               => new sfWidgetFormInputCheckbox(),
       'schedule_from'                              => new sfWidgetFormInputText(),
+      'schedule_at'                                => new sfWidgetFormTime(),
     ));
 
     $this->setValidators(array(
@@ -45,6 +46,7 @@ abstract class BaseArServiceForm extends BaseFormPropel
       'schedule_timeframe'                         => new sfValidatorString(array('max_length' => 255, 'required' => false)),
       'was_compiled'                               => new sfValidatorBoolean(),
       'schedule_from'                              => new sfValidatorString(array('max_length' => 255, 'required' => false)),
+      'schedule_at'                                => new sfValidatorTime(array('required' => false)),
     ));
 
     $this->validatorSchema->setPostValidator(

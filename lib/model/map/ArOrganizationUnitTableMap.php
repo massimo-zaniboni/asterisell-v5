@@ -39,6 +39,10 @@ class ArOrganizationUnitTableMap extends TableMap {
 		$this->addPrimaryKey('ID', 'Id', 'INTEGER', true, null, null);
 		$this->addColumn('INTERNAL_NAME', 'InternalName', 'VARCHAR', false, 200, null);
 		$this->addColumn('INTERNAL_NAME2', 'InternalName2', 'VARCHAR', false, 200, null);
+		$this->addColumn('INTERNAL_CHECKSUM1', 'InternalChecksum1', 'VARCHAR', false, 200, null);
+		$this->addColumn('INTERNAL_CHECKSUM2', 'InternalChecksum2', 'VARCHAR', false, 200, null);
+		$this->addColumn('INTERNAL_CHECKSUM3', 'InternalChecksum3', 'VARCHAR', false, 200, null);
+		$this->addColumn('INTERNAL_CHECKSUM4', 'InternalChecksum4', 'VARCHAR', false, 200, null);
 		$this->addColumn('EXPORT_CODE', 'ExportCode', 'VARCHAR', false, 200, null);
 		$this->addColumn('AUTOMATICALLY_MANAGED_FROM', 'AutomaticallyManagedFrom', 'INTEGER', true, null, 0);
 		// validators
@@ -49,7 +53,6 @@ class ArOrganizationUnitTableMap extends TableMap {
 	 */
 	public function buildRelations()
 	{
-    $this->addRelation('ArCdr', 'ArCdr', RelationMap::ONE_TO_MANY, array('id' => 'ar_organization_unit_id', ), null, null);
     $this->addRelation('ArOrganizationUnitHasStructureRelatedByArOrganizationUnitId', 'ArOrganizationUnitHasStructure', RelationMap::ONE_TO_MANY, array('id' => 'ar_organization_unit_id', ), null, null);
     $this->addRelation('ArOrganizationUnitHasStructureRelatedByArParentOrganizationUnitId', 'ArOrganizationUnitHasStructure', RelationMap::ONE_TO_MANY, array('id' => 'ar_parent_organization_unit_id', ), null, null);
     $this->addRelation('ArExpandedExtensions', 'ArExpandedExtensions', RelationMap::ONE_TO_MANY, array('id' => 'ar_organization_unit_id', ), null, null);

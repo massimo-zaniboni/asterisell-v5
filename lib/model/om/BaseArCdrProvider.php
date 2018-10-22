@@ -37,6 +37,18 @@ abstract class BaseArCdrProvider extends BaseObject  implements Persistent {
 	protected $description;
 
 	/**
+	 * The value for the last_imported_id field.
+	 * @var        string
+	 */
+	protected $last_imported_id;
+
+	/**
+	 * The value for the last_imported_data field.
+	 * @var        string
+	 */
+	protected $last_imported_data;
+
+	/**
 	 * @var        array ArSourceCsvFile[] Collection to store aggregation of ArSourceCsvFile objects.
 	 */
 	protected $collArSourceCsvFiles;
@@ -45,16 +57,6 @@ abstract class BaseArCdrProvider extends BaseObject  implements Persistent {
 	 * @var        Criteria The criteria used to select the current contents of collArSourceCsvFiles.
 	 */
 	private $lastArSourceCsvFileCriteria = null;
-
-	/**
-	 * @var        array ArSourceCdr[] Collection to store aggregation of ArSourceCdr objects.
-	 */
-	protected $collArSourceCdrs;
-
-	/**
-	 * @var        Criteria The criteria used to select the current contents of collArSourceCdrs.
-	 */
-	private $lastArSourceCdrCriteria = null;
 
 	/**
 	 * @var        array ArRemoteFile[] Collection to store aggregation of ArRemoteFile objects.
@@ -112,6 +114,26 @@ abstract class BaseArCdrProvider extends BaseObject  implements Persistent {
 	public function getDescription()
 	{
 		return $this->description;
+	}
+
+	/**
+	 * Get the [last_imported_id] column value.
+	 * 
+	 * @return     string
+	 */
+	public function getLastImportedId()
+	{
+		return $this->last_imported_id;
+	}
+
+	/**
+	 * Get the [last_imported_data] column value.
+	 * 
+	 * @return     string
+	 */
+	public function getLastImportedData()
+	{
+		return $this->last_imported_data;
 	}
 
 	/**
@@ -175,6 +197,46 @@ abstract class BaseArCdrProvider extends BaseObject  implements Persistent {
 	} // setDescription()
 
 	/**
+	 * Set the value of [last_imported_id] column.
+	 * 
+	 * @param      string $v new value
+	 * @return     ArCdrProvider The current object (for fluent API support)
+	 */
+	public function setLastImportedId($v)
+	{
+		if ($v !== null) {
+			$v = (string) $v;
+		}
+
+		if ($this->last_imported_id !== $v) {
+			$this->last_imported_id = $v;
+			$this->modifiedColumns[] = ArCdrProviderPeer::LAST_IMPORTED_ID;
+		}
+
+		return $this;
+	} // setLastImportedId()
+
+	/**
+	 * Set the value of [last_imported_data] column.
+	 * 
+	 * @param      string $v new value
+	 * @return     ArCdrProvider The current object (for fluent API support)
+	 */
+	public function setLastImportedData($v)
+	{
+		if ($v !== null) {
+			$v = (string) $v;
+		}
+
+		if ($this->last_imported_data !== $v) {
+			$this->last_imported_data = $v;
+			$this->modifiedColumns[] = ArCdrProviderPeer::LAST_IMPORTED_DATA;
+		}
+
+		return $this;
+	} // setLastImportedData()
+
+	/**
 	 * Indicates whether the columns in this object are only set to default values.
 	 *
 	 * This method can be used in conjunction with isModified() to indicate whether an object is both
@@ -209,6 +271,8 @@ abstract class BaseArCdrProvider extends BaseObject  implements Persistent {
 			$this->id = ($row[$startcol + 0] !== null) ? (int) $row[$startcol + 0] : null;
 			$this->internal_name = ($row[$startcol + 1] !== null) ? (string) $row[$startcol + 1] : null;
 			$this->description = ($row[$startcol + 2] !== null) ? (string) $row[$startcol + 2] : null;
+			$this->last_imported_id = ($row[$startcol + 3] !== null) ? (string) $row[$startcol + 3] : null;
+			$this->last_imported_data = ($row[$startcol + 4] !== null) ? (string) $row[$startcol + 4] : null;
 			$this->resetModified();
 
 			$this->setNew(false);
@@ -218,7 +282,7 @@ abstract class BaseArCdrProvider extends BaseObject  implements Persistent {
 			}
 
 			// FIXME - using NUM_COLUMNS may be clearer.
-			return $startcol + 3; // 3 = ArCdrProviderPeer::NUM_COLUMNS - ArCdrProviderPeer::NUM_LAZY_LOAD_COLUMNS).
+			return $startcol + 5; // 5 = ArCdrProviderPeer::NUM_COLUMNS - ArCdrProviderPeer::NUM_LAZY_LOAD_COLUMNS).
 
 		} catch (Exception $e) {
 			throw new PropelException("Error populating ArCdrProvider object", $e);
@@ -282,9 +346,6 @@ abstract class BaseArCdrProvider extends BaseObject  implements Persistent {
 
 			$this->collArSourceCsvFiles = null;
 			$this->lastArSourceCsvFileCriteria = null;
-
-			$this->collArSourceCdrs = null;
-			$this->lastArSourceCdrCriteria = null;
 
 			$this->collArRemoteFiles = null;
 			$this->lastArRemoteFileCriteria = null;
@@ -427,14 +488,6 @@ abstract class BaseArCdrProvider extends BaseObject  implements Persistent {
 				}
 			}
 
-			if ($this->collArSourceCdrs !== null) {
-				foreach ($this->collArSourceCdrs as $referrerFK) {
-					if (!$referrerFK->isDeleted()) {
-						$affectedRows += $referrerFK->save($con);
-					}
-				}
-			}
-
 			if ($this->collArRemoteFiles !== null) {
 				foreach ($this->collArRemoteFiles as $referrerFK) {
 					if (!$referrerFK->isDeleted()) {
@@ -522,14 +575,6 @@ abstract class BaseArCdrProvider extends BaseObject  implements Persistent {
 					}
 				}
 
-				if ($this->collArSourceCdrs !== null) {
-					foreach ($this->collArSourceCdrs as $referrerFK) {
-						if (!$referrerFK->validate($columns)) {
-							$failureMap = array_merge($failureMap, $referrerFK->getValidationFailures());
-						}
-					}
-				}
-
 				if ($this->collArRemoteFiles !== null) {
 					foreach ($this->collArRemoteFiles as $referrerFK) {
 						if (!$referrerFK->validate($columns)) {
@@ -580,6 +625,12 @@ abstract class BaseArCdrProvider extends BaseObject  implements Persistent {
 			case 2:
 				return $this->getDescription();
 				break;
+			case 3:
+				return $this->getLastImportedId();
+				break;
+			case 4:
+				return $this->getLastImportedData();
+				break;
 			default:
 				return null;
 				break;
@@ -604,6 +655,8 @@ abstract class BaseArCdrProvider extends BaseObject  implements Persistent {
 			$keys[0] => $this->getId(),
 			$keys[1] => $this->getInternalName(),
 			$keys[2] => $this->getDescription(),
+			$keys[3] => $this->getLastImportedId(),
+			$keys[4] => $this->getLastImportedData(),
 		);
 		return $result;
 	}
@@ -644,6 +697,12 @@ abstract class BaseArCdrProvider extends BaseObject  implements Persistent {
 			case 2:
 				$this->setDescription($value);
 				break;
+			case 3:
+				$this->setLastImportedId($value);
+				break;
+			case 4:
+				$this->setLastImportedData($value);
+				break;
 		} // switch()
 	}
 
@@ -671,6 +730,8 @@ abstract class BaseArCdrProvider extends BaseObject  implements Persistent {
 		if (array_key_exists($keys[0], $arr)) $this->setId($arr[$keys[0]]);
 		if (array_key_exists($keys[1], $arr)) $this->setInternalName($arr[$keys[1]]);
 		if (array_key_exists($keys[2], $arr)) $this->setDescription($arr[$keys[2]]);
+		if (array_key_exists($keys[3], $arr)) $this->setLastImportedId($arr[$keys[3]]);
+		if (array_key_exists($keys[4], $arr)) $this->setLastImportedData($arr[$keys[4]]);
 	}
 
 	/**
@@ -685,6 +746,8 @@ abstract class BaseArCdrProvider extends BaseObject  implements Persistent {
 		if ($this->isColumnModified(ArCdrProviderPeer::ID)) $criteria->add(ArCdrProviderPeer::ID, $this->id);
 		if ($this->isColumnModified(ArCdrProviderPeer::INTERNAL_NAME)) $criteria->add(ArCdrProviderPeer::INTERNAL_NAME, $this->internal_name);
 		if ($this->isColumnModified(ArCdrProviderPeer::DESCRIPTION)) $criteria->add(ArCdrProviderPeer::DESCRIPTION, $this->description);
+		if ($this->isColumnModified(ArCdrProviderPeer::LAST_IMPORTED_ID)) $criteria->add(ArCdrProviderPeer::LAST_IMPORTED_ID, $this->last_imported_id);
+		if ($this->isColumnModified(ArCdrProviderPeer::LAST_IMPORTED_DATA)) $criteria->add(ArCdrProviderPeer::LAST_IMPORTED_DATA, $this->last_imported_data);
 
 		return $criteria;
 	}
@@ -743,6 +806,10 @@ abstract class BaseArCdrProvider extends BaseObject  implements Persistent {
 
 		$copyObj->setDescription($this->description);
 
+		$copyObj->setLastImportedId($this->last_imported_id);
+
+		$copyObj->setLastImportedData($this->last_imported_data);
+
 
 		if ($deepCopy) {
 			// important: temporarily setNew(false) because this affects the behavior of
@@ -752,12 +819,6 @@ abstract class BaseArCdrProvider extends BaseObject  implements Persistent {
 			foreach ($this->getArSourceCsvFiles() as $relObj) {
 				if ($relObj !== $this) {  // ensure that we don't try to copy a reference to ourselves
 					$copyObj->addArSourceCsvFile($relObj->copy($deepCopy));
-				}
-			}
-
-			foreach ($this->getArSourceCdrs() as $relObj) {
-				if ($relObj !== $this) {  // ensure that we don't try to copy a reference to ourselves
-					$copyObj->addArSourceCdr($relObj->copy($deepCopy));
 				}
 			}
 
@@ -1016,207 +1077,6 @@ abstract class BaseArCdrProvider extends BaseObject  implements Persistent {
 	}
 
 	/**
-	 * Clears out the collArSourceCdrs collection (array).
-	 *
-	 * This does not modify the database; however, it will remove any associated objects, causing
-	 * them to be refetched by subsequent calls to accessor method.
-	 *
-	 * @return     void
-	 * @see        addArSourceCdrs()
-	 */
-	public function clearArSourceCdrs()
-	{
-		$this->collArSourceCdrs = null; // important to set this to NULL since that means it is uninitialized
-	}
-
-	/**
-	 * Initializes the collArSourceCdrs collection (array).
-	 *
-	 * By default this just sets the collArSourceCdrs collection to an empty array (like clearcollArSourceCdrs());
-	 * however, you may wish to override this method in your stub class to provide setting appropriate
-	 * to your application -- for example, setting the initial array to the values stored in database.
-	 *
-	 * @return     void
-	 */
-	public function initArSourceCdrs()
-	{
-		$this->collArSourceCdrs = array();
-	}
-
-	/**
-	 * Gets an array of ArSourceCdr objects which contain a foreign key that references this object.
-	 *
-	 * If this collection has already been initialized with an identical Criteria, it returns the collection.
-	 * Otherwise if this ArCdrProvider has previously been saved, it will retrieve
-	 * related ArSourceCdrs from storage. If this ArCdrProvider is new, it will return
-	 * an empty collection or the current collection, the criteria is ignored on a new object.
-	 *
-	 * @param      PropelPDO $con
-	 * @param      Criteria $criteria
-	 * @return     array ArSourceCdr[]
-	 * @throws     PropelException
-	 */
-	public function getArSourceCdrs($criteria = null, PropelPDO $con = null)
-	{
-		if ($criteria === null) {
-			$criteria = new Criteria(ArCdrProviderPeer::DATABASE_NAME);
-		}
-		elseif ($criteria instanceof Criteria)
-		{
-			$criteria = clone $criteria;
-		}
-
-		if ($this->collArSourceCdrs === null) {
-			if ($this->isNew()) {
-			   $this->collArSourceCdrs = array();
-			} else {
-
-				$criteria->add(ArSourceCdrPeer::AR_CDR_PROVIDER_ID, $this->id);
-
-				ArSourceCdrPeer::addSelectColumns($criteria);
-				$this->collArSourceCdrs = ArSourceCdrPeer::doSelect($criteria, $con);
-			}
-		} else {
-			// criteria has no effect for a new object
-			if (!$this->isNew()) {
-				// the following code is to determine if a new query is
-				// called for.  If the criteria is the same as the last
-				// one, just return the collection.
-
-
-				$criteria->add(ArSourceCdrPeer::AR_CDR_PROVIDER_ID, $this->id);
-
-				ArSourceCdrPeer::addSelectColumns($criteria);
-				if (!isset($this->lastArSourceCdrCriteria) || !$this->lastArSourceCdrCriteria->equals($criteria)) {
-					$this->collArSourceCdrs = ArSourceCdrPeer::doSelect($criteria, $con);
-				}
-			}
-		}
-		$this->lastArSourceCdrCriteria = $criteria;
-		return $this->collArSourceCdrs;
-	}
-
-	/**
-	 * Returns the number of related ArSourceCdr objects.
-	 *
-	 * @param      Criteria $criteria
-	 * @param      boolean $distinct
-	 * @param      PropelPDO $con
-	 * @return     int Count of related ArSourceCdr objects.
-	 * @throws     PropelException
-	 */
-	public function countArSourceCdrs(Criteria $criteria = null, $distinct = false, PropelPDO $con = null)
-	{
-		if ($criteria === null) {
-			$criteria = new Criteria(ArCdrProviderPeer::DATABASE_NAME);
-		} else {
-			$criteria = clone $criteria;
-		}
-
-		if ($distinct) {
-			$criteria->setDistinct();
-		}
-
-		$count = null;
-
-		if ($this->collArSourceCdrs === null) {
-			if ($this->isNew()) {
-				$count = 0;
-			} else {
-
-				$criteria->add(ArSourceCdrPeer::AR_CDR_PROVIDER_ID, $this->id);
-
-				$count = ArSourceCdrPeer::doCount($criteria, false, $con);
-			}
-		} else {
-			// criteria has no effect for a new object
-			if (!$this->isNew()) {
-				// the following code is to determine if a new query is
-				// called for.  If the criteria is the same as the last
-				// one, just return count of the collection.
-
-
-				$criteria->add(ArSourceCdrPeer::AR_CDR_PROVIDER_ID, $this->id);
-
-				if (!isset($this->lastArSourceCdrCriteria) || !$this->lastArSourceCdrCriteria->equals($criteria)) {
-					$count = ArSourceCdrPeer::doCount($criteria, false, $con);
-				} else {
-					$count = count($this->collArSourceCdrs);
-				}
-			} else {
-				$count = count($this->collArSourceCdrs);
-			}
-		}
-		return $count;
-	}
-
-	/**
-	 * Method called to associate a ArSourceCdr object to this object
-	 * through the ArSourceCdr foreign key attribute.
-	 *
-	 * @param      ArSourceCdr $l ArSourceCdr
-	 * @return     void
-	 * @throws     PropelException
-	 */
-	public function addArSourceCdr(ArSourceCdr $l)
-	{
-		if ($this->collArSourceCdrs === null) {
-			$this->initArSourceCdrs();
-		}
-		if (!in_array($l, $this->collArSourceCdrs, true)) { // only add it if the **same** object is not already associated
-			array_push($this->collArSourceCdrs, $l);
-			$l->setArCdrProvider($this);
-		}
-	}
-
-
-	/**
-	 * If this collection has already been initialized with
-	 * an identical criteria, it returns the collection.
-	 * Otherwise if this ArCdrProvider is new, it will return
-	 * an empty collection; or if this ArCdrProvider has previously
-	 * been saved, it will retrieve related ArSourceCdrs from storage.
-	 *
-	 * This method is protected by default in order to keep the public
-	 * api reasonable.  You can provide public methods for those you
-	 * actually need in ArCdrProvider.
-	 */
-	public function getArSourceCdrsJoinArPhysicalFormat($criteria = null, $con = null, $join_behavior = Criteria::LEFT_JOIN)
-	{
-		if ($criteria === null) {
-			$criteria = new Criteria(ArCdrProviderPeer::DATABASE_NAME);
-		}
-		elseif ($criteria instanceof Criteria)
-		{
-			$criteria = clone $criteria;
-		}
-
-		if ($this->collArSourceCdrs === null) {
-			if ($this->isNew()) {
-				$this->collArSourceCdrs = array();
-			} else {
-
-				$criteria->add(ArSourceCdrPeer::AR_CDR_PROVIDER_ID, $this->id);
-
-				$this->collArSourceCdrs = ArSourceCdrPeer::doSelectJoinArPhysicalFormat($criteria, $con, $join_behavior);
-			}
-		} else {
-			// the following code is to determine if a new query is
-			// called for.  If the criteria is the same as the last
-			// one, just return the collection.
-
-			$criteria->add(ArSourceCdrPeer::AR_CDR_PROVIDER_ID, $this->id);
-
-			if (!isset($this->lastArSourceCdrCriteria) || !$this->lastArSourceCdrCriteria->equals($criteria)) {
-				$this->collArSourceCdrs = ArSourceCdrPeer::doSelectJoinArPhysicalFormat($criteria, $con, $join_behavior);
-			}
-		}
-		$this->lastArSourceCdrCriteria = $criteria;
-
-		return $this->collArSourceCdrs;
-	}
-
-	/**
 	 * Clears out the collArRemoteFiles collection (array).
 	 *
 	 * This does not modify the database; however, it will remove any associated objects, causing
@@ -1387,11 +1247,6 @@ abstract class BaseArCdrProvider extends BaseObject  implements Persistent {
 					$o->clearAllReferences($deep);
 				}
 			}
-			if ($this->collArSourceCdrs) {
-				foreach ((array) $this->collArSourceCdrs as $o) {
-					$o->clearAllReferences($deep);
-				}
-			}
 			if ($this->collArRemoteFiles) {
 				foreach ((array) $this->collArRemoteFiles as $o) {
 					$o->clearAllReferences($deep);
@@ -1400,7 +1255,6 @@ abstract class BaseArCdrProvider extends BaseObject  implements Persistent {
 		} // if ($deep)
 
 		$this->collArSourceCsvFiles = null;
-		$this->collArSourceCdrs = null;
 		$this->collArRemoteFiles = null;
 	}
 

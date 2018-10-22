@@ -71,11 +71,7 @@ class ArParamsTableMap extends TableMap {
 		$this->addColumn('OFFICIAL_CALLDATE', 'OfficialCalldate', 'TIMESTAMP', false, null, null);
 		$this->addColumn('SCHEDULED_RERATE_FROM_OFFICIAL_CALLDATE', 'ScheduledRerateFromOfficialCalldate', 'BOOLEAN', true, null, false);
 		$this->addColumn('NEW_IMPORTED_CDRS_FROM_CALLDATE', 'NewImportedCdrsFromCalldate', 'TIMESTAMP', false, null, null);
-		$this->addColumn('NEW_IMPORTED_CDRS_TO_CALLDATE', 'NewImportedCdrsToCalldate', 'TIMESTAMP', false, null, null);
 		$this->addColumn('SCHEDULED_RERATE_FROM_SPECIFIC_CALLDATE', 'ScheduledRerateFromSpecificCalldate', 'TIMESTAMP', false, null, null);
-		$this->addColumn('SCHEDULED_RERATE_TO_SPECIFIC_CALLDATE', 'ScheduledRerateToSpecificCalldate', 'TIMESTAMP', false, null, null);
-		$this->addColumn('SCHEDULED_IMPORTED_SERVICES_RERATE_FROM_SPECIFIC_CALLDATE', 'ScheduledImportedServicesRerateFromSpecificCalldate', 'TIMESTAMP', false, null, null);
-		$this->addColumn('SCHEDULED_IMPORTED_SERVICES_RERATE_TO_SPECIFIC_CALLDATE', 'ScheduledImportedServicesRerateToSpecificCalldate', 'TIMESTAMP', false, null, null);
 		$this->addColumn('CURRENT_COUNT_OF_RERATING_FAILED_ATTEMPTS', 'CurrentCountOfReratingFailedAttempts', 'INTEGER', true, null, 0);
 		$this->addColumn('CURRENT_RERATING_EVENT_IS_RUNNING', 'CurrentReratingEventIsRunning', 'BOOLEAN', true, null, false);
 		$this->addColumn('SHOULD_RESCHEDULE_RERATE_FROM_OFFICIAL_CALLDATE', 'ShouldRescheduleRerateFromOfficialCalldate', 'BOOLEAN', true, null, false);

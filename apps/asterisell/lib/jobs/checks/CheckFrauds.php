@@ -1,24 +1,5 @@
 <?php
-/* $LICENSE 2011:
- *
- * Copyright (C) 2011 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
- *
- * This file is part of Asterisell.
- *
- * Asterisell is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 3 of the License, or
- * (at your option) any later version.
- *
- * Asterisell is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with Asterisell. If not, see <http://www.gnu.org/licenses/>.
- * $
- */
+// SPDX-License-Identifier: GPL-3.0-or-later
 
 sfLoader::loadHelpers(array('I18N', 'Debug', 'Date', 'Asterisell', 'ChannelUsage'));
 
@@ -59,7 +40,6 @@ class CheckFrauds extends FixedJobProcessor
         $mutex = new Mutex($checkFile);
         if ($mutex->maybeTouch($checkLimit)) {
             $this->checkAll();
-            touch($checkFile);
 
             // Profiling
             //
@@ -118,7 +98,7 @@ ArProblemException::createWithoutGarbageCollection(
         $timeFrame = strtotime("-" . $lastDays . " day");
 
         $connection = Propel::getConnection();
-        $query = 'SELECT ar_party.id as party_id, ar_party.max_limit_30 as max_limit_30, SUM(cdr.income) as total_cost FROM ar_party, ar_office, ar_asterisk_account, ar_cdr FORCE INDEX (cdr_calldate_index) WHERE ar_cdr.ar_asterisk_account_id = ar_asterisk_account.id AND ar_asterisk_account.ar_office_id = ar_office.id AND ar_office.ar_party_id = ar_party.id AND ar_cdr.calldate >= ? and ar_cdr.income > 0 GROUP BY ar_party.id;';
+        $query = 'SELECT ar_party.id as party_id, ar_party.max_limit_30 as max_limit_30, SUM(cdr.income) as total_cost FROM ar_party, ar_office, ar_asterisk_account, ar_cdr WHERE ar_cdr.ar_asterisk_account_id = ar_asterisk_account.id AND ar_asterisk_account.ar_office_id = ar_office.id AND ar_office.ar_party_id = ar_party.id AND ar_cdr.calldate >= ? and ar_cdr.income > 0 GROUP BY ar_party.id;';
         $statement = $connection->prepare($query);
         // TODO check for timestamp conversion
         $statement->bindValue(0, $timeFrame);
@@ -184,7 +164,7 @@ ArProblemException::createWithoutGarbageCollection(
         $maxTime = strtotime("yesterday");
 
         $connection = Propel::getConnection();
-        $query = 'select ar_asterisk_account_id, sum(income) as  total_cost from ar_cdr FORCE INDEX (cdr_calldate_index) where not destination_type = 0 and not destination_type = 4 and ar_cdr.calldate >= ? and ar_cdr.calldate < ? and weekday(cdr.calldate) =  weekday(current_date) and income > 0 and (hour(cdr.calldate) div 6) = (hour(current_time) div 6) group by ar_asterisk_account_id;';
+        $query = 'select ar_asterisk_account_id, sum(income) as  total_cost from ar_cdr WHERE not destination_type = 0 and not destination_type = 4 and ar_cdr.calldate >= ? and ar_cdr.calldate < ? and weekday(cdr.calldate) =  weekday(current_date) and income > 0 and (hour(cdr.calldate) div 6) = (hour(current_time) div 6) group by ar_asterisk_account_id;';
 
         // fill the array with maximum values
         $statement = $connection->prepare($query);

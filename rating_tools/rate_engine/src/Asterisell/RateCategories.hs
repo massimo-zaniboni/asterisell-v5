@@ -1,25 +1,7 @@
 {-# Language OverloadedStrings, ScopedTypeVariables #-}
 {-# LANGUAGE QuasiQuotes, TypeSynonymInstances, FlexibleInstances, DeriveGeneric, DeriveAnyClass #-}
 
-{- $LICENSE 2013, 2014, 2015, 2016, 2017
- * Copyright (C) 2013-2017 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
- *
- * This file is part of Asterisell.
- *
- * Asterisell is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 3 of the License, or
- * (at your option) any later version.
- *
- * Asterisell is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with Asterisell. If not, see <http://www.gnu.org/licenses/>.
- * $
--}
+-- SPDX-License-Identifier: GPL-3.0-or-later
 
 
 -- | Import info about Rate Categories
@@ -84,7 +66,7 @@ rateCategories_code :: RateCategories -> RateCategoryId -> RateCategoryCode
 rateCategories_code (_, map2) id
   = fromJust $ Map.lookup id map2
 
-rateCategories_load 
+rateCategories_load
   :: DB.MySQLConn
   -> Bool
   -> IO RateCategories
@@ -96,7 +78,7 @@ rateCategories_load conn isDebugMode = do
                | FROM ar_rate_category
                | WHERE internal_name IS NOT NULL
                |]
-        
+
   (_, inS) <- DB.query_ conn q1
   categories <- S.foldM importCategory Map.empty inS
 
@@ -114,6 +96,6 @@ rateCategories_load conn isDebugMode = do
 
        return $ Map.insert internal_name id map1
 
-   importCategory _ _ = throw $ AsterisellException "err 1600 in code: unexpected DB format for ar_rate_category"
+   importCategory _ _ = throwIO $ AsterisellException "err 1600 in code: unexpected DB format for ar_rate_category"
 
 

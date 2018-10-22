@@ -40,9 +40,10 @@ class ArTelephonePrefixTableMap extends TableMap {
 		$this->addColumn('PREFIX', 'Prefix', 'VARCHAR', true, 255, null);
 		$this->addColumn('MATCH_ONLY_NUMBERS_WITH_N_DIGITS', 'MatchOnlyNumbersWithNDigits', 'INTEGER', false, null, null);
 		$this->addColumn('NAME', 'Name', 'VARCHAR', false, 1024, null);
-		$this->addColumn('GEOGRAPHIC_LOCATION', 'GeographicLocation', 'VARCHAR', false, 1024, null);
-		$this->addColumn('OPERATOR_TYPE', 'OperatorType', 'VARCHAR', false, 1024, null);
+		$this->addColumn('GEOGRAPHIC_LOCATION', 'GeographicLocation', 'VARCHAR', false, 255, null);
+		$this->addColumn('OPERATOR_TYPE', 'OperatorType', 'VARCHAR', false, 255, null);
 		$this->addColumn('DISPLAY_PRIORITY_LEVEL', 'DisplayPriorityLevel', 'INTEGER', true, null, 0);
+		$this->addColumn('RATING_CODE', 'RatingCode', 'VARCHAR', true, 255, '');
 		// validators
 	} // initialize()
 
@@ -51,7 +52,6 @@ class ArTelephonePrefixTableMap extends TableMap {
 	 */
 	public function buildRelations()
 	{
-    $this->addRelation('ArCdr', 'ArCdr', RelationMap::ONE_TO_MANY, array('id' => 'ar_telephone_prefix_id', ), null, null);
 	} // buildRelations()
 
 	/**

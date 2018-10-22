@@ -1,0 +1,14 @@
+
+Asterisell-5.3-beta
+-------------------
+:date: 2015-11-05
+
+
+Minor improvements in the user interface.
+
+Solved some known problems, discovered during using in production:
+
+* #1857
+* #1859
+* #1857
+

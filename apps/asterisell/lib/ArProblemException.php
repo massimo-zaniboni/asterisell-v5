@@ -1,25 +1,6 @@
 <?php
 
-/* $LICENSE 2009, 2010, 2014:
- *
- * Copyright (C) 2009, 2010, 2014 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
- *
- * This file is part of Asterisell.
- *
- * Asterisell is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 3 of the License, or
- * (at your option) any later version.
- *
- * Asterisell is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with Asterisell. If not, see <http://www.gnu.org/licenses/>.
- * $
- */
+// SPDX-License-Identifier: GPL-3.0-or-later
 
 /**
  * A problem to signal into the ArNewProblem table and to signal as Exception in the PhpCode.
@@ -89,13 +70,13 @@ class ArProblemException extends Exception
     {
         try {
             // Use the normal DB connection for updating this field
-            $deleteErrorTable = FixedJobProcessor::getCleanErrorTable();
+            $deleteErrorTable = FixedJobProcessor::getCleanErrorTable(self::getLogConnection());
             if ($deleteErrorTable == 1) {
                 // switch from scheduled, to in action
-                FixedJobProcessor::setCleanErrorTable(null, 2);
+                FixedJobProcessor::setCleanErrorTable(self::getLogConnection(), 2);
 
-                // use the error connection for deleting old new errors.
-                // Then only new errors will be added to the table, after completition of the list of jobs
+                // use ar_new_problem and ar_current_problem as a poor-man transaction management:
+                // they will be switched at the end of job processing
                 $str = 'DELETE FROM ar_new_problem WHERE NOT ar_problem_type_id = ' . ArProblemType::TYPE_INTERNAL_LOG;
                 self::getLogConnection()->exec($str);
             }
@@ -125,11 +106,9 @@ class ArProblemException extends Exception
 
         $fields = implode(',', ArNewProblemPeer::getFieldNames(BasePeer::TYPE_FIELDNAME));
         try {
-
-            // Use the normal DB connection for updating this field
-            $deleteErrorTable = FixedJobProcessor::getCleanErrorTable();
+            $deleteErrorTable = FixedJobProcessor::getCleanErrorTable($conn);
             if ($deleteErrorTable == 2) {
-                FixedJobProcessor::setCleanErrorTable(null, 0);
+                FixedJobProcessor::setCleanErrorTable($conn, 0);
             }
 
             self::updateSentToAdminStateInNewProblems($conn);
@@ -159,7 +138,6 @@ class ArProblemException extends Exception
      */
     static public function updateSentToAdminStateInNewProblems($conn)
     {
-
         // a problem already signaled to the admin in the past, remain signaled to admin also on ar_new_problem table.
         $cmd = 'UPDATE ar_new_problem n
                 JOIN ar_current_problem c
@@ -348,10 +326,10 @@ class ArProblemException extends Exception
         }
 
         if (ArProblemException::$disableNotifications == 1) {
-            $signaledToAdmin = true;
+            $signaledToAdmin = 1;
             // add the problem, but does not advise admin of the problem via mail
         } else {
-            $signaledToAdmin = false;
+            $signaledToAdmin = 0;
         }
 
         // NOTE: use a md5 for speed reason, but primary for using compact links to errors in the user interface,
@@ -389,10 +367,10 @@ class ArProblemException extends Exception
                    , description = VALUES(description )
                    , effect = VALUES(effect)
                    , proposed_solution = VALUES(proposed_solution)
-                   , signaled_to_admin  = signaled_to_admin
+                   , signaled_to_admin  = (VALUES(signaled_to_admin) OR signaled_to_admin)
           ';
         $stmt = $conn->prepare($query);
-        $stmt->execute(array($typeId, $problemDomainId, $responsibleId, $dupKey, $garbageCollectionKey, fromUnixTimestampToMySQLTimestamp($from), fromUnixTimestampToMySQLTimestamp($to), $description, $effect, $solution, $signaledToAdmin));
+        $stmt->execute(array($typeId, $problemDomainId, $responsibleId, $dupKey, $garbageCollectionKey, fromUnixTimestampToMySQLTimestamp($from), fromUnixTimestampToMySQLTimestamp($to), $description, $effect, $solution, (int)$signaledToAdmin));
         $problemId = $conn->lastInsertId();
         $stmt->closeCursor();
 

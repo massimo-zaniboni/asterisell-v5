@@ -1,25 +1,6 @@
 <?php
 
-/* $LICENSE 2009, 2010, 2015:
- *
- * Copyright (C) 2009, 2010, 2015 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
- *
- * This file is part of Asterisell.
- *
- * Asterisell is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 3 of the License, or
- * (at your option) any later version.
- *
- * Asterisell is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with Asterisell. If not, see <http://www.gnu.org/licenses/>.
- * $
- */
+// SPDX-License-Identifier: GPL-3.0-or-later
 
 sfLoader::loadHelpers(array('I18N', 'Debug', 'Date', 'Asterisell'));
 
@@ -46,7 +27,6 @@ class CheckCallCostLimit extends FixedJobProcessor
         if ($timeFrameInMinutes > 0 && $mutex->maybeTouch($checkLimit)) {
             ArProblemException::garbageCollect(get_class($this), null, null);
             $log = $this->checkLimits();
-            touch($checkFile);
             return $log;
         } else {
             return "Call cost limits will be checked later, every $timeFrameInMinutes minutes, according application settings.";
@@ -103,7 +83,7 @@ class CheckCallCostLimit extends FixedJobProcessor
         $partyIdLastSentEmail = array();
         $stm = Propel::getConnection()->prepare($query);
         $stm->execute();
-        while ((($rs = $stm->fetch(PDO::FETCH_NUM)) !== false)) {
+        while (($rs = $stm->fetch(PDO::FETCH_NUM)) !== false) {
             $id = $rs[0];
             $partyId = $rs[1];
             $limit = $rs[2];
@@ -132,7 +112,7 @@ class CheckCallCostLimit extends FixedJobProcessor
 
         $stm = Propel::getConnection()->prepare($query);
         $stm->execute(array(fromUnixTimestampToMySQLTimestamp($timeframe)));
-        while ((($rs = $stm->fetch(PDO::FETCH_NUM)) !== false)) {
+        while (($rs = $stm->fetch(PDO::FETCH_NUM)) !== false) {
             $prof->incrementProcessedUnits();
             $organizationIds = $rs[0];
             $income = $rs[1];

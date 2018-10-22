@@ -41,7 +41,7 @@ class MysqlPlatform extends DefaultPlatform {
 		$this->setSchemaDomainMapping(new Domain(PropelTypes::NUMERIC, "DECIMAL"));
 		$this->setSchemaDomainMapping(new Domain(PropelTypes::LONGVARCHAR, "TEXT"));
 		$this->setSchemaDomainMapping(new Domain(PropelTypes::BINARY, "BLOB"));
-		$this->setSchemaDomainMapping(new Domain(PropelTypes::VARBINARY, "MEDIUMBLOB"));
+		$this->setSchemaDomainMapping(new Domain(PropelTypes::VARBINARY, "VARBINARY"));
 		$this->setSchemaDomainMapping(new Domain(PropelTypes::LONGVARBINARY, "LONGBLOB"));
 		$this->setSchemaDomainMapping(new Domain(PropelTypes::BLOB, "LONGBLOB"));
 		$this->setSchemaDomainMapping(new Domain(PropelTypes::CLOB, "LONGTEXT"));

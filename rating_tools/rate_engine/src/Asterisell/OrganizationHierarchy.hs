@@ -1,25 +1,6 @@
 {-# Language BangPatterns, OverloadedStrings, ScopedTypeVariables, TypeSynonymInstances, FlexibleInstances, DeriveGeneric, DeriveAnyClass, FlexibleContexts, QuasiQuotes  #-}
 
-{- $LICENSE 2013, 2014, 2015, 2016, 2018
- * Copyright (C) 2013-2018 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
- *
- * This file is part of Asterisell.
- *
- * Asterisell is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 3 of the License, or
- * (at your option) any later version.
- *
- * Asterisell is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with Asterisell. If not, see <http://www.gnu.org/licenses/>.
- * $
--}
-
+-- SPDX-License-Identifier: GPL-3.0-or-later
 
 -- | Import organization hierarchies and extensions.
 --
@@ -32,6 +13,8 @@ module Asterisell.OrganizationHierarchy (
   DirectPriceCategories,
   ParentIdHierarchy,
   Info(..),
+  UserId,
+  info_getUnitIdByInternalName,
   info_getDataInfoForUnitId,
   info_getDataInfoParent,
   info_getDirectPriceCategory,
@@ -40,9 +23,17 @@ module Asterisell.OrganizationHierarchy (
   info_getBillableDataInfo,
   info_getRateCategoryId,
   info_getFullName,
+  info_getAllActiveExtensions,
   info_empty,
   info_getDataInfoParentHierarchy,
   info_getParentHiearchyIds,
+  info_isOrganizationToIgnore,
+  info_getActualExtensionsToIgnore,
+  info_getActualDataInfoToIgnore,
+  info_fromDataInfoToExtensions,
+  info_notIgnoreAnymoreTheseExtensions,
+  info_notIgnoreAnymoreThisExtension,
+  extensionToIgnoreId,
   UnitId,
   DataInfo(..),
   extensions_load,
@@ -51,23 +42,48 @@ module Asterisell.OrganizationHierarchy (
   IsApplicationError,
   IsStrictResult,
   info_respectCodeContracts,
-  extensionCodes_extractFromUserSpecification
+  extensionCodes_extractFromUserSpecification,
+  User(..),
+  UserInfo,
+  userInfo_load,
+  UnitType(..),
+  unitType_load,
+  UnitTypeInfo,
+  UnitTypeFromInternalName,
+  DefaultUnitType(..),
+  unitType_defaultId,
+  PartyTag(..),
+  PartyTagInfo,
+  partyTagInfo_load,
+  userRole_load,
+  userRole_defaultId,
+  DefaultUserRole(..),
+  UserRoleIdFromInternalName,
+  userInfo_logins,
+  organizationUnit_tfields,
+  organizationUnitStruct_tfields,
+  user_tfields,
+  organizationHierarchy_test
 ) where
 
 import Asterisell.Trie
 import Asterisell.Utils
 import Asterisell.Error
 import Asterisell.DB
+import Asterisell.Params
 
 import Prelude hiding (concat, takeWhile)
 import Control.Applicative ((<$>), (<|>), (<*>), (<*), (*>), many)
 import Control.Monad (void)
-import Data.Attoparsec.Text.Lazy
-import Data.Attoparsec.Combinator
 import qualified Data.Text as T
 import qualified Data.Text.Lazy.IO as IO
+import qualified Data.ByteString as BS
 
-import GHC.Generics
+import qualified Data.Trie.BigEndianPatricia.Base as Trie
+import qualified Data.Trie.BigEndianPatricia.Internal as TrieInternal
+import qualified Data.Trie.BigEndianPatricia.Convenience as Trie
+
+import GHC.Generics (Generic, Generic1)
 import Control.DeepSeq
 import Data.Map.Strict as Map
 import qualified Data.IntMap.Strict as IMap
@@ -92,6 +108,7 @@ import qualified System.IO.Streams.List as S
 import qualified System.IO.Streams.File as S
 import qualified System.IO.Streams.Vector as S
 import qualified Data.Vector as V
+import Control.Monad
 
 import Database.MySQL.Base as DB
 import qualified Database.MySQL.Protocol.Escape as DB
@@ -110,6 +127,8 @@ import Control.Exception.Safe (catch, catchAny, onException, finally, handleAny,
 -- | A unique identifier for ar_organization_unit.id.
 --
 type UnitId = Int
+
+type UserId = Int
 
 type DataInfoId = Int
 
@@ -133,6 +152,10 @@ data DataInfo
 
       unit_internalName :: !(Maybe T.Text),
       unit_internalName2 :: !(Maybe T.Text),
+      unit_internalChecksum1 :: !(Maybe BS.ByteString),
+      unit_internalChecksum2 :: !(Maybe BS.ByteString),
+      unit_internalChecksum3 :: !(Maybe BS.ByteString),
+      unit_internalChecksum4 :: !(Maybe BS.ByteString),
 
       structure_from :: !LocalTime,
       -- ^ from when the info replace the old info, on the same unit_id, and it became valid
@@ -167,7 +190,8 @@ data DataInfo
 -- | Used for accessing in an efficent way the organization info.
 --   The Int key is the unit_id of the organization.
 --   The value is the list of associated DataInfo, in reverse order of structure_from time.
---   This data structure is efficient if an organization does not change too much hierarchy structure over time.
+--   This data structure is efficient if an organization does not change too much hierarchy structure over time,
+--   and one is interested into more recent values.
 type Organizations = IMap.IntMap [DataInfo]
 
 type ExtensionExists = Bool
@@ -192,32 +216,43 @@ data Info
   = Info {
       info_extensions :: Extensions
     , info_organizations :: Organizations
+    -- ^ organizatiotns retrieved by Id
+    , info_organizationsByInternalName :: Map.Map T.Text UnitId
+    -- ^ organizations retrieved by internal_name
+    , info_organizationsByInternalName2 :: Map.Map T.Text UnitId
+    -- ^ organizations retrieved by internal_name2
     , info_organizationIdsThatCanBeBillable :: [UnitId]
     -- ^ organization id that can be billable at a certain date
     , info_maybeRootOrganizations :: [UnitId]
     -- ^ organizations that can be root organizations, now or in the past
+    , info_maybeOrganizationToIgnore :: Maybe UnitId
+    -- ^ associated to `organizationToIgnore`
     , info_directPriceCategories :: DirectPriceCategories
-   } deriving(Show, Generic, NFData)
+   } deriving(Show)
 
 info_empty :: Info
 info_empty = Info {
     info_extensions = trie_empty
   , info_organizations = IMap.empty
+  , info_organizationsByInternalName = Map.empty
+  , info_organizationsByInternalName2 = Map.empty
   , info_organizationIdsThatCanBeBillable = []
   , info_maybeRootOrganizations = []
+  , info_maybeOrganizationToIgnore = Nothing
   , info_directPriceCategories = IMap.empty
 }
 
-info_respectCodeContracts :: Info -> Either String ()
-info_respectCodeContracts info
+info_respectCodeContracts :: Info -> CallDate -> Either String ()
+info_respectCodeContracts info rateFromDate
   = do (when $ not $ testIntMapWithDataInfo $ info_organizations info)
          (fail $ dbc_error "ohi1")
 
        (when $ not $ testIntMapWithDataInfo $ info_directPriceCategories info)
          (fail $ dbc_error "ohi2")
 
-       -- NOTE: there is no contract for `info_extensions`
-       return ()
+       case thereAreUniqueExtensions of
+         Nothing -> return ()
+         Just err -> fail err
 
  where
 
@@ -226,18 +261,35 @@ info_respectCodeContracts info
      = let map2 = IMap.map (\l1 -> isDescendingOrder $ L.map structure_from l1) map1
        in  L.all id (L.map snd $ IMap.toList map2)
 
+   thereAreUniqueExtensions :: Maybe String
+   thereAreUniqueExtensions
+     = L.foldl' isUnique Nothing $ Trie.keys $ info_extensions info
+
+   isUnique pastError extension
+     = case (info_getDataInfoForExtensionCode info extension rateFromDate) of
+         Left err -> Just $ show $ asterisellError_toException $ err 
+         Right Nothing -> pastError -- ^ it can be an extension disactivate at this date
+         Right (Just _) -> pastError 
+
 -- --------------------------------------------
 -- Import from DB
 
--- TODO code to convert
-
 -- | Load extension data from the DB.
-extensions_load :: DB.MySQLConn -> Bool -> IO Info
-extensions_load conn isDebugMode = do
-  let 
-      q = [str|SELECT ar_organization_unit.id
+--   Create also (if specified) the organization to ignore.
+extensions_load :: DB.MySQLConn -> Bool -> Maybe T.Text -> IO Info
+extensions_load conn isDebugMode maybeOrganizationToIgnore = do
+  case maybeOrganizationToIgnore of
+    Nothing -> return ()
+    Just o -> do _ <- extensionToIgnoreId conn o
+                 return ()
+
+  let q = [str|SELECT ar_organization_unit.id
               |, ar_organization_unit.internal_name
               |, ar_organization_unit.internal_name2
+              |, ar_organization_unit.internal_checksum1
+              |, ar_organization_unit.internal_checksum2
+              |, ar_organization_unit.internal_checksum3
+              |, ar_organization_unit.internal_checksum4
               |, ar_organization_unit_type.id
               |, ar_organization_unit_type.name
               |, ar_organization_unit_type.short_code
@@ -268,19 +320,81 @@ extensions_load conn isDebugMode = do
               |]
 
   (_, inS) <- DB.query_ conn (DB.Query q)
-  (info, errors) <- S.fold addExtensionRecord (info_empty, Set.empty) inS
+  (!info, !errors) <- S.fold (addExtensionRecord maybeOrganizationToIgnore) (info_empty, Set.empty) inS
   case Set.null errors of
     True
       -> return info
     False
-      -> throw $ AsterisellException $ "There are extensions configured not correctly. " ++ (L.concatMap (\t -> t ++ "\n") (Set.toList errors))
+        -> throwIO $ AsterisellException $ "There are extensions configured not correctly. " ++ (L.concatMap (\t -> t ++ "\n") (Set.toList errors))
 
-addExtensionRecord :: (Info, ConfigurationErrors) -> [DB.MySQLValue] -> (Info, ConfigurationErrors)
+-- | The UnitId of the extension to ignore.
+--   Create one if it does not exist.
+extensionToIgnoreId :: DB.MySQLConn -> ExtensionAsText ->  IO UnitId
+extensionToIgnoreId conn extensionToIgnore = do
+  mi <- isThereYetOrganizationToIgnore
+  case mi of
+    Just i -> return i
+    Nothing -> createOrganizationToIgnore
+
+ where
+
+  isThereYetOrganizationToIgnore = do 
+     (_, inS) <- DB.query conn "SELECT id FROM ar_organization_unit WHERE internal_name = ?" [toDBText extensionToIgnore]
+     inS' <- S.toList inS
+     case inS' of
+       [[i]] -> return $ Just $ fromDBInt i
+       _ -> return Nothing
+
+  createOrganizationToIgnore = do
+      let unitRec
+              = trecord_setMany
+                  (trecord_empty)
+                  [("internal_name", toDBText extensionToIgnore)
+                  ,("automatically_managed_from", toDBInt64 1)
+                  ]
+
+      unitId <- trecord_save conn "ar_organization_unit" unitRec Nothing
+
+      !billedFromDate <- defaultParams_unbilledCallsFrom conn "07726"
+
+      let partyRec
+              = trecord_setMany
+                  (trecord_empty)
+                  [("name", toDBText extensionToIgnore)
+                  ,("is_billable", toDBBool True)
+                  ]
+
+      partyId <- trecord_save conn "ar_party" partyRec Nothing
+
+      (_, !localUnitType) <- unitType_load conn False
+      let !rootUnitTypeId = unitType_defaultId localUnitType UnitType_root
+ 
+      let recStructure
+              = trecord_setMany
+                  (trecord_empty)
+                  [("ar_organization_unit_id", toDBInt64 unitId)
+                  ,("ar_organization_unit_type_id", toDBInt64 rootUnitTypeId) 
+                  ,("from", toDBLocalTime billedFromDate)
+                  ,("exists", toDBBool True)
+                  ,("ar_party_id", toDBInt64 partyId)
+                  ,("ar_rate_category_id", DB.MySQLNull) -- NOTE: these organizations are not billable
+                  ]
+
+      _ <- trecord_save conn "ar_organization_unit_has_structure" recStructure Nothing
+
+      return unitId
+
+addExtensionRecord :: Maybe T.Text -> (Info, ConfigurationErrors) -> [DB.MySQLValue] -> (Info, ConfigurationErrors)
 addExtensionRecord
+  maybeOrganizationToIgnore
   (info1, errors1)
   [ unitId
   , unitInternalName
   , unitInternalName2
+  , unitChecksum1
+  , unitChecksum2
+  , unitChecksum3
+  , unitChecksum4
   , typeId
   , typeName
   , typeShortCode
@@ -314,7 +428,11 @@ addExtensionRecord
           value = DataInfo {
                       unit_id = fromDBInt unitId,
                       unit_internalName = fromMaybeDBValue fromDBText unitInternalName,
-                      unit_internalName2 = fromMaybeDBValue fromDBText unitInternalName2, 
+                      unit_internalName2 = fromMaybeDBValue fromDBText unitInternalName2,
+                      unit_internalChecksum1 = fromMaybeDBValue fromDBByteString unitChecksum1,
+                      unit_internalChecksum2 = fromMaybeDBValue fromDBByteString unitChecksum2,
+                      unit_internalChecksum3 = fromMaybeDBValue fromDBByteString unitChecksum3,
+                      unit_internalChecksum4 = fromMaybeDBValue fromDBByteString unitChecksum4,
                       unitType_id = fromDBInt typeId,
                       unitType_name = fromMaybeDBValue fromDBText typeName,
                       unitType_shortCode = fromMaybeDBValue fromDBText typeShortCode,
@@ -338,12 +456,21 @@ addExtensionRecord
                       party_externalCRMCode = fromMaybeDBValue fromDBText partyCRM
                     }
 
-      in info_addDataInfo (info1, errors1) value
+          (!info2, !errors2) = info_addDataInfo (info1, errors1) value
+          !info3 = case maybeOrganizationToIgnore of
+                     Nothing -> info2
+                     Just organizationToIgnore
+                       -> case unit_internalName value of
+                            Nothing -> info2
+                            Just n -> case n == organizationToIgnore of
+                                        False -> info2
+                                        True -> info2 { info_maybeOrganizationToIgnore = Just $ unit_id value }
+     in (info3, errors2)
 
--- | Extract extension codes, from an user specification.
-extensionCodes_extractFromUserSpecification :: T.Text -> [ExtensionCode]
+-- | Extract the codes separated from ",", and manage quoted value: "\,"
+extensionCodes_extractFromUserSpecification :: T.Text -> [Extension]
 extensionCodes_extractFromUserSpecification userCodes
-  = extractResult $ L.foldl' proc ([], [], False, True) (T.unpack userCodes)
+  = L.map fromStringToByteString $ extractResult $ L.foldl' proc ([], [], False, True) (T.unpack userCodes)
 
  where
 
@@ -360,7 +487,7 @@ extensionCodes_extractFromUserSpecification userCodes
 
   extractResult (r1, r2, _, _) = r1 ++ [r2]
 
--- | Add an info about organizations, mantaining updated the global Info data structure.
+-- | Add an info about organizations, maintaining updated the global Info data structure.
 --   @require: DataInfo is sent in order of ar_organization_unit_has_structure.from
 info_addDataInfo :: (Info, ConfigurationErrors) -> DataInfo -> (Info, ConfigurationErrors)
 info_addDataInfo (info, errors) dataInfo
@@ -372,19 +499,11 @@ info_addDataInfo (info, errors) dataInfo
               Nothing
                 -> (extensions1, errors)
               Just codes
-                -> let -- | Extract the codes separated from ",", and manage quoted value: "\,"
-                       listOfCodes :: [ExtensionCode]
-                       listOfCodes = extensionCodes_extractFromUserSpecification codes
+                -> L.foldl' (\(trie1, errors1) extension
+                                  -> let code =  extension_toExtensionCode extension
+                                     in  (trie_insertWith trie1 code [dataInfo] (flip (++)), errors1)
 
-                   in L.foldl' (\(trie1, errors1) extensionCode
-                                  -> let extensionCodeM = extensionCode_toCharsMatch extensionCode
-                                      in case charsMatch_valid extensionCodeM of
-                                          Just err
-                                            -> (trie1, Set.insert ("In organization with id " ++ show (unit_id dataInfo) ++ " the extension \"" ++ extensionCode ++ "\" has an invalid format: " ++ err) errors1)
-                                          Nothing
-                                            -> (trie_addExtensionCodeWith trie1 extensionCode [dataInfo] (flip (++)), errors1)
-
-                              ) (extensions1, errors) listOfCodes
+                            ) (extensions1, errors) (extensionCodes_extractFromUserSpecification codes)
 
         unitId
           = unit_id dataInfo
@@ -417,9 +536,27 @@ info_addDataInfo (info, errors) dataInfo
               Just priceId
                 -> imapInsert priceId dataInfo (info_directPriceCategories info)
 
+        addedOrganizationsByInternalName
+          = case unit_internalName dataInfo of
+              Nothing
+                -> info_organizationsByInternalName info 
+              Just n
+                -> Map.insert n unitId (info_organizationsByInternalName info)
+                   -- NOTE: the DB schema enforces they are unique
+
+        addedOrganizationsByInternalName2
+          = case unit_internalName2 dataInfo of
+              Nothing
+                -> info_organizationsByInternalName2 info 
+              Just n
+                -> Map.insert n unitId (info_organizationsByInternalName2 info)
+                   -- NOTE: the DB schema enforces they are unique
+
     in (info {
            info_extensions = addedExtensions
          , info_organizations = addedOrganizations
+         , info_organizationsByInternalName = addedOrganizationsByInternalName
+         , info_organizationsByInternalName2 = addedOrganizationsByInternalName2
          , info_maybeRootOrganizations = addedMaybeRootOrganizations
          , info_organizationIdsThatCanBeBillable = addedOrganizationIdsThatCanBeBillable
          , info_directPriceCategories = addedDirectPriceCategories
@@ -429,7 +566,6 @@ info_addDataInfo (info, errors) dataInfo
 
 -- ----------------------------------------------
 -- Retrieve the best info according the hierarchy
-
 
 -- | List of parents, from root to child.
 type ParentHiearchy = [DataInfo]
@@ -469,13 +605,13 @@ info_getDataInfoForUnitId info unitId date isStrictResult
                       False
                         -> if L.null infos then Nothing else (Just $ L.last infos)
 
-info_getDataInfoForExtensionCode :: Info -> String -> LocalTime -> Either AsterisellError (Maybe (DataInfo, IsExtensionalMatch))
+info_getDataInfoForExtensionCode :: Info -> Extension -> LocalTime -> Either AsterisellError (Maybe (DataInfo, IsExtensionalMatch))
 info_getDataInfoForExtensionCode info extension date
   = let trie = info_extensions info
-    in  case trie_getMatch trie_getMatch_initial trie extension of
+    in  case trie_match trie extension of
           Nothing
             -> Right Nothing
-          Just ((_, isExtensionalMatch), dataInfos1)
+          Just (_, isExtensionalMatch, dataInfos1)
             -> case L.filter (\i1 -> let unitId = unit_id i1
                                      in case info_getDataInfoForUnitId info unitId date True of
                                            Nothing
@@ -493,10 +629,14 @@ info_getDataInfoForExtensionCode info extension date
                  (r1:r2:r) -> Left $ createError
                                        Type_Error
                                        Domain_VOIP_ACCOUNTS
-                                       ("extension code conflict - " ++ extension)
-                                       ("The extension code \"" ++ extension ++ "\", at date " ++ showLocalTime date ++ ", is associated both to organization with id " ++ show (unit_id r1) ++ ", and to organization with id " ++ show (unit_id r2))
+                                       ("extension code conflict - " ++ fromByteStringToString extension)
+                                       ("The extension code \"" ++ fromByteStringToString extension ++ "\", at date " ++ showLocalTime date ++ ", is associated both to organization with id " ++ show (unit_id r1) ++ ", and to organization with id " ++ show (unit_id r2))
                                        ("The calls using this extension code will be not rated.")
                                        ("Fix the associations between extension codes, and organizations, and rerate the calls.")
+
+info_getUnitIdByInternalName :: Info -> T.Text -> Maybe UnitId
+info_getUnitIdByInternalName info n
+    = Map.lookup n (info_organizationsByInternalName info)
 
 info_getDataInfoParent :: Info -> DataInfo -> LocalTime -> IsStrictResult -> Maybe DataInfo
 info_getDataInfoParent info unitInfo date isStrict
@@ -523,12 +663,20 @@ info_getParentHiearchyIds :: ParentHiearchy -> T.Text
 info_getParentHiearchyIds infos
   = T.pack $ "/" ++ L.intercalate "/" (L.map (\d -> show $ unit_id d) infos) ++ "/"
 
+-- | True if the organization is the one indicated in `info_maybeOrganizationToIgnore`
+info_isOrganizationToIgnore :: Info -> ParentIdHierarchy -> Bool
+info_isOrganizationToIgnore info ids
+    = case info_maybeOrganizationToIgnore info of
+        Nothing -> False
+        Just idToIgnore -> L.any ((==) idToIgnore) ids
+
 -- | An identifier for a complete organization hierarchy.
 --   Something like "/id1/id2/id3/" where "id1" is the main root, and "id3" the last child.
 --
 info_getParentIdHierarchy :: ParentHiearchy -> ParentIdHierarchy
 info_getParentIdHierarchy infos
   = L.map (\d -> unit_id d) infos
+{-# INLINE info_getParentIdHierarchy #-}
 
 info_getBillableDataInfo :: ParentHiearchy -> Maybe DataInfo
 info_getBillableDataInfo infos
@@ -592,8 +740,465 @@ info_getFullName infos implicitLevel reverseOrder showExtensionCode useOnlyExten
 
     in  L.intercalate " / " names2
 
+-- ----------------------------
+-- Queries on global data
+
+-- | All the extensions codes that are active at the specified date.
+--   NOTE: an extension code can contain "X" and "*" pattern matching,
+--   so it can match/represent many different extensions, and so the
+--   result of this method had to take in consideration this.
+--   NOTE: in the result there are also the extensions to ignore, because they are valid match.
+info_getAllActiveExtensions :: Info -> CallDate -> Set.Set ExtensionAsText
+info_getAllActiveExtensions info fromDate
+  = L.foldl' f Set.empty $ Trie.keys $ info_extensions info
+ where
+
+   f s1 extension
+     = case (info_getDataInfoForExtensionCode info extension fromDate) of
+         Left err -> error $ show $ asterisellError_toException $ err 
+         Right Nothing -> s1 
+         Right (Just (dataInfo, _))
+           -> case structure_exists dataInfo of
+                True -> Set.insert (fromByteStringToText extension) s1
+                False -> s1
+
+-- ----------------------------
+-- Organization info to ignore
+
+-- | Get DataInfo for which the last (most recent) entry shows they are to ignore.
+--   To use during importing of organization, and not during rating, because during rating
+--   it must be used the CDR calldate, and because this method is more an hack, than a reliable
+--   way for classifying extensions.
+--   @require there are no extensions specified directly in the organization-to-ignore, but only in its children
+info_getActualDataInfoToIgnore :: Info -> Set.Set DataInfo
+info_getActualDataInfoToIgnore info
+  = case info_maybeOrganizationToIgnore info of
+      Nothing  -> Set.empty
+      Just id1 -> repeatScan (Set.singleton id1, Set.empty)
+ where
+
+  repeatScan :: (Set.Set UnitId, Set.Set DataInfo) -> Set.Set DataInfo
+  repeatScan (unitIds1, extensions1)
+    = let (unitIds2, extensions2)
+              = L.foldl' scanDataInfo (unitIds1, extensions1) $ L.map head $ IMap.elems (info_organizations info)
+      in case (Set.size unitIds1 == Set.size unitIds2) of
+           True -> extensions2
+           False -> repeatScan (unitIds2, extensions2)
+
+  scanDataInfo :: Foldl DataInfo (Set.Set UnitId, Set.Set DataInfo)
+  scanDataInfo pastResult@(unitIds1, extensions1) info1
+    = let unitId = unit_id info1
+      in case structure_parentUnitId info1 of
+           Nothing -> pastResult
+           Just parentId
+             -> case Set.member parentId unitIds1 of
+                  True -> ( Set.insert unitId unitIds1
+                          , Set.insert info1 extensions1)
+                  False -> pastResult
+
+-- | Get extensions for which the last (most recent) entry shows they are to ignore.
+--   @require same constraints of `info_getActualDataInfoToIgnore`
+info_getActualExtensionsToIgnore :: Info -> Set.Set ExtensionAsText
+info_getActualExtensionsToIgnore info
+  = let dataInfo = info_getActualDataInfoToIgnore info
+    in info_fromDataInfoToExtensions info dataInfo
+
+-- | Get extensions for which the last (most recent) entry shows they are to ignore.
+--   @require same constraints of `info_getActualDataInfoToIgnore`
+info_fromDataInfoToExtensions :: Info -> Set.Set DataInfo -> Set.Set ExtensionAsText
+info_fromDataInfoToExtensions info dataInfo
+  = Set.foldl'
+          (\s1 info1 -> case structure_extensionCodes info1 of
+                          Just codes -> Set.union s1 (Set.fromList $ L.map fromByteStringToText $ extensionCodes_extractFromUserSpecification codes)
+                          Nothing -> s1
+          ) Set.empty dataInfo
+
+-- | Delete an extension to ignore match.
+--   This does not invalidate CDRS because:
+--   * CDRS to ignore are not inserted in the `ar_cdr` table, and so they are not pointing to this extension
+--   * in case of rerate of already billed CDRS, the info about an extension to ignore had to be replaced with a valid extension code in any case
+--   @ensure: after applying this command, Info had to be load again, because it is not any more updated
+info_notIgnoreAnymoreTheseExtensions
+    :: DB.MySQLConn
+    -> Info
+    -> Maybe UnitId -- ^ in case filter on this parent unitId
+    -> [ExtensionAsText]
+    -> IO ()
+info_notIgnoreAnymoreTheseExtensions conn info maybeParentId extensionsToEnable
+  = Prelude.mapM_ enableExtension extensionsToEnable
+ where
+
+  enableExtension code
+    = case (trie_lookup (info_extensions info) (extension_toExtensionCode (fromTextToByteString code))) of
+        Nothing
+          -> do return ()
+        Just dataInfo
+          -> do let i = structure_id $ head dataInfo
+                info_notIgnoreAnymoreThisExtension conn maybeParentId i
+                return ()
+
+-- | Delete an extension to ignore match.
+--   This does not invalidate CDRS because:
+--   * CDRS to ignore are not inserted in the `ar_cdr` table, and so they are not pointing to this extension
+--   * in case of rerate of already billed CDRS, the info about an extension to ignore had to be replaced with a valid extension code in any case
+--   @ensure: after applying this command, Info had to be load again, because it is not any more updated
+info_notIgnoreAnymoreThisExtension
+    :: DB.MySQLConn
+    -> Maybe UnitId -- ^ in case filter on this parentId
+    -> UnitId
+    -> IO ()
+info_notIgnoreAnymoreThisExtension conn Nothing unitId = do
+
+  let q1 = [str| DELETE FROM ar_organization_unit_has_structure
+               | WHERE ar_organization_unit_id = ?
+               |]
+
+  _ <- DB.execute conn q1 [toDBInt64 unitId]
+
+  let q2 = [str| DELETE FROM ar_organization_unit
+               | WHERE id = ?
+               |]
+
+  _ <- DB.execute conn q2 [toDBInt64 unitId]
+
+  return ()
+
+info_notIgnoreAnymoreThisExtension conn (Just parentId) unitId = do
+
+  let q0 = [str| SELECT id
+               | FROM ar_organization_unit_has_structure
+               | WHERE ar_organization_unit_id = ?
+               | AND ar_parent_organization_unit_id = ?
+               | LIMIT 1
+               |]
+
+  (_, inS) <- DB.query conn q0 [toDBInt64 unitId, toDBInt64 parentId]
+
+  rs <- S.toList inS
+  case rs of
+    [] -> return ()
+    _ -> do
+      let q1 = [str| DELETE FROM ar_organization_unit_has_structure
+                   | WHERE ar_organization_unit_id = ?
+                   |]
+
+      _ <- DB.execute conn q1 [toDBInt64 unitId]
+
+      let q2 = [str| DELETE FROM ar_organization_unit
+                   | WHERE id = ?
+                   |]
+
+      _ <- DB.execute conn q2 [toDBInt64 unitId]
+
+      return ()
+
+-- ----------------
+-- Users management
+
+data User
+       = User {
+            user_id :: !Int
+         ,  user_partyId :: !(Maybe Int)
+         ,  user_unitId :: !(Maybe Int)
+         ,  user_login :: !T.Text
+         ,  user_passwordHash :: !(Maybe BS.ByteString)
+            -- ^ the MD5 hash of the password
+         ,  user_isEnabled :: !Bool
+         ,  user_isAdmin :: !Bool
+         }
+    deriving (Eq, Ord, Show, Generic, NFData)
+
+-- | From user_unitId to User
+type UserInfo = MultiMap (Maybe UnitId) User 
+
+-- | Return all the logins.
+userInfo_logins :: UserInfo -> Set.Set T.Text
+userInfo_logins info = Set.fromList $ L.map user_login $ L.concat $ Map.elems info
+
+-- | Load extension data from the DB.
+userInfo_load :: DB.MySQLConn -> Bool -> IO UserInfo
+userInfo_load conn isDebugMode = do
+  let 
+      q = [str|SELECT id
+              |, ar_party_id
+              |, ar_organization_unit_id
+              |, login
+              |, password
+              |, is_enabled
+              |, is_root_admin
+              |FROM ar_user
+              |ORDER BY id
+              |]
+
+  (_, inS) <- DB.query_ conn (DB.Query q)
+  !info <- S.fold addUserRecord (Map.empty) inS
+  return info
+ where
+
+  addUserRecord :: UserInfo -> [DB.MySQLValue] -> UserInfo
+  addUserRecord
+    info1
+    [ userId
+    , partyId
+    , unitId
+    , login
+    , password
+    , isEnabled
+    , isRootAdmin
+    ]
+      = let
+
+            maybeUnitId = fromMaybeDBValue fromDBInt unitId
+
+            value = User {
+                        user_id = fromDBInt userId,
+                        user_partyId = fromMaybeDBValue fromDBInt partyId,
+                        user_unitId = maybeUnitId,
+                        user_login = fromDBText login,
+                        user_passwordHash = fromMaybeDBValue fromDBByteString password,
+                        user_isEnabled = fromDBBool isEnabled,
+                        user_isAdmin = fromDBBool isRootAdmin
+                    }
+  
+        in multiMap_add info1 maybeUnitId value
+
+-- ----------
+-- User roles
+
+data DefaultUserRole
+       = UserRole_admin
+       | UserRole_user
+       | UserRole_accountant
+       | UserRole_notifiedForCriticalErrors
+       | UserRole_notifiedForErrors
+       | UserRole_notifiedForWarnings
+      deriving(Eq, Ord, Show)
+
+
+-- | From `ar_role.internal_name` to `ar_role.id`.
+type UserRoleIdFromInternalName = Map.Map T.Text Int 
+
+-- | Retrieve the default organization type.
+--   IMPORTANT: this code must be mantained in synchro with `ArOrganizationUnitType` on the PHP side. 
+userRole_defaultId :: UserRoleIdFromInternalName -> DefaultUserRole -> Int
+userRole_defaultId m tn = fromJust $ Map.lookup (tnn tn) m
+ where
+
+  tnn :: DefaultUserRole -> T.Text
+  tnn UserRole_admin = "admin"
+  tnn UserRole_user = "user"
+  tnn UserRole_accountant = "accountant"
+  tnn UserRole_notifiedForCriticalErrors = "notified_for_critical_errors"
+  tnn UserRole_notifiedForErrors = "notified_for_errors"
+  tnn UserRole_notifiedForWarnings = "notified_for_warnings"
+
+userRole_load :: DB.MySQLConn -> Bool -> IO UserRoleIdFromInternalName
+userRole_load conn isDebugMode = do
+  let 
+      q = [str|SELECT id, internal_name
+              |FROM ar_role
+              |WHERE internal_name IS NOT NULL
+              |]
+
+  (_, inS) <- DB.query_ conn (DB.Query q)
+  !r <- S.fold addInfo Map.empty inS
+  return r
+ where
+
+  addInfo :: UserRoleIdFromInternalName -> [DB.MySQLValue] -> UserRoleIdFromInternalName
+  addInfo m1 [rid, rinternalName] = Map.insert (fromDBText rinternalName) (fromDBInt rid) m1
+
+-- ----------------
+-- Organization types
+
+data UnitType
+       = UnitType {
+            utp_id :: !Int
+         ,  utp_name :: !T.Text
+         ,  utp_shortCode :: !(Maybe T.Text)
+         ,  utp_internalName :: !(Maybe T.Text)
+         }
+    deriving (Eq, Ord, Show, Generic, NFData)
+
+data DefaultUnitType
+       = UnitType_extension
+       | UnitType_customer
+       | UnitType_office
+       | UnitType_externalTelephoneNumber
+       | UnitType_root
+       | UnitType_organization
+       | UnitType_system
+      deriving(Eq, Ord, Show)
+
+
+-- | From `unitType_id` to `UnitType`.
+type UnitTypeInfo = IMap.IntMap UnitType 
+
+type UnitTypeFromInternalName = Map.Map T.Text UnitType
+
+-- | Retrieve the default organization type.
+--   IMPORTANT: this code must be mantained in synchro with `ArOrganizationUnitType` on the PHP side. 
+unitType_defaultId :: UnitTypeFromInternalName -> DefaultUnitType -> Int
+unitType_defaultId m tn
+  = utp_id $ fromJust $ Map.lookup (tnn tn) m
+ where
+
+  tnn :: DefaultUnitType -> T.Text
+  tnn UnitType_extension = "extension"
+  tnn UnitType_customer = "customer"
+  tnn UnitType_office = "office"
+  tnn UnitType_externalTelephoneNumber = "external"
+  tnn UnitType_root = "root"
+  tnn UnitType_organization = "org"
+  tnn UnitType_system = "system"
+
+-- | Load unit type data from the DB.
+unitType_load :: DB.MySQLConn -> Bool -> IO (UnitTypeInfo, UnitTypeFromInternalName)
+unitType_load conn isDebugMode = do
+  let 
+      q = [str|SELECT id
+              |, name
+              |, short_code
+              |, internal_name
+              |FROM ar_organization_unit_type
+              |ORDER BY id
+              |]
+
+  (_, inS) <- DB.query_ conn (DB.Query q)
+  !r <- S.fold addInfo (IMap.empty, Map.empty) inS
+  return r
+ where
+
+  addInfo :: (UnitTypeInfo, UnitTypeFromInternalName) -> [DB.MySQLValue] -> (UnitTypeInfo, UnitTypeFromInternalName)
+  addInfo
+    (uti, utn)
+    [ rid
+    , rname
+    , rshortCode
+    , rInternalName
+    ]
+      = let unitType = UnitType {
+                          utp_id = fromDBInt rid
+                       ,  utp_name = fromDBText rname
+                       ,  utp_shortCode = fromMaybeDBValue fromDBText rshortCode
+                       ,  utp_internalName = fromMaybeDBValue fromDBText rInternalName
+                       }
+
+            
+        in 
+           ( IMap.insert (fromDBInt rid) unitType uti
+           , case fromMaybeDBValue fromDBText rInternalName of
+               Nothing -> utn
+               Just n -> Map.insert n unitType utn)
+
+-- -----------
+-- Party Tags 
+
+data PartyTag
+       = PartyTag {
+            partyTag_id :: !Int
+         ,  partyTag_internalName :: !T.Text
+         ,  partyTag_name :: !T.Text
+         }
+    deriving (Eq, Ord, Show, Generic, NFData)
+
+-- | From internal name to PartyTag 
+type PartyTagInfo = Map.Map T.Text PartyTag 
+
+-- | Load extension data from the DB.
+partyTagInfo_load :: DB.MySQLConn -> Bool -> IO PartyTagInfo
+partyTagInfo_load conn isDebugMode = do
+  let 
+      q = [str|SELECT id
+              |, internal_name
+              |, name_for_customer
+              |FROM ar_tag
+              |]
+
+  (_, inS) <- DB.query_ conn (DB.Query q)
+  !info <- S.fold addRecord (Map.empty) inS
+  return info
+ where
+
+  addRecord :: PartyTagInfo -> [DB.MySQLValue] -> PartyTagInfo
+  addRecord
+    info1
+    [ tagId
+    , internalName
+    , nameForCustomer
+    ]
+      = let
+
+            internalName' = fromDBText internalName
+
+            value = PartyTag {
+                        partyTag_id = fromDBInt tagId,
+                        partyTag_internalName = internalName',
+                        partyTag_name = fromDBText nameForCustomer
+                    }
+  
+        in Map.insert internalName' value info1
+
+-- ----------------
+-- TRecord data
+
+-- TODO chec if set PK fields also the index
+organizationUnit_tfields :: TFields
+organizationUnit_tfields = TFields "ar_organization_unit" $
+    [ TField "id" True True False
+    , TField "internal_name" False True False
+    , TField "internal_name2" False True False
+    , TField "internal_checksum1" False True False
+    , TField "internal_checksum2" False True False
+    , TField "internal_checksum3" False True False
+    , TField "internal_checksum4" False True False
+    , TField "export_code" False True False
+    , TField "automatically_managed_from" False True False
+    ]
+
+organizationUnitStruct_tfields :: TFields
+organizationUnitStruct_tfields = TFields "ar_organization_unit_has_structure" $
+    [ TField "id" True True False
+    , TField "ar_organization_unit_id" False True False
+    , TField "ar_organization_unit_type_id" False True False
+    , TField "ar_parent_organization_unit_id" False True False
+    , TField "from" False True False
+    , TField "exists" False True False
+    , TField "ar_rate_category_id" False True False
+    , TField "ar_party_id" False True False
+    , TField "extension_codes" False True False
+    , TField "extension_name" False True False
+    , TField "extension_user_code" False True False
+    ]
+
+user_tfields :: TFields
+user_tfields = TFields "ar_user" $
+    [ TField "id" False True False
+    , TField "ar_party_id" False True False
+    , TField "ar_organization_unit_id" False True False
+    , TField "login" False True False
+    , TField "password" False True False
+    , TField "clear_password_to_import" False True False
+    , TField "is_enabled" False True False
+    , TField "is_root_admin" False True False
+    ]
+
 -- ----------------
 -- Regression tests
+
+organizationHierarchy_test :: [HUnit.Test]
+organizationHierarchy_test
+  = [ t ["123"] "123"
+    , t ["123", "45"] "123, 45"
+    , t ["123", "45", "45X"] "123, 45,45X"
+    , t ["123", "4,5", "1,2"] "123,4\\,5,1\\,2"
+    , t ["123", ",4,5", "1,2,,"] "123,\\,4\\,5,1\\,2\\,\\,"
+    ]
+ where
+
+   t :: [Extension] -> T.Text -> HUnit.Test
+   t l s = HUnit.TestCase $ HUnit.assertEqual (T.unpack s) (l) (extensionCodes_extractFromUserSpecification s)
+
 
 -- | PHP regression code will generate specific data,
 --   that is imported and tested here. Keep in synchro

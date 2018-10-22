@@ -19,6 +19,12 @@ abstract class BaseArSourceCdr extends BaseObject  implements Persistent {
 	protected static $peer;
 
 	/**
+	 * The value for the calldate field.
+	 * @var        string
+	 */
+	protected $calldate;
+
+	/**
 	 * The value for the id field.
 	 * @var        int
 	 */
@@ -37,33 +43,10 @@ abstract class BaseArSourceCdr extends BaseObject  implements Persistent {
 	protected $ar_physical_format_id;
 
 	/**
-	 * The value for the calldate field.
-	 * @var        string
-	 */
-	protected $calldate;
-
-	/**
-	 * The value for the is_imported_service_cdr field.
-	 * Note: this column has a database default value of: false
-	 * @var        boolean
-	 */
-	protected $is_imported_service_cdr;
-
-	/**
 	 * The value for the content field.
 	 * @var        string
 	 */
 	protected $content;
-
-	/**
-	 * @var        ArCdrProvider
-	 */
-	protected $aArCdrProvider;
-
-	/**
-	 * @var        ArPhysicalFormat
-	 */
-	protected $aArPhysicalFormat;
 
 	/**
 	 * Flag to prevent endless save loop, if this object is referenced
@@ -82,57 +65,6 @@ abstract class BaseArSourceCdr extends BaseObject  implements Persistent {
 	// symfony behavior
 	
 	const PEER = 'ArSourceCdrPeer';
-
-	/**
-	 * Applies default values to this object.
-	 * This method should be called from the object's constructor (or
-	 * equivalent initialization method).
-	 * @see        __construct()
-	 */
-	public function applyDefaultValues()
-	{
-		$this->is_imported_service_cdr = false;
-	}
-
-	/**
-	 * Initializes internal state of BaseArSourceCdr object.
-	 * @see        applyDefaults()
-	 */
-	public function __construct()
-	{
-		parent::__construct();
-		$this->applyDefaultValues();
-	}
-
-	/**
-	 * Get the [id] column value.
-	 * 
-	 * @return     int
-	 */
-	public function getId()
-	{
-		return $this->id;
-	}
-
-	/**
-	 * Get the [ar_cdr_provider_id] column value.
-	 * 
-	 * @return     int
-	 */
-	public function getArCdrProviderId()
-	{
-		return $this->ar_cdr_provider_id;
-	}
-
-	/**
-	 * Get the [ar_physical_format_id] column value.
-	 * 
-	 * @return     int
-	 */
-	public function getArPhysicalFormatId()
-	{
-		return $this->ar_physical_format_id;
-	}
 
 	/**
 	 * Get the [optionally formatted] temporal [calldate] column value.
@@ -173,13 +105,33 @@ abstract class BaseArSourceCdr extends BaseObject  implements Persistent {
 	}
 
 	/**
-	 * Get the [is_imported_service_cdr] column value.
+	 * Get the [id] column value.
 	 * 
-	 * @return     boolean
+	 * @return     int
 	 */
-	public function getIsImportedServiceCdr()
+	public function getId()
 	{
-		return $this->is_imported_service_cdr;
+		return $this->id;
+	}
+
+	/**
+	 * Get the [ar_cdr_provider_id] column value.
+	 * 
+	 * @return     int
+	 */
+	public function getArCdrProviderId()
+	{
+		return $this->ar_cdr_provider_id;
+	}
+
+	/**
+	 * Get the [ar_physical_format_id] column value.
+	 * 
+	 * @return     int
+	 */
+	public function getArPhysicalFormatId()
+	{
+		return $this->ar_physical_format_id;
 	}
 
 	/**
@@ -191,74 +143,6 @@ abstract class BaseArSourceCdr extends BaseObject  implements Persistent {
 	{
 		return $this->content;
 	}
-
-	/**
-	 * Set the value of [id] column.
-	 * 
-	 * @param      int $v new value
-	 * @return     ArSourceCdr The current object (for fluent API support)
-	 */
-	public function setId($v)
-	{
-		if ($v !== null) {
-			$v = (int) $v;
-		}
-
-		if ($this->id !== $v) {
-			$this->id = $v;
-			$this->modifiedColumns[] = ArSourceCdrPeer::ID;
-		}
-
-		return $this;
-	} // setId()
-
-	/**
-	 * Set the value of [ar_cdr_provider_id] column.
-	 * 
-	 * @param      int $v new value
-	 * @return     ArSourceCdr The current object (for fluent API support)
-	 */
-	public function setArCdrProviderId($v)
-	{
-		if ($v !== null) {
-			$v = (int) $v;
-		}
-
-		if ($this->ar_cdr_provider_id !== $v) {
-			$this->ar_cdr_provider_id = $v;
-			$this->modifiedColumns[] = ArSourceCdrPeer::AR_CDR_PROVIDER_ID;
-		}
-
-		if ($this->aArCdrProvider !== null && $this->aArCdrProvider->getId() !== $v) {
-			$this->aArCdrProvider = null;
-		}
-
-		return $this;
-	} // setArCdrProviderId()
-
-	/**
-	 * Set the value of [ar_physical_format_id] column.
-	 * 
-	 * @param      int $v new value
-	 * @return     ArSourceCdr The current object (for fluent API support)
-	 */
-	public function setArPhysicalFormatId($v)
-	{
-		if ($v !== null) {
-			$v = (int) $v;
-		}
-
-		if ($this->ar_physical_format_id !== $v) {
-			$this->ar_physical_format_id = $v;
-			$this->modifiedColumns[] = ArSourceCdrPeer::AR_PHYSICAL_FORMAT_ID;
-		}
-
-		if ($this->aArPhysicalFormat !== null && $this->aArPhysicalFormat->getId() !== $v) {
-			$this->aArPhysicalFormat = null;
-		}
-
-		return $this;
-	} // setArPhysicalFormatId()
 
 	/**
 	 * Sets the value of [calldate] column to a normalized version of the date/time value specified.
@@ -310,24 +194,64 @@ abstract class BaseArSourceCdr extends BaseObject  implements Persistent {
 	} // setCalldate()
 
 	/**
-	 * Set the value of [is_imported_service_cdr] column.
+	 * Set the value of [id] column.
 	 * 
-	 * @param      boolean $v new value
+	 * @param      int $v new value
 	 * @return     ArSourceCdr The current object (for fluent API support)
 	 */
-	public function setIsImportedServiceCdr($v)
+	public function setId($v)
 	{
 		if ($v !== null) {
-			$v = (boolean) $v;
+			$v = (int) $v;
 		}
 
-		if ($this->is_imported_service_cdr !== $v || $this->isNew()) {
-			$this->is_imported_service_cdr = $v;
-			$this->modifiedColumns[] = ArSourceCdrPeer::IS_IMPORTED_SERVICE_CDR;
+		if ($this->id !== $v) {
+			$this->id = $v;
+			$this->modifiedColumns[] = ArSourceCdrPeer::ID;
 		}
 
 		return $this;
-	} // setIsImportedServiceCdr()
+	} // setId()
+
+	/**
+	 * Set the value of [ar_cdr_provider_id] column.
+	 * 
+	 * @param      int $v new value
+	 * @return     ArSourceCdr The current object (for fluent API support)
+	 */
+	public function setArCdrProviderId($v)
+	{
+		if ($v !== null) {
+			$v = (int) $v;
+		}
+
+		if ($this->ar_cdr_provider_id !== $v) {
+			$this->ar_cdr_provider_id = $v;
+			$this->modifiedColumns[] = ArSourceCdrPeer::AR_CDR_PROVIDER_ID;
+		}
+
+		return $this;
+	} // setArCdrProviderId()
+
+	/**
+	 * Set the value of [ar_physical_format_id] column.
+	 * 
+	 * @param      int $v new value
+	 * @return     ArSourceCdr The current object (for fluent API support)
+	 */
+	public function setArPhysicalFormatId($v)
+	{
+		if ($v !== null) {
+			$v = (int) $v;
+		}
+
+		if ($this->ar_physical_format_id !== $v) {
+			$this->ar_physical_format_id = $v;
+			$this->modifiedColumns[] = ArSourceCdrPeer::AR_PHYSICAL_FORMAT_ID;
+		}
+
+		return $this;
+	} // setArPhysicalFormatId()
 
 	/**
 	 * Set the value of [content] column.
@@ -359,10 +283,6 @@ abstract class BaseArSourceCdr extends BaseObject  implements Persistent {
 	 */
 	public function hasOnlyDefaultValues()
 	{
-			if ($this->is_imported_service_cdr !== false) {
-				return false;
-			}
-
 		// otherwise, everything was equal, so return TRUE
 		return true;
 	} // hasOnlyDefaultValues()
@@ -385,12 +305,11 @@ abstract class BaseArSourceCdr extends BaseObject  implements Persistent {
 	{
 		try {
 
-			$this->id = ($row[$startcol + 0] !== null) ? (int) $row[$startcol + 0] : null;
-			$this->ar_cdr_provider_id = ($row[$startcol + 1] !== null) ? (int) $row[$startcol + 1] : null;
-			$this->ar_physical_format_id = ($row[$startcol + 2] !== null) ? (int) $row[$startcol + 2] : null;
-			$this->calldate = ($row[$startcol + 3] !== null) ? (string) $row[$startcol + 3] : null;
-			$this->is_imported_service_cdr = ($row[$startcol + 4] !== null) ? (boolean) $row[$startcol + 4] : null;
-			$this->content = ($row[$startcol + 5] !== null) ? (string) $row[$startcol + 5] : null;
+			$this->calldate = ($row[$startcol + 0] !== null) ? (string) $row[$startcol + 0] : null;
+			$this->id = ($row[$startcol + 1] !== null) ? (int) $row[$startcol + 1] : null;
+			$this->ar_cdr_provider_id = ($row[$startcol + 2] !== null) ? (int) $row[$startcol + 2] : null;
+			$this->ar_physical_format_id = ($row[$startcol + 3] !== null) ? (int) $row[$startcol + 3] : null;
+			$this->content = ($row[$startcol + 4] !== null) ? (string) $row[$startcol + 4] : null;
 			$this->resetModified();
 
 			$this->setNew(false);
@@ -400,7 +319,7 @@ abstract class BaseArSourceCdr extends BaseObject  implements Persistent {
 			}
 
 			// FIXME - using NUM_COLUMNS may be clearer.
-			return $startcol + 6; // 6 = ArSourceCdrPeer::NUM_COLUMNS - ArSourceCdrPeer::NUM_LAZY_LOAD_COLUMNS).
+			return $startcol + 5; // 5 = ArSourceCdrPeer::NUM_COLUMNS - ArSourceCdrPeer::NUM_LAZY_LOAD_COLUMNS).
 
 		} catch (Exception $e) {
 			throw new PropelException("Error populating ArSourceCdr object", $e);
@@ -423,12 +342,6 @@ abstract class BaseArSourceCdr extends BaseObject  implements Persistent {
 	public function ensureConsistency()
 	{
 
-		if ($this->aArCdrProvider !== null && $this->ar_cdr_provider_id !== $this->aArCdrProvider->getId()) {
-			$this->aArCdrProvider = null;
-		}
-		if ($this->aArPhysicalFormat !== null && $this->ar_physical_format_id !== $this->aArPhysicalFormat->getId()) {
-			$this->aArPhysicalFormat = null;
-		}
 	} // ensureConsistency
 
 	/**
@@ -468,8 +381,6 @@ abstract class BaseArSourceCdr extends BaseObject  implements Persistent {
 
 		if ($deep) {  // also de-associate any related objects?
 
-			$this->aArCdrProvider = null;
-			$this->aArPhysicalFormat = null;
 		} // if (deep)
 	}
 
@@ -578,28 +489,6 @@ abstract class BaseArSourceCdr extends BaseObject  implements Persistent {
 		if (!$this->alreadyInSave) {
 			$this->alreadyInSave = true;
 
-			// We call the save method on the following object(s) if they
-			// were passed to this object by their coresponding set
-			// method.  This object relates to these object(s) by a
-			// foreign key reference.
-
-			if ($this->aArCdrProvider !== null) {
-				if ($this->aArCdrProvider->isModified() || $this->aArCdrProvider->isNew()) {
-					$affectedRows += $this->aArCdrProvider->save($con);
-				}
-				$this->setArCdrProvider($this->aArCdrProvider);
-			}
-
-			if ($this->aArPhysicalFormat !== null) {
-				if ($this->aArPhysicalFormat->isModified() || $this->aArPhysicalFormat->isNew()) {
-					$affectedRows += $this->aArPhysicalFormat->save($con);
-				}
-				$this->setArPhysicalFormat($this->aArPhysicalFormat);
-			}
-
-			if ($this->isNew() ) {
-				$this->modifiedColumns[] = ArSourceCdrPeer::ID;
-			}
 
 			// If this object has been modified, then save it to the database.
 			if ($this->isModified()) {
@@ -608,8 +497,6 @@ abstract class BaseArSourceCdr extends BaseObject  implements Persistent {
 					$affectedRows += 1; // we are assuming that there is only 1 row per doInsert() which
 										 // should always be true here (even though technically
 										 // BasePeer::doInsert() can insert multiple rows).
-
-					$this->setId($pk);  //[IMV] update autoincrement primary key
 
 					$this->setNew(false);
 				} else {
@@ -685,24 +572,6 @@ abstract class BaseArSourceCdr extends BaseObject  implements Persistent {
 			$failureMap = array();
 
 
-			// We call the validate method on the following object(s) if they
-			// were passed to this object by their coresponding set
-			// method.  This object relates to these object(s) by a
-			// foreign key reference.
-
-			if ($this->aArCdrProvider !== null) {
-				if (!$this->aArCdrProvider->validate($columns)) {
-					$failureMap = array_merge($failureMap, $this->aArCdrProvider->getValidationFailures());
-				}
-			}
-
-			if ($this->aArPhysicalFormat !== null) {
-				if (!$this->aArPhysicalFormat->validate($columns)) {
-					$failureMap = array_merge($failureMap, $this->aArPhysicalFormat->getValidationFailures());
-				}
-			}
-
-
 			if (($retval = ArSourceCdrPeer::doValidate($this, $columns)) !== true) {
 				$failureMap = array_merge($failureMap, $retval);
 			}
@@ -742,21 +611,18 @@ abstract class BaseArSourceCdr extends BaseObject  implements Persistent {
 	{
 		switch($pos) {
 			case 0:
-				return $this->getId();
-				break;
-			case 1:
-				return $this->getArCdrProviderId();
-				break;
-			case 2:
-				return $this->getArPhysicalFormatId();
-				break;
-			case 3:
 				return $this->getCalldate();
 				break;
-			case 4:
-				return $this->getIsImportedServiceCdr();
+			case 1:
+				return $this->getId();
 				break;
-			case 5:
+			case 2:
+				return $this->getArCdrProviderId();
+				break;
+			case 3:
+				return $this->getArPhysicalFormatId();
+				break;
+			case 4:
 				return $this->getContent();
 				break;
 			default:
@@ -780,12 +646,11 @@ abstract class BaseArSourceCdr extends BaseObject  implements Persistent {
 	{
 		$keys = ArSourceCdrPeer::getFieldNames($keyType);
 		$result = array(
-			$keys[0] => $this->getId(),
-			$keys[1] => $this->getArCdrProviderId(),
-			$keys[2] => $this->getArPhysicalFormatId(),
-			$keys[3] => $this->getCalldate(),
-			$keys[4] => $this->getIsImportedServiceCdr(),
-			$keys[5] => $this->getContent(),
+			$keys[0] => $this->getCalldate(),
+			$keys[1] => $this->getId(),
+			$keys[2] => $this->getArCdrProviderId(),
+			$keys[3] => $this->getArPhysicalFormatId(),
+			$keys[4] => $this->getContent(),
 		);
 		return $result;
 	}
@@ -818,21 +683,18 @@ abstract class BaseArSourceCdr extends BaseObject  implements Persistent {
 	{
 		switch($pos) {
 			case 0:
-				$this->setId($value);
-				break;
-			case 1:
-				$this->setArCdrProviderId($value);
-				break;
-			case 2:
-				$this->setArPhysicalFormatId($value);
-				break;
-			case 3:
 				$this->setCalldate($value);
 				break;
-			case 4:
-				$this->setIsImportedServiceCdr($value);
+			case 1:
+				$this->setId($value);
 				break;
-			case 5:
+			case 2:
+				$this->setArCdrProviderId($value);
+				break;
+			case 3:
+				$this->setArPhysicalFormatId($value);
+				break;
+			case 4:
 				$this->setContent($value);
 				break;
 		} // switch()
@@ -859,12 +721,11 @@ abstract class BaseArSourceCdr extends BaseObject  implements Persistent {
 	{
 		$keys = ArSourceCdrPeer::getFieldNames($keyType);
 
-		if (array_key_exists($keys[0], $arr)) $this->setId($arr[$keys[0]]);
-		if (array_key_exists($keys[1], $arr)) $this->setArCdrProviderId($arr[$keys[1]]);
-		if (array_key_exists($keys[2], $arr)) $this->setArPhysicalFormatId($arr[$keys[2]]);
-		if (array_key_exists($keys[3], $arr)) $this->setCalldate($arr[$keys[3]]);
-		if (array_key_exists($keys[4], $arr)) $this->setIsImportedServiceCdr($arr[$keys[4]]);
-		if (array_key_exists($keys[5], $arr)) $this->setContent($arr[$keys[5]]);
+		if (array_key_exists($keys[0], $arr)) $this->setCalldate($arr[$keys[0]]);
+		if (array_key_exists($keys[1], $arr)) $this->setId($arr[$keys[1]]);
+		if (array_key_exists($keys[2], $arr)) $this->setArCdrProviderId($arr[$keys[2]]);
+		if (array_key_exists($keys[3], $arr)) $this->setArPhysicalFormatId($arr[$keys[3]]);
+		if (array_key_exists($keys[4], $arr)) $this->setContent($arr[$keys[4]]);
 	}
 
 	/**
@@ -876,11 +737,10 @@ abstract class BaseArSourceCdr extends BaseObject  implements Persistent {
 	{
 		$criteria = new Criteria(ArSourceCdrPeer::DATABASE_NAME);
 
+		if ($this->isColumnModified(ArSourceCdrPeer::CALLDATE)) $criteria->add(ArSourceCdrPeer::CALLDATE, $this->calldate);
 		if ($this->isColumnModified(ArSourceCdrPeer::ID)) $criteria->add(ArSourceCdrPeer::ID, $this->id);
 		if ($this->isColumnModified(ArSourceCdrPeer::AR_CDR_PROVIDER_ID)) $criteria->add(ArSourceCdrPeer::AR_CDR_PROVIDER_ID, $this->ar_cdr_provider_id);
 		if ($this->isColumnModified(ArSourceCdrPeer::AR_PHYSICAL_FORMAT_ID)) $criteria->add(ArSourceCdrPeer::AR_PHYSICAL_FORMAT_ID, $this->ar_physical_format_id);
-		if ($this->isColumnModified(ArSourceCdrPeer::CALLDATE)) $criteria->add(ArSourceCdrPeer::CALLDATE, $this->calldate);
-		if ($this->isColumnModified(ArSourceCdrPeer::IS_IMPORTED_SERVICE_CDR)) $criteria->add(ArSourceCdrPeer::IS_IMPORTED_SERVICE_CDR, $this->is_imported_service_cdr);
 		if ($this->isColumnModified(ArSourceCdrPeer::CONTENT)) $criteria->add(ArSourceCdrPeer::CONTENT, $this->content);
 
 		return $criteria;
@@ -898,29 +758,51 @@ abstract class BaseArSourceCdr extends BaseObject  implements Persistent {
 	{
 		$criteria = new Criteria(ArSourceCdrPeer::DATABASE_NAME);
 
+		$criteria->add(ArSourceCdrPeer::CALLDATE, $this->calldate);
 		$criteria->add(ArSourceCdrPeer::ID, $this->id);
+		$criteria->add(ArSourceCdrPeer::AR_CDR_PROVIDER_ID, $this->ar_cdr_provider_id);
+		$criteria->add(ArSourceCdrPeer::AR_PHYSICAL_FORMAT_ID, $this->ar_physical_format_id);
 
 		return $criteria;
 	}
 
 	/**
-	 * Returns the primary key for this object (row).
-	 * @return     int
+	 * Returns the composite primary key for this object.
+	 * The array elements will be in same order as specified in XML.
+	 * @return     array
 	 */
 	public function getPrimaryKey()
 	{
-		return $this->getId();
+		$pks = array();
+
+		$pks[0] = $this->getCalldate();
+
+		$pks[1] = $this->getId();
+
+		$pks[2] = $this->getArCdrProviderId();
+
+		$pks[3] = $this->getArPhysicalFormatId();
+
+		return $pks;
 	}
 
 	/**
-	 * Generic method to set the primary key (id column).
+	 * Set the [composite] primary key.
 	 *
-	 * @param      int $key Primary key.
+	 * @param      array $keys The elements of the composite key (order must match the order in XML file).
 	 * @return     void
 	 */
-	public function setPrimaryKey($key)
+	public function setPrimaryKey($keys)
 	{
-		$this->setId($key);
+
+		$this->setCalldate($keys[0]);
+
+		$this->setId($keys[1]);
+
+		$this->setArCdrProviderId($keys[2]);
+
+		$this->setArPhysicalFormatId($keys[3]);
+
 	}
 
 	/**
@@ -936,20 +818,18 @@ abstract class BaseArSourceCdr extends BaseObject  implements Persistent {
 	public function copyInto($copyObj, $deepCopy = false)
 	{
 
+		$copyObj->setCalldate($this->calldate);
+
+		$copyObj->setId($this->id);
+
 		$copyObj->setArCdrProviderId($this->ar_cdr_provider_id);
 
 		$copyObj->setArPhysicalFormatId($this->ar_physical_format_id);
-
-		$copyObj->setCalldate($this->calldate);
-
-		$copyObj->setIsImportedServiceCdr($this->is_imported_service_cdr);
 
 		$copyObj->setContent($this->content);
 
 
 		$copyObj->setNew(true);
-
-		$copyObj->setId(NULL); // this is a auto-increment column, so set to default value
 
 	}
 
@@ -992,104 +872,6 @@ abstract class BaseArSourceCdr extends BaseObject  implements Persistent {
 	}
 
 	/**
-	 * Declares an association between this object and a ArCdrProvider object.
-	 *
-	 * @param      ArCdrProvider $v
-	 * @return     ArSourceCdr The current object (for fluent API support)
-	 * @throws     PropelException
-	 */
-	public function setArCdrProvider(ArCdrProvider $v = null)
-	{
-		if ($v === null) {
-			$this->setArCdrProviderId(NULL);
-		} else {
-			$this->setArCdrProviderId($v->getId());
-		}
-
-		$this->aArCdrProvider = $v;
-
-		// Add binding for other direction of this n:n relationship.
-		// If this object has already been added to the ArCdrProvider object, it will not be re-added.
-		if ($v !== null) {
-			$v->addArSourceCdr($this);
-		}
-
-		return $this;
-	}
-
-
-	/**
-	 * Get the associated ArCdrProvider object
-	 *
-	 * @param      PropelPDO Optional Connection object.
-	 * @return     ArCdrProvider The associated ArCdrProvider object.
-	 * @throws     PropelException
-	 */
-	public function getArCdrProvider(PropelPDO $con = null)
-	{
-		if ($this->aArCdrProvider === null && ($this->ar_cdr_provider_id !== null)) {
-			$this->aArCdrProvider = ArCdrProviderPeer::retrieveByPk($this->ar_cdr_provider_id);
-			/* The following can be used additionally to
-			   guarantee the related object contains a reference
-			   to this object.  This level of coupling may, however, be
-			   undesirable since it could result in an only partially populated collection
-			   in the referenced object.
-			   $this->aArCdrProvider->addArSourceCdrs($this);
-			 */
-		}
-		return $this->aArCdrProvider;
-	}
-
-	/**
-	 * Declares an association between this object and a ArPhysicalFormat object.
-	 *
-	 * @param      ArPhysicalFormat $v
-	 * @return     ArSourceCdr The current object (for fluent API support)
-	 * @throws     PropelException
-	 */
-	public function setArPhysicalFormat(ArPhysicalFormat $v = null)
-	{
-		if ($v === null) {
-			$this->setArPhysicalFormatId(NULL);
-		} else {
-			$this->setArPhysicalFormatId($v->getId());
-		}
-
-		$this->aArPhysicalFormat = $v;
-
-		// Add binding for other direction of this n:n relationship.
-		// If this object has already been added to the ArPhysicalFormat object, it will not be re-added.
-		if ($v !== null) {
-			$v->addArSourceCdr($this);
-		}
-
-		return $this;
-	}
-
-
-	/**
-	 * Get the associated ArPhysicalFormat object
-	 *
-	 * @param      PropelPDO Optional Connection object.
-	 * @return     ArPhysicalFormat The associated ArPhysicalFormat object.
-	 * @throws     PropelException
-	 */
-	public function getArPhysicalFormat(PropelPDO $con = null)
-	{
-		if ($this->aArPhysicalFormat === null && ($this->ar_physical_format_id !== null)) {
-			$this->aArPhysicalFormat = ArPhysicalFormatPeer::retrieveByPk($this->ar_physical_format_id);
-			/* The following can be used additionally to
-			   guarantee the related object contains a reference
-			   to this object.  This level of coupling may, however, be
-			   undesirable since it could result in an only partially populated collection
-			   in the referenced object.
-			   $this->aArPhysicalFormat->addArSourceCdrs($this);
-			 */
-		}
-		return $this->aArPhysicalFormat;
-	}
-
-	/**
 	 * Resets all collections of referencing foreign keys.
 	 *
 	 * This method is a user-space workaround for PHP's inability to garbage collect objects
@@ -1103,8 +885,6 @@ abstract class BaseArSourceCdr extends BaseObject  implements Persistent {
 		if ($deep) {
 		} // if ($deep)
 
-			$this->aArCdrProvider = null;
-			$this->aArPhysicalFormat = null;
 	}
 
 } // BaseArSourceCdr

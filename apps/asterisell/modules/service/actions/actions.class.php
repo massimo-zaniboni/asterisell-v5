@@ -38,6 +38,12 @@ class serviceActions extends autoServiceActions
         }
         $this->ar_service->setScheduleTimeframe($id);
 
+        $lt = $this->getRequestParameter('schedule_at_hhmmss');
+        if (isEmptyOrNull($lt)) {
+            $lt = '00:00:00';
+        }
+        $this->ar_service->setScheduleAt($lt);
+
         parent::updateArServiceFromRequest();
     }
 }

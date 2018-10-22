@@ -48,7 +48,7 @@ class ArCurrentProblemTableMap extends TableMap {
 		$this->addColumn('EFFECT', 'Effect', 'LONGVARCHAR', false, null, null);
 		$this->addColumn('PROPOSED_SOLUTION', 'ProposedSolution', 'LONGVARCHAR', false, null, null);
 		$this->addColumn('SIGNALED_TO_ADMIN', 'SignaledToAdmin', 'BOOLEAN', true, null, false);
-		$this->addColumn('COUNT_OF_CDRS', 'CountOfCdrs', 'INTEGER', true, null, 0);
+		$this->addColumn('COUNT_OF_CDRS', 'CountOfCdrs', 'BIGINT', true, null, 0);
 		// validators
 	} // initialize()
 

@@ -49,6 +49,12 @@ abstract class BaseArUser extends BaseObject  implements Persistent {
 	protected $password;
 
 	/**
+	 * The value for the clear_password_to_import field.
+	 * @var        string
+	 */
+	protected $clear_password_to_import;
+
+	/**
 	 * The value for the is_enabled field.
 	 * Note: this column has a database default value of: true
 	 * @var        boolean
@@ -233,6 +239,16 @@ abstract class BaseArUser extends BaseObject  implements Persistent {
 	}
 
 	/**
+	 * Get the [clear_password_to_import] column value.
+	 * 
+	 * @return     string
+	 */
+	public function getClearPasswordToImport()
+	{
+		return $this->clear_password_to_import;
+	}
+
+	/**
 	 * Get the [is_enabled] column value.
 	 * 
 	 * @return     boolean
@@ -361,6 +377,26 @@ abstract class BaseArUser extends BaseObject  implements Persistent {
 	} // setPassword()
 
 	/**
+	 * Set the value of [clear_password_to_import] column.
+	 * 
+	 * @param      string $v new value
+	 * @return     ArUser The current object (for fluent API support)
+	 */
+	public function setClearPasswordToImport($v)
+	{
+		if ($v !== null) {
+			$v = (string) $v;
+		}
+
+		if ($this->clear_password_to_import !== $v) {
+			$this->clear_password_to_import = $v;
+			$this->modifiedColumns[] = ArUserPeer::CLEAR_PASSWORD_TO_IMPORT;
+		}
+
+		return $this;
+	} // setClearPasswordToImport()
+
+	/**
 	 * Set the value of [is_enabled] column.
 	 * 
 	 * @param      boolean $v new value
@@ -445,8 +481,9 @@ abstract class BaseArUser extends BaseObject  implements Persistent {
 			$this->ar_organization_unit_id = ($row[$startcol + 2] !== null) ? (int) $row[$startcol + 2] : null;
 			$this->login = ($row[$startcol + 3] !== null) ? (string) $row[$startcol + 3] : null;
 			$this->password = ($row[$startcol + 4] !== null) ? (string) $row[$startcol + 4] : null;
-			$this->is_enabled = ($row[$startcol + 5] !== null) ? (boolean) $row[$startcol + 5] : null;
-			$this->is_root_admin = ($row[$startcol + 6] !== null) ? (boolean) $row[$startcol + 6] : null;
+			$this->clear_password_to_import = ($row[$startcol + 5] !== null) ? (string) $row[$startcol + 5] : null;
+			$this->is_enabled = ($row[$startcol + 6] !== null) ? (boolean) $row[$startcol + 6] : null;
+			$this->is_root_admin = ($row[$startcol + 7] !== null) ? (boolean) $row[$startcol + 7] : null;
 			$this->resetModified();
 
 			$this->setNew(false);
@@ -456,7 +493,7 @@ abstract class BaseArUser extends BaseObject  implements Persistent {
 			}
 
 			// FIXME - using NUM_COLUMNS may be clearer.
-			return $startcol + 7; // 7 = ArUserPeer::NUM_COLUMNS - ArUserPeer::NUM_LAZY_LOAD_COLUMNS).
+			return $startcol + 8; // 8 = ArUserPeer::NUM_COLUMNS - ArUserPeer::NUM_LAZY_LOAD_COLUMNS).
 
 		} catch (Exception $e) {
 			throw new PropelException("Error populating ArUser object", $e);
@@ -946,9 +983,12 @@ abstract class BaseArUser extends BaseObject  implements Persistent {
 				return $this->getPassword();
 				break;
 			case 5:
-				return $this->getIsEnabled();
+				return $this->getClearPasswordToImport();
 				break;
 			case 6:
+				return $this->getIsEnabled();
+				break;
+			case 7:
 				return $this->getIsRootAdmin();
 				break;
 			default:
@@ -977,8 +1017,9 @@ abstract class BaseArUser extends BaseObject  implements Persistent {
 			$keys[2] => $this->getArOrganizationUnitId(),
 			$keys[3] => $this->getLogin(),
 			$keys[4] => $this->getPassword(),
-			$keys[5] => $this->getIsEnabled(),
-			$keys[6] => $this->getIsRootAdmin(),
+			$keys[5] => $this->getClearPasswordToImport(),
+			$keys[6] => $this->getIsEnabled(),
+			$keys[7] => $this->getIsRootAdmin(),
 		);
 		return $result;
 	}
@@ -1026,9 +1067,12 @@ abstract class BaseArUser extends BaseObject  implements Persistent {
 				$this->setPassword($value);
 				break;
 			case 5:
-				$this->setIsEnabled($value);
+				$this->setClearPasswordToImport($value);
 				break;
 			case 6:
+				$this->setIsEnabled($value);
+				break;
+			case 7:
 				$this->setIsRootAdmin($value);
 				break;
 		} // switch()
@@ -1060,8 +1104,9 @@ abstract class BaseArUser extends BaseObject  implements Persistent {
 		if (array_key_exists($keys[2], $arr)) $this->setArOrganizationUnitId($arr[$keys[2]]);
 		if (array_key_exists($keys[3], $arr)) $this->setLogin($arr[$keys[3]]);
 		if (array_key_exists($keys[4], $arr)) $this->setPassword($arr[$keys[4]]);
-		if (array_key_exists($keys[5], $arr)) $this->setIsEnabled($arr[$keys[5]]);
-		if (array_key_exists($keys[6], $arr)) $this->setIsRootAdmin($arr[$keys[6]]);
+		if (array_key_exists($keys[5], $arr)) $this->setClearPasswordToImport($arr[$keys[5]]);
+		if (array_key_exists($keys[6], $arr)) $this->setIsEnabled($arr[$keys[6]]);
+		if (array_key_exists($keys[7], $arr)) $this->setIsRootAdmin($arr[$keys[7]]);
 	}
 
 	/**
@@ -1078,6 +1123,7 @@ abstract class BaseArUser extends BaseObject  implements Persistent {
 		if ($this->isColumnModified(ArUserPeer::AR_ORGANIZATION_UNIT_ID)) $criteria->add(ArUserPeer::AR_ORGANIZATION_UNIT_ID, $this->ar_organization_unit_id);
 		if ($this->isColumnModified(ArUserPeer::LOGIN)) $criteria->add(ArUserPeer::LOGIN, $this->login);
 		if ($this->isColumnModified(ArUserPeer::PASSWORD)) $criteria->add(ArUserPeer::PASSWORD, $this->password);
+		if ($this->isColumnModified(ArUserPeer::CLEAR_PASSWORD_TO_IMPORT)) $criteria->add(ArUserPeer::CLEAR_PASSWORD_TO_IMPORT, $this->clear_password_to_import);
 		if ($this->isColumnModified(ArUserPeer::IS_ENABLED)) $criteria->add(ArUserPeer::IS_ENABLED, $this->is_enabled);
 		if ($this->isColumnModified(ArUserPeer::IS_ROOT_ADMIN)) $criteria->add(ArUserPeer::IS_ROOT_ADMIN, $this->is_root_admin);
 
@@ -1141,6 +1187,8 @@ abstract class BaseArUser extends BaseObject  implements Persistent {
 		$copyObj->setLogin($this->login);
 
 		$copyObj->setPassword($this->password);
+
+		$copyObj->setClearPasswordToImport($this->clear_password_to_import);
 
 		$copyObj->setIsEnabled($this->is_enabled);
 
