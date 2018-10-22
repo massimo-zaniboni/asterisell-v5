@@ -48,10 +48,9 @@ class DefaultHost(Host):
     NOTE: all the instances on the same server must be on the same date_timezone.
     """
 
-    ssh_addr = '192.168.1.39'
+    ssh_addr = 'www.example.net'
     """ The server address to use for its management.
     """
-    # TODO use "change-me" before shipping
 
     ssh_port = '22'
     """ The SSH port used by the management utility.
@@ -76,7 +75,6 @@ class DefaultHost(Host):
 
     IMPORTANT: use a proper value, otherwise the DBMS will be slower.
     """
-    # TODO use a sane value during initial configuration
 
     generate_http_conf = True
     """
@@ -107,9 +105,7 @@ class DefaultSelfSignedDomain(SelfSignedDomain):
     So it is good for testing Asterisell, but not to use in production.
     """
 
-    fully_qualified_domain_name = '192.168.1.39'
-    # TODO use this before release
-    # fully_qualified_domain_name = 'www.example.net'
+    fully_qualified_domain_name = 'www.example.net'
     """
     A DNS FQDN or the IP address of the server.
     NGINX will listen on this name/address for incoming connections.
