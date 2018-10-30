@@ -4,6 +4,10 @@ pedantic=""
 rebuild=0
 docker images | grep "asterisell/fab" > /dev/null
 
+if [ $? -ne 0 ]; then
+    rebuild=1
+fi
+
 if [ "$1" = "--update" ]; then
     rebuild=1
 fi
@@ -11,10 +15,6 @@ fi
 if [ "$1" = "--reinstall" ]; then
     rebuild=1
     pedantic="--no-cache"
-fi
-
-if [ $? -ne 0 ]; then
-    rebuild=1
 fi
 
 if [ "$rebuild" = "1" ]; then
@@ -45,7 +45,7 @@ echo ""
 echo "> docker volume prune"
 echo ""
 
-docker ps -a | grep "asterisell" > /dev/null
+docker inspect asterisell > /dev/null
 if [ $? -ne 0 ]; then
     docker run --name asterisell --user $(id -u):$(id -g) -t -i -v `pwd`:/asterisell/. asterisell/fab
 
