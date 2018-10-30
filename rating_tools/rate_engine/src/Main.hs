@@ -560,7 +560,7 @@ mainRate = do
                  "rolf1_dynamic"
                    -> rolf1_synchro localConnectInfo remoteConnectInfo organizationToIgnore currencyPrecision dataSourceName params
                  "rolf1"
-                   -> rolf1_staticImport localConnectInfo remoteConnectInfo organizationToIgnore currencyPrecision dataSourceName params
+                   -> rolf1_synchro localConnectInfo remoteConnectInfo Text.empty currencyPrecision dataSourceName params
                  _ -> do putStrLn $ "Unsupported method \"" ++ methodNameS ++ "\""
                          exitFailure)
 

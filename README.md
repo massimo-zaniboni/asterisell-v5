@@ -8,7 +8,7 @@ For installing a CentOS 7 Docker container, with all Asterisell compilation and 
 
   ./fab.sh
 
-For more info read the manual at ``doc/manual/out/manual.html`` or on <https://www.asterisell.com/doc/manual.html>
+For more info read the manual at ``doc/manual/out/manual.html`` or on <https://www.asterisell.com>
 
 ## License
 
