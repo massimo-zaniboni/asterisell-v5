@@ -15,7 +15,7 @@ Open source development
 
 Asterisell is released under GPL3+ license: `Asterisell GitHub Repository`_. 
 
-The development is usually driven by customer requests, and it is done inside private reports, for not exposing confidential information. But at the end of the work, all improvements are back-ported to the OSS version, except obviously private configurations of the customers.
+The development is usually driven by customer requests, and it is done inside private repositories, for not exposing confidential information. But at the end of the work, all improvements are back-ported to the OSS version, except obviously private configurations of the customers.
 
 Current status
 --------------
