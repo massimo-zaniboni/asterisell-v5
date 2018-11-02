@@ -507,7 +507,7 @@ function makeDatabaseBackup($isInteractive = true, $onlyConfig = false)
     }
     $fileName .= '.gz';
 
-    $cmd = "mysqldump -u root --password=$password $database --single-transaction $options | gzip > $fileName";
+    $cmd = "mysqldump -u $user --password=$password $database --single-transaction $options | gzip > $fileName";
     $restoreCmd = "pv $fileName | gunzip | mysql -uroot -p" . $password . " " . $database;
 
     if ($isInteractive) {

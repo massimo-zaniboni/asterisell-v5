@@ -112,10 +112,9 @@ class DefaultSelfSignedDomain(SelfSignedDomain):
     """
 
 
-class DefaultLetsEncryptDomain(Domain):
+class DefaultLetsEncryptDomain(LetsEncryptDomain):
     """
     Same as DefaultSelfSignedDomain, but the certificate is signed using LetsEncrypt free service.
-    TODO: this feature is not yet tested. Contact the assistance in case.
     """
 
     fully_qualified_domain_name = 'www.example.net'
@@ -680,9 +679,10 @@ class DemoInstance(DefaultInstance):
 
     name = "demo"
 
-    host = DefaultHost()
     domain = DefaultSelfSignedDomain()
+    domain = DefaultLetsEncryptDomain()
     url_path = 'demo'
+    httpd_web_access_password = ''
 
     database_password = 'long_MAYBE_safe_root2'
     user_database_password = 'long_MAYBE_safe_root3'
