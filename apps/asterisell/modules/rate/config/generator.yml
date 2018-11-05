@@ -25,7 +25,7 @@ generator:
     list:
       title: Rates
       display: [=id, =internal_name, short_description, from_time]
-      filters: [_filter_on_name_list, from_time, short_description, ar_rate_format_id, ar_vendor_id]
+      filters: [id, _filter_on_name_list, from_time, short_description, ar_rate_format_id, ar_vendor_id]
       sort: [from_time, desc]
 
     edit:

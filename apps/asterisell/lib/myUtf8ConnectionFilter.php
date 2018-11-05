@@ -8,7 +8,7 @@ class myUtf8ConnectionFilter extends sfFilter
   {
     $con = Propel::getConnection();
     if ($con){
-       $con->exec("SET NAMES 'utf8' COLLATE 'utf8_bin'");
+        $con->exec("SET NAMES 'utf8mb4' COLLATE 'utf8mb4_bin'");
     }
     $filterChain->execute();
   }
