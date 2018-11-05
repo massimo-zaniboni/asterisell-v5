@@ -4,7 +4,7 @@ from __future__ import unicode_literals
 
 AUTHOR = u'Massimo Zaniboni'
 SITENAME = u'Asterisell'
-SITESUBTITLE = u'Open Source Web Application for Rating and Showing VoIP Calls'
+SITESUBTITLE = u'Open Source Application for Rating and Showing VoIP Calls'
 
 PATH = 'content'
 STATIC_PATHS = ['images']
