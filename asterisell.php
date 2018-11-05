@@ -158,6 +158,11 @@ function displayUsage()
 
       Start job processor in silent mode, usually called from cron daemon.
 
+  php asterisell.php data update-cached-cdrs
+
+      Recalculate all daily totals, of the table ar_cached_cdrs, according the new content of ar_cdr.
+      Used only during development or maintenance, if some unusual operations corrupt the content of the table.
+
 ##
 ## Maintenance operations
 ##
@@ -1359,7 +1364,12 @@ function manageCommand_data($subCommand, $option1, $option2 = '', $option3 = '')
             echo "\nError during restore of data. $status\n";
             return (1);
         }
-
+    } else if ($subCommand == "update-cached-cdrs") {
+        echo "\n\nUpdate ar_cached_cdrs and ar_cached_errors tables.\n\n";
+        if (!RateEngineService::executeUpdateAllCachedCDRS()) {
+            echo "Error during updating of ar_cached_cdrs and ar_cached_errors table\n";
+            return (1);
+        }
     } else if ($subCommand == "import-organizations") {
         $fileName = $option1;
         if (!file_exists($fileName)) {

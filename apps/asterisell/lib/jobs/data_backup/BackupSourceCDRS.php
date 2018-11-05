@@ -43,7 +43,7 @@ NOWDOC;
         $query .= " INTO OUTFILE '$tmpFileName' ";
 
         $query .= <<<'NOWDOC'
-        CHARACTER SET 'utf8'
+        CHARACTER SET 'utf8mb4'
         FIELDS TERMINATED BY ','
         OPTIONALLY ENCLOSED BY '"'
         ESCAPED BY '\\'
@@ -114,7 +114,7 @@ NOWDOC;
                 $cmd = "LOAD DATA INFILE '$tmpFile' ";
                 $cmd .= <<<'HEREDOC'
         INTO TABLE ar_source_cdr
-        CHARACTER SET 'utf8'
+        CHARACTER SET 'utf8mb4'
         FIELDS TERMINATED BY ','
         OPTIONALLY ENCLOSED BY '"'
         ESCAPED BY '\\'

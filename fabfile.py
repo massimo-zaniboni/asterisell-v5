@@ -228,11 +228,12 @@ def get_working_instances(instance_code):
             host = instance.host
             domain = instance.domain
 
-    for instance in all_instances:
-        if instance.host.name == host.name:
-            on_same_host.append(instance)
-            if instance.domain.fully_qualified_domain_name == domain.fully_qualified_domain_name:
-                on_same_domain.append(instance)
+    if work_instance is not None:
+        for instance in all_instances:
+            if instance.host.name == host.name:
+                on_same_host.append(instance)
+                if instance.domain.fully_qualified_domain_name == domain.fully_qualified_domain_name:
+                    on_same_domain.append(instance)
 
     return (work_instance, on_same_host, on_same_domain)
 
@@ -250,6 +251,10 @@ def manage_instance(action, instance_code, passw = ''):
         sys.exit(1)
 
     (instance, on_same_host, on_same_domain) = get_working_instances(instance_code)
+    if instance is None:
+        print "\n"
+        print "Unknown instance " + instance_code
+        sys.exit(1)
 
     with settings(host_string=instance.complete_host_string()):
         phpast = 'cd ' + instance.get_admin_deploy_directory() + ' && php asterisell.php '

@@ -223,7 +223,7 @@ exit 0
                                  php php-mysqlnd php-pdo php-cli php-common php-opcache php-bcmath \
                                  php-xml php-mbstring php-gd php-fpm \
                                  mingw32-iconv gmp lftp php-gd php-xml \
-                                 freetype gnutls \
+                                 freetype gnutls pv \
                                  httpd httpd-tools curl vim wget htop screen \
                                  mingw-filesystem-base mingw32-crt mingw32-filesystem \
                                  nettle openssl openssl-devel git \
@@ -1696,19 +1696,21 @@ all:
     def get_cronjob_code(self):
         """Return the code for the cronjob."""
 
-        cmd = str(self.job_offset_in_minutes)
         if self.install_cron_job:
+            cmd = str(self.job_offset_in_minutes)
             current_time = self.job_frequency_in_minutes + self.job_offset_in_minutes
             while current_time < 60:
                 cmd = cmd + ',' + str(current_time)
                 current_time = current_time + self.job_frequency_in_minutes
 
-            cmd = cmd + ' * * * * ' + self.get_web_server_unix_user() \
+            cmd = cmd + ' * * * * root ' \
                       + ' cd ' + self.get_admin_deploy_directory() \
                       + ' && php asterisell.php run scheduled-jobs > /dev/null 2>&1 ' \
                       + "\n"
 
-        return cmd
+            return cmd
+        else:
+            return ''
 
     def execute_connect_task(self):
         conn = ' -p ' + self.host.ssh_port + ' ' + self.host.ssh_user + '@' + self.host.ssh_addr
@@ -2086,12 +2088,12 @@ http {
                     + self.get_web_server_unix_user()
                     + ':'
                     + self.get_web_server_unix_user()
-                    + webdav_passwd_file)
+                    + ' ' + webdav_passwd_file)
                 run('chown -R '
                    + self.get_web_server_unix_user()
                    + ':'
                    + self.get_web_server_unix_user()
-                   + webdav_dir)
+                   + ' ' + webdav_dir)
 
                 t = template_webdav.substitute(
                     maybe_slash=maybe_slash,

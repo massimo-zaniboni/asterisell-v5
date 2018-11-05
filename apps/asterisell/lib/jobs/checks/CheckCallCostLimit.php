@@ -100,7 +100,7 @@ class CheckCallCostLimit extends FixedJobProcessor
 
         $query = '
         SELECT cached_parent_id_hierarchy, SUM(income)
-        FROM ar_cdr
+        FROM ar_cached_grouped_cdr
         WHERE calldate >= ?
         GROUP BY cached_parent_id_hierarchy
         ';
@@ -111,7 +111,7 @@ class CheckCallCostLimit extends FixedJobProcessor
         $totIncomes = array();
 
         $stm = Propel::getConnection()->prepare($query);
-        $stm->execute(array(fromUnixTimestampToMySQLTimestamp($timeframe)));
+        $stm->execute(array(fromUnixTimestampToMySQLDate($timeframe)));
         while (($rs = $stm->fetch(PDO::FETCH_NUM)) !== false) {
             $prof->incrementProcessedUnits();
             $organizationIds = $rs[0];
