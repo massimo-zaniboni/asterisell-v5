@@ -12,10 +12,11 @@ generator:
       ar_party: { name: Associated to party  }
       to_unit_organization_full_view: { name: Name }
       filter_on_party_name: { name: Name }
+      filter_on_id: { name: Internal Id }
 
     list:
       title: Organizations at root level
       display: [_to_unit_organization_full_view]
-      filters: [_filter_on_party_name]
+      filters: [_filter_on_party_name, _filter_on_id]
 
     edit: []

@@ -11,6 +11,11 @@ Organizations can change their hierarchy structure with time. The structure of t
 
 Fiscal information and users will mantain only the last edited data.
 
-## Undo of changes
-
 Old version of an organization can be retrieved from ``Entities -> Backup``.
+
+## Advanced searches
+
+For searching by CRM code, VAT code, state, province and so on use ``Entities -> Parties``.
+
+For searching by VoIP account code use ``Entities -> Complete Info``.
+

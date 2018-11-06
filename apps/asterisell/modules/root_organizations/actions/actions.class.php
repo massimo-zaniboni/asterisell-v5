@@ -5,6 +5,29 @@ sfLoader::loadHelpers(array('I18N', 'Debug', 'Asterisell'));
 class root_organizationsActions extends autoRoot_organizationsActions
 {
 
+    public function executeList($request)
+    {
+        // If filter_on_id is set, jump to the proper organization
+        if ($this->getRequest()->hasParameter('filter')) {
+            $filters = $this->getRequestParameter('filters');
+            if (is_array($filters)) {
+                if (isset($filters['filter_on_id']) && !isEmptyOrNull($filters['filter_on_id'])) {
+                    $s = $filters['filter_on_id'];
+
+                    // remove the filter, because it is used only once
+                    $this->getUser()->getAttributeHolder()->removeNamespace('sf_admin/ar_organization_unit/filters');
+
+                    if (is_numeric($s)) {
+                        $id = (int)$s;
+                        return $this->redirect('organization_full_view/view?id=' . $id);
+                    }
+                }
+            }
+        }
+
+        parent::executeList($request);
+    }
+
     public function executeCreate($request)
     {
         $o = new ArOrganizationUnit();
@@ -46,7 +69,8 @@ class root_organizationsActions extends autoRoot_organizationsActions
      *
      * @param Criteria $c
      */
-    protected function addFiltersCriteria($c) {
+    protected function addFiltersCriteria($c)
+    {
         $c->addJoin(ArOrganizationUnitHasStructurePeer::AR_ORGANIZATION_UNIT_ID, ArOrganizationUnitPeer::ID, Criteria::INNER_JOIN);
         $c->addJoin(ArOrganizationUnitHasStructurePeer::AR_PARTY_ID, ArPartyPeer::ID, Criteria::INNER_JOIN);
 
@@ -57,6 +81,7 @@ class root_organizationsActions extends autoRoot_organizationsActions
             $cc->setIgnoreCase(true);
             $c->add($cc);
         }
+
 
         // search for a structure with a null parent, now, in the past or in the future.
         // In this way an user can select all the root organizations of future and past.
