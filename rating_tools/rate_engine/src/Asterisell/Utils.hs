@@ -44,6 +44,8 @@ module Asterisell.Utils (
   tomorrow,
   today,
   yesterday,
+  fromLazyByteStringToString,
+  fromLazyToStrictByteString,
   fromGammaCallDateAndTimeStampToLocalTime,
   fromGammaItemRentalCallDateToLocalTime,
   fromTextToInt,
@@ -66,7 +68,6 @@ module Asterisell.Utils (
   isAscendingOrder,
   isDescendingOrder,
   fromMySQLResultToText,
-  fromLazyToStrictByteString,
   fromTextToMySQLResult,
   skipCSVField,
   fromDateFormat2ToLocalTime,
@@ -98,6 +99,7 @@ module Asterisell.Utils (
   stream_map,
   stream_sequence,
   stream_forceMap,
+  process_initCores,
   process_orderedChunks,
   process_orderedChunksUsingFun,
   waitAll
@@ -109,9 +111,11 @@ import Text.Megaparsec as P
 import Text.Megaparsec.Char as P
 import Text.Megaparsec.Error as P
 import qualified Data.Text as T
+import qualified Data.Text.Lazy as LText
+import qualified Data.Text.Lazy.Encoding as LText
 import qualified Data.Text.Read as T
 import qualified Data.ByteString as BS
-import qualified Data.ByteString.Lazy as BSL
+import qualified Data.ByteString.Lazy as LBS
 import qualified Data.ByteString.Builder as B
 import Data.Time.Clock
 import Data.Time.LocalTime
@@ -135,6 +139,8 @@ import Control.Monad.IO.Class
 import Debug.Trace
 import Data.IORef
 import Control.Exception.Base (BlockedIndefinitelyOnMVar, BlockedIndefinitelyOnSTM, AssertionFailed(..))
+import GHC.Conc (getNumProcessors)
+import Control.Concurrent (forkIO, setNumCapabilities, getNumCapabilities)
 import qualified Control.Concurrent.Async as C
 import qualified Control.DeepSeq as C
 import qualified System.IO.Streams as S
@@ -147,6 +153,7 @@ import qualified System.IO.Streams.Vector as S
 import Data.Void
 import qualified Data.Csv as CSV
 import qualified Data.Vector as V
+import Data.Int
 import Data.Maybe
 import Data.Either
 import Data.Typeable
@@ -483,9 +490,13 @@ fromTextToMySQLResult :: T.Text -> BS.ByteString
 fromTextToMySQLResult t = encodeUtf8 t
 {-# INLINE fromTextToMySQLResult #-}
 
-fromLazyToStrictByteString :: BSL.ByteString -> BS.ByteString
-fromLazyToStrictByteString lb = BSL.toStrict lb
+fromLazyToStrictByteString :: LBS.ByteString -> BS.ByteString
+fromLazyToStrictByteString lb = LBS.toStrict lb
 {-# INLINE fromLazyToStrictByteString #-}
+
+fromLazyByteStringToString :: LBS.ByteString -> String
+fromLazyByteStringToString s = LText.unpack $ LText.decodeUtf8 s
+{-# INLINE fromLazyByteStringToString #-}
 
 -- | Convert from a String in MySQL date-time format to an internal LocalTime.
 --   Warning: this function is very slow, use instead `fromMySQLTimeToLocalTime`.
@@ -622,6 +633,9 @@ fromGammaItemRentalCallDateToLocalTime monthAndYear
          case monthM of
            Nothing -> return Nothing
            Just m -> return $ Just $ (yyyy, m)
+
+-- --------------------------------------
+-- Time related
 
 -- | A format like this
 --   > 2014/11/05 08.28.54
@@ -914,7 +928,7 @@ type CmdParams = Map.Map BS.ByteString BS.ByteString
 
 cparams_load :: String -> IO CmdParams
 cparams_load fileName = do
-  c <- BSL.readFile fileName
+  c <- LBS.readFile fileName
   case CSV.decode CSV.NoHeader c of
     Left err -> error ("Error during decoding of " ++ fileName ++ ": " ++ err) 
     Right vv -> return $ V.foldl' (\m1 v -> Map.insert (V.head v) (V.last v) m1) Map.empty vv
@@ -924,8 +938,23 @@ cparams_get pp n = case Map.lookup n pp of
                      Nothing -> error ("Missing cmd param " ++ fromByteStringToString n ++ " inside " ++ show pp) 
                      Just v -> v
 
--- -----------------------
--- Chunks
+-- --------------------------------------------------
+-- Multithreading processing of chunks of data
+
+-- | Return the number of available jobs.
+--   @require to be called before multi-core processing, otherwise GHC runtime will not use all of them
+process_initCores
+    :: Int -- ^ 0 for using all available cores
+    -> IO Int
+process_initCores cores = do
+  t <- case cores of
+         0 -> do c <- getNumProcessors
+                 return $ if c > 2 then (c -1) else 1
+                 -- NOTE: leave a CPU for the DBMS and OS, so it is all faster, without thread context switches
+         c -> return c
+
+  setNumCapabilities t
+  return t
 
 -- | A chunk of data.
 --   Data is processed at chunks because usually calcs in each phase are cheaps,
@@ -1156,6 +1185,8 @@ stream_sequence seed0 generator = do
                         g stateR
       _
         -> return mv
+
+
 
 -- -----------------------
 -- Brackets

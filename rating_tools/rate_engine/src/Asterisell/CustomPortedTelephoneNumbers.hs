@@ -141,11 +141,10 @@ rolf1_processTelcordia dbConf fileName = do
            }
    state1R <- newIORef state1
    withResource'
-    (db_init dbConf Nothing 4)
-    (\dbStateR -> do
-       dbState <- readIORef dbStateR
-       let conn = dbps_conn dbState
-
+    (do conn <- db_openConnection dbConf False
+        db_openTransaction conn
+        return conn)
+    (\conn -> do
        -- NOTE: up to date Xeno does not use Lazy ByteStrings
        xmlContent' <- BS.readFile fileName
        let xmlContent
@@ -158,42 +157,40 @@ rolf1_processTelcordia dbConf fileName = do
                                      })
 
        state1 <- readIORef state1R
-       db_garbagePastErrors dbStateR (rs_garbageKey state1) Nothing Nothing
+       db_garbagePastErrors conn (rs_garbageKey state1) Nothing Nothing
 
        XML.process
-         (openTagP dbStateR state1R)
-         (tagAttrP dbStateR state1R)
-         (closeTagAttrP dbStateR state1R)
-         (textP dbStateR state1R)
-         (closeTagP dbStateR state1R)
-         (cdataP dbStateR state1R)
+         (openTagP conn state1R)
+         (tagAttrP conn state1R)
+         (closeTagAttrP conn state1R)
+         (textP conn state1R)
+         (closeTagP conn state1R)
+         (cdataP conn state1R)
          xmlContent
 
        state2 <- readIORef state1R
        return $ rs_countInserts state2)
-    (db_releaseResourceR)
+    (db_releaseResource)
     (\exc -> SomeException $ AsterisellException $ "Unrecoverable error during importing of Telecordia ported telephone numbers, from file " ++ fileName  ++ ". Exception: " ++ displayException exc)
 
  where
 
-   openTagP :: IORef DBState -> IORef Rolf1State -> BS.ByteString -> IO ()
-   openTagP dbStateR sr tagName
+   openTagP :: DB.MySQLConn -> IORef Rolf1State -> BS.ByteString -> IO ()
+   openTagP conn sr tagName
       = do ts <- fromXMLTagToXMLState tagName
            modifyIORef' sr (\s -> s { rs_xml_state = ts })
            when (ts == RXML_Activated) (modifyIORef' sr (\s -> s { rs_xml_activated = True}))
            -- NOTE activated has no text associated, so we process explicitely here.
            return ()
 
-   tagAttrP :: IORef DBState -> IORef Rolf1State -> BS.ByteString -> BS.ByteString -> IO ()
-   tagAttrP dbStateR sr attrName attrValue = return ()
+   tagAttrP :: DB.MySQLConn -> IORef Rolf1State -> BS.ByteString -> BS.ByteString -> IO ()
+   tagAttrP conn sr attrName attrValue = return ()
 
-   closeTagAttrP :: IORef DBState -> IORef Rolf1State -> BS.ByteString -> IO ()
-   closeTagAttrP dbStateR sr tagName = return ()
+   closeTagAttrP :: DB.MySQLConn -> IORef Rolf1State -> BS.ByteString -> IO ()
+   closeTagAttrP conn sr tagName = return ()
 
-   textP :: IORef DBState -> IORef Rolf1State -> BS.ByteString -> IO ()
-   textP dbStateR sr bs = do
-     dbState <- readIORef dbStateR
-     let conn = dbps_conn dbState
+   textP :: DB.MySQLConn -> IORef Rolf1State -> BS.ByteString -> IO ()
+   textP conn sr bs = do
      s <- readIORef sr
      when (rs_xml_activated s &&  (not $ isEmptyXMLContent bs)) $ do
 
@@ -258,7 +255,7 @@ rolf1_processTelcordia dbConf fileName = do
          RXML_Action
            -> -- every type of action (e.g. Port, PortBack, Reverse) port the telephone number to the indicated operator
               case rs_xml_src s == rs_xml_range_to s of
-                True -> do  saveExportedTelephoneNumber dbStateR sr (rs_xml_src s)
+                True -> do  saveExportedTelephoneNumber conn sr (rs_xml_src s)
                 False -> do n1 <- fromBSToInteger (rs_xml_src s)
                             n2 <- fromBSToInteger (rs_xml_range_to s)
                             let ml = 10000
@@ -272,13 +269,13 @@ rolf1_processTelcordia dbConf fileName = do
                                       ++ " and this is not supported.")
 
                             let ns :: [BS.ByteString] = L.map fromLazyToStrictByteString $ L.map BSC.toByteString [n1 .. n2]
-                            mapM_ (saveExportedTelephoneNumber dbStateR sr) ns
+                            mapM_ (saveExportedTelephoneNumber conn sr) ns
 
-   closeTagP :: IORef DBState -> IORef Rolf1State -> BS.ByteString -> IO ()
-   closeTagP dbStateR sr tagName = return ()
+   closeTagP :: DB.MySQLConn -> IORef Rolf1State -> BS.ByteString -> IO ()
+   closeTagP conn sr tagName = return ()
 
-   cdataP :: IORef DBState -> IORef Rolf1State -> BS.ByteString -> IO ()
-   cdataP dbStateR sr bs = return ()
+   cdataP :: DB.MySQLConn -> IORef Rolf1State -> BS.ByteString -> IO ()
+   cdataP conn sr bs = return ()
 
    fromBSToInteger :: BS.ByteString -> IO Integer
    fromBSToInteger bs = do
@@ -287,11 +284,9 @@ rolf1_processTelcordia dbConf fileName = do
        Just n -> return n
        Nothing -> throwIO $ AsterisellException $ "Error parsing number: " ++ fromByteStringToString bs
 
-   saveExportedTelephoneNumber :: IORef DBState -> IORef Rolf1State -> BS.ByteString -> IO ()
-   saveExportedTelephoneNumber dbStateR sr tn = do
+   saveExportedTelephoneNumber :: DB.MySQLConn -> IORef Rolf1State -> BS.ByteString -> IO ()
+   saveExportedTelephoneNumber conn sr tn = do
      s <- readIORef sr
-     dbState <- readIORef dbStateR
-     let conn = dbps_conn dbState
      _ <- DB.executeStmt
             conn
             (rs_insertStmtId s)

@@ -68,35 +68,13 @@
 --
 module Asterisell.RateEngine (
   rateEngine_rate,
-  SourceDataSummaryInfo,
-  DBConf(..),
   RunLevel(..),
   RunLevelT(..),
   runLevel_default,
   RatingMonad,
-  YearAndMonth,
-  MaybeTimeFrame,
-  CountOfCDRS,
-  maybeTimeFrame_larger,
   forceRight,
-  rateEngine_importDataFile,
-  rateEngine_exportDataFile,
   rateEngine_updateCachedGroupedCDRS,
   rateEngine_openDBAndUpdateCachedGroupedCDRS,
-  db_init,
-  db_garbagePastErrors,
-  db_commitTransactionR,
-  db_releaseResourceR,
-  db_rollBackTransactionR,
-  dbErrors_insert,
-  cdr_initialClassification,
-  mainRate_apply,
-  rateServiceCDRS,
-  execute_initialClassification,
-  fromLazyByteStringToString,
-  fromLazyToStrictByteString,
-  timeFrame_getYearsAndMonth,
-  DBState(..),
   tt_rateSpecificationsTests,
   tt_mainRateCalcTets
 ) where
@@ -183,7 +161,6 @@ import GHC.Conc (getNumProcessors)
 import Control.Concurrent (myThreadId)
 import Control.Concurrent.MVar
 import Control.Concurrent.Async
-import Control.Concurrent (forkIO, setNumCapabilities, getNumCapabilities)
 import Control.Exception.Safe (catch, catchAny, onException, finally, handleAny, bracket
                               , SomeException(..), throwIO, throw, Exception, MonadMask
                               , withException, displayException)
@@ -223,21 +200,6 @@ param_chunkSize :: Int
 param_chunkSize = 512
 {-# INLINE param_chunkSize #-}
 
--- | The maximum number of CDRS with the same calldate.
---   NOTE: in case of services and bundles, they have all the same date,
---   and they are proportional to the number of customers.
-type UniqueDateId = Int32
-
-uniqueDateId_init :: UniqueDateId
-uniqueDateId_init = 0
-{-# INLINE uniqueDateId_init #-}
-
-uniqueDateId_next :: UniqueDateId -> UniqueDateId
-uniqueDateId_next n
-  = let maxId = 2 ^ 20
-    in  mod (n + 1) maxId
-{-# INLINE uniqueDateId_next #-}
-
 -- | The number of source CDRs to fetch from the DB, before splitting the rating event.
 --   Up to date the Haskell MySQL driver does not support the forward-only cursor mode,
 --   and it stores all the CDRS of the rating query in RAM.
@@ -273,76 +235,6 @@ data RunLevelT
   -- ^ complete rate, but without calculating ported telephone numbers,
   -- and RunLevelSkipUpdateCachedGroupedCDRS
  deriving (Eq, Ord, Show, Generic, NFData)
-
--- | Meta info about a SourceDataFile.
---   At this stage only the calldate is imported and processed.
-type SourceDataSummaryInfo
-  = ( Maybe (LocalTime, LocalTime)
-      -- ^ max and minimum found call date
-    , Int
-      -- ^ total number of lines
-    , Int
-      -- ^ lines with errors
-    )
-
--- -------------------------------------------------------------------
--- Named pipes
-
--- | Return the numbef of available jobs.
-process_initCores :: RunLevel -> IO Int
-process_initCores p = do
-  t <- case (runLevel_cores p) of
-         0 -> do c <- getNumProcessors
-                 return $ if c > 2 then (c -1) else 1
-                 -- NOTE: leave a CPU for the DBMS and OS, so it is all faster, without thread context switches
-         c -> return c
-
-  setNumCapabilities t
-  return t
-
-waitPosixProcess :: Process.ProcessHandle -> IO ()
-waitPosixProcess pid = do
-  _ <- Process.waitForProcess pid
-  -- MAYBE intercept errors in the status and return an exception
-  return ()
-
--- | Send data to a named-pipe, using a unix process as wrapper.
---   It is a lot more robust (but a little slower) respect
---   direct writing to the named pipe, that is not very robust and well supported in Haskell,
---   because GHC threads do not play well with blocking pipes.
---   NOTE: the returned handle supports back-pressure, because halt the sender if the
---   receiver is not ready to process the data, and it is good when the
---   writer (DMBS) is slower than the producer.
-namedPipe_create
-  :: String
-  -- ^ the named pipe where redirecting data
-  -> IO (Handle, Process.ProcessHandle)
-  -- ^ the handler where sending data, and to close at the end.
-  --   When closed the wrapper will terminate.
-  --   The returned Id must be used from the caller thread for waiting the termination of the process,
-  --   using the command `waitPosixProcess`.
-
-namedPipe_create pipeName = do
-  pipeExists <- Posix.fileExist (fromStringToByteString pipeName)
-  when (pipeExists) (IO.removeFile pipeName)
-  let mysqlCanRead = Posix.unionFileModes Posix.namedPipeMode $ Posix.unionFileModes Posix.ownerModes Posix.groupReadMode
-
-  mysqlUser <- Posix.groupID <$> Posix.getGroupEntryForName "mysql"
-
-  Posix.createNamedPipe (fromStringToByteString pipeName) mysqlCanRead
-  Posix.setOwnerAndGroup (fromStringToByteString pipeName) (0 - 1) mysqlUser
-
-  let cmd = (Process.shell ("cat >> " ++ pipeName)) {
-                 Process.std_in = Process.CreatePipe
-               , Process.std_out = Process.NoStream
-               , Process.std_err = Process.NoStream
-               , Process.close_fds = True
-            }
-
-  (Just hIn, Nothing, Nothing, pid) <- Process.createProcess cmd
-
-  hSetBuffering hIn (BlockBuffering Nothing)
-  return (hIn, pid)
 
 -- -------------------------------------------------------------------
 -- DB Actions
@@ -411,71 +303,6 @@ db_releaseResourceR isOk dbStateR
       state <- readIORef dbStateR
       DB.close (dbps_conn state)
 
--- | Remove old status CDRs with the same cdr provider, and logical-type,
--- in a timeframe that is the same of this file, because this new piece of information
--- is a status replacing completely old values.
--- Pass Nothing as time-frame for deleting all the CDRs of the provider.
-db_deleteFromArSource :: IORef DBState -> PhysicalFormatId -> ProviderId -> (Maybe (LocalTime, LocalTime)) -> IO ()
-
-db_deleteFromArSource stateR formatId providerId Nothing = do
-  state <- readIORef stateR
-  let conn = dbps_conn state
-  let writeData = dbps_writeData state
-  case writeData of
-    False
-      -> do return ()
-    True
-      -> do
-            let query = "DELETE FROM ar_source_cdr WHERE ar_physical_format_id = ? AND ar_cdr_provider_id  = ? "
-            DB.execute conn query [toDBInt64 formatId, toDBInt64 providerId]
-            return ()
-
-db_deleteFromArSource stateR formatId providerId (Just (fromDate, toDate)) = do
-  state <- readIORef stateR
-  let conn = dbps_conn state
-  let writeData = dbps_writeData state
-  case writeData of
-    False
-      -> do return ()
-    True
-      -> do
-            let query = [str|DELETE FROM ar_source_cdr
-                            |WHERE ar_physical_format_id = ?
-                            |AND ar_cdr_provider_id  = ?
-                            |AND calldate >= ?
-                            |AND calldate < ?
-                            |]
-
-            DB.execute conn query [ toDBInt64 formatId
-                                  , toDBInt64 providerId
-                                  , toDBLocalTime fromDate
-                                  , toDBLocalTime toDate]
-            return ()
-
-
--- | Inform the application that there are new calls to rate in the specified time-frame
-db_updateRatingTimeFrame
-  :: IORef DBState
-  -> LocalTime
-  -- ^ from call time
-  -> IO ()
-
-db_updateRatingTimeFrame stateR fromDate = do
-  state <- readIORef stateR
-  let conn = dbps_conn state
-  let writeData = dbps_writeData state
-  case writeData of
-    False
-      -> do return ()
-    True
-      -> do
-            let query = [str|UPDATE ar_params
-                            |SET new_imported_cdrs_from_calldate = IFNULL(LEAST(new_imported_cdrs_from_calldate, ?), ?)
-                            |WHERE is_default = 1
-                            |]
-
-            DB.execute conn query [toDBLocalTime fromDate, toDBLocalTime fromDate]
-            return ()
 
 -- | Delete old calculated CDRs before calculating new ones.
 --   Delete also `ar_cached_grouped_cdrs` and `ar_cached_errors`, because they will be updated
@@ -529,128 +356,6 @@ db_saveBundleState dbStateR env toCallDate bundleState dailyBundleState = do
 
    serializeBundleState b = toDBText $ fromByteStringToText $ B64.encode $ LZ.compress $ DBS.encode b
 
--- | Start on a separate process `LOAD DATA INFILE` using a named pipe as input.
---   The DB process will be not anymore accessible until the pipe is closed.
---   This process will manage automatically the `ar_cdr.id` and `ar_source_cdr.id` field,
---   generating consecutive IDS. The ID field had not to be specified in the schema and in the generated data,
---   and it will be automatically inserted.
-db_loadDataFromNamedPipe
-  :: IORef DBState
-  -> BS.ByteString
-  -- ^ named-pipe name to use as input
-  -> BS.ByteString
-  -- ^ the table name
-  -> [BS.ByteString]
-  -- ^ the columns to import. The order of columns must be the same of the pipe content.
-  -- The accepted format is `\t` as field separator, `\n` as record separator,
-  -- `\N` for NULL values, and proper escaping of characters.
-  -> (a -> B.Builder)
-  -- ^ a function converting a record to MySQL CSV-like format, without the '\N' record separator
-  -> IO (OrderedStream a
-        -- ^ a channel-like with a chunk of records to send to the DB.
-        -- Nothing for signaling the end of the data, and terminating the process.
-        , V.Vector (Async ())
-        -- ^ the processes to wait, for the termination of the loading of data,
-        -- and intercepting the exceptions.
-        -- @require until this process does not terminate, no other DB actions can be called
-        )
-
-db_loadDataFromNamedPipe stateR pipeName tableName columns f = do
-  state <- readIORef stateR
-  let conn = dbps_conn state
-  let loadTarget =  dbps_debugFile state
-
-  inChan <- newEmptyMVar
-  (pipeH, p1) <- namedPipe_create (fromByteStringToString pipeName)
-  p2 <-async (process_load loadTarget conn)
-  p3 <- async (process_writeToMySQLNamedPipe inChan f pipeH uniqueDateId_init)
-  p4 <- async (waitPosixProcess p1)
-  return (inChan, V.fromList [p2, p3, p4])
-
- where
-
-  mainProcess loadTarget conn inChan = do
-    return ()
-
-  process_load :: Maybe String -> DB.MySQLConn -> IO ()
-
-  process_load (Just outFileName) _ = do
-    -- NOTE: simulate an external process reading from the pipe and writing to disk, like in case of MySQL process.
-    Process.callCommand $ "cat " ++ (fromByteStringToString pipeName) ++ " > " ++ outFileName
-
-  process_load Nothing conn = do
-    let q = B.byteString "LOAD DATA INFILE ? INTO TABLE "
-                           <>  B.byteString tableName
-                           <> B.byteString " CHARACTER SET utf8mb4 (`id`,"
-                           <> mconcat (L.intersperse (B.byteString ",") $ L.map B.byteString columns)
-                           <> B.byteString ")"
-    _ <- DB.execute conn (DB.Query $ B.toLazyByteString q) [toDBByteString pipeName]
-    return ()
-
-  process_writeToMySQLNamedPipe maybeInDataR f outH uniqueId1 = do
-     maybeInData <- takeMVar maybeInDataR
-
-     case maybeInData of
-      Nothing
-        -> do
-              hClose outH
-              return ()
-      Just inData
-        -> do
-              !lastUniqueId
-                <- V.foldM (\uniqueId cdr -> do
-                               B.hPutBuilder outH (B.int32Dec uniqueId <> B.charUtf8 '\t' <> f cdr <> B.charUtf8 '\n')
-                               return $ uniqueDateId_next uniqueId) uniqueId1 inData
-
-              process_writeToMySQLNamedPipe maybeInDataR f outH lastUniqueId
-
--- | Delete all errors with the specified garbage collection key, so only new errors are inserted.
---   To call before inserting new errors.
-db_garbagePastErrors
-  :: IORef DBState
-  -> BS.ByteString
-  -- ^ the garbage key
-  -> Maybe LocalTime
-  -- ^ delete errors from this date
-  -> Maybe LocalTime
-  -- ^ delete errors to this date
-  -> IO ()
-
-db_garbagePastErrors dbStateR garbageKey fromDate toDate = do
-  dbState <- readIORef dbStateR
-  case dbps_writeData dbState of
-    False -> do return ()
-    True ->  do _ <- initErrors (dbps_conn dbState) garbageKey fromDate toDate
-                return ()
- where
-
-  initErrors :: MySQLConn -> BS.ByteString -> Maybe LocalTime -> Maybe LocalTime -> IO ()
-  initErrors db garbageKey mfromDate mtoDate
-    = do case (mfromDate, mtoDate) of
-                (Just fromDate, Just toDate)
-                  -> do _ <- DB.execute
-                               db
-                               "DELETE FROM ar_new_problem WHERE garbage_collection_key = ? AND garbage_collection_from >= ? AND garbage_collection_to <= ? ;"
-                               [toDBByteString garbageKey, toDBLocalTime fromDate, toDBLocalTime toDate]
-                        return ()
-                (Just fromDate, Nothing)
-                  -> do _ <- DB.execute
-                               db
-                               "DELETE FROM ar_new_problem WHERE garbage_collection_key = ? AND garbage_collection_from >= ?"
-                               [toDBByteString garbageKey, toDBLocalTime fromDate]
-                        return ()
-                (Nothing, Just toDate)
-                  -> do _ <- DB.execute
-                               db
-                               "DELETE FROM ar_new_problem WHERE garbage_collection_key = ? AND garbage_collection_to <= ? ;"
-                               [toDBByteString garbageKey, toDBLocalTime toDate]
-                        return ()
-                (Nothing, Nothing)
-                  -> do _ <- DB.execute
-                               db
-                               "DELETE FROM ar_new_problem WHERE garbage_collection_key = ?"
-                               [toDBByteString garbageKey]
-                        return ()
 
 db_errorFileName :: String -> String
 db_errorFileName dbName = "/var/tmp/errors__" ++ dbName ++ ".csv"
@@ -760,6 +465,54 @@ db_closeRatingEvent env stateR toCallDate = do
 -- ----------------------------------------
 -- Error process
 
+-- | Delete all errors with the specified garbage collection key, so only new errors are inserted.
+--   To call before inserting new errors.
+db_garbagePastErrorsR
+  :: IORef DBState
+  -> BS.ByteString
+  -- ^ the garbage key
+  -> Maybe LocalTime
+  -- ^ delete errors from this date
+  -> Maybe LocalTime
+  -- ^ delete errors to this date
+  -> IO ()
+
+db_garbagePastErrorsR dbStateR garbageKey fromDate toDate = do
+  dbState <- readIORef dbStateR
+  case dbps_writeData dbState of
+    False -> do return ()
+    True ->  do _ <- initErrors (dbps_conn dbState) garbageKey fromDate toDate
+                return ()
+ where
+
+  initErrors :: MySQLConn -> BS.ByteString -> Maybe LocalTime -> Maybe LocalTime -> IO ()
+  initErrors db garbageKey mfromDate mtoDate
+    = do case (mfromDate, mtoDate) of
+                (Just fromDate, Just toDate)
+                  -> do _ <- DB.execute
+                               db
+                               "DELETE FROM ar_new_problem WHERE garbage_collection_key = ? AND garbage_collection_from >= ? AND garbage_collection_to <= ? ;"
+                               [toDBByteString garbageKey, toDBLocalTime fromDate, toDBLocalTime toDate]
+                        return ()
+                (Just fromDate, Nothing)
+                  -> do _ <- DB.execute
+                               db
+                               "DELETE FROM ar_new_problem WHERE garbage_collection_key = ? AND garbage_collection_from >= ?"
+                               [toDBByteString garbageKey, toDBLocalTime fromDate]
+                        return ()
+                (Nothing, Just toDate)
+                  -> do _ <- DB.execute
+                               db
+                               "DELETE FROM ar_new_problem WHERE garbage_collection_key = ? AND garbage_collection_to <= ? ;"
+                               [toDBByteString garbageKey, toDBLocalTime toDate]
+                        return ()
+                (Nothing, Nothing)
+                  -> do _ <- DB.execute
+                               db
+                               "DELETE FROM ar_new_problem WHERE garbage_collection_key = ?"
+                               [toDBByteString garbageKey]
+                        return ()
+
 process_errors
   :: RatingParams
   -> IORef DBState
@@ -843,366 +596,6 @@ process_errors env dbStateR inChan = do
 
          return ()
 
-dbErrors_prepareInsertStmt :: DB.MySQLConn -> IO StmtID
-dbErrors_prepareInsertStmt conn
-     = let q =  [str|INSERT INTO ar_new_problem(
-                    |   ar_problem_type_id, ar_problem_domain_id, ar_problem_responsible_id, created_at
-                    | , duplication_key, garbage_collection_key, garbage_collection_from
-                    | , garbage_collection_to
-                    | , description, effect, proposed_solution
-                    | , signaled_to_admin)
-                    |VALUES(?,?,?, NOW(), ?, ?, ?, ?, ?, ?, ?, 0)
-                    |ON DUPLICATE KEY UPDATE
-                    |  garbage_collection_from = LEAST(garbage_collection_from, VALUES(garbage_collection_from))
-                    |, garbage_collection_to = GREATEST(garbage_collection_to, VALUES(garbage_collection_to))
-                    |, ar_problem_type_id = VALUES(ar_problem_type_id)
-                    |, ar_problem_domain_id  = VALUES(ar_problem_domain_id)
-                    |, ar_problem_responsible_id  = VALUES(ar_problem_responsible_id)
-                    |, created_at = VALUES(created_at)
-                    |, garbage_collection_key = VALUES(garbage_collection_key )
-                    |, description = VALUES(description )
-                    |, effect = VALUES(effect)
-                    |, proposed_solution = VALUES(proposed_solution)
-                    |, signaled_to_admin  = signaled_to_admin ;
-                    |]
-       in DB.prepareStmt conn q
-
--- | Insert the error.
---   @require the connection is not used from other process (it is not thread safe)
-dbErrors_insert
-  :: DB.MySQLConn
-  -> Maybe StmtID
-  -- ^ dbErrors_prepareInsertStmt
-  -> AsterisellError
-  -> Maybe (CallDate, CallDate)
-  -- ^ garbage from - to
-  -> IO ()
-
-dbErrors_insert conn maybeStmtId err maybeGarbageTimeFrame = do
-
-  stmtId <- case maybeStmtId of
-              Just i -> return i
-              Nothing -> dbErrors_prepareInsertStmt conn
-
-
-  let garbageKey = asterisellError_garbageKey err
-  let dupKey = asterisellError_dupKey err
-  let garbageKeyTimeFrame
-        = case maybeGarbageTimeFrame of
-            Just (d1, d2) -> [toDBLocalTime d1, toDBLocalTime d2]
-            Nothing -> [MySQLNull, MySQLNull]
-
-  let params1 = [ MySQLInt64 $ fromIntegral $ errorType_toPHPCode $ asterisellError_type err
-                , MySQLInt64 $ fromIntegral $ errorDomain_toPHPCode $ asterisellError_domain err
-                , MySQLInt64 $ fromIntegral $ errorResponsible_toPHPCode $ asterisellError_responsible err
-                , MySQLText dupKey
-                , MySQLBytes garbageKey
-                ]
-  let params2 = [ MySQLText $ Text.pack $ asterisellError_description err
-                , MySQLText $ Text.pack $ asterisellError_effect err
-                , MySQLText $ Text.pack $ asterisellError_proposedSolution err
-                ]
-
-  _ <- DB.executeStmt conn stmtId (params1 ++ garbageKeyTimeFrame ++ params2)
-
-  return ()
-
--- -------------------------------------------------------------------
--- Initial Import of source/raw CDRS
-
--- | Convert the content of an input file into a stream of CDRS.
---   Return errors only if the call date can not be parsed, because this phase
---   favours importing of data at all costs,
---   while other errors are returned in other processing phases.
-streamOfRawCDRS
-  :: forall a . CDRFormat a
-  => AType a
-  -> SourceCDRParams
-  -- ^ the stream has CDRs in the same physical format
-  -> CDRProviderName
-  -> InputStream RawSourceCDR
-  -- ^ the CDRs in source/raw format
-  -> IO (InputStream (RawSourceCDR
-                     -- ^ the CDR in raw format. Mainly for displaying debug information, found in later phase of rating
-                     , Either AsterisellError LocalTime
-                     -- ^ an error if the CDR date can not be parsed correctly,
-                     -- otherwise the calldate and the (if present) the external telephone numbers.
-                     ))
-
-streamOfRawCDRS cdrType params providerName inputStream
-    = allLines inputStream >>= maybeRemoveHeader >>= utf8Lines >>= (S.map process) >>= stream_toJust
- where
-
-   process :: RawSourceCDR -> Maybe (RawSourceCDR, Either AsterisellError LocalTime)
-   process rawCDR
-     = case (parseTypedRawSourceCDRToCallDate cdrType params 4 providerName rawCDR) of
-         Left err
-           -> Just $ (rawCDR, Left err)
-         Right Nothing
-           -> Nothing
-         Right (Just callDate)
-           -> Just $ (rawCDR, Right callDate)
-
-   utf8Lines stream1
-     = case params of
-         SourceCDRParamsCSVFile _ _ _ UseUTF8
-           -> return stream1
-
-         -- _ -> error "Parsing of CSV files not in UTF8 format is not yet supported by the application. Contact the assistance. "
-         -- NOTE:  up to date not needed because `UseUTF8`
-
-   maybeRemoveHeader stream1
-     = case params of
-         SourceCDRParamsCSVFile (Just _) _ _ _
-           -> S.drop 1 stream1
-         _ -> return stream1
-
-   allLines :: InputStream BS.ByteString -> IO (InputStream RawSourceCDR)
-   allLines stream1
-     = case params of
-         SourceCDRParamsCSVFile _ _ False _
-           -> do stream2 <- S.splitOn (\c -> c == '\n' || c == '\r') stream1
-                 stream3 <- S.filter (\s -> not $ BS.null s) stream2
-                 return stream3
-         _ -> error "Parsing of CSV files with new lines inside quoted fields is not yet supported by the application. Contact the assistance. "
-
-
--- | Parse a file and import into database as ar_source_cdr records, returning summary info on its content.
---   Report only serious errors, because all errors specific of CDRs will be reported during rating phase.
---   CDRs without a clear calldate, will be imported using the previous calldate, or the calldate of today.
---
--- The design is this:
--- * in a first phase source data files, with source CDRS are imported into DB, ordered by calldate
--- * only the calldate is parsed
--- * the source CDRs can be ordered by call date directly from the DB
--- * during rating phases the source CDRs are read by calldate from the DB, and the string with the content is converted to a CDR and rated
--- * the engine signal if after the changing of a parsing algo, the calldate is interpreted in a different way
--- * this code allows for changes of the code interpreting CDRS, and safe order by calldate, needed by bundle rates
-rateEngine_importDataFile
-  :: Maybe FilePath
-  -- ^ Nothing for writing to DB,
-  --   or a file name where writing the CSV records, for debug mode
-  -> FilePath
-  -> CDRProviderName
-  -> Int
-  -> Text.Text
-  -> Int
-  -> Text.Text
-  -> Int
-  -> Bool
-  -> Maybe (LocalTime, LocalTime)
-  -> DBConf
-  -> CurrencyPrecisionDigits
-  -> IO SourceDataSummaryInfo
-
-rateEngine_importDataFile
-  maybeDebugFile
-  inputFile
-  providerName
-  providerId
-  logicalTypeName
-  logicalTypeId
-  formatTypeName
-  formatTypeId
-  isStatusFile
-  maybeStatusTimeFrame
-  dbConf
-  precision = do
-
-   nrOfRatingJobs <- process_initCores runLevel_default
-
-   (CDRFormatSpec !sourceCDRParams !theType)
-     <- case getSupportedCDRSImporters logicalTypeName formatTypeName of
-          Nothing
-            -> throwIO $ AsterisellException ("There is no known/configured source data file importer for format " ++ (Text.unpack logicalTypeName) ++ ", and version " ++ (Text.unpack formatTypeName))
-          Just r
-            -> return r
-
-   let pipeName = BS.concat ["/var/tmp/import_raw_cdrs_pipe__", dbConf_dbName dbConf]
-
-   withResource'
-     (db_init dbConf maybeDebugFile precision)
-     (\dbStateR -> do
- 
-       when isStatusFile (db_deleteFromArSource dbStateR formatTypeId providerId maybeStatusTimeFrame)
-
-       nowLocalTime1 <- getZonedTime
-       let callDate0 = zonedTimeToLocalTime nowLocalTime1
-       let summaryInfo0 = (Nothing, 0, 0)
-       -- NOTE: use an MVar instead of an IORef, because I had space-leak problems
-
-       (rawCDRSChan, writeToDBProcess)
-         <- db_loadDataFromNamedPipe
-              dbStateR
-              pipeName
-              "ar_source_cdr"
-              sourceCDR_mysqlCSVLoadCmd
-              sourceCDR_toMySQLCSV
- 
-       (_, summaryInfo@(maybeTimeFrame, totLines, linesWithErrors))
-         <- S.withFileAsInput inputFile $ \fileContentStream -> do
-              inStream <- (streamOfRawCDRS theType sourceCDRParams providerName fileContentStream)
-              !r <- S.foldM (\ (!s) (!cdr) -> sendToDB rawCDRSChan s cdr) (callDate0, summaryInfo0) inStream
-              putMVar rawCDRSChan Nothing
-              waitAll (V.toList writeToDBProcess) []
-              return $ DeepSeq.force r
-
-       -- Update the rating frame again.
-       case totLines > 0 && linesWithErrors == totLines of
-         True -> throwIO $ AsterisellException $ "The code can not parse correctly the content. The code processing the file contains errors, or the file has not the specified format."
-         False -> do case maybeStatusTimeFrame of
-                       Just (d1, _) -> db_updateRatingTimeFrame dbStateR d1
-                       Nothing -> return ()
-
-                     case maybeTimeFrame of
-                       Nothing -> do return ()
-                       Just (rateFromCallDate, _) -> db_updateRatingTimeFrame dbStateR rateFromCallDate
-
-       return summaryInfo)
-     (\isOk dbStateR -> do
-         dbState <- readIORef dbStateR
-         let conn = dbps_conn dbState
-         when isOk (do _ <- DB.execute conn  "REPLACE INTO ar_local_file_to_delete(name) VALUES(?)" [toDBText $ Text.pack inputFile] ; return ())
-         -- NOTE: if the transaction abort, the file (correctly) will not be signaled as to delete
-         db_releaseResourceR isOk dbStateR)
-     (createImportError)
-
- where
-
-   sendToDB
-     :: OrderedStream DBSourceCDR
-     -- ^ where sending CDRS
-     -> (LocalTime, SourceDataSummaryInfo)
-     -> (RawSourceCDR, Either AsterisellError LocalTime)
-     -> IO (LocalTime, SourceDataSummaryInfo)
-
-   sendToDB outChan (!lastCallDate, (!maybeMaxMinCallDate, !totLines, !linesWithErrors)) (!rawCDR, !maybeLocalTime)
-     = let (lastCallDate', summaryInfo')
-             = case maybeLocalTime of
-                 Left err
-                   -> (lastCallDate, (maybeMaxMinCallDate, totLines, linesWithErrors + 1))
-                      -- NOTE: in case of error update only the count of lines with errors,
-                      -- and use a "current date".
-                      -- In this way the error will be reported in details when the user try to rate recent calls.
-                      -- This is an hack but 99% of the times it is the correct thing to do.
-                 Right callDate
-                   -> (callDate, (newMaxMinCallDate callDate maybeMaxMinCallDate, totLines + 1, linesWithErrors))
-
-           cdr' = DBSourceCDR lastCallDate' providerId logicalTypeId formatTypeId rawCDR
-
-       in do putMVar outChan $ DeepSeq.force (Just (V.singleton cdr'))
-             return $ DeepSeq.force (lastCallDate', summaryInfo')
-
-   createImportError e
-     = SomeException $ AsterisellException $ "There is an error during the importing of file \"" ++ inputFile ++ "\", with provider " ++ (Text.unpack providerName) ++ ", format " ++  (Text.unpack logicalTypeName) ++ "__" ++  (Text.unpack formatTypeName) ++ ". " ++ (displayException e) ++ ".\nAll the source data files with this format, and/or similar problems, will be not imported and rated. So there can be an high number of CDRs that are not rated. Note that there is only one error message for a file of this type, but this error message implies that all files of the same type are not rated.\nThis is probably an error in the application configuration. Contact the assistance."
-
-   {-# INLINE newMaxMinCallDate #-}
-   newMaxMinCallDate :: LocalTime -> Maybe (LocalTime, LocalTime) -> Maybe (LocalTime, LocalTime)
-   newMaxMinCallDate d Nothing = Just (d, d)
-   newMaxMinCallDate d (Just (minDD, maxDD)) = Just (min minDD d, max maxDD d)
-
--- | Export the CDRs in a human processable format.
---   Usually the export is done for fixing errors in the original source CDRs.
-rateEngine_exportDataFile
-  :: FilePath
-  -> CDRProviderName
-  -> Int
-  -> Text.Text
-  -> Int
-  -> Text.Text
-  -> Int
-  -> (LocalTime, LocalTime)
-  -> DBConf
-  -> IO Int
-
-rateEngine_exportDataFile
-  outFile
-  providerName
-  providerId
-  logicalTypeName
-  logicalTypeId
-  formatTypeName
-  formatTypeId
-  (fromCallDate, toCallDate)
-  dbConf = do
-
-      (CDRFormatSpec !sourceCDRParams !theType)
-        <- case getSupportedCDRSImporters logicalTypeName formatTypeName of
-             Nothing
-               -> throwIO $ AsterisellException $ "There is no known/configured source data file importer for format " ++ (Text.unpack logicalTypeName) ++ ",  and version " ++ (Text.unpack formatTypeName)
-             Just r
-               -> return r
-
-      case sourceCDRParams of
-        SourceCDRParamsCSVFile _ _ _ UseUTF8
-          -> return ()
-        -- SourceCDRParamsCSVFile _ _ _ locale
-        --  -> throwIO $ AsterisellException $ "(err 573) The code can not manage character locale conversions " ++ show locale
-        -- NOTE: code disabled because up to date only UseUTF8 is implemented
-
-      withResource'
-        (db_openConnection dbConf False)
-        (\readConn -> do
-           let q = [str| SELECT content
-                       | FROM ar_source_cdr
-                       | WHERE ar_physical_format_id = ?
-                       | AND ar_cdr_provider_id  = ?
-                       | AND calldate >= ?
-                       | AND calldate < ?
-                       | ORDER BY calldate, id
-                       | LIMIT ? OFFSET ?
-                       |]
-
-           stmtId <- DB.prepareStmt readConn (DB.Query q)
-
-           S.withFileAsOutput outFile $ \outS -> do
-             case sourceCDRParams of
-               SourceCDRParamsCSVFile (Just header) _ _ UseUTF8
-                 -> do S.write (Just $ fromTextToByteString header) outS
-                       S.write (Just "\r\n") outS
-
-               SourceCDRParamsCSVFile Nothing _ _ UseUTF8
-                 -> do return ()
-
-             processAllSplits readConn stmtId outS param_chunkSize2 0)
-        (\_ db -> DB.close db)
-        (id)
-
- where
-
-   processAllSplits
-       :: DB.MySQLConn
-       -> StmtID
-       -- ^ the statement to use for retrieving the CDRs
-       -> S.OutputStream BS.ByteString
-       -> Int
-       -- ^ the limit (chunk size) to use
-       -> Int
-       -- ^ the current offset
-       -> IO Int
-       -- ^ the wrote CDRS
-
-   processAllSplits conn stmtId outS splitSize currentOffset = do
-     let queryParams
-           = [toDBInt64 formatTypeId
-             ,toDBInt64 providerId
-             ,toDBLocalTime fromCallDate
-             ,toDBLocalTime toCallDate
-             ,toDBInt64 splitSize
-             ,toDBInt64 currentOffset]
-
-     (_, inS1) <- DB.queryStmt conn stmtId queryParams
-     inS2 <- S.map (\[rawCDR] -> BS.concat [fromDBByteString rawCDR, "\r\n"]) inS1
-     (inS3, getCountCDRS) <- S.inputFoldM (\c b -> return $ c + 1) 0 inS2
-     S.supply inS3 outS
-
-     countCDRS <- getCountCDRS
-     let newOffset = currentOffset + countCDRS
-     case newOffset == currentOffset of
-       True -> do S.write Nothing outS
-                  return newOffset
-       False -> processAllSplits conn stmtId outS splitSize newOffset
-
 -- -------------------------------------------------------------
 -- Rating of CDRs
 --
@@ -1220,18 +613,6 @@ forceRight m = do
     Left (_, err) -> throwIO $ asterisellError_toException err
     Right a -> return a
 {-# INLINE forceRight #-}
-
-type YearAndMonth = (Integer, Int)
-
--- | Rate from (inclusive) to (exclusive)
-type MaybeTimeFrame = Maybe (LocalTime, LocalTime)
-
-maybeTimeFrame_larger :: MaybeTimeFrame -> MaybeTimeFrame -> MaybeTimeFrame
-maybeTimeFrame_larger Nothing Nothing = Nothing
-maybeTimeFrame_larger (Just r1) Nothing = (Just r1)
-maybeTimeFrame_larger Nothing (Just r2) = (Just r2)
-maybeTimeFrame_larger (Just (x1, y1)) (Just (x2, y2)) = Just (min x1 x2, max y1 y2)
-{-# INLINABLE maybeTimeFrame_larger #-}
 
 -- | Rate the CDRs on the source data file.
 --   This is the entry point of the rating process, and it coordinates all the rest:
@@ -1265,7 +646,7 @@ rateEngine_rate
   --   Critical errors are signaled using an exception, because they are critical and they block the entire rating process.
 
 rateEngine_rate runLevelR initialParams = do
-  nrOfRatingJobs <- process_initCores runLevelR
+  nrOfRatingJobs <- process_initCores (runLevel_cores runLevelR)
   rateAllRatingTimeFrames initialParams nrOfRatingJobs 0
 
  where
@@ -1335,11 +716,17 @@ rateEngine_rateProcess runLevelR env nrOfJobs maybeToCallDate = do
              return (c1, c2))
          (\(rawCDRSConn, portedTelephoneNumbersConn) -> do
 
-              db_garbagePastErrors dbStateR (rateGarbageKey env) (Just $ params_fromDate env) maybeToCallDate
+              db_garbagePastErrorsR dbStateR (rateGarbageKey env) (Just $ params_fromDate env) maybeToCallDate
 
               groupedCDRSSuggestedSize <- groupedCDRS_suggestedSize rawCDRSConn env
 
-              (ratedCDRS, writeToDBProcess) <- db_loadDataFromNamedPipe dbStateR (fromStringToByteString pipeName) "ar_cdr" cdr_mysqlCSVLoadCmd cdr_toMySQLCSV
+              maybeToDB <- do
+                dbState <- readIORef dbStateR
+                case dbps_debugFile dbState of
+                  Nothing -> return $ Right $ dbps_conn dbState
+                  Just n -> return $ Left n
+
+              (ratedCDRS, writeToDBProcess) <- db_loadDataFromNamedPipe maybeToDB (fromStringToByteString pipeName) "ar_cdr" cdr_mysqlCSVLoadCmd cdr_toMySQLCSV
 
               -- Now start the normal CDR rating
               -- NOTE: initial bundle-rate services are generated because `ratePlan_loadRatingParams` use a `bundleState_fake`
@@ -1788,8 +1175,6 @@ process_fakePortedTelephoneNumberCompletition conn env inCDRS outCDRS = async pr
    noPorted (ParsedCDR1 (sourceCDR, maybeErr, cdr))
      = let cdr2 = cdr { cdr_externalTelephoneNumberWithAppliedPortability = Just $ cdr_externalTelephoneNumber cdr}
        in  (ParsedCDR1 (sourceCDR, maybeErr, cdr2))
-
-type CountOfCDRS = Int
 
 -- | Rate CDRS.
 --   Raise exceptions only in case of critical errors compromizing the entire rating process.
@@ -2965,29 +2350,6 @@ mainRate_apply env statsR cdr1
                              , cdr_debug_cost_rate = dbg $ appliedRateName
                              , cdr_debug_rating_details = dbg $ debugRatingDetails1
                              }
-
--- ---------------------------------------------------------------
--- Utils
---
-
-fromLazyByteStringToString :: LBS.ByteString -> String
-fromLazyByteStringToString s = LText.unpack $ LText.decodeUtf8 s
-
--- | Extract Days, and YearAndMonth from a TimeFrame
-timeFrame_getYearsAndMonth :: TimeFrame -> (Set.Set Day, Set.Set YearAndMonth)
-timeFrame_getYearsAndMonth tf
-  = f (Set.empty, Set.empty) tf
- where
-
-  f :: (Set.Set Day, Set.Set YearAndMonth) -> (CallDate, CallDate) -> (Set.Set Day, Set.Set YearAndMonth)
-  f (setD1, setMY1) (d0, d2)
-     = let d = localDay d0
-           (yyyy, mm, _) = toGregorian d
-           setMY2 = Set.insert (yyyy, mm) setMY1
-           setD2 = Set.insert d setD1
-           d1 = d0 { localDay = addDays 1 (localDay d0) }
-           -- NOTE: it is adding a day step by step. For normal intervals (few years) this is fast enough.
-       in  if d0 > d2 then (setD1, setMY1) else f (setD2, setMY2) (d1, d2)
 
 -- ---------------------------------------------------
 -- Unit Tests

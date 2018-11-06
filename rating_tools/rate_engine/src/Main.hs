@@ -11,6 +11,7 @@ import Asterisell.Cdr
 import Asterisell.Error
 import Asterisell.RatePlan
 import Asterisell.MainRatePlan
+import Asterisell.ImportDataFiles
 import Asterisell.RateEngine
 import Asterisell.Utils
 import Asterisell.Trie
@@ -319,7 +320,6 @@ mainRate = do
 
               (maybeDateRange, totLines, totLinesWithErrors)
                 <- rateEngine_importDataFile
-                     debugFileName
                      fileName
                      (Text.pack providerName)
                      providerId

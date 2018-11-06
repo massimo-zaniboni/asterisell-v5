@@ -11,6 +11,9 @@ module Asterisell.DB (
   db_commitTransaction,
   db_rollBackTransaction,
   db_releaseResource,
+  uniqueDateId_init,
+  uniqueDateId_next,
+  UniqueDateId,
   toDBBool,
   toDBInt64,
   toMaybeInt64,
@@ -35,6 +38,9 @@ module Asterisell.DB (
   nn,
   nnn,
   toShowByteString,
+  db_garbagePastErrors,
+  dbErrors_insert,
+  dbErrors_prepareInsertStmt,
   TField(..),
   DataSourceName,
   TableName,
@@ -50,12 +56,13 @@ module Asterisell.DB (
   trecord_save,
   trecord_delete,
   trecord_set,
-  trecord_setMany
+  trecord_setMany,
+  db_loadDataFromNamedPipe
  ) where
 
 import Asterisell.Error
 import Asterisell.Utils
-
+import qualified Data.ByteString.Builder as B
 import qualified Data.ByteString as BS
 import Data.Time.LocalTime
 import Data.Time.Calendar
@@ -67,6 +74,7 @@ import Data.Hashable
 import GHC.Generics (Generic)
 import Data.List as L
 import Data.Maybe
+import qualified Data.Vector as V
 import qualified Data.Map.Strict as Map
 import qualified Data.IntMap.Strict as IMap
 import qualified Data.ByteString.Lazy as LBS
@@ -80,6 +88,32 @@ import qualified System.IO.Streams.List as S
 import Data.Monoid
 import Data.Hash.MD5 as MD5
 import Data.Hashable
+import qualified System.Posix.Files.ByteString as Posix
+import qualified System.Posix.IO.ByteString as Posix
+import qualified System.Posix.Process.ByteString as Posix
+import qualified System.Posix.Types as Posix
+import qualified System.Process as Process
+import qualified System.Posix.User as Posix
+import Foreign.StablePtr
+import Data.Int
+import System.IO as IO
+import System.Directory as IO
+import System.IO
+import Data.IORef
+import Control.Concurrent.MVar
+import Control.Concurrent.Async
+import Control.Exception.Safe (catch, catchAny, onException, finally, handleAny, bracket
+                              , SomeException(..), throwIO, throw, Exception, MonadMask
+                              , withException, displayException)
+import Control.Exception.Assert.Sugar
+import Control.DeepSeq.Generics
+import Control.Parallel
+import Control.Parallel.Strategies
+import Control.Monad
+import Text.Heredoc
+
+-- ---------------------------------------
+-- DB connections
 
 data DBConf
    = DBConf {
@@ -137,10 +171,131 @@ db_rollBackTransaction conn = do
   return ()
 
 db_releaseResource :: Bool -> DB.MySQLConn -> IO ()
-db_releaseResource isOk conn
- = case isOk of
+db_releaseResource isOk conn = do
+  case isOk of
      True -> db_commitTransaction conn
      False -> db_rollBackTransaction conn
+  DB.close conn
+
+-- | Delete all errors with the specified garbage collection key, so only new errors are inserted.
+--   To call before inserting new errors.
+db_garbagePastErrors
+  :: DB.MySQLConn
+  -> BS.ByteString
+  -- ^ the garbage key
+  -> Maybe LocalTime
+  -- ^ delete errors from this date
+  -> Maybe LocalTime
+  -- ^ delete errors to this date
+  -> IO ()
+
+db_garbagePastErrors conn garbageKey mfromDate mtoDate
+  = case (mfromDate, mtoDate) of
+     (Just fromDate, Just toDate)
+       -> do _ <- DB.execute
+                    conn
+                    "DELETE FROM ar_new_problem WHERE garbage_collection_key = ? AND garbage_collection_from >= ? AND garbage_collection_to <= ? ;"
+                    [toDBByteString garbageKey, toDBLocalTime fromDate, toDBLocalTime toDate]
+             return ()
+     (Just fromDate, Nothing)
+       -> do _ <- DB.execute
+                    conn
+                    "DELETE FROM ar_new_problem WHERE garbage_collection_key = ? AND garbage_collection_from >= ?"
+                    [toDBByteString garbageKey, toDBLocalTime fromDate]
+             return ()
+     (Nothing, Just toDate)
+       -> do _ <- DB.execute
+                    conn
+                    "DELETE FROM ar_new_problem WHERE garbage_collection_key = ? AND garbage_collection_to <= ? ;"
+                    [toDBByteString garbageKey, toDBLocalTime toDate]
+             return ()
+     (Nothing, Nothing)
+       -> do _ <- DB.execute
+                    conn
+                    "DELETE FROM ar_new_problem WHERE garbage_collection_key = ?"
+                    [toDBByteString garbageKey]
+             return ()
+
+dbErrors_prepareInsertStmt :: DB.MySQLConn -> IO StmtID
+dbErrors_prepareInsertStmt conn
+     = let q =  [str|INSERT INTO ar_new_problem(
+                    |   ar_problem_type_id, ar_problem_domain_id, ar_problem_responsible_id, created_at
+                    | , duplication_key, garbage_collection_key, garbage_collection_from
+                    | , garbage_collection_to
+                    | , description, effect, proposed_solution
+                    | , signaled_to_admin)
+                    |VALUES(?,?,?, NOW(), ?, ?, ?, ?, ?, ?, ?, 0)
+                    |ON DUPLICATE KEY UPDATE
+                    |  garbage_collection_from = LEAST(garbage_collection_from, VALUES(garbage_collection_from))
+                    |, garbage_collection_to = GREATEST(garbage_collection_to, VALUES(garbage_collection_to))
+                    |, ar_problem_type_id = VALUES(ar_problem_type_id)
+                    |, ar_problem_domain_id  = VALUES(ar_problem_domain_id)
+                    |, ar_problem_responsible_id  = VALUES(ar_problem_responsible_id)
+                    |, created_at = VALUES(created_at)
+                    |, garbage_collection_key = VALUES(garbage_collection_key )
+                    |, description = VALUES(description )
+                    |, effect = VALUES(effect)
+                    |, proposed_solution = VALUES(proposed_solution)
+                    |, signaled_to_admin  = signaled_to_admin ;
+                    |]
+       in DB.prepareStmt conn q
+
+-- | Insert the error.
+--   @require the connection is not used from other process (it is not thread safe)
+dbErrors_insert
+  :: DB.MySQLConn
+  -> Maybe StmtID
+  -- ^ dbErrors_prepareInsertStmt
+  -> AsterisellError
+  -> Maybe (CallDate, CallDate)
+  -- ^ garbage from - to
+  -> IO ()
+
+dbErrors_insert conn maybeStmtId err maybeGarbageTimeFrame = do
+
+  stmtId <- case maybeStmtId of
+              Just i -> return i
+              Nothing -> dbErrors_prepareInsertStmt conn
+
+  let garbageKey = asterisellError_garbageKey err
+  let dupKey = asterisellError_dupKey err
+  let garbageKeyTimeFrame
+        = case maybeGarbageTimeFrame of
+            Just (d1, d2) -> [toDBLocalTime d1, toDBLocalTime d2]
+            Nothing -> [MySQLNull, MySQLNull]
+
+  let params1 = [ MySQLInt64 $ fromIntegral $ errorType_toPHPCode $ asterisellError_type err
+                , MySQLInt64 $ fromIntegral $ errorDomain_toPHPCode $ asterisellError_domain err
+                , MySQLInt64 $ fromIntegral $ errorResponsible_toPHPCode $ asterisellError_responsible err
+                , MySQLText dupKey
+                , MySQLBytes garbageKey
+                ]
+  let params2 = [ MySQLText $ Text.pack $ asterisellError_description err
+                , MySQLText $ Text.pack $ asterisellError_effect err
+                , MySQLText $ Text.pack $ asterisellError_proposedSolution err
+                ]
+
+  _ <- DB.executeStmt conn stmtId (params1 ++ garbageKeyTimeFrame ++ params2)
+
+  return ()
+
+-- --------------------------------------------
+-- DB UniqueId
+
+-- | The maximum number of CDRS with the same calldate.
+--   NOTE: in case of services and bundles, they have all the same date,
+--   and they are proportional to the number of customers.
+type UniqueDateId = Int32
+
+uniqueDateId_init :: UniqueDateId
+uniqueDateId_init = 0
+{-# INLINE uniqueDateId_init #-}
+
+uniqueDateId_next :: UniqueDateId -> UniqueDateId
+uniqueDateId_next n
+  = let maxId = 2 ^ 20
+    in  mod (n + 1) maxId
+{-# INLINE uniqueDateId_next #-}
 
 -- --------------------------------------------
 -- Convert DB Values to Haskell  types.
@@ -513,4 +668,121 @@ trecord_set trec1 fieldName fieldValue
 trecord_setMany :: TRecord -> [(BS.ByteString, DB.MySQLValue)] -> TRecord
 trecord_setMany trec1 values
   = L.foldl' (\trec2 (n, v) -> trecord_set trec2 n v) trec1 values
+
+-- -------------------------------------------------------------------
+-- Insert data using named pipes
+
+waitPosixProcess :: Process.ProcessHandle -> IO ()
+waitPosixProcess pid = do
+  _ <- Process.waitForProcess pid
+  -- MAYBE intercept errors in the status and return an exception
+  return ()
+
+-- | Send data to a named-pipe, using a unix process as wrapper.
+--   It is a lot more robust (but a little slower) respect
+--   direct writing to the named pipe, that is not very robust and well supported in Haskell,
+--   because GHC threads do not play well with blocking pipes.
+--   NOTE: the returned handle supports back-pressure, because halt the sender if the
+--   receiver is not ready to process the data, and it is good when the
+--   writer (DMBS) is slower than the producer.
+namedPipe_create
+  :: String
+  -- ^ the named pipe where redirecting data
+  -> IO (Handle, Process.ProcessHandle)
+  -- ^ the handler where sending data, and to close at the end.
+  --   When closed the wrapper will terminate.
+  --   The returned Id must be used from the caller thread for waiting the termination of the process,
+  --   using the command `waitPosixProcess`.
+
+namedPipe_create pipeName = do
+  pipeExists <- Posix.fileExist (fromStringToByteString pipeName)
+  when (pipeExists) (IO.removeFile pipeName)
+  let mysqlCanRead = Posix.unionFileModes Posix.namedPipeMode $ Posix.unionFileModes Posix.ownerModes Posix.groupReadMode
+
+  mysqlUser <- Posix.groupID <$> Posix.getGroupEntryForName "mysql"
+
+  Posix.createNamedPipe (fromStringToByteString pipeName) mysqlCanRead
+  Posix.setOwnerAndGroup (fromStringToByteString pipeName) (0 - 1) mysqlUser
+
+  let cmd = (Process.shell ("cat >> " ++ pipeName)) {
+                 Process.std_in = Process.CreatePipe
+               , Process.std_out = Process.NoStream
+               , Process.std_err = Process.NoStream
+               , Process.close_fds = True
+            }
+
+  (Just hIn, Nothing, Nothing, pid) <- Process.createProcess cmd
+
+  hSetBuffering hIn (BlockBuffering Nothing)
+  return (hIn, pid)
+
+-- | Start on a separate process `LOAD DATA INFILE` using a named pipe as input.
+--   The DB process will be not anymore accessible until the pipe is closed.
+--   This process will manage automatically the `ar_cdr.id` and `ar_source_cdr.id` field,
+--   generating consecutive IDS. The ID field had not to be specified in the schema and in the generated data,
+--   and it will be automatically inserted.
+db_loadDataFromNamedPipe
+  :: (Either
+        String        -- ^ write to this (debug) file, instead of the DB
+        DB.MySQLConn  -- ^ write to the DB
+     )
+  -> BS.ByteString
+  -- ^ named-pipe name to use as input
+  -> BS.ByteString
+  -- ^ the table name
+  -> [BS.ByteString]
+  -- ^ the columns to import. The order of columns must be the same of the pipe content.
+  -- The accepted format is `\t` as field separator, `\n` as record separator,
+  -- `\N` for NULL values, and proper escaping of characters.
+  -> (a -> B.Builder)
+  -- ^ a function converting a record to MySQL CSV-like format, without the '\N' record separator
+  -> IO (OrderedStream a
+        -- ^ a channel-like with a chunk of records to send to the DB.
+        -- Nothing for signaling the end of the data, and terminating the process.
+        , V.Vector (Async ())
+        -- ^ the processes to wait, for the termination of the loading of data,
+        -- and intercepting the exceptions.
+        -- @require until this process does not terminate, no other DB actions can be called
+        )
+
+db_loadDataFromNamedPipe maybeConn pipeName tableName columns f = do
+  inChan <- newEmptyMVar
+  (pipeH, p1) <- namedPipe_create (fromByteStringToString pipeName)
+  p2 <-async process_load
+  p3 <- async (process_writeToMySQLNamedPipe inChan f pipeH uniqueDateId_init)
+  p4 <- async (waitPosixProcess p1)
+  return (inChan, V.fromList [p2, p3, p4])
+
+ where
+
+  process_load
+    = case maybeConn of
+        Left outFileName -> do 
+          -- NOTE: simulate an external process reading from the pipe and writing to disk, like in case of MySQL process.
+          Process.callCommand $ "cat " ++ (fromByteStringToString pipeName) ++ " > " ++ outFileName
+        Right conn -> do
+          let q = B.byteString "LOAD DATA INFILE ? INTO TABLE "
+                       <>  B.byteString tableName
+                       <> B.byteString " CHARACTER SET utf8mb4 (`id`,"
+                       <> mconcat (L.intersperse (B.byteString ",") $ L.map B.byteString columns)
+                       <> B.byteString ")"
+          _ <- DB.execute conn (DB.Query $ B.toLazyByteString q) [toDBByteString pipeName]
+          return ()
+
+  process_writeToMySQLNamedPipe maybeInDataR f outH uniqueId1 = do
+     maybeInData <- takeMVar maybeInDataR
+
+     case maybeInData of
+      Nothing
+        -> do
+              hClose outH
+              return ()
+      Just inData
+        -> do
+              !lastUniqueId
+                <- V.foldM (\uniqueId cdr -> do
+                               B.hPutBuilder outH (B.int32Dec uniqueId <> B.charUtf8 '\t' <> f cdr <> B.charUtf8 '\n')
+                               return $ uniqueDateId_next uniqueId) uniqueId1 inData
+
+              process_writeToMySQLNamedPipe maybeInDataR f outH lastUniqueId
 

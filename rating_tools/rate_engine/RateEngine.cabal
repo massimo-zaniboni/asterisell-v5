@@ -73,6 +73,7 @@ executable RateEngine
                  Asterisell.RatePlan
                  Asterisell.MainRatePlan
                  Asterisell.RateEngine
+                 Asterisell.ImportDataFiles
                  Asterisell.Utils
                  Asterisell.Trie
                  Asterisell.Params

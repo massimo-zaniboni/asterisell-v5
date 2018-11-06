@@ -6,6 +6,7 @@
 --
 module Asterisell.RatePlan (
     RateRole(..)
+  , CountOfCDRS
   , ConfiguredRatePlanParsers
   , RatePlanParser
   , FieldSeparator
@@ -74,6 +75,9 @@ module Asterisell.RatePlan (
   , RatePlanIdMap
   , UnitIdMap
   , TimeFrame
+  , timeFrame_getYearsAndMonth
+  , MaybeTimeFrame
+  , maybeTimeFrame_larger
   , timeFrame_duration
   , mainRatePlan_exportServiceCDRSTelephonePrefixes
   , tt_ratePlanTests
@@ -485,6 +489,34 @@ type TimeFrame
     , CallDate
     -- ^ ending time frame (exclusive).
     )
+
+--- | Extract Days, and YearAndMonth from a TimeFrame
+timeFrame_getYearsAndMonth :: TimeFrame -> (Set.Set Day, Set.Set YearAndMonth)
+timeFrame_getYearsAndMonth tf
+  = f (Set.empty, Set.empty) tf
+ where
+
+  f :: (Set.Set Day, Set.Set YearAndMonth) -> (CallDate, CallDate) -> (Set.Set Day, Set.Set YearAndMonth)
+  f (setD1, setMY1) (d0, d2)
+    = let d = localDay d0
+          (yyyy, mm, _) = toGregorian d
+          setMY2 = Set.insert (yyyy, mm) setMY1
+          setD2 = Set.insert d setD1
+          d1 = d0 { localDay = addDays 1 (localDay d0) }
+          -- NOTE: it is adding a day step by step. For normal intervals (few years) this is fast enough.
+      in  if d0 > d2 then (setD1, setMY1) else f (setD2, setMY2) (d1, d2)
+
+type YearAndMonth = (Integer, Int)
+
+-- | Rate from (inclusive) to (exclusive)
+type MaybeTimeFrame = Maybe (LocalTime, LocalTime)
+
+maybeTimeFrame_larger :: MaybeTimeFrame -> MaybeTimeFrame -> MaybeTimeFrame
+maybeTimeFrame_larger Nothing Nothing = Nothing
+maybeTimeFrame_larger (Just r1) Nothing = (Just r1)
+maybeTimeFrame_larger Nothing (Just r2) = (Just r2)
+maybeTimeFrame_larger (Just (x1, y1)) (Just (x2, y2)) = Just (min x1 x2, max y1 y2)
+{-# INLINABLE maybeTimeFrame_larger #-}
 
 -- | The part of the call that can be rated using the bundle rate.
 type BundleCallDuration = Int

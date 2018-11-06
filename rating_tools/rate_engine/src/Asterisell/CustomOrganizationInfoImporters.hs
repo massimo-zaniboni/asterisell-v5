@@ -133,17 +133,16 @@ rolf1_synchro
     -> IO ()
 rolf1_synchro localDBConf remoteDBConf organizationToIgnore currencyInfo dataSourceName cparams = do
   withResource'
-    (do dbStateR <- db_init localDBConf Nothing 4
+    (do 
+        localConn <- db_openConnection localDBConf False
+        db_openTransaction localConn
         remoteConn <- DB.connect remoteDBConf
-        return (dbStateR, remoteConn)
+        return (localConn, remoteConn)
     )
-    (\(dbStateR, remoteConn) -> do
-
-          dbState <- readIORef dbStateR
-          let localConn = dbps_conn dbState
+    (\(localConn, remoteConn) -> do
 
           -- start with an empty transaction because a new one will be created for every import
-          db_garbagePastErrors dbStateR (rolf1_errorGarbageKey dataSourceName) Nothing Nothing
+          db_garbagePastErrors localConn (rolf1_errorGarbageKey dataSourceName) Nothing Nothing
           db_commitTransaction localConn
 
           --
@@ -155,7 +154,7 @@ rolf1_synchro localDBConf remoteDBConf organizationToIgnore currencyInfo dataSou
           let !extensionUnitTypeId = DeepSeq.force $ unitType_defaultId localUnitType UnitType_extension
           !partyTagInfo <- DeepSeq.force <$> partyTagInfo_load localConn False
           !userRoleInfo <- DeepSeq.force <$> userRole_load localConn False
-          !fromRemoteToLocalRateId <- DeepSeq.force <$> synchroPriceCategories dbStateR remoteConn
+          !fromRemoteToLocalRateId <- DeepSeq.force <$> synchroPriceCategories localConn remoteConn
           !unbilledCallsFromDate <- defaultParams_unbilledCallsFrom localConn "02676"
 
           --
@@ -170,7 +169,7 @@ rolf1_synchro localDBConf remoteDBConf organizationToIgnore currencyInfo dataSou
           newExtensionsToIgnoreR <- newIORef (Set.empty)
           processedAccountsR <- newIORef (Set.empty)
 
-          updateOrganizationsS <- S.makeOutputStream $ updateOrganizations dbStateR parentIdForExtensionsToIgnore userRoleInfo localUnitType fromRemoteToLocalRateId unbilledCallsFromDate partyTagInfoRef newExtensionsR newExtensionsToIgnoreR processedAccountsR
+          updateOrganizationsS <- S.makeOutputStream $ updateOrganizations localConn parentIdForExtensionsToIgnore userRoleInfo localUnitType fromRemoteToLocalRateId unbilledCallsFromDate partyTagInfoRef newExtensionsR newExtensionsToIgnoreR processedAccountsR
 
           S.connect remoteInfo updateOrganizationsS
           -- start the importing processing, connecting the input stream (data) with the output stream (actions)
@@ -233,9 +232,9 @@ rolf1_synchro localDBConf remoteDBConf organizationToIgnore currencyInfo dataSou
 
             ) newExtensions
     )
-    (\isOk (dbStateR, remoteConn) -> do
+    (\isOk (localConn, remoteConn) -> do
          DB.close remoteConn
-         db_releaseResourceR isOk dbStateR
+         db_releaseResource isOk localConn
          return ())
     (\exc -> SomeException $ AsterisellException $ "Unrecoverable error during organization synchro with " ++ Text.unpack dataSourceName ++ ": exception " ++ show exc)
 
@@ -257,18 +256,15 @@ rolf1_synchro localDBConf remoteDBConf organizationToIgnore currencyInfo dataSou
       -- and https://git.asterisell.com/rolf/itec-voicegate/issues/4
 
   -- | Map all remote price categories to local one, creating them if they are missing.
-  synchroPriceCategories :: IORef DBState -> DB.MySQLConn -> IO (IMap.IntMap Int)
-  synchroPriceCategories dbStateR remoteConn = do
-    dbState <- readIORef dbStateR
-    let localConn = dbps_conn dbState
-
+  synchroPriceCategories :: DB.MySQLConn -> DB.MySQLConn -> IO (IMap.IntMap Int)
+  synchroPriceCategories localConn remoteConn = do
     !(rateCategories, _) <- rateCategories_load localConn False
     (_, remotePricesS) <- DB.query_ remoteConn "SELECT id, tariffgroupname FROM cc_tariffgroup"
-    S.foldM (synchroPriceCategory dbStateR rateCategories) IMap.empty remotePricesS
+    S.foldM (synchroPriceCategory localConn rateCategories) IMap.empty remotePricesS
 
   -- | Import a single price-category.
   synchroPriceCategory
-      :: IORef DBState
+      :: DB.MySQLConn
       -> Map.Map RateCategoryCode RateCategoryId
          -- ^ from price-category code (its name, with maybe the provider added as prefix),
          --   to the Id of the corresponding Asterisell `ar_rate_category` (price-category)
@@ -278,10 +274,7 @@ rolf1_synchro localDBConf remoteDBConf organizationToIgnore currencyInfo dataSou
          -- ^ a single record, with remote price-category-id, and the remote name
       -> IO (IMap.IntMap Int)
          -- ^ the new mapping extended wit the imported price-category, if it was new
-  synchroPriceCategory dbStateR rateCategories map1 [rrateId, rrateName] = do
-    dbState <- readIORef dbStateR
-    let localConn = dbps_conn dbState
-
+  synchroPriceCategory localConn rateCategories map1 [rrateId, rrateName] = do
     let rateName = internalName_sanityze $ fromDBText rrateName
     let rateNameWithProvider = internalName_sanityze $ Text.concat [dataSourceName, "-", rateName]
     let rateKey = fromTextToByteString rateName
@@ -376,7 +369,7 @@ rolf1_synchro localDBConf remoteDBConf organizationToIgnore currencyInfo dataSou
   --   An action called for every remote record (it is an S.Output stream).
   --   Create only
   updateOrganizations
-    :: IORef DBState
+    :: DB.MySQLConn
     -> UnitId -- ^ organization to ignore
     -> UserRoleIdFromInternalName
     -> UnitTypeFromInternalName
@@ -389,12 +382,9 @@ rolf1_synchro localDBConf remoteDBConf organizationToIgnore currencyInfo dataSou
     -> Maybe TRecord
     -> IO ()
 
-  updateOrganizations dbStateR parentIdForExtensionsToIgnore userRoleInfo localUnitType fromRemoteToLocalRateId unbilledCallsFromDate partyTagInfoRef newExtensionsR newExtensionsToIgnoreR processedAccountsR maybeRemoteInfo = do
-    dbState <- readIORef dbStateR
-    let localConn = dbps_conn dbState
-
+  updateOrganizations localConn parentIdForExtensionsToIgnore userRoleInfo localUnitType fromRemoteToLocalRateId unbilledCallsFromDate partyTagInfoRef newExtensionsR newExtensionsToIgnoreR processedAccountsR maybeRemoteInfo = do
     db_openTransaction localConn
-    r <- runExceptT $ updateOrganizations1 dbStateR parentIdForExtensionsToIgnore userRoleInfo localUnitType fromRemoteToLocalRateId unbilledCallsFromDate partyTagInfoRef newExtensionsR newExtensionsToIgnoreR processedAccountsR maybeRemoteInfo
+    r <- runExceptT $ updateOrganizations1 localConn parentIdForExtensionsToIgnore userRoleInfo localUnitType fromRemoteToLocalRateId unbilledCallsFromDate partyTagInfoRef newExtensionsR newExtensionsToIgnoreR processedAccountsR maybeRemoteInfo
     case r of
       Left Nothing
         -> do db_rollBackTransaction localConn
@@ -433,7 +423,7 @@ rolf1_synchro localDBConf remoteDBConf organizationToIgnore currencyInfo dataSou
 
   -- | Execute an update pass, or signal an error, using `createError'` function, or ignore the importing returning Nothing.
   updateOrganizations1
-    :: IORef DBState
+    :: DB.MySQLConn
     -> UnitId -- ^ organization to ignore
     -> UserRoleIdFromInternalName
     -> UnitTypeFromInternalName
@@ -449,11 +439,9 @@ rolf1_synchro localDBConf remoteDBConf organizationToIgnore currencyInfo dataSou
     -> Maybe TRecord                    -- ^ Nothing when the last record is reached
     -> ImportMonad ()
 
-  updateOrganizations1 dbStateR _ userRoleInfo localUnitType fromRemoteToLocalRateId unbilledCallsFromDate partyTagInfoRef _ _ _ Nothing = return ()
+  updateOrganizations1 localConn _ userRoleInfo localUnitType fromRemoteToLocalRateId unbilledCallsFromDate partyTagInfoRef _ _ _ Nothing = return ()
 
-  updateOrganizations1 dbStateR parentIdForExtensionsToIgnore userRoleInfo localUnitType fromRemoteToLocalRateId unbilledCallsFromDate partyTagInfoRef newExtensionsR newExtensionsToIgnoreR processedAccountsR (Just remoteInfo) = do
-    dbState <- liftIO $ readIORef dbStateR
-    let localConn = dbps_conn dbState
+  updateOrganizations1 localConn parentIdForExtensionsToIgnore userRoleInfo localUnitType fromRemoteToLocalRateId unbilledCallsFromDate partyTagInfoRef newExtensionsR newExtensionsToIgnoreR processedAccountsR (Just remoteInfo) = do
 
     --
     -- Read all data, without writing.
