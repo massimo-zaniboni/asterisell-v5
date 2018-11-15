@@ -86,6 +86,7 @@ data Flag
   | Exec_Debug
   | Exec_TestOrganizations String
   | Exec_ImportDataFile FileName
+  | Exec_ImportFromDB FileName
   | Exec_DeleteInputFile String
   | Exec_Rate
   | Exec_UpdateAllCachedCDRS
@@ -104,6 +105,7 @@ data Flag
   | Exec_CurrencyPrecision String
   | Exec_DBHost String
   | Exec_DBPort String
+  | Exec_FromTable String
   | Exec_ResultFile FileName
   | Exec_DebugMode String
   | Exec_DebugFileName FileName
@@ -138,7 +140,8 @@ options = [ Option [] ["help"] (NoArg Exec_Help) "help"
           , Option [] ["test"] (NoArg Exec_Test) "execute some tests on the code"
           , Option [] ["test-organizations"] (ReqArg Exec_TestOrganizations "NR") "execute some tests on the organization structure. Data must be set from the PHP world."
           , Option [] ["result-file"] (ReqArg Exec_ResultFile "FILE") ""
-          , Option [] ["import-data-file"] (ReqArg Exec_ImportDataFile "FILENAME") "import a data file with source CDRs"
+          , Option [] ["import-data-file"] (ReqArg Exec_ImportDataFile "FILENAME") "import CDRS from a file"
+          , Option [] ["import-from-db"] (ReqArg Exec_ImportFromDB "FILENAME") "import CDRS from a remote DB table"
           , Option [] ["test-import-data-file"] (ReqArg Exec_TestImportDataFile "FILENAME") "test the import procedure for a data file with source CDRs"
           , Option [] ["delete-data-file"] (ReqArg Exec_DeleteInputFile "true|false") ""
           , Option [] ["import"] (ReqArg Exec_Import "FILENAME") "import and rate the file"
@@ -160,6 +163,7 @@ options = [ Option [] ["help"] (NoArg Exec_Help) "help"
           , Option [] ["currency-precision"] (ReqArg Exec_CurrencyPrecision "NUMBER") "the number of decimal digits to use for cost and incomes"
           , Option [] ["db-host"] (ReqArg Exec_DBHost "HOST") "the database host"
           , Option [] ["db-port"] (ReqArg Exec_DBPort "PORT") "the database port"
+          , Option [] ["from-table"] (ReqArg Exec_FromTable "TABLE-NAME") "the database table name"
           , Option [] ["rate-unbilled-calls"] (ReqArg Exec_RateUnbilledCalls "true|false") ""
           , Option [] ["export-cdrs"] (ReqArg Exec_ExportCDRS "FILENAME") "export cdrs"
           , Option [] ["use-only-cdrs-to-move"] (ReqArg Exec_UseOnlyCDRSToMove "true|false") "export only cdrs in ar_source_cdr_to_move table"
@@ -177,17 +181,6 @@ runTestList l
        case (HUnit.errors c) > 0 || (HUnit.failures c) > 0 of
          True -> exitFailure
          False -> return ()
-
-cparams_toDBConf :: CmdParams -> DBConf
-cparams_toDBConf pp = cparams_toDBConf2 pp BS.empty
-
-cparams_toDBConf2 :: CmdParams -> BS.ByteString -> DBConf
-cparams_toDBConf2 pp p
-    = DBConf {
-        dbConf_user = cparams_get pp (BS.concat [p, "db-user"])
-      , dbConf_password = cparams_get pp (BS.concat [p, "db-password"])
-      , dbConf_dbName = cparams_get pp (BS.concat [p, "db-name"])
-      }
 
 main = do
   catch
@@ -273,6 +266,7 @@ mainRate = do
      Exec_FileLogicalTypeId logicalTypeIdS,
      Exec_FileVersionType versionType,
      Exec_FileVersionTypeId versionTypeIdS,
+     Exec_FromDate importFromDateS,
      Exec_IsImportedService isImportedServiceS,
      Exec_IsStatusFile isStatusS,
      Exec_FromDate fromDateS,
@@ -287,6 +281,9 @@ mainRate = do
 
             params <- cparams_load pFileName
             let dbConf = cparams_toDBConf params
+
+            let importFromDate
+                  = fromJust1 "ma60" $ fromMySQLDateTimeToLocalTime importFromDateS
 
             isImportedService
               <- case isImportedServiceS of
@@ -327,10 +324,63 @@ mainRate = do
                      logicalTypeId
                      (Text.pack versionType)
                      versionTypeId
+                     importFromDate
                      isStatus
                      maybeTimeFrame
                      dbConf
                      pseudoPrecision
+
+              -- Return the info in the format expected from the PHP caller:
+              -- > min call-date, max call-date, tot lines, tot lines with errors
+
+              let showDateRange
+                         = case maybeDateRange of
+                             Nothing -> "null,null"
+                             Just (v1, v2) -> showLocalTimeUsingMySQLFormat v1 ++ "," ++ showLocalTimeUsingMySQLFormat v2
+
+              putStrLn $ showDateRange ++ "," ++ show totLines ++ "," ++ show totLinesWithErrors
+              return ())
+
+    [Exec_ImportFromDB pFileName,
+     Exec_ProviderName providerName,
+     Exec_ProviderId providerIdS,
+     Exec_FileLogicalType logicalType,
+     Exec_FileLogicalTypeId logicalTypeIdS,
+     Exec_FileVersionType versionType,
+     Exec_FileVersionTypeId versionTypeIdS,
+     Exec_FromDate importFromDateS]
+      -> do let pseudoPrecision = 4
+            -- NOTE: in calldate importing the precision is not important
+
+            let logicalTypeId = fromJust1 "imp1" $ fromTextToInt (Text.pack logicalTypeIdS)
+            let versionTypeId = fromJust1 "imp2" $ fromTextToInt (Text.pack versionTypeIdS)
+            let providerId = fromJust1 "imp3" $ fromTextToInt (Text.pack providerIdS)
+
+            params <- cparams_load pFileName
+            let remoteDBConf = cparams_toRemoteDBConf params
+            let localDBConf = cparams_toDBConf params
+
+            let tableNameS = fromByteStringToString $ cparams_get params "tableName" 
+
+            let importFromDate
+                  = fromJust1 "ma60" $ fromMySQLDateTimeToLocalTime importFromDateS
+            handleAny
+              (\(err :: SomeException)
+                            -> do putStrLn $ show err
+                                  exitFailure) (do
+
+              (maybeDateRange, totLines, totLinesWithErrors)
+                <- rateEngine_importFromMySQLDB
+                     remoteDBConf
+                     (Text.pack providerName)
+                     providerId
+                     (Text.pack logicalType)
+                     logicalTypeId
+                     (Text.pack versionType)
+                     versionTypeId
+                     tableNameS
+                     importFromDate
+                     localDBConf
 
               -- Return the info in the format expected from the PHP caller:
               -- > min call-date, max call-date, tot lines, tot lines with errors

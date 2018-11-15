@@ -87,7 +87,7 @@ abstract class FixedJobProcessor
         }
     }
 
-     /**
+    /**
      * @param int|null $fromDate1
      * @param int|null $fromDate2 null for the minimum fromDate (no interval)
      * @return int the minimum calldate
@@ -826,6 +826,42 @@ abstract class FixedJobProcessor
         return get_class($this);
     }
 
+    // ----------------------------------
+    // Encodings
+
+    /**
+     * @param string $srcEncoding
+     * @param string $fileName
+     * @param string $garbageKey
+     * @throws ArProblemException
+     */
+    public function maybeRecode($srcEncoding, $fileName, $garbageKey)
+    {
+        if (strcmp(strtoupper($srcEncoding), 'UTF8') !== 0) {
+            $cmd = 'recode ' . $srcEncoding . '..UTF8 ' . $fileName;
+            $retVal = 0;
+            system($cmd, $retVal);
+            if ($retVal !== 0) {
+                $p = ArProblemException::createWithGarbageCollection(
+                    ArProblemType::TYPE_CRITICAL,
+                    ArProblemDomain::CONFIGURATIONS,
+                    null,
+                    "recode - " . $fileName,
+                    $garbageKey,
+                    null,
+                    null,
+                    "not character encoding for file $fileName",
+                    "Can not convert the character encoding of file \"$fileName\", using the command \"$cmd\".",
+                    "Install the recode utiliy with command \"yum install recode\". If the error persist, contact the assistance."
+                    );
+                throw($p);
+            }
+        }
+    }
+
+    // ----------------------------------
+    // Email
+
     /**
      * Retrieve the list of customer email address interested to a billing like document,
      * containing warnings like high call costs and so on.
@@ -1213,6 +1249,9 @@ abstract class FixedJobProcessor
         }
     }
 
+    // --------------------------
+    // Files
+
     /**
      * @param string $directory
      * @throws ArProblemException
@@ -1260,6 +1299,9 @@ abstract class FixedJobProcessor
             }
         }
     }
+
+    // ---------------------------------
+    // Reports
 
     const RATE_ENGINE_CHANGED_DAYS_JOB_NAME = 'external_haskell_rating_engine';
 

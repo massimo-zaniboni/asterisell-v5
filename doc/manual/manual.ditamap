@@ -21,6 +21,8 @@
   <keydef keys="main-rate-plan" href="topics/reference/main-rate-plan.md" format="mdita"/>
   <keydef keys="csv-rate" href="topics/reference/csv-rate.md" format="mdita"/>
   <keydef keys="jobs-processor" href="topics/reference/job-processor.md" format="mdita"/>
+  <keydef keys="importing-of-cdrs" href="topics/configuration/importing-of-cdrs.md" format="mdita" />
+  <keydef keys="custom-jobs" href="topics/configuration/custom-jobs.md" format="mdita" />
 
   <topichead navtitle="Getting started" locktitle="yes">
     <topicref href="topics/installation/system-overview.md" format="mdita" />
@@ -41,6 +43,7 @@
     <topicref href="topics/configuration/managing-instances.md" format="mdita" />
     <topicref href="topics/configuration/instance-upgrade.md" format="mdita" />
     <topicref href="topics/configuration/call-reporting-mode.md" format="mdita" />
+    <topicref keyref="importing-of-cdrs"/>
     <topicref href="topics/configuration/main-rate-plans.md" format="mdita" />
     <topicref href="topics/configuration/configuring-multiple-vendors.md" format="mdita" />
     <topicref href="topics/configuration/configuring-multiple-price-categories.md" format="mdita" />
@@ -48,7 +51,7 @@
     <topicref href="topics/configuration/rate-specification-language.md" format="mdita" />
     <topicref href="topics/configuration/bundle-rate-specification-language.md" format="mdita" />
     <topicref href="topics/configuration/changes-of-rate-plans.md" format="mdita" />
-    <topicref href="topics/configuration/custom-jobs.md" format="mdita" />
+    <topicref keyref="custom-jobs"/>
     <topicref href="topics/configuration/ui_localization.md" format="mdita" />
     <topicref href="topics/configuration/reports.md" format="mdita" />
     <topicref href="topics/configuration/configuring-emails.md" format="mdita" />
@@ -158,7 +161,15 @@
         </topicgroup>
       </relcell>
     </relrow>
-  </reltable>
+    <relrow>
+      <relcell>
+        <topicref keyref="importing-of-cdrs"/>
+      </relcell>
+      <relcell>
+        <topicref keyref="custom-jobs"/>
+      </relcell>
+    </relrow>
+   </reltable>
 
 </map>
 

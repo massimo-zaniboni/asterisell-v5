@@ -159,19 +159,7 @@ abstract class ImportCSVFilesFromLocalServer extends ImportCSVFilesFromRemoteSer
                                 }
                             }
 
-                            if ($this->getSourceCharacterEncoding() !== 'UTF8') {
-                                $cmd = 'recode ' . $this->getSourceCharacterEncoding() . '..UTF8 ' . $tmpResultFileName;
-                                $isOk = system($cmd);
-                                if ($isOk === FALSE) {
-                                        throw $this->createProblem(
-                                              "not character encoding for file $remoteFileName"
-                                            , "Can not convert the character encoding of file \"$tmpResultFileName\", using the command \"$cmd\"."
-                                            , "Install the recode utiliy with command \"yum install recode\". If the error persist, contact the assistance."
-                                            , $remoteFileName
-                                        );
-                                }
-                            }
-
+                            $this->maybeRecode($this->getSourceCharacterEncoding(), $tmpResultFileName, get_class($this));
                             $this->maybeArchiveFile($sourceFile, $tmpResultFileName);
                             $archive = $this->processFile($tmpResultFileName);
                             if ($archive) {

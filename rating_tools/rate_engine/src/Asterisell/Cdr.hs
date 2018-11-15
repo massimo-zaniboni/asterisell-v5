@@ -166,7 +166,7 @@ type TelephoneNumbers = Text.Text
 --
 --   NOTE: customize the show instance, because it is used for showing CDRs with problems to users.
 --
-class (Show a, FromRecord a, NFData a) => CDRFormat a where
+class (Show a, FromRecord a, ToRecord a, NFData a) => CDRFormat a where
 
   -- | Return only the calldate of the parsed CSV line.
   --   Return Nothing if the CSV line is without a calldate, and it can be safely ignored.
@@ -639,6 +639,10 @@ data LocaleConversion
 
 -- | Params identifying the file containing the source CDRs.
 --   They are used both during importing, and during exporting of CDRs.
+--   Data retrieved from DB will saved using a standard CSV format,
+--   while data retrieved from custom CSV files, will be saved line by line in its original format.
+--   Doing so the same content can be exported and imported again, without loosing information,
+--   and it can plays the role of an archive.
 data SourceCDRParams
        = SourceCDRParamsCSVFile
            (Maybe Text.Text)
@@ -656,7 +660,12 @@ data SourceCDRParams
            -- except the few signaled.
            LocaleConversion
            -- ^ the encoding of the source file. Internally it is saved into UTF8 encoding
- deriving (Generic, NFData)
+
+       | SourceCDRParamsDBTableWithAutoincrementId
+           [String] -- ^ the fields to retrieve. The first field had to be the numeric autoincrement field.
+           String   -- ^ the field to use as call-date. It assumes there is no efficient index on this field.
+
+ deriving (Generic, NFData, Show)
 
 sourceCDRParams_default :: SourceCDRParams
 sourceCDRParams_default
@@ -717,6 +726,26 @@ convertToNativeCDR _ params content
                   -> case V.length vs of
                        1 -> Right $ V.head vs
                        n -> Left $ createError
+                                     Type_Error
+                                     Domain_RATES
+                                     ("parsing error, unexpected len " ++ show n)
+                                     ("Parsing error. Unexpexted decode with " ++ show n ++ " records.")
+                                     ("")
+                                     ("")
+      SourceCDRParamsDBTableWithAutoincrementId fields callDateField
+        -> case CSV.decode CSV.NoHeader (LBS.fromChunks [content]) of
+             Left !err
+               -> Left $ createError
+                              Type_Error
+                              Domain_RATES
+                              ("parsing error" ++ err)
+                              ("Parsing error. " ++ err)
+                              ("")
+                              ("")
+             Right !vs
+               -> case V.length vs of
+                    1 -> Right $ V.head vs
+                    n -> Left $ createError
                                      Type_Error
                                      Domain_RATES
                                      ("parsing error, unexpected len " ++ show n)
@@ -899,25 +928,9 @@ data CSVFormat_AsterisellStandard_V1
     , f1v1_expectedCost :: !Text.Text
  } deriving(Show, Generic, NFData)
 
-instance FromRecord CSVFormat_AsterisellStandard_V1 where
-     parseRecord v =
-         let expectedCols = 11
-         in case V.length v == expectedCols of
-              True
-                -> CSVFormat_AsterisellStandard_V1 <$>
-                     v .! 0 <*>
-                     v .! 1 <*>
-                     v .! 2 <*>
-                     v .! 3 <*>
-                     v .! 4 <*>
-                     v .! 5 <*>
-                     v .! 6 <*>
-                     v .! 7 <*>
-                     v .! 8 <*>
-                     v .! 9 <*>
-                     v .! 10
-              False
-                -> fail $ "There are " ++ show (V.length v) ++ " columns instead of the expected " ++ (show expectedCols)
+instance FromRecord CSVFormat_AsterisellStandard_V1
+
+instance ToRecord CSVFormat_AsterisellStandard_V1
 
 -- | True for an answered call, False for a call to ignore, Nothing for an unrecognized call.
 --
@@ -1052,33 +1065,9 @@ data CSVFormat_ImportFromV3_Format1
     , f2v1_asterisk_account_code :: !Text.Text
  } deriving(Show, Generic, NFData)
 
-instance FromRecord CSVFormat_ImportFromV3_Format1 where
-     parseRecord v =
-         let expectedCols = 18
-         in case V.length v == expectedCols of
-              True
-                -> CSVFormat_ImportFromV3_Format1 <$>
-                     v .! 0 <*>
-                     v .! 1 <*>
-                     v .! 2 <*>
-                     v .! 3 <*>
-                     v .! 4 <*>
-                     v .! 5 <*>
-                     v .! 6 <*>
-                     v .! 7 <*>
-                     v .! 8 <*>
-                     v .! 9 <*>
-                     v .! 10 <*>
-                     v .! 11 <*>
-                     v .! 12 <*>
-                     v .! 13 <*>
-                     v .! 14 <*>
-                     v .! 15 <*>
-                     v .! 16 <*>
-                     v .! 17
+instance FromRecord CSVFormat_ImportFromV3_Format1
 
-              False
-                -> fail $ "There are " ++ show (V.length v) ++ " columns instead of the expected " ++ (show expectedCols)
+instance ToRecord CSVFormat_ImportFromV3_Format1
 
 -- | Return a standard vendor name to use as comunication channel name, for importing CDRS.
 csvFormat_importFromV3_Format1_getVendorId :: Int -> Text.Text
@@ -1239,7 +1228,7 @@ instance (Eq a) => Eq (ExportMaybeNull a) where
                _ -> False
 
 instance (ToField a) => ToField (ExportMaybeNull a) where
-  toField (ExportNull) = "\\N"
+  toField (ExportNull) = fromStringToByteString dbNullToCSV
   toField (Export x) = toField x
 
 instance (FromField a) => FromField (ExportMaybeNull a) where
@@ -1444,27 +1433,9 @@ instance Show CSVFormat_asterisell_provider__v1 where
      showLine :: (String, String) -> String
      showLine (h, v) = h ++ ": " ++ v ++ "\n"
 
-instance Csv.FromRecord CSVFormat_asterisell_provider__v1 where
-     parseRecord v =
-         let expectedCols = 12
-         in case V.length v == expectedCols of
-              True
-                -> CSVFormat_asterisell_provider__v1 <$>
-                     v .! 0<*>
-                     v .! 1<*>
-                     v .! 2<*>
-                     v .! 3<*>
-                     v .! 4<*>
-                     v .! 5<*>
-                     v .! 6<*>
-                     v .! 7<*>
-                     v .! 8<*>
-                     v .! 9<*>
-                     v .! 10<*>
-                     v .! 11
+instance Csv.FromRecord CSVFormat_asterisell_provider__v1
 
-              False
-                -> fail $ "There are " ++ show (V.length v) ++ " columns instead of the expected " ++ (show expectedCols)
+instance Csv.ToRecord CSVFormat_asterisell_provider__v1
 
 instance CDRFormat CSVFormat_asterisell_provider__v1 where
 
@@ -1576,6 +1547,9 @@ instance Csv.FromRecord CSVFormat_asterisell_provider_services__v1 where
      parseRecord v
        = do cdr :: CSVFormat_asterisell_provider__v1 <- parseRecord v
             return $ CSVFormat_asterisell_provider_services__v1 cdr
+
+instance Csv.ToRecord CSVFormat_asterisell_provider_services__v1 where
+     toRecord (CSVFormat_asterisell_provider_services__v1 v) = toRecord v
 
 instance CDRFormat CSVFormat_asterisell_provider_services__v1 where
 

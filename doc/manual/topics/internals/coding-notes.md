@@ -183,3 +183,10 @@ Inside a template if the error must be viewed on the web toolbar
 ```
     echo log_message(...);
 ```
+
+## Asterisell jobs
+
+Jobs are read from ``apps/asterisell/config/app.yml`` file, that is generated from ``fabric_data/lib.py`` management tool, according the content of ``asterisell_instances.py`` file.
+
+It is convoluted, by it is the result of stratifications of features and tools added with time.
+

@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml">
    <head><meta charset="UTF-8" />
-      <title>Custom jobs</title><link href="res/webhelp.css" rel="stylesheet" type="text/css" /><meta content="Custom jobs can be defined in Customized file, and specified in Instances configuration file." name="description" />
+      <title>Custom jobs</title><link href="res/webhelp.css" rel="stylesheet" type="text/css" /><meta content="Custom jobs usually are PHP files inside customizations directory. See Customized file." name="description" />
       <meta content="XMLmind DITA Converter 3.3.0" name="generator" />
    <script charset="UTF-8" defer="defer" src="_wh/snowball_en.min.js" type="text/javascript"></script><link href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/themes/smoothness/jquery-ui.css" rel="stylesheet" type="text/css" /><link href="_wh/wh.css" rel="stylesheet" type="text/css" /><script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js" type="text/javascript">
     </script><script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js" type="text/javascript">
@@ -49,7 +49,7 @@
                <td style="text-align: left;vertical-align: top;"><a class="navigation-link" href="manual.html" title="First page: Asterisell Manual"><img alt="First page" class="navigation-icon" height="16" src="res/first.png" width="16" /></a></td>
                <td style="text-align: left;vertical-align: top;"><a class="navigation-link" href="changes-of-rate-plans.html" title="Previous page: Change of rates"><img alt="Previous page" class="navigation-icon" height="16" src="res/previous.png" width="16" /></a></td>
                <td style="width: 25%;text-align: left;vertical-align: top;"><span class="page-navigation-previous">Change of rates</span></td>
-               <td style="width: 40%;text-align: center;vertical-align: top;"><span class="page-navigation-current">Custom jobs</span> <span class="page-navigation-page">(25 / 71)</span></td>
+               <td style="width: 40%;text-align: center;vertical-align: top;"><span class="page-navigation-current">Custom jobs</span> <span class="page-navigation-page">(26 / 72)</span></td>
                <td style="width: 25%;text-align: right;vertical-align: top;"><span class="page-navigation-next">User interface localization</span></td>
                <td style="text-align: right;vertical-align: top;"><a class="navigation-link" href="ui_localization.html" title="Next page: User interface localization"><img alt="Next page" class="navigation-icon" height="16" src="res/next.png" width="16" /></a></td>
                <td style="text-align: right;vertical-align: top;"><a class="navigation-link" href="about.html" title="Last page: About"><img alt="Last page" class="navigation-icon" height="16" src="res/last.png" width="16" /></a></td>
@@ -58,103 +58,26 @@
       </header>
       <section class="topic" id="Custom_jobs">
          <h2 class="section2-title">Custom jobs</h2>
-         <p class="shortdesc">Custom jobs can be defined in <a class="xref" href="manual-6.html#Customized_file">Customized file</a>, and specified in <a class="xref" href="manual-6.html#Instances_configuration_file">Instances configuration file</a>.
+         <p class="shortdesc">Custom jobs usually are PHP files inside <code class="codeph">customizations</code> directory. See <a class="xref" href="manual-6.html#Customized_file">Customized file</a>.
          </p>
          <div class="body">
-            <section class="section" id="Custom_jobs__I_8em3pb_">
-               <h3 class="section-title">Automatic importing of CDRS</h3>
-               <div class="p">CDRS are imported from some external data source, according the specification of the
-                  <a class="xref" href="cdrs-provider.html#CDRs_provider">CDRs provider</a>. This is typically done using custom jobs. You can reuse one of the jobs in directory
-                  <code class="codeph">apps/asterisell/lib/jobs/data_file_processing</code> there are many jobs to use.
-               </div>
-               <div class="p">Every <a class="xref" href="cdrs-provider.html#CDRs_provider">CDRs provider</a> must be configured in the Web UI in <code class="codeph">Params-&gt;CDRs Providers</code>.
-               </div>
-               <div class="p">TODO CDR-format</div>
-            </section>
-            <section class="section" id="Custom_jobs__I_jigrva_">
-               <h3 class="section-title">Importing CDRS from an external collector</h3>
-               <div class="p"><code class="codeph">apps/asterisell/lib/jobs/data_file_processing/ImportCDRSFromDatabase.php</code> is the abstract Job to use for retrieving CDRs from a collector table. It:
-               </div>
-               <ul class="ul">
-                  <li class="li">reads CDRs on a table of a database, that is acting like a queue of CDRs to process,</li>
-                  <li class="li">convert to CSV files the CDRs to process,</li>
-                  <li class="li">put the generated CSV files on the input queue of Asterisell,</li>
-                  <li class="li">remove (optionally) older CDRs already exported to Asterisell, managing the table
-                     as a queue,
-                  </li>
-               </ul>
-               <div class="p">It is an abstract class, so:</div>
-               <ul class="ul">
-                  <li class="li">a concrete class/job must be inherited from it,</li>
-                  <li class="li">the inherited job, must define the missing methods, respecting the requirements on
-                     method headers descriptions,
-                  </li>
-                  <li class="li">the inherited job must be added to the list of jobs to process before rating, adding
-                     it to the <code class="codeph">import_cdrs_jobs</code> option of the instance configuration file
-                  </li>
-               </ul>
-               <div class="p">One or more jobs of this type can be added, without conflict.</div>
-            </section>
-            <section class="section" id="Custom_jobs__I_8rpa7x_">
-               <h3 class="section-title">Adding a flag field to the collector</h3>
-               <div class="p">If the remote table has a reliable progressive ID field, Asterisell can use it for
-                  retrieving new CDRS. Otherwise a flag field can be added to the collector table. Note:
-                  the ID approach is the suggest one, because it is less invasive, and it does not require
-                  a transaction lock on the external table.
-               </div>
-               <div class="p">For adding the field, you must modify the external collector table</div><pre class="pre">    ALTER TABLE your_table_name
-    ADD COLUMN is_exported_to_asterisell TINYINT default 0 NOT NULL,
-    ADD INDEX is_exported_to_asterisell_index(is_exported_to_asterisell);
-</pre><div class="p">This field will be used from Asterisell for importing only new source CDRs. The source
-                  table will work like a queue.
-               </div>
-               <div class="p">Transactions are used, so in case of connection problems, the CDRs will be imported
-                  and rated again. But in case of MyISAM tables this can cause a temporary lock on the
-                  entire table.
-               </div>
-            </section>
-            <section class="section" id="Custom_jobs__I_e3sut6_">
-               <h3 class="section-title">Accessing collector tables on external databases</h3>
-               <div class="p">An external database is a database that is not on the same Linux instance where Asterisell
-                  is installed. Supposing the remote Asterisell instance is on IP ‘10.10.10.10’, the
-                  SQL commands to execute are like:
-               </div><pre class="pre">    CREATE USER 'someuser'@'localhost' IDENTIFIED BY 'somepassword';
-    CREATE USER 'someuser'@'10.10.10.10' IDENTIFIED BY 'somepassword';
-    
-    GRANT SELECT,DELETE,UPDATE ON dbname.collector TO 'someuser'@'localhost';
-    GRANT SELECT,DELETE,UPDATE ON dbname.collector TO 'someuser'@'10.10.10.10';
-    
-    FLUSH PRIVILEGES;
-</pre></section>
-            <section class="section" id="Custom_jobs__I_2eo5h3_">
-               <h3 class="section-title">Tables on the same host and database server</h3>
-               <div class="p">If the table with source CDRs is on the same Host and Database Server, you can optimize
-                  further the processing of source CDRs.
-               </div>
-               <div class="p">First show the format of the table, executing something like</div><pre class="pre">    show create table your_table_name;
-</pre><div class="p">It is important the last line of the table creation:</div><pre class="pre">    ENGINE=InnoDB AUTO_INCREMENT=51438 DEFAULT CHARSET=latin1
-</pre><div class="p">Asterisell uses the TokuDB engine:</div>
-               <ul class="ul">
-                  <li class="li">it can compress data</li>
-                  <li class="li">it is fast and reliable</li>
-                  <li class="li">it is studied for big data</li>
-                  <li class="li">it is 100% compatbile with all the SQL and MySQL API commands issued to a InnoDB engine</li>
-               </ul>
-               <div class="p">So you can switch the engine used for the table, to TokuDB. The application writing
-                  to it will not notice the difference.
-               </div>
-               <div class="p">If you have not many source CDRs, and you can interrupct the CDR stream flow, you
-                  can execute a command like
-               </div><pre class="pre">    ALTER TABLE your_source_cdrs_table_name 
-    ENGINE=TokuDB 
-    ROW_FORMAT=TOKUDB_SNAPPY, 
-    DEFAULT CHARACTER SET = utf8mb4, 
-    DEFAULT COLLATE = utf8mb4_bin;
-</pre><div class="p">If you cannot interrupt the stream of CDRs, consult the assistance. It is possibile
-                  copying on the fly old and new CDRs, and them executing a fast switch.
-               </div>
-            </section>
+            <div class="p">Some notes about them can be put in <code class="codeph">customizations/CUSTOM.md</code> file, so they will be visible also on the online help (only for admins).
+            </div>
+            <div class="p">Custom jobs are configured inside <code class="codeph">asterisell_instances.py</code>:
+            </div>
+            <ul class="ul">
+               <li class="li"><code class="codeph">custom_files</code> send them to the instance
+               </li>
+               <li class="li"><code class="codeph">import_cdrs_jobs</code>, or <code class="codeph">custom_initial_always_scheduled_jobs</code> or <code class="codeph">custom_export_cdrs_jobs</code> schedule them
+               </li>
+            </ul>
+            <div class="p">The <a class="xref" href="manual-6.html#Instances_configuration_tool">Instances configuration tool</a> produce an <code class="codeph">apps/asterisell/config/app.yml</code> file with the configured jobs.
+            </div>
          </div>
+         <nav class="related-links">
+            <h3 class="related-links-title">Related information</h3>
+            <p class="link">‣ <a href="importing-of-cdrs.html#Importing_of_CDRS" title="Every source of CDRS is configured as a distinct CDRs provider inside the Web UI in Params-&gt;CDRs Providers.">Importing of CDRS</a></p>
+         </nav>
       </section>
       <footer class="page-navigation-footer">
          <table class="page-navigation-layout" style="width: 100%;">
@@ -162,7 +85,7 @@
                <td style="text-align: left;vertical-align: top;"><a class="navigation-link" href="manual.html" title="First page: Asterisell Manual"><img alt="First page" class="navigation-icon" height="16" src="res/first.png" width="16" /></a></td>
                <td style="text-align: left;vertical-align: top;"><a class="navigation-link" href="changes-of-rate-plans.html" title="Previous page: Change of rates"><img alt="Previous page" class="navigation-icon" height="16" src="res/previous.png" width="16" /></a></td>
                <td style="width: 25%;text-align: left;vertical-align: top;"><span class="page-navigation-previous">Change of rates</span></td>
-               <td style="width: 40%;text-align: center;vertical-align: top;"><span class="page-navigation-current">Custom jobs</span> <span class="page-navigation-page">(25 / 71)</span></td>
+               <td style="width: 40%;text-align: center;vertical-align: top;"><span class="page-navigation-current">Custom jobs</span> <span class="page-navigation-page">(26 / 72)</span></td>
                <td style="width: 25%;text-align: right;vertical-align: top;"><span class="page-navigation-next">User interface localization</span></td>
                <td style="text-align: right;vertical-align: top;"><a class="navigation-link" href="ui_localization.html" title="Next page: User interface localization"><img alt="Next page" class="navigation-icon" height="16" src="res/next.png" width="16" /></a></td>
                <td style="text-align: right;vertical-align: top;"><a class="navigation-link" href="about.html" title="Last page: About"><img alt="Last page" class="navigation-icon" height="16" src="res/last.png" width="16" /></a></td>

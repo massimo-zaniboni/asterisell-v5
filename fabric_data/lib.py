@@ -77,7 +77,18 @@ def put_template(out_file_name, template_content, **kws):
 
 
 class ConnectionParams(object):
-    """Connection params used for connecting to external databases and servers."""
+    """Connection params used for connecting to external databases and servers.
+
+    DEV-NOTE: if you add a parameter here, the synchro to make to the code are:
+    * add a note on `../asterisell_instances.py.DefaultInstance.default_connection_params`
+    * update `convert_connection_params` function, for saving the data on `app.yml` of the instances
+    * update job `ImportCDRSUsingAppConfs` for recognizing the param and sending it to Haskell rating engine
+    * update `AsterisellHelper.getConnectionParams`
+    * extend the Haskell rating engine
+    * ok it is crazy... :-)
+      The justification it is that we have a Fabric configuration tool, speaking to instances in PHP,
+      telling to an Haskell engine what to do, and all passing to YAML configuration files as bridge.
+    """
 
     connection_name = ''
 
@@ -90,22 +101,29 @@ class ConnectionParams(object):
     port = ''
 
     dbName = ''
-    # NOTE: not supported by all jobs
+    # NOTE: supported by `ImportCDRSUsingAppConfs`
 
     tableName = ''
-    # NOTE: not supported by all jobs
+    # NOTE: supported by `ImportCDRSUsingAppConfs`
 
     provider = ''
-    # NOTE: not supported by all jobs
+    # NOTE: supported by `ImportCDRSUsingAppConfs`
 
     timeFrameInMinutes = '0'
-    # NOTE: not supported by all jobs
+    # NOTE: supported by `ImportCDRSUsingAppConfs`
 
     dataSourceFormat = ''
-    # NOTE: not supported by all jobs
+    # NOTE: supported by `ImportCDRSUsingAppConfs`
 
     dataSourceVersion = ''
-    # NOTE: not supported by all jobs
+    # NOTE: supported by `ImportCDRSUsingAppConfs`
+
+    fromDate = ''
+    # NOTE: supported by `ImportCDRSUsingAppConfs`
+
+    removeOlderThanDays = '0'
+    # NOTE: supported by `ImportCDRSUsingAppConfs`
+
 
 # ---------------------------
 
@@ -223,7 +241,7 @@ exit 0
                                  php php-mysqlnd php-pdo php-cli php-common php-opcache php-bcmath \
                                  php-xml php-mbstring php-gd php-fpm \
                                  mingw32-iconv gmp lftp php-gd php-xml \
-                                 freetype gnutls pv \
+                                 freetype gnutls pv recode \
                                  httpd httpd-tools curl vim wget htop screen \
                                  mingw-filesystem-base mingw32-crt mingw32-filesystem \
                                  nettle openssl openssl-devel git \
@@ -975,6 +993,8 @@ class Instance(object):
                 r = r + indent1 + 'timeFrameInMinutes: ' + c.timeFrameInMinutes
                 r = r + indent1 + 'dataSourceFormat: ' + c.dataSourceFormat
                 r = r + indent1 + 'dataSourceVersion: ' + c.dataSourceVersion
+                r = r + indent1 + 'fromDate: ' + c.fromDate
+                r = r + indent1 + 'removeOlderThanDays: ' + c.removeOlderThanDays
 
         r = r + '\n'
         return r
@@ -1211,7 +1231,6 @@ all:
       $custom_reports_list
 
     always_scheduled_jobs:
-      - DeleteProcessedFiles
       - RecalculateReportSets
       - ChangePassword
       $import_cdrs_jobs
@@ -1245,7 +1264,6 @@ all:
       # - BackupSourceCDRS
       # - BackupCDRS
       # - BackupReports
-      - DeleteProcessedFiles
       - AdviseAdminOfNewProblems            # this must be always the last job to be executed (see notes on the code)
 
     jobs:

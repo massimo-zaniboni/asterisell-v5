@@ -1789,14 +1789,14 @@ function getConnectionParams($connectionName, $returnExtendedInfo = false, $asPr
             $remoteName = trim($conf['name']);
             if ($asPrefix && isPrefixOf($connectionName, $remoteName)) {
                 $countMatches++;
-            } else if ((!$asPrefix) && $connectionName == $remoteName) {
+            } else if ((!$asPrefix) && strcmp($connectionName, $remoteName) == 0) {
                 $countMatches++;
             }
 
             if ($countMatches == $fromIndex) {
                 if ($returnExtendedInfo) {
                     return array(
-                        'name' => trim($conf['name'])
+                      'name' => trim($conf['name'])
                     , 'host' => trim($conf['host'])
                     , 'user' => trim($conf['user'])
                     , 'password' => trim($conf['password'])
@@ -1807,10 +1807,12 @@ function getConnectionParams($connectionName, $returnExtendedInfo = false, $asPr
                     , 'timeFrameInMinutes' => trim(strval($conf['timeFrameInMinutes']))
                     , 'dataSourceFormat' => trim($conf['dataSourceFormat'])
                     , 'dataSourceVersion' => trim($conf['dataSourceVersion'])
+                    , 'fromDate' => trim($con['fromDate'])
+                    , 'removeOlderThanDays' => trim($con['removeOlderThanDays'])
                     );
                 } else {
                     return array(
-                        trim($conf['host'])
+                      trim($conf['host'])
                     , trim($conf['user'])
                     , trim($conf['password'])
                     , trim($conf['port'])

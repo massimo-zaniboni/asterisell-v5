@@ -64,6 +64,7 @@ executable RateEngine
            , unix -any
            , process -any
            , assert-failure -any
+           , random -any
 
   main-is: Main.hs
   buildable: True

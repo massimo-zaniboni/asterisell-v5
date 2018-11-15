@@ -11,8 +11,12 @@ module Asterisell.DB (
   db_commitTransaction,
   db_rollBackTransaction,
   db_releaseResource,
-  uniqueDateId_init,
+  cparams_toDBConf,
+  cparams_toDBConf2,
+  cparams_toRemoteDBConf,
   uniqueDateId_next,
+  uniqueDateId_randomStart,
+  dbNullToCSV,
   UniqueDateId,
   toDBBool,
   toDBInt64,
@@ -111,6 +115,8 @@ import Control.Parallel
 import Control.Parallel.Strategies
 import Control.Monad
 import Text.Heredoc
+import qualified Data.Csv as CSV
+import System.Random
 
 -- ---------------------------------------
 -- DB connections
@@ -154,6 +160,34 @@ db_openConnection dbConf isRemoteDB
                    , ciPassword = dbConf_password dbConf
                    , ciDatabase = dbConf_dbName dbConf
                    }
+
+cparams_toDBConf :: CmdParams -> DBConf
+cparams_toDBConf pp = cparams_toDBConf2 pp BS.empty
+
+cparams_toDBConf2 :: CmdParams -> BS.ByteString -> DBConf
+cparams_toDBConf2 pp p
+    = DBConf {
+        dbConf_user = cparams_get pp (BS.concat [p, "db-user"])
+      , dbConf_password = cparams_get pp (BS.concat [p, "db-password"])
+      , dbConf_dbName = cparams_get pp (BS.concat [p, "db-name"])
+      }
+
+cparams_toRemoteDBConf :: CmdParams -> DB.ConnectInfo
+cparams_toRemoteDBConf pp
+  = DB.defaultConnectInfo {
+       ciHost = fromByteStringToString $ cparams_get pp "host"
+     , ciPort =  read $ fromByteStringToString $ cparams_get pp "port"
+     , ciDatabase = cparams_get pp "dbName"
+     , ciUser = cparams_get pp "user"
+     , ciPassword = cparams_get pp "password"
+    }
+    -- NOTE: do not use a defaultConnectInfoMB4 because older remote MySQL DBMS
+    -- can not support it. CDR data is mainly ASCII and UTF8 chars,
+    -- so it is good-enough.
+    -- It will be converted to uft8mb4 when writing o the local database.
+
+-- --------------------------------------
+-- Transactions
 
 db_openTransaction :: DB.MySQLConn -> IO ()
 db_openTransaction conn = do
@@ -287,15 +321,17 @@ dbErrors_insert conn maybeStmtId err maybeGarbageTimeFrame = do
 --   and they are proportional to the number of customers.
 type UniqueDateId = Int32
 
-uniqueDateId_init :: UniqueDateId
-uniqueDateId_init = 0
-{-# INLINE uniqueDateId_init #-}
-
 uniqueDateId_next :: UniqueDateId -> UniqueDateId
 uniqueDateId_next n
   = let maxId = 2 ^ 20
     in  mod (n + 1) maxId
 {-# INLINE uniqueDateId_next #-}
+
+uniqueDateId_randomStart :: IO UniqueDateId
+uniqueDateId_randomStart = do
+  n <- randomIO
+  return $ uniqueDateId_next n
+{-# INLINE uniqueDateId_randomStart #-}
 
 -- --------------------------------------------
 -- Convert DB Values to Haskell  types.
@@ -442,7 +478,6 @@ toDBMaybeString Nothing = MySQLNull
 toDBMaybeString (Just s) = MySQLBytes s
 {-# INLINE toDBMaybeString #-}
 
-
 toDBByteString :: BS.ByteString -> DB.MySQLValue
 toDBByteString s = MySQLBytes s
 {-# INLINE toDBByteString #-}
@@ -501,6 +536,36 @@ instance Hashable LocalTime where
     = hashWithSalt salt (localDay a, localTimeOfDay a)
 
 instance Hashable MySQLValue
+
+-- ---------------------------
+-- CSV support
+
+dbNullToCSV :: String
+dbNullToCSV = "\\N"
+{-# INLINE dbNullToCSV #-}
+
+instance CSV.ToField DB.MySQLValue where
+  toField MySQLNull = fromStringToByteString dbNullToCSV  
+  toField (MySQLDateTime v) = CSV.toField v
+  toField (MySQLTimeStamp v) = CSV.toField v
+  toField (MySQLBytes v) = CSV.toField v
+  toField (MySQLText v) = CSV.toField v
+  toField (MySQLInt16 v) = CSV.toField v
+  toField (MySQLInt32 v) = CSV.toField v
+  toField (MySQLInt64 v) = CSV.toField v
+  toField (MySQLInt8  v) = CSV.toField v
+  toField (MySQLInt16U v) = CSV.toField v
+  toField (MySQLInt32U v) = CSV.toField v
+  toField (MySQLInt64U v) = CSV.toField v
+  toField (MySQLInt8U v) = CSV.toField v
+  toField (MySQLDecimal v) = CSV.toField v
+  toField (MySQLFloat v) = CSV.toField v
+  toField (MySQLDouble v) = CSV.toField v
+  toField (MySQLYear v) = CSV.toField v
+  toField (MySQLBit v) = CSV.toField v
+
+instance CSV.ToField LocalTime where
+  toField v = fromStringToByteString $ fromLocalTimeToMySQLDateTime v
 
 -- ----------------------------
 -- Operations on list of fields
@@ -749,7 +814,8 @@ db_loadDataFromNamedPipe maybeConn pipeName tableName columns f = do
   inChan <- newEmptyMVar
   (pipeH, p1) <- namedPipe_create (fromByteStringToString pipeName)
   p2 <-async process_load
-  p3 <- async (process_writeToMySQLNamedPipe inChan f pipeH uniqueDateId_init)
+  startIndex <- uniqueDateId_randomStart
+  p3 <- async (process_writeToMySQLNamedPipe inChan f pipeH startIndex)
   p4 <- async (waitPosixProcess p1)
   return (inChan, V.fromList [p2, p3, p4])
 
@@ -771,7 +837,6 @@ db_loadDataFromNamedPipe maybeConn pipeName tableName columns f = do
 
   process_writeToMySQLNamedPipe maybeInDataR f outH uniqueId1 = do
      maybeInData <- takeMVar maybeInDataR
-
      case maybeInData of
       Nothing
         -> do
@@ -781,7 +846,7 @@ db_loadDataFromNamedPipe maybeConn pipeName tableName columns f = do
         -> do
               !lastUniqueId
                 <- V.foldM (\uniqueId cdr -> do
-                               B.hPutBuilder outH (B.int32Dec uniqueId <> B.charUtf8 '\t' <> f cdr <> B.charUtf8 '\n')
+                               B.hPutBuilder outH $ B.int32Dec uniqueId <> B.charUtf8 '\t' <> f cdr <> B.charUtf8 '\n'
                                return $ uniqueDateId_next uniqueId) uniqueId1 inData
 
               process_writeToMySQLNamedPipe maybeInDataR f outH lastUniqueId

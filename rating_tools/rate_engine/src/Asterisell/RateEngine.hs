@@ -100,21 +100,11 @@ import qualified Data.ByteString.Lazy.Char8 as LBS
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Builder as B
 import Control.Monad.IO.Class       (liftIO)
-import Data.Word
 import qualified Data.Vector as V
 import qualified Data.Vector.Mutable as MV
-import qualified Data.Vector.Unboxed.Mutable as UMV
 import qualified Data.Vector.Unboxed as UV
 import Data.Time.LocalTime
-import Data.Time.Calendar
-import Data.Int
 import qualified Data.Text as Text
-import qualified Data.Text.IO as Text
-import qualified Data.Text.Encoding as Text
-import qualified Data.Char as Char (ord, chr)
-import qualified Data.Text.Lazy.Encoding as LText
-import qualified Data.Text.Lazy as LText
-import qualified Data.Text.Lazy.IO as LText
 import qualified Test.HUnit as HUnit
 import qualified Data.Csv as CSV
 import qualified Data.Csv.Streaming as S
@@ -127,61 +117,28 @@ import qualified Data.Map as Map
 import Data.IntMap as IMap
 import Data.IORef
 import qualified Data.Serialize as DBS
-import qualified Data.Serialize.Text as DBS
 import qualified Data.ByteString.Base64 as B64
 import Data.String
-import Data.Traversable (mapAccumR)
 import Data.Foldable as F
-
 import qualified Codec.Compression.QuickLZ as LZ
 import Control.Monad.Except as M
-import Data.Text.Encoding
-import qualified Data.Serialize as Serialize
-import Data.Monoid
-import qualified Data.Text.Read as T
-import Data.Text.Encoding
-import qualified Data.ByteString.Internal as BS (c2w, w2c)
-
-import qualified Data.HashMap.Strict as H
 import qualified Data.HashSet as HS
 import Data.Hashable
-
 import qualified Data.HashTable.IO as IMH
-
 import System.IO.Streams as S
-import qualified System.IO.Streams.Text as S
-import qualified System.IO.Streams.Combinators as S
-import qualified System.IO.Streams.List as S
-import qualified System.IO.Streams.File as S
-import qualified System.IO.Streams.Vector as S
-import qualified Data.Vector as V
 import Control.DeepSeq as DeepSeq
-
-import GHC.Conc (getNumProcessors)
-import Control.Concurrent (myThreadId)
 import Control.Concurrent.MVar
 import Control.Concurrent.Async
 import Control.Exception.Safe (catch, catchAny, onException, finally, handleAny, bracket
                               , SomeException(..), throwIO, throw, Exception, MonadMask
                               , withException, displayException)
 import Control.Exception.Assert.Sugar
-import Control.DeepSeq.Generics
-import Control.Parallel
-import Control.Parallel.Strategies
-
 import qualified Control.Concurrent.Chan as UnboundedChan
-
 import Database.MySQL.Base as DB
-import qualified Database.MySQL.Protocol.Escape as DB
-import Database.MySQL.Protocol.MySQLValue
 import Text.Heredoc
 import qualified System.Posix.Files.ByteString as Posix
 import qualified System.Posix.IO.ByteString as Posix
-import qualified System.Posix.Process.ByteString as Posix
-import qualified System.Posix.Types as Posix
-import qualified System.Process as Process
 import qualified System.Posix.User as Posix
-import Foreign.StablePtr
 
 -- ---------------------------------
 -- Params
@@ -254,6 +211,7 @@ data DBState
 
 dbps_writeData :: DBState -> Bool
 dbps_writeData s = isNothing $ dbps_debugFile s
+{-# INLINE dbps_writeData #-}
 
 db_init :: DBConf -> Maybe String -> CurrencyPrecisionDigits -> IO (IORef DBState)
 db_init dbConf debugFile currencyPrecision = do
@@ -987,9 +945,10 @@ process_parsedSourceCDRS nrOfJobs inConn env maybeToCallDate' outCDRS
      mv <- S.read dbInChan
      case mv of
        Nothing
-         -> return (lastCallDate, lastSourceId, False)
-            -- NOTE: do not continue because the end of the stream was reached before the end of the maximum expected
-            -- size of result, so there are no any more results to process
+         -> do
+               return (lastCallDate, lastSourceId, False)
+               -- NOTE: do not continue because the end of the stream was reached before the end of the maximum expected
+               -- size of result, so there are no any more results to process
        Just v
          -> do
                let v' = V.map processRecord v
@@ -1111,9 +1070,10 @@ process_cdrsWithPortedTelephoneNumbers conn env inCDRS outCDRS
                       ) cdrs
 
          _ <- DB.executeStmt conn stmtTruncate []
-         case (L.null valuesToPort) of
+         let !valuesToPort' = V.toList $ V.map fromJust $ V.filter isJust valuesToPort
+         case (L.null valuesToPort') of
            True -> return ()
-           False -> do _ <- DB.executeMany conn stmtInsertQ (V.toList $ V.map fromJust $ V.filter isJust valuesToPort)
+           False -> do _ <- DB.executeMany conn stmtInsertQ valuesToPort'
                        return ()
 
          (_, portedRS) <- DB.queryStmt conn stmtGetPortedTelephoneNumbers []
@@ -2240,10 +2200,6 @@ mainRate_apply env statsR cdr1
   dbg' a = DeepSeq.force $ if isDebugMode then a else Nothing
   {-# INLINE dbg' #-}
 
-  dbgT :: Text.Text -> Text.Text
-  dbgT a = DeepSeq.force $ if isDebugMode then a else Text.empty
-  {-# INLINE dbgT #-}
-
   bundleDebugInfo
      :: BundleState
      -> Maybe BundleRateSystemId
@@ -2289,18 +2245,13 @@ mainRate_apply env statsR cdr1
                      -> params_incomeRate env
                    CostRate
                      -> params_costRate env
-         -- liftIO $ putStrLn $ "mainRate_apply: here 0 "
 
          (!value, !bundleRateUnitId, !bundleState2, debugInfo)
             <- case mainRatePlan_calcCost isDebugMode rateRole env bundleState1 ratePlan cdr of
                  Right r
-                   -> do -- liftIO $ putStrLn $ "mainRate_apply: here 1.1 correctly rated "
-                         return r
+                   -> do return r
                  Left err
-                   -> do -- liftIO $ putStrLn $ "mainRate_apply: here 1.2 error " ++ asterisellError_userShow err
-                         throwError (cdr, err)
-
-         -- liftIO $ putStrLn $ "mainRate_apply: here 2 " ++ show value
+                   -> do throwError (cdr, err)
 
          let debugRatingDetails1
                = let s = fromJust1 "ERR 56" $ info_ratingDetails $ fromJust1 "ERR 55" debugInfo
@@ -2310,14 +2261,8 @@ mainRate_apply env statsR cdr1
                            CostRate -> "\nDetails during calculation of Cost:\n"
                  in Text.append rateRoleName s
 
-         -- liftIO $ putStrLn $ "mainRate_apply: here 3 " ++ show debugRatingDetails1
-
-         -- liftIO $ putStrLn $ "mainRate_apply: here 4 " ++ show debugRatingDetails2
-
          let appliedRateName
                = fromJust1 "ERR 12555" $ IMap.lookup (info_appliedRate $ fromJust1 "ERR 2274" debugInfo) (mainRatePlan_systemIdToUserIdPath ratePlan)
-
-         -- liftIO $ putStrLn $ "mainRate_apply: here 5 " ++ show appliedRateName
 
          let residualAppliedRate
                = case (info_residualAppliedRate $ fromJust1 "ERR 0247" debugInfo) of
@@ -2325,8 +2270,6 @@ mainRate_apply env statsR cdr1
                      -> Text.empty
                    Just i
                      -> fromJust1 "ERR 753777" $ IMap.lookup i (mainRatePlan_systemIdToUserIdPath ratePlan)
-
-         -- liftIO $ putStrLn $ "mainRate_apply: here 6 " ++ show residualAppliedRate
 
          case rateRole of
            IncomeRate

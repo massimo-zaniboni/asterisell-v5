@@ -1157,7 +1157,7 @@ stream_forceMap inS f = S.map (\x -> C.force $ f x) inS
 -- | Generate values in a lazy/efficient way.
 stream_sequence
   :: b
-  -- ^ the initial seed generator
+  -- ^ the initial seed nerator
   -> (b -> IO (Maybe (S.InputStream a, b)))
   -- ^ the stream and the next seed to use when the stream will be fully consumed,
   -- or Nothing if the end of the stream sequence is reached
@@ -1182,11 +1182,10 @@ stream_sequence seed0 generator = do
                   -> return Nothing
                 Just state'
                   -> do modifyIORef' stateR (\_ -> state')
+                        -- MAYBE IORef are prone to space-leak, evaluate to use an MVar instead
                         g stateR
       _
         -> return mv
-
-
 
 -- -----------------------
 -- Brackets

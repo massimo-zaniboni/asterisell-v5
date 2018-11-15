@@ -5,140 +5,53 @@
 sfLoader::loadHelpers(array('I18N', 'Debug', 'Date', 'Asterisell'));
 
 /**
- * Import CDRS using the configurations specified on connection params.
- * Assumes that there is an `ID` or `id` auto incrementing field for any table to import.
- * Use the result of `SHOW COLUMN` command for discovering fields.
- * If the format of the table change, then a new version of the format must be configured,
- * so the Haskell specific importer can manage it.
+ * Import CDRS from remote databases, using the configurations specified on `ConnectionParams`
+ * inside `asterisell_instances.py`.
+ *
+ * This job is the counterpart of `ImportDataFiles`, but it works on remote databases,
+ * instead of local files.
+ *
+ * It process connections starting with prefix 'import-remote-cdrs-'.
+ * They are saved inside `app.yml` from `fabric_data/lib.py` in a way like this
+ *
+ * > connections:
+ * >   -
+ * >       name: import-remote-cdrs-sigma-abiliscpx
+ * >       user: some-name
+ * >       password: some-password
+ * >       host: db.example.net
+ * >       port: 443
+ * >       dbName: some-name
+ * >       tableName: some-name
+ * >       provider: some-provider
+ * >       timeFrameInMinutes: 0
+ * >       dataSourceFormat: some-format
+ * >       dataSourceVersion: some-version
+ * >       fromDate: ''
+ * >       removeOlderThanDays: 0
+ *
+ * DEV-NOTE: each connection is from a logical point of view a distinct job:
+ * - generate distinct errors
+ * - do not interrupt other jobs
+ * - distinct garbage errors
+ *
  */
-class ImportCDRSUsingAppConfs extends ImportCDRSFromDatabase
+class ImportCDRSUsingAppConfs extends FixedJobProcessor
 {
 
-    /**
-     * @return string all the connection params specified in `asterisell_instances.py`,
-     * having this prefix will be used for importing data.
-     * Doing so one can import from multiple sources without adding explicit jobs,
-     * in the configuration, but only adding new connection params.
-     *
-     * The parameter 'dataSourceFormat' of the connection is used as import method name.
-     * The parameter `provider` of the connection is used as data-source-name.
-     * The parameter `timeFrameInMinutes` is used for postponing the execution.
-     */
-    public function getConnectionNamePrefix()
-    {
-        // DEV-NOTE: if you change this value, update also `asterisell_instances.py` documentation.
-        return "import-remote-cdrs-";
-    }
+    // --------------------
+    // Logical job params
 
     /**
-     * @return String log
-     * @throws ArProblemException
+     * @var array the connection configuration key => values
      */
-    public
-    function process()
-    {
-        $prof = new JobProfiler('CDRS providers');
-
-        $log = '';
-
-        $i = -1;
-
-        while (true) {
-            $i++;
-            $params = getConnectionParams($this->getConnectionNamePrefix(), true, true, $i);
-            if (is_null($params)) {
-                break;
-            } else {
-                $log .= $this->processConnection($params) . "\n";
-                $prof->incrementProcessedUnits();
-            }
-        }
-
-        return $prof->stop() . "\nDetails: ";
-    }
-
-    /**
-     * @param array $params process a connection
-     * @return string stats about the computation
-     * Signal problems in the error table, without generating an exception.
-     */
-    public function processConnection($params)
-    {
-        $jobName = $params['name'] . '-' . $params['provider'] . '-' . get_class($this);
-        $timeFrameInMinutes = intval($params['timeFrameInMinutes']);
-        $checkLimit = strtotime("-$timeFrameInMinutes minutes");
-        $mutex = new Mutex($jobName);
-
-        if ($mutex->maybeTouch($checkLimit)) {
-            try {
-                $this->initJobParamsUsingConnectionParams($params);
-                return $this->importCDRS();
-            } catch (ArProblemException $e) {
-                return 'Error during processing of ' . $jobName;
-            } catch (Exception $e) {
-                $problemDuplicationKey = $this->getGarbageKey() . " - unexpected error - " . $e->getCode();
-                ArProblemException::createFromGenericExceptionWithGarbageCollection(
-                    $e,
-                    ArProblemType::TYPE_CRITICAL,
-                    $problemDuplicationKey,
-                    $this->getGarbageKey(),
-                    $this->getGarbageFromDate(),
-                    $this->getGarbageToDate(),
-                    "Unable to retrieve and process CDRs of the provider " . $this->getCdrProvider(),
-                    "CDRs of the provider \"" . $this->getCdrProvider() . "\", will not be rated.",
-                    "Fix the connection params, or inspect the reason of the exception."
-                );
-                return 'Error during processing of ' . $jobName;
-            }
-        } else {
-            return "$jobName will be executed later, every $timeFrameInMinutes minutes.";
-        }
-    }
-
-    // ------------------------------------------
-    // Implement ImportCDRSFromDatabase interface
-
-    // DEV-NOTE: if you add caching fields here, make sure to init them in `initJobParamsUsingConnectionParams`
-    protected
-        $params = null;
-
-    protected
-        $fieldsToExport = null;
-
-    /**
-     * @var PDO
-     */
-    protected
-        $remoteConn = null;
-
-    protected
-        $progressiveIDField = null;
-
-    /**
-     * Init the `ImportCDRSFromDatabase` interface according the content of $params
-     * @param array $params connection params
-     */
-    protected
-    function initJobParamsUsingConnectionParams($params)
-    {
-        $this->params = $params;
-        $this->fieldsToExport = null;
-        $this->progressiveIDField = null;
-        $this->remoteConn = null;
-
-        $provider = ArCdrProviderPeer::retrieveByName($this->getCdrProvider());
-        if (is_null($provider)) {
-            $provider = new ArCdrProvider();
-            $provider->setInternalName($this->getCdrProvider());
-            $provider->save();
-        }
-    }
+    protected $params = null;
 
     protected
     function getGarbageKey()
     {
         // NOTE: call directly for avoiding an infinite loop during error signalation
-        return $this->params['name'];
+        return 'ImportCDRSUsingAppConfs - ' . $this->params['name'];
     }
 
     public
@@ -198,8 +111,8 @@ class ImportCDRSUsingAppConfs extends ImportCDRSFromDatabase
                 null,
                 $problemDuplicationKey,
                 $this->getGarbageKey(),
-                $this->getGarbageFromDate(),
-                $this->getGarbageToDate(),
+                null,
+                null,
                 $problemDescription,
                 $problemEffect,
                 $problemProposedSolution);
@@ -207,127 +120,232 @@ class ImportCDRSUsingAppConfs extends ImportCDRSFromDatabase
         }
     }
 
-    public
-    function getListOfFields()
+    /**
+     * @param $name
+     * @param $defaultValue
+     * @return string
+     * @throws ArProblemException
+     */
+    protected function getParamValue($name, $defaultValue)
     {
-        if (is_null($this->fieldsToExport)) {
-            $query = 'SELECT COLUMN_NAME
-                      FROM information_schema.COLUMNS
-                      WHERE TABLE_SCHEMA = ?
-                      AND TABLE_NAME = ?
-                      ORDER BY ORDINAL_POSITION';
+        if (array_key_exists($name, $this->params)) {
+            return $this->params[$name];
+        } else {
+            return $defaultValue;
+        }
+    }
+
+    /**
+     * @return string all the connection params specified in `asterisell_instances.py`,
+     * having this prefix will be used for importing data.
+     * Doing so one can import from multiple sources without adding explicit jobs,
+     * in the configuration, but only adding new connection params.
+     *
+     * The parameter 'dataSourceFormat' of the connection is used as import method name.
+     * The parameter `provider` of the connection is used as data-source-name.
+     * The parameter `timeFrameInMinutes` is used for postponing the execution.
+     */
+    public function getConnectionNamePrefix()
+    {
+        // DEV-NOTE: if you change this value, update also `asterisell_instances.py` documentation.
+        return "import-remote-cdrs-";
+    }
+
+    // -------------------------
+    // Job interface
+
+    /**
+     * @return String log
+     * @throws ArProblemException
+     */
+    public
+    function process()
+    {
+        $prof = new JobProfiler('Remote CDRS providers');
+
+        $log = '';
+
+        $i = -1;
+
+        while (true) {
+            $i++;
+            $params = getConnectionParams($this->getConnectionNamePrefix(), true, true, $i);
+            if (is_null($params)) {
+                break;
+            } else {
+                $log .= $this->processConnection($params) . "\n";
+                $prof->incrementProcessedUnits();
+            }
+        }
+
+        return $prof->stop() . ' ' . $log;
+    }
+
+    /**
+     * @param array $params process a connection
+     * @return string stats about the computation
+     * Signal problems in the error table, without generating an exception.
+     */
+    public function processConnection($params)
+    {
+        $this->params = $params;
+        $jobDescription = 'Connection ' . $params['name'] . ', provider ' . $params['provider'];
+        $jobName = $params['name'] . '-' . $params['provider'];
+        $timeFrameInMinutes = intval($params['timeFrameInMinutes']);
+        $checkLimit = strtotime("-$timeFrameInMinutes minutes");
+        $mutex = new Mutex($jobName);
+
+        if ($mutex->maybeTouch($checkLimit)) {
             try {
-                $stmt = $this->getConnection()->prepare($query);
-                $isOk = $stmt->execute(array($this->getCollectorDatabaseName(), $this->getCollectorTableName()));
-                if (!$isOk) {
-                    throw (new Exception("Error executing query"));
+                $prof = new JobProfiler("CDRS");
+
+                $this->params = $params;
+                ArProblemException::garbageCollect($this->getGarbageKey(), null, null);
+
+                $s = $this->getParamValueOrSignalError('fromDate');
+                if (isEmptyOrNull($s)) {
+                    $importFromDateS = fromUnixTimestampToMySQLTimestamp($this->getGlobalStartingDate());
+                } else {
+                    $importFromDateS = $s;
                 }
-                $this->fieldsToExport = array();
-                $this->progressiveIDField = null;
-                while ((($rs = $stmt->fetch(PDO::FETCH_NUM)) !== false)) {
-                    $fieldName = $rs[0];
-                    $this->fieldsToExport[] = $fieldName;
-                    if (strcmp('id', strtolower($fieldName)) == 0) {
-                        $this->progressiveIDField = $fieldName;
+
+                $cdrProviderId = CustomCDRServices::getInstance()->getCdrProviderId($this->getCdrProvider());
+
+                if (is_null($cdrProviderId)) {
+                    $this->signalError(
+                        "cdr_provider - $jobDescription",
+                        "Missing CDR provider " . $this->getCdrProvider() . " for $jobDescription",
+                        "CDRS will be not imported.",
+                        "Define the missing CDR provider inside Asterisell Web UI or improve the configuration of $jobDescription inside \"asterisell_instances.py\"",
+                        true, ArProblemDomain::CONFIGURATIONS);
+                }
+
+                $logicalTypeId = CustomCDRServices::getInstance()->getLogicalTypeId($this->getLogicalType());
+                $versionTypeId = CustomCDRServices::getInstance()->getLogicalTypeAndVersionId($this->getLogicalType(), $this->getPhysicalType());
+
+                if (is_null($logicalTypeId) || is_null($versionTypeId)) {
+                    $this->signalError(
+                        "logical type - $jobDescription",
+                        "Missing type " . $this->getLogicalType() . ", with version " . $this->getPhysicalType() . ",  for $jobDescription",
+                        "CDRS will be not imported.",
+                        "Fix the configuration of $jobDescription inside \"asterisell_instances.py\"",
+                        true, ArProblemDomain::CONFIGURATIONS);
+                }
+
+
+                $cmd = RateEngineService::getToolExecutable()
+                    . ' --import-from-db ' . RateEngineService::writeParams($params)
+                    . ' --provider ' . $this->getCdrProvider()
+                    . ' --provider-id ' . $cdrProviderId
+                    . ' --file-logical-type ' . $this->getLogicalType()
+                    . ' --file-logical-type-id ' . $logicalTypeId
+                    . ' --file-version-type ' . $this->getPhysicalType()
+                    . ' --file-version-type-id ' . $versionTypeId
+                    . ' --from-date "' . $importFromDateS . '"'
+                    . ' '
+                    . ManageRateEvent::DONT_TOUCH_DEBUG_MODE_GHC_PARAMS;
+
+                if ($this->getDebugMode()) {
+                    echo "\nExecute command: \n$cmd\n";
+                }
+
+                $output = array();
+                $exitStatus = 0;
+                $resultLine = exec($cmd, $output, $exitStatus);
+
+                RateEngineService::signalIfThereAreCDRSAlreadyBilled($jobDescription);
+
+                // NOTE: the file will be signaled as imported, from the Haskell rating engine
+
+                if ($exitStatus == 0) {
+
+                    $results = explode(',', $resultLine);
+                    $i = 0;
+
+                    // The result is composed of values separated from a ",":
+                    // - minimum date
+                    // - maximum date
+                    // - total lines
+                    // - tot lines with errors
+
+                    if (count($results) < 4) {
+                        $this->signalError(
+                            "error in result executing command $cmd",
+                            "Error executing command \"$cmd\". Unexpected result \"$resultLine\"",
+                            "This Source Data CSV file will be not imported. Stats about not rated CDRs are not updated in this case, and all the CDRs on the CSV file are not rated.",
+                            "",
+                            true,
+                            ArProblemDomain::APPLICATION
+                        );
                     }
+
+                    $minDateStr = $results[$i++];
+                    $maxDateStr = $results[$i++];
+                    $totLines = intval($results[$i++]);
+                    $totLinesWithErrors = intval($results[$i++]);
+
+                    // Preserve profiling files
+                    $profilingFiles = array('RateEngine.prof' => 'RateEngineImport.prof', 'RateEngine.hp' => 'RateEngineImport.hp');
+                    foreach ($profilingFiles as $pf => $pfi) {
+                        $pff = normalizeFileNamePath(getAsterisellCompleteAdminDirectory() . '/' . $pf);
+                        $pfii = normalizeFileNamePath(getAsterisellCompleteAdminDirectory() . '/' . $pfi);
+                        if (file_exists($pff)) {
+                            @unlink($pfii);
+                            @rename($pff, $pfii);
+                        }
+                    }
+                    $prof->addToProcessedUnits($totLines);
+                    return "$jobDescription imported " . $prof->stop() . ", from $minDateStr to $maxDateStr. ";
+
+                } else {
+                    $this->signalError(
+                        "error executing command $cmd",
+                        "Error executing command \"$cmd\": " . implode("\n", $output),
+                        "CDRS on $jobDescription will be not imported.",
+                        "Contact the assistance.",
+                        true);
+
+                    // NOTE: never called because the exceeption is raised first
+                    return '';
                 }
-                $stmt->closeCursor();
+            } catch (ArProblemException $e) {
+                // nothing to do, already signaled
+                return "Error during processing of $jobDescription";
+
             } catch (Exception $e) {
-                $problemDuplicationKey = "error in list of fields query " . $this->getGarbageKey();
-                $problemDescription = "Can not access the list of fields for " . $this->getCollectorDatabaseName() . "." . $this->getCollectorTableName() . " of provider " . $this->getCdrProvider() . ". The query is " . $query;
-                $problemEffect = "CDRs of the provider \"" . $this->getCdrProvider() . "\", will not be imported and rated.";
-                $problemProposedSolution = "The MySQL user configured in fabric_data/asterisell_instances.py must have the right priorities, and access to the DBMS.";
-                $p = ArProblemException::createFromGenericExceptionWithGarbageCollection(
-                    $e,
-                    ArProblemType::TYPE_CRITICAL,
-                    ArProblemDomain::CONFIGURATIONS,
-                    null,
-                    $problemDuplicationKey,
-                    $this->getGarbageKey(),
-                    $this->getGarbageFromDate(),
-                    $this->getGarbageToDate(),
-                    $problemDescription,
-                    $problemEffect,
-                    $problemProposedSolution);
-                throw ($p);
+                $this->signalError(
+                    "675 - $jobDescription",
+                    "Unable to process CDRS on $jobDescription Error: " . $e->getMessage(),
+                    "CDRS will be not imported, and an attempt will be done at next execution of job processor.",
+                    "If the problem persist, contact the assistance.",
+                    false // do not throw the error, but only signal
+                );
+                return "Error during processing of $jobDescription";
             }
-
-            if (is_null($this->progressiveIDField)) {
-                $problemDuplicationKey = "Missing ID field " . $this->getGarbageKey();
-                $problemDescription = "There is no ID field in table " . $this->getCollectorDatabaseName() . "." . $this->getCollectorTableName() . " of provider " . $this->getCdrProvider() . ".";
-                $problemEffect = "CDRs of the provider \"" . $this->getCdrProvider() . "\", will not be imported and rated.";
-                $problemProposedSolution = "The code of service " . get_class($this) . " can only manage tables with an ID field.";
-                $p = ArProblemException::createWithGarbageCollection(
-                    ArProblemType::TYPE_CRITICAL,
-                    ArProblemDomain::CONFIGURATIONS,
-                    null,
-                    $problemDuplicationKey,
-                    $this->getGarbageKey(),
-                    $this->getGarbageFromDate(),
-                    $this->getGarbageToDate(),
-                    $problemDescription,
-                    $problemEffect,
-                    $problemProposedSolution);
-                throw ($p);
-            }
+        } else {
+            return "$jobDescription will be executed later, every $timeFrameInMinutes minutes.";
         }
-
-        return $this->fieldsToExport;
     }
 
-    public
-    function getExportedStatusBooleanField()
+    /**
+     * @param string $key
+     * @param string $description
+     * @param string $effect
+     * @param string $solution
+     * @param bool $throw true for throwing the exception
+     * @param int $problemDomain
+     * @throws ArProblemException
+     */
+    public function signalError($key, $description, $effect, $solution, $throw = true, $problemDomain = ArProblemDomain::APPLICATION)
     {
-        return null;
-    }
-
-    public
-    function manageExportUsingIdField()
-    {
-        return true;
-    }
-
-    public
-    function getValueOfCDRToBeExported()
-    {
-        return null;
-    }
-
-    public
-    function getProgressiveField()
-    {
-        if (is_null($this->progressiveIDField)) {
-            $this->getListOfFields();
+        $garbageKey = $this->getGarbageKey();
+        $problemDuplicationKey = 'ImportCDRSUsingAppConfs' . ' - ' . $key;
+        $problemDescription = $description;
+        $problemProposedSolution = $solution;
+        $problemEffect = $effect;
+        $p = ArProblemException::createWithGarbageCollection(ArProblemType::TYPE_CRITICAL, $problemDomain, null, $problemDuplicationKey, $garbageKey, null, null, $problemDescription, $problemEffect, $problemProposedSolution);
+        if ($throw) {
+            throw($p);
         }
-
-        return $this->progressiveIDField;
-    }
-
-    public
-    function getCallDateField()
-    {
-        return 'NOT_USED';
-    }
-
-    public
-    function isCallDateFieldATimestamp()
-    {
-        return true;
-    }
-
-    protected
-    function getConnection()
-    {
-        if (is_null($this->remoteConn)) {
-            $this->remoteConn = parent::getConnection();
-        }
-
-        return $this->remoteConn;
-    }
-
-    protected
-    function getHaskellCodeTemplate()
-    {
-        return "NOT-SUPPORTED";
     }
 }

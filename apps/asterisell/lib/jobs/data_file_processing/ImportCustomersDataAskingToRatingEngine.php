@@ -48,7 +48,7 @@ class ImportCustomersDataAskingToRatingEngine extends FixedJobProcessor
             if (is_null($params)) {
                 break;
             } else {
-                $log .= $this->processConnetion($params) . "\n";
+                $log .= $this->processConnection($params) . "\n";
                 $prof->incrementProcessedUnits();
             }
         }
@@ -61,7 +61,7 @@ class ImportCustomersDataAskingToRatingEngine extends FixedJobProcessor
      * @return string stats about the computation
      * Signal problems in the error table, without generating an exception.
      */
-    public function processConnetion($params)
+    public function processConnection($params)
     {
         $jobName = $params['name'] . '-' . $params['provider'];
         $timeFrameInMinutes = intval($params['timeFrameInMinutes']);
@@ -82,14 +82,13 @@ class ImportCustomersDataAskingToRatingEngine extends FixedJobProcessor
             list($localDBName, $localDBUser, $localDBPassword) = getDatabaseNameUserAndPassword(true);
 
             $engineParams = array();
-            RateEngineService::addDBAccessToParams($engineParams);
             $engineParams['remote-db-user'] = $params['user'];
             $engineParams['remote-db-name'] = $params['dbName'];
             $engineParams['remote-db-password'] = $params['password'];
 
             $cmd = RateEngineService::getToolExecutable()
                 . ' --customers-import ' . $params['dataSourceFormat']
-                . RateEngineService::writeParams($engineParams)
+                . ' --import ' . RateEngineService::writeParams($engineParams)
                 . ' --data-source-name ' . $params['provider']
                 . ' --organization-to-ignore "' . sfConfig::get('app_organization_to_ignore') . '" '
                 . ' --currency-precision ' . $currencyPrecision

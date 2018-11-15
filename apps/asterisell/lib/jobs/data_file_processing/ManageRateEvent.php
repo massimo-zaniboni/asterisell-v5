@@ -168,7 +168,7 @@ class ManageRateEvent extends FixedJobProcessor
             $ratingParams = array();
             $cmd = RateEngineService::getToolExecutable()
                 . ' --rate '
-                . RateEngineService::writeWithDBAccessParams($ratingParams)
+                . ' --params ' . RateEngineService::writeParams($ratingParams)
                 . ' --debug-mode ' . $debugModeS
                 . ' --run-level 0'
                 . ' --use-cores ' . $this->useCores

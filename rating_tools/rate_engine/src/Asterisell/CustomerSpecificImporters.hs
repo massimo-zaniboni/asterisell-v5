@@ -24,7 +24,6 @@ module Asterisell.CustomerSpecificImporters (
   , CSVFormat_gamma__v1
   , CSVFormat_gamma_ItemRental__v1
   , CSVFormat_asterisk__generic
-  , CSVFormat_asterisk__a_p_v1
   , CSVFormat_plain1
   , CSVFormat_digitel
   , CSVFormat_digitelNNG__v1
@@ -115,6 +114,7 @@ deriveFastLookupCDRImportes conn = do
                       -> error ("Error 11776 in application code. Unexpected result: " ++ show unexpected ++ ", with column defs " ++ show colDefs) 
          ) IntMap.empty inS
 
+
 -- | The default CDRs parsers to use for importing CDRs.
 --   NOTE: the importers are specified in Cdr module.
 supportedSourceCDRImporters :: HashMap.HashMap (LogicalTypeName, FormatTypeName) CDRFormatSpec
@@ -128,9 +128,9 @@ supportedSourceCDRImporters
       , (("twt-cps","v1"), CDRFormatSpec decodeAlternativeCSV (AType::(AType CSVFormat_twt_cps__v1)))
       , (("twt-nng","v1"), CDRFormatSpec decodeAlternativeCSV (AType::(AType CSVFormat_twt_nng__v1)))
       , (("free-radius","v1"), CDRFormatSpec decodeStandardCSV (AType::(AType CSVFormat_freeRadius__v1)))
+      , (("free-radius-db","v1"), CDRFormatSpec table_freeRadius (AType::(AType CSVFormat_freeRadius__v1)))
       , (("asterisk","generic"), CDRFormatSpec decodeStandardCSV (AType::(AType CSVFormat_asterisk__generic)))
-      , (("asterisk","a_p_v1"), CDRFormatSpec decodeStandardCSV (AType::(AType CSVFormat_asterisk__a_p_v1)))
-
+      , (("asterisk-db","generic"), CDRFormatSpec table_asterisk (AType::(AType CSVFormat_asteriskDB)))
       , (("plain","1"), CDRFormatSpec (SourceCDRParamsCSVFile
                                          (Just $ "cdrdate;callernumber;callednumber;callername;calledname;duration;uniqueid")
                                          ';'
@@ -155,6 +155,7 @@ supportedSourceCDRImporters
       , (("colt","v1"), CDRFormatSpec decodeAlternativeCSV (AType::(AType CSVFormat_colt)))
       , (("colt43","v1"), CDRFormatSpec decodeAlternativeCSV (AType::(AType CSVFormat_colt43)))
       , (("abilis-collector","v1"), CDRFormatSpec  decodeStandardCSV (AType::(AType CSVFormat_tsnet_abilis_collector_v1)))
+      , (("abilis-db-collector","v1"), CDRFormatSpec table_abilisCollector (AType::(AType CSVFormat_tsnet_abilis_collector_v1)))
       , (("rolf1","v1"), CDRFormatSpec (SourceCDRParamsCSVFile
                                           (Just "id,sessionid,uniqueid,card_id,nasipaddress,starttime,stoptime,sessiontime,calledstation,sessionbill,id_tariffgroup,id_tariffplan,id_ratecard,id_trunk,sipiax,src,id_did,buycost,id_card_package_offer,real_sessiontime,dnid,terminatecauseid,destination")
                                           ','
@@ -211,28 +212,10 @@ instance Show CSVFormat_twt_cps__v1 where
 
      showLine (h, v) = h ++ ": " ++ (Text.unpack $ v cdr) ++ "\n"
 
-instance CSV.FromRecord CSVFormat_twt_cps__v1 where
-     parseRecord v =
-         let expectedCols = 13
-         in case V.length v == expectedCols of
-              True
-                -> CSVFormat_twt_cps__v1 <$>
-                     v .! 0<*>
-                     v .! 1<*>
-                     v .! 2<*>
-                     v .! 3<*>
-                     v .! 4<*>
-                     v .! 5<*>
-                     v .! 6<*>
-                     v .! 7<*>
-                     v .! 8<*>
-                     v .! 9<*>
-                     v .! 10<*>
-                     v .! 11<*>
-                     v .! 12
+instance CSV.FromRecord CSVFormat_twt_cps__v1
 
-              False
-                -> fail $ "There are " ++ show (V.length v) ++ " columns instead of the expected " ++ (show expectedCols)
+instance CSV.ToRecord CSVFormat_twt_cps__v1
+
 
 instance CDRFormat CSVFormat_twt_cps__v1 where
 
@@ -369,30 +352,10 @@ instance Show CSVFormat_twt_nng__v1 where
 
      showLine (h, v) = h ++ ": " ++ (Text.unpack $ v cdr) ++ "\n"
 
-instance CSV.FromRecord CSVFormat_twt_nng__v1 where
-     parseRecord v =
-         let expectedCols = 15
-         in case V.length v == expectedCols of
-              True
-                -> CSVFormat_twt_nng__v1 <$>
-                     v .! 0<*>
-                     v .! 1<*>
-                     v .! 2<*>
-                     v .! 3<*>
-                     v .! 4<*>
-                     v .! 5<*>
-                     v .! 6<*>
-                     v .! 7<*>
-                     v .! 8<*>
-                     v .! 9<*>
-                     v .! 10<*>
-                     v .! 11<*>
-                     v .! 12<*>
-                     v .! 13<*>
-                     v .! 14
+instance CSV.FromRecord CSVFormat_twt_nng__v1 
 
-              False
-                -> fail $ "There are " ++ show (V.length v) ++ " columns instead of the expected " ++ (show expectedCols)
+instance CSV.ToRecord CSVFormat_twt_nng__v1
+
 
 instance CDRFormat CSVFormat_twt_nng__v1 where
 
@@ -468,9 +431,31 @@ convert_CSVFormat_twt_nng__v1__toCDR precision provider record = do
               , cdr_channel = Just provider
               }]
 
---
+-- --------------------------------------------------
 -- Support Free Radius according notes on #1446
 --
+
+table_freeRadius :: SourceCDRParams
+table_freeRadius
+  = SourceCDRParamsDBTableWithAutoincrementId
+      [
+        "id",
+        "Unique_Id",
+        "Calling_Station_Id",
+        "Called_Station_Id",
+        "h323_setup_time",
+        "Acct_Session_Time",
+        "in_intrfc_desc",
+        "out_intrfc_desc",
+        "h323_remote_address_in",
+        "h323_remote_address_out",
+        "rerouted",
+        "h323_disconnect_cause",
+        "h323_gateway_id",
+        "h323_conf_id",
+        "Acct_Session_Id"
+      ]
+    "h323_setup_time"
 
 -- | FreeRadius format
 data CSVFormat_freeRadius__v1
@@ -492,31 +477,10 @@ data CSVFormat_freeRadius__v1
       ,freeRadius__v1_Acct_Session_Id :: !(ExportMaybeNull Text.Text)
   } deriving(Show, Generic, NFData)
 
-instance CSV.FromRecord CSVFormat_freeRadius__v1 where
-     parseRecord v =
-         let expectedCols = 15
-         in case V.length v == expectedCols of
-              True
-                -> CSVFormat_freeRadius__v1 <$>
-                     v .! 0<*>
-                     v .! 1<*>
-                     v .! 2<*>
-                     v .! 3<*>
-                     v .! 4<*>
-                     v .! 5<*>
-                     v .! 6<*>
-                     v .! 7<*>
-                     v .! 8<*>
-                     v .! 9<*>
-                     v .! 10<*>
-                     v .! 11<*>
-                     v .! 12<*>
-                     v .! 13<*>
-                     v .! 14
+instance CSV.FromRecord CSVFormat_freeRadius__v1 
 
+instance CSV.ToRecord CSVFormat_freeRadius__v1
 
-              False
-                -> fail $ "There are " ++ show (V.length v) ++ " columns instead of the expected " ++ (show expectedCols)
 
 instance CDRFormat CSVFormat_freeRadius__v1 where
   getCallDate record
@@ -560,7 +524,7 @@ convert_CSVFormat_freeRadius__v1__toCDR precision provider record = do
                           , cdr_channel = fromExportOrNothing (\x -> x) supplier
                           }]
 
---
+-- --------------------------------------------------
 -- Support Gamma according notes on #1621
 --
 
@@ -610,57 +574,10 @@ data CSVFormat_gamma__v1
       ,gamma__v1_routingCode :: !Text.Text
   } deriving(Show, Generic, NFData)
 
-instance CSV.FromRecord CSVFormat_gamma__v1 where
-     parseRecord v =
-         let expectedCols = 42
-         in case V.length v == expectedCols of
-              True
-                -> CSVFormat_gamma__v1 <$>
-                     v .! 0<*>
-                     v .! 1<*>
-                     v .! 2<*>
-                     v .! 3<*>
-                     v .! 4<*>
-                     v .! 5<*>
-                     v .! 6<*>
-                     v .! 7<*>
-                     v .! 8<*>
-                     v .! 9<*>
-                     v .! 10<*>
-                     v .! 11<*>
-                     v .! 12<*>
-                     v .! 13<*>
-                     v .! 14<*>
-                     v .! 15<*>
-                     v .! 16<*>
-                     v .! 17<*>
-                     v .! 18<*>
-                     v .! 19<*>
-                     v .! 20<*>
-                     v .! 21<*>
-                     v .! 22<*>
-                     v .! 23<*>
-                     v .! 24<*>
-                     v .! 25<*>
-                     v .! 26<*>
-                     v .! 27<*>
-                     v .! 28<*>
-                     v .! 29<*>
-                     v .! 30<*>
-                     v .! 31<*>
-                     v .! 32<*>
-                     v .! 33<*>
-                     v .! 34<*>
-                     v .! 35<*>
-                     v .! 36<*>
-                     v .! 37<*>
-                     v .! 38<*>
-                     v .! 39<*>
-                     v .! 40<*>
-                     v .! 41
+instance CSV.FromRecord CSVFormat_gamma__v1
 
-              False
-                -> fail $ "There are " ++ show (V.length v) ++ " columns instead of the expected " ++ (show expectedCols)
+instance CSV.ToRecord CSVFormat_gamma__v1
+
 
 instance CDRFormat CSVFormat_gamma__v1 where
   getCallDate record
@@ -771,7 +688,7 @@ convert_CSVFormat_gamma__v1__toCDR precision provider record = do
                              ("The CDRs with this type will be not rated.")
                              ("If there are many errors of this type, contact the assistance, or the VoIP provider, because the code must support also this new type of CDR.")
 
---
+-- ---------------------------------------------
 -- Support Gamma Item Rental
 --
 
@@ -787,22 +704,10 @@ data CSVFormat_gamma_ItemRental__v1
    , gammaIR__v1_quantity :: !Text.Text
   } deriving(Show, Generic, NFData)
 
-instance CSV.FromRecord CSVFormat_gamma_ItemRental__v1 where
-     parseRecord v =
-         let expectedCols = 8
-         in case V.length v == expectedCols of
-              True
-                -> CSVFormat_gamma_ItemRental__v1 <$>
-                     v .! 0<*>
-                     v .! 1<*>
-                     v .! 2<*>
-                     v .! 3<*>
-                     v .! 4<*>
-                     v .! 5<*>
-                     v .! 6<*>
-                     v .! 7
-              False
-                -> fail $ "There are " ++ show (V.length v) ++ " columns instead of the expected " ++ (show expectedCols)
+instance CSV.FromRecord CSVFormat_gamma_ItemRental__v1 
+
+instance CSV.ToRecord CSVFormat_gamma_ItemRental__v1
+
 
 instance CDRFormat CSVFormat_gamma_ItemRental__v1 where
   getCallDate record
@@ -922,7 +827,7 @@ convert_CSVFormat_gamma_ItemRental__v1__toCDR precision provider record = do
               }
          ]
 
---
+-- --------------------------------------------------------
 -- Support Asterisk
 --
 -- NOTE: there can be many different versions of Asterisk format, so number with different versions,
@@ -930,6 +835,91 @@ convert_CSVFormat_gamma_ItemRental__v1__toCDR precision provider record = do
 -- NOTE: use different versions also according the logical meaning of each field, so the version number identifies
 -- also the CDR import logic.
 -- NOTE: the verson number is a symbolic-code with the project name
+
+table_asterisk :: SourceCDRParams
+table_asterisk
+    = SourceCDRParamsDBTableWithAutoincrementId
+        [ "id",
+          "calldate",
+          "clid",
+          "src",
+          "dst",
+          "dcontext",
+          "channel",
+          "dstchannel",
+          "lastapp",
+          "lastdata",
+          "duration",
+          "billsec",
+          "disposition",
+          "amaflags",
+          "accountcode",
+          "uniqueid",
+          "userfield",
+          "did",
+          "recordingfile",
+          "cnum",
+          "cnam",
+          "outbound_cnum",
+          "outbound_cnam",
+          "dst_cnam"
+        ] "calldate"
+
+-- | It is like `CSVFormat_asterisk__generic` but with an `id` field.
+data CSVFormat_asteriskDB
+  = CSVFormat_asteriskDB {
+      -- these are standard fields
+      asteriskDB_id :: Text.Text,
+      asteriskDB_calldate :: !(ExportMaybeNull Text.Text),
+      asteriskDB_clid :: !(ExportMaybeNull Text.Text),
+      asteriskDB_src :: !(ExportMaybeNull Text.Text),
+      asteriskDB_dst :: !(ExportMaybeNull Text.Text),
+      asteriskDB_dcontext :: !(ExportMaybeNull Text.Text),
+      asteriskDB_channel :: !(ExportMaybeNull Text.Text),
+      asteriskDB_dstchannel :: !(ExportMaybeNull Text.Text),
+      asteriskDB_lastapp :: !(ExportMaybeNull Text.Text),
+      asteriskDB_lastdata :: !(ExportMaybeNull Text.Text),
+      asteriskDB_duration :: !(ExportMaybeNull Text.Text),
+      asteriskDB_billsec :: !(ExportMaybeNull Text.Text),
+      asteriskDB_disposition :: !(ExportMaybeNull Text.Text),
+      asteriskDB_amaflags :: !(ExportMaybeNull Text.Text),
+      asteriskDB_accountcode :: !(ExportMaybeNull Text.Text),
+      asteriskDB_uniqueid :: !(ExportMaybeNull Text.Text),
+      asteriskDB_userfield :: !(ExportMaybeNull Text.Text),
+      asteriskDB_did :: !(ExportMaybeNull Text.Text)
+    }
+ deriving (Generic, NFData, Show)
+
+instance CSV.FromRecord CSVFormat_asteriskDB
+
+instance CSV.ToRecord CSVFormat_asteriskDB
+
+asteriskDB_toAsteriskGeneric :: CSVFormat_asteriskDB -> CSVFormat_asterisk__generic
+asteriskDB_toAsteriskGeneric s
+  = CSVFormat_asterisk__generic {
+      asterisk__generic_calldate = asteriskDB_calldate s, 
+      asterisk__generic_clid = asteriskDB_clid s, 
+      asterisk__generic_src = asteriskDB_src s, 
+      asterisk__generic_dst = asteriskDB_dst s, 
+      asterisk__generic_dcontext = asteriskDB_dcontext s, 
+      asterisk__generic_channel = asteriskDB_channel s, 
+      asterisk__generic_dstchannel = asteriskDB_dstchannel s, 
+      asterisk__generic_lastapp = asteriskDB_lastapp s, 
+      asterisk__generic_lastdata = asteriskDB_lastdata s, 
+      asterisk__generic_duration = asteriskDB_duration s, 
+      asterisk__generic_billsec = asteriskDB_billsec s, 
+      asterisk__generic_disposition = asteriskDB_disposition s, 
+      asterisk__generic_amaflags = asteriskDB_amaflags s, 
+      asterisk__generic_accountcode = asteriskDB_accountcode s, 
+      asterisk__generic_uniqueid = asteriskDB_uniqueid s, 
+      asterisk__generic_userfield = asteriskDB_userfield s, 
+      asterisk__generic_did = asteriskDB_did s
+    }
+
+instance CDRFormat CSVFormat_asteriskDB where
+  getCallDate s = getCallDate $ asteriskDB_toAsteriskGeneric s
+
+  toCDR precision provider s = toCDR precision provider (asteriskDB_toAsteriskGeneric s)
 
 -- | Generic Asterisk format, used as base for custom importers.
 data CSVFormat_asterisk__generic
@@ -955,32 +945,9 @@ data CSVFormat_asterisk__generic
     }
  deriving (Generic, NFData)
 
-instance CSV.FromRecord CSVFormat_asterisk__generic where
-     parseRecord v =
-         let expectedCols = 17
-         in case V.length v == expectedCols of
-              True
-                -> CSVFormat_asterisk__generic <$>
-                     v .! 0<*>
-                     v .! 1<*>
-                     v .! 2<*>
-                     v .! 3<*>
-                     v .! 4<*>
-                     v .! 5<*>
-                     v .! 6<*>
-                     v .! 7<*>
-                     v .! 8<*>
-                     v .! 9<*>
-                     v .! 10<*>
-                     v .! 11<*>
-                     v .! 12<*>
-                     v .! 13<*>
-                     v .! 14<*>
-                     v .! 15<*>
-                     v .! 16
+instance CSV.FromRecord CSVFormat_asterisk__generic 
 
-              False
-                -> fail $ "There are " ++ show (V.length v) ++ " columns instead of the expected " ++ (show expectedCols)
+instance CSV.ToRecord CSVFormat_asterisk__generic
 
 instance Show CSVFormat_asterisk__generic where
   show cdr
@@ -1040,121 +1007,6 @@ asterisk__generic_toCDR record precision provider
                    -- return a semi-classified CDR. The other more specific versions will use a better classification method.
 
 
--- | anton_panferov project version.
-data CSVFormat_asterisk__a_p_v1
-  = CSVFormat_asterisk__a_p_v1 {
-      asterisk__a_p_v1_generic :: CSVFormat_asterisk__generic,
-
-      -- these are custom fields
-      asterisk__a_p_v1_recordingfile :: !(ExportMaybeNull Text.Text),
-      asterisk__a_p_v1_cnum :: !(ExportMaybeNull Text.Text),
-      asterisk__a_p_v1_cnam :: !(ExportMaybeNull Text.Text),
-      asterisk__a_p_v1_outbound_cnum :: !(ExportMaybeNull Text.Text),
-      asterisk__a_p_v1_outbound_cnam :: !(ExportMaybeNull Text.Text),
-      asterisk__a_p_v1_dst_cnam :: !(ExportMaybeNull Text.Text)
-    }
- deriving (Generic, NFData)
-
-instance Show CSVFormat_asterisk__a_p_v1 where
-  show cdr
-    = (show (asterisk__a_p_v1_generic cdr))
-        ++ (addLine "asterisk__a_p_v1_recordingfile" $ field asterisk__a_p_v1_recordingfile)
-        ++ (addLine "asterisk__a_p_v1_cnum" $ field asterisk__a_p_v1_cnum)
-        ++ (addLine "asterisk__a_p_v1_cnam" $ field asterisk__a_p_v1_cnam)
-        ++ (addLine "asterisk__a_p_v1_outbound_cnum" $ field asterisk__a_p_v1_outbound_cnum)
-        ++ (addLine "asterisk__a_p_v1_outbound_cnam" $ field asterisk__a_p_v1_outbound_cnam)
-        ++ (addLine "asterisk__a_p_v1_dst_cnam" $ field asterisk__a_p_v1_dst_cnam)
-   where
-     field = cdrField cdr
-
-instance CSV.FromRecord CSVFormat_asterisk__a_p_v1 where
-     parseRecord v =
-         let expectedCols = 23
-         in case V.length v == expectedCols of
-              True
-                -> let gr = CSVFormat_asterisk__generic <$>
-                              v .! 0<*>
-                              v .! 1<*>
-                              v .! 2<*>
-                              v .! 3<*>
-                              v .! 4<*>
-                              v .! 5<*>
-                              v .! 6<*>
-                              v .! 7<*>
-                              v .! 8<*>
-                              v .! 9<*>
-                              v .! 10<*>
-                              v .! 11<*>
-                              v .! 12<*>
-                              v .! 13<*>
-                              v .! 14<*>
-                              v .! 15<*>
-                              v .! 16
-                   in CSVFormat_asterisk__a_p_v1 <$>
-                        gr <*>
-                        v .! 17<*>
-                        v .! 18<*>
-                        v .! 19<*>
-                        v .! 20<*>
-                        v .! 21<*>
-                        v .! 22
-              False
-                -> fail $ "There are " ++ show (V.length v) ++ " columns instead of the expected " ++ (show expectedCols)
-
-
-instance CDRFormat CSVFormat_asterisk__a_p_v1 where
-  getCallDate record = getCallDate $ asterisk__a_p_v1_generic record
-
-  toCDR precision provider record
-    = do let gr = asterisk__a_p_v1_generic record
-         cdr1 <- asterisk__generic_toCDR gr precision provider
-         let ignoredCDR = cdr1 { cdr_direction = CDR_ignored }
-
-         case cdr_direction cdr1 of
-           CDR_ignored
-             -> return [ignoredCDR]
-           _
-             -> case asterisk__generic_dstchannel gr of
-                  ExportNull
-                    -> return [ignoredCDR]
-                  Export dstChannel
-                    -> do -- apply the #1730
-                          -- You must proccess calls with dstchannel begins with: "SIP/ext-".
-                          -- And also "DAHDI/" dstchannel with called number begins with "98"
-                          (isOutgoing, check98)
-                            <- case Text.isPrefixOf "SIP/ext-" dstChannel of
-                                 True
-                                   -> return (True, False)
-                                 False
-                                   -> case Text.isPrefixOf "DAHDI/" dstChannel of
-                                        True
-                                          -> return (True, True)
-                                        False
-                                          -> return (False, False)
-                          case isOutgoing of
-                            False
-                              -> return [ignoredCDR]
-                            True
-                              -> do externalTelephoneNumber1 <- importAndConvertNotNullValue (asterisk__generic_lastdata gr) (\x -> Just $ fromAsteriskLastDataToExtension x) "lastdata" "external telephone number"
-                                    internalTelephoneNumber <- importNotNullText (asterisk__generic_src gr) "src" "internal extension/account"
-                                    let check98Passed
-                                          = case check98 of
-                                              False -> True
-                                              True -> Text.isPrefixOf "98" externalTelephoneNumber1
-                                    let externalTelephoneNumber2
-                                          = case Text.isPrefixOf "00" externalTelephoneNumber1 of
-                                              True -> Text.drop 2 externalTelephoneNumber1
-                                              False -> Text.cons '7' externalTelephoneNumber1
-                                    case check98Passed of
-                                      False
-                                        -> return [ignoredCDR]
-                                      True
-                                        -> return $ [cdr1 {
-                                                            cdr_direction = CDR_outgoing
-                                                          , cdr_externalTelephoneNumber = externalTelephoneNumber2
-                                                          , cdr_internalTelephoneNumber = internalTelephoneNumber
-                                                          , cdr_channel = Just dstChannel
-                                                          }]
 
 --
 -- Plain Formats
@@ -1170,7 +1022,6 @@ instance CDRFormat CSVFormat_asterisk__a_p_v1 where
 -- Calledname: this is the name of the supplier. This is the key to match the cdrs with the correct supplier/carrier at asterisell5
 -- The cdr files will be in the /cdr folder of the asterisell5.
 --
--- I hope you have enough time to start working on this process.
 
 -- | A plain format with
 --   > cdrdate;callernumber;callednumber;callername;calledname;duration;uniqueid
@@ -1190,22 +1041,10 @@ data CSVFormat_plain1
       plain1__id :: !(ExportMaybeNull Text.Text)
    } deriving(Show, Generic, NFData)
 
-instance CSV.FromRecord CSVFormat_plain1 where
-     parseRecord v =
-         let expectedCols = 7
-         in case V.length v == expectedCols of
-              True
-                -> CSVFormat_plain1 <$>
-                     v .! 0<*>
-                     v .! 1<*>
-                     v .! 2<*>
-                     v .! 3<*>
-                     v .! 4<*>
-                     v .! 5<*>
-                     v .! 6
+instance CSV.FromRecord CSVFormat_plain1 
 
-              False
-                -> fail $ "There are " ++ show (V.length v) ++ " columns instead of the expected " ++ (show expectedCols)
+instance CSV.ToRecord CSVFormat_plain1
+
 
 instance CDRFormat CSVFormat_plain1 where
   getCallDate record
@@ -1287,6 +1126,8 @@ instance CSV.FromRecord CSVFormat_digitel where
               0 -> return $ CSVFormat_digitel ExportNull (Export "ignore") ExportNull ExportNull ExportNull ExportNull ExportNull
               l -> fail $ "There are " ++ show l ++ " columns instead of the expected " ++ (show 7)
 
+instance CSV.ToRecord CSVFormat_digitel 
+
 instance CDRFormat CSVFormat_digitel where
   getCallDate record = digitel_convertCallDate (digitel__calldate record)
 
@@ -1364,19 +1205,24 @@ digitel_normalizeCalledNumber  useTimeBand callDate number
                         True -> Just $ (Text.append (const_digitelNNGTimeBandPrefix isPeakHour) n, n)
                         False -> Just (n, n)
 
--- | Support Digitel NNG calls according notes on #1972
+-------------------------------------------------------------
+-- Support Digitel NNG calls according notes on #1972
 --
 -- A format like:
 --
 -- > N.;DataOra;Start;End;Durata Secondi;Prezzo in euro;Descrizione
 -- > 00001;21/09/2016 00.00.22;0445325362      ;+39800016946        ;0000024;0,000000;Numero Verde
 -- > 00002;21/09/2016 01.31.43;0445325362      ;+39800923361        ;0000017;0,000000;Numero Verde
---
+
+
 newtype CSVFormat_digitelNNG__v1 = CSVFormat_digitelNNG__v1 CSVFormat_digitel
  deriving (Show, Generic, NFData)
 
 instance CSV.FromRecord CSVFormat_digitelNNG__v1 where
      parseRecord v = CSVFormat_digitelNNG__v1 <$> parseRecord v
+
+instance CSV.ToRecord CSVFormat_digitelNNG__v1 where
+    toRecord (CSVFormat_digitelNNG__v1 v) = toRecord v
 
 instance CDRFormat CSVFormat_digitelNNG__v1 where
   getCallDate (CSVFormat_digitelNNG__v1 record)
@@ -1420,33 +1266,9 @@ data CSVFormat_colt
       , colt__20:: !(ExportMaybeNull Text.Text)
    } deriving(Show, Generic, NFData)
 
-instance CSV.FromRecord CSVFormat_colt where
-     parseRecord v =
-         let expectedCols = 20
-         in case V.length v == expectedCols of
-              True
-                -> CSVFormat_colt <$>
-                     v .! 0<*>
-                     v .! 1<*>
-                     v .! 2<*>
-                     v .! 3<*>
-                     v .! 4<*>
-                     v .! 5<*>
-                     v .! 6<*>
-                     v .! 7<*>
-                     v .! 8<*>
-                     v .! 9<*>
-                     v .! 10<*>
-                     v .! 11<*>
-                     v .! 12<*>
-                     v .! 13<*>
-                     v .! 14<*>
-                     v .! 15<*>
-                     v .! 16<*>
-                     v .! 17<*>
-                     v .! 18<*>
-                     v .! 19
-              False -> fail $ "There are " ++ show (V.length v) ++ " columns instead of the expected " ++ (show expectedCols)
+instance CSV.FromRecord CSVFormat_colt
+
+instance CSV.ToRecord CSVFormat_colt
 
 instance CDRFormat CSVFormat_colt where
   getCallDate rc = Just <$> colt_convertCallDate (colt__date rc) (colt__time rc)
@@ -1502,6 +1324,9 @@ instance CSV.FromRecord CSVFormat_colt43 where
        rc :: CSVFormat_colt <- parseRecord v
        return $ CSVFormat_colt43 rc
 
+instance CSV.ToRecord CSVFormat_colt43 where
+    toRecord (CSVFormat_colt43 v) = toRecord v
+
 instance CDRFormat CSVFormat_colt43 where
   getCallDate (CSVFormat_colt43 rc) = Just <$> colt_convertCallDate (colt__date rc) (colt__time rc)
 
@@ -1512,9 +1337,181 @@ instance CDRFormat CSVFormat_colt43 where
 -- -----------------------------------------
 -- TSNET CUSTOM SPECIFIC IMPORTERS
 
-data CSVFormat_tsnet_abilis_collector_v1
-  = CSVFormat_tsnet_abilis_collector_v1 {
+table_abilisCollector :: SourceCDRParams
+table_abilisCollector
+    = SourceCDRParamsDBTableWithAutoincrementId
+        [ "id"
+        , "unique_check"
+        , "collector"
+        , "agent_host"
+        , "insert_time"
+        , "orig_port"
+        , "in_called_num_type"
+        , "in_called_num_plan"
+        , "in_called_num"
+        , "in_called_subaddr_type"
+        , "in_called_subaddr_ind"
+        , "in_called_subaddr"
+        , "in_calling_num_type"
+        , "in_calling_num_plan"
+        , "in_calling_num_pres"
+        , "in_calling_num_screen"
+        , "in_calling_num"
+        , "in_calling_subaddr_type"
+        , "in_calling_subaddr_ind"
+        , "in_calling_subaddr"
+        , "orig_cluster_name"
+        , "orig_side"
+        , "orig_port_type"
+        , "in_parent_callid"
+        , "dest_port"
+        , "out_called_num_type"
+        , "out_called_num_plan"
+        , "out_called_num"
+        , "out_called_subaddr_type"
+        , "out_called_subaddr_ind"
+        , "out_called_subaddr"
+        , "out_calling_num_type"
+        , "out_calling_num_plan"
+        , "out_calling_num_pres"
+        , "out_calling_num_screen"
+        , "out_calling_num"
+        , "out_calling_subaddr_type"
+        , "out_calling_subaddr_ind"
+        , "out_calling_subaddr"
+        , "dest_cluster_name"
+        , "dest_side"
+        , "dest_port_type"
+        , "out_parent_callid"
+        , "conn_type"
+        , "disc_coding"
+        , "disc_location"
+        , "disc_recom"
+        , "disc_cause"
+        , "disc_cause_raw"
+        , "disc_diagnostic"
+        , "disc_conn_state"
+        , "disc_direction"
+        , "bearer_codec"
+        , "bearer_bitrate"
+        , "bearer_note"
+        , "call_start"
+        , "call_start_gmt"
+        , "call_end"
+        , "call_end_gmt"
+        , "call_disc"
+        , "call_disc_gmt"
+        , "call_time"
+        , "call_result"
+        , "call_direction"
+        , "callid"
+        , "audio_law"
+        , "audio_ss"
+        , "audio_codec"
+        , "audio_bitrate"
+        , "audio_bandwidth"
+        , "tc_audio_law"
+        , "tc_audio_ss"
+        , "tc_audio_codec"
+        , "tc_audio_bitrate"
+        , "tc_audio_bandwidth"
+        , "fax_relay"
+        , "fax_bypass"
+        , "fax_codec"
+        , "fax_bitrate"
+        , "fax_bandwidth"
+        , "tc_fax_relay"
+        , "tc_fax_bypass"
+        , "tc_fax_codec"
+        , "tc_fax_bitrate"
+        , "tc_fax_bandwidth"
+        , "data_relay"
+        , "data_bypass"
+        , "data_codec"
+        , "data_bitrate"
+        , "data_bandwidth"
+        , "tc_data_relay"
+        , "tc_data_bypass"
+        , "tc_data_codec"
+        , "tc_data_bitrate"
+        , "tc_data_bandwidth"
+        , "reserved_bandwidth"
+        , "tc_reserved_bandwidth"
+        , "lost_records"
+        , "ext_connid"
+        , "ext_in_parent_callid"
+        , "ext_out_parent_callid"
+        , "tc_local_voice_underrun"
+        , "tc_local_voice_overrun"
+        , "tc_local_fax_underrun"
+        , "tc_local_fax_overrun"
+        , "tc_local_voice_def_jitter"
+        , "tc_local_voice_max_jitter"
+        , "tc_local_voice_top_jitter"
+        , "tc_local_voice_avg_jitter"
+        , "tc_local_fax_def_jitter"
+        , "tc_local_fax_max_jitter"
+        , "tc_local_fax_top_jitter"
+        , "tc_local_fax_avg_jitter"
+        , "tc_local_fax_tx_pages"
+        , "local_voice_underrun"
+        , "local_voice_overrun"
+        , "local_fax_underrun"
+        , "local_fax_overrun"
+        , "local_voice_def_jitter"
+        , "local_voice_max_jitter"
+        , "local_voice_top_jitter"
+        , "local_voice_avg_jitter"
+        , "local_fax_def_jitter"
+        , "local_fax_max_jitter"
+        , "local_fax_top_jitter"
+        , "local_fax_avg_jitter"
+        , "local_fax_tx_pages"
+        , "tc_remote_voice_underrun"
+        , "tc_remote_voice_overrun"
+        , "tc_remote_fax_underrun"
+        , "tc_remote_fax_overrun"
+        , "tc_remote_voice_def_jitter"
+        , "tc_remote_voice_max_jitter"
+        , "tc_remote_voice_top_jitter"
+        , "tc_remote_voice_avg_jitter"
+        , "tc_remote_fax_def_jitter"
+        , "tc_remote_fax_max_jitter"
+        , "tc_remote_fax_top_jitter"
+        , "tc_remote_fax_avg_jitter"
+        , "tc_remote_fax_tx_pages"
+        , "remote_voice_underrun"
+        , "remote_voice_overrun"
+        , "remote_fax_underrun"
+        , "remote_fax_overrun"
+        , "remote_voice_def_jitter"
+        , "remote_voice_max_jitter"
+        , "remote_voice_top_jitter"
+        , "remote_voice_avg_jitter"
+        , "remote_fax_def_jitter"
+        , "remote_fax_max_jitter"
+        , "remote_fax_top_jitter"
+        , "remote_fax_avg_jitter"
+        , "remote_fax_tx_pages"
+        , "user_in"
+        , "user_out"
+        , "red_num_in_type"
+        , "red_num_in_plan"
+        , "red_num_in_pres"
+        , "red_num_in_screen"
+        , "red_num_in"
+        , "red_num_out_type"
+        , "red_num_out_plan"
+        , "red_num_out_pres"
+        , "red_num_out_screen"
+        , "red_num_out"
+        , "id"
+        , "id"
+        ]
+        "call_start"
 
+data CSVFormat_tsnet_abilis_collector_v1
+  = CSVFormat_tsnet_abilis_collector_v1 { 
             tsnet_abilis_collector_v1__id:: !Text.Text
           , tsnet_abilis_collector_v1__unique_check:: !(ExportMaybeNull Text.Text)
           , tsnet_abilis_collector_v1__collector:: !(ExportMaybeNull Text.Text)
@@ -1735,182 +1732,9 @@ instance Show CSVFormat_tsnet_abilis_collector_v1 where
    where
      field = cdrField cdr
 
-instance CSV.FromRecord CSVFormat_tsnet_abilis_collector_v1 where
-     parseRecord v =
-         let expectedCols = 167
-         in case V.length v == expectedCols of
-              True
-                -> CSVFormat_tsnet_abilis_collector_v1 <$>
-                     v .! 0<*>
-                     v .! 1<*>
-                     v .! 2<*>
-                     v .! 3<*>
-                     v .! 4<*>
-                     v .! 5<*>
-                     v .! 6<*>
-                     v .! 7<*>
-                     v .! 8<*>
-                     v .! 9<*>
-                     v .! 10<*>
-                     v .! 11<*>
-                     v .! 12<*>
-                     v .! 13<*>
-                     v .! 14<*>
-                     v .! 15<*>
-                     v .! 16<*>
-                     v .! 17<*>
-                     v .! 18<*>
-                     v .! 19<*>
-                     v .! 20<*>
-                     v .! 21<*>
-                     v .! 22<*>
-                     v .! 23<*>
-                     v .! 24<*>
-                     v .! 25<*>
-                     v .! 26<*>
-                     v .! 27<*>
-                     v .! 28<*>
-                     v .! 29<*>
-                     v .! 30<*>
-                     v .! 31<*>
-                     v .! 32<*>
-                     v .! 33<*>
-                     v .! 34<*>
-                     v .! 35<*>
-                     v .! 36<*>
-                     v .! 37<*>
-                     v .! 38<*>
-                     v .! 39<*>
-                     v .! 40<*>
-                     v .! 41<*>
-                     v .! 42<*>
-                     v .! 43<*>
-                     v .! 44<*>
-                     v .! 45<*>
-                     v .! 46<*>
-                     v .! 47<*>
-                     v .! 48<*>
-                     v .! 49<*>
-                     v .! 50<*>
-                     v .! 51<*>
-                     v .! 52<*>
-                     v .! 53<*>
-                     v .! 54<*>
-                     v .! 55<*>
-                     v .! 56<*>
-                     v .! 57<*>
-                     v .! 58<*>
-                     v .! 59<*>
-                     v .! 60<*>
-                     v .! 61<*>
-                     v .! 62<*>
-                     v .! 63<*>
-                     v .! 64<*>
-                     v .! 65<*>
-                     v .! 66<*>
-                     v .! 67<*>
-                     v .! 68<*>
-                     v .! 69<*>
-                     v .! 70<*>
-                     v .! 71<*>
-                     v .! 72<*>
-                     v .! 73<*>
-                     v .! 74<*>
-                     v .! 75<*>
-                     v .! 76<*>
-                     v .! 77<*>
-                     v .! 78<*>
-                     v .! 79<*>
-                     v .! 80<*>
-                     v .! 81<*>
-                     v .! 82<*>
-                     v .! 83<*>
-                     v .! 84<*>
-                     v .! 85<*>
-                     v .! 86<*>
-                     v .! 87<*>
-                     v .! 88<*>
-                     v .! 89<*>
-                     v .! 90<*>
-                     v .! 91<*>
-                     v .! 92<*>
-                     v .! 93<*>
-                     v .! 94<*>
-                     v .! 95<*>
-                     v .! 96<*>
-                     v .! 97<*>
-                     v .! 98<*>
-                     v .! 99<*>
-                     v .! 100<*>
-                     v .! 101<*>
-                     v .! 102<*>
-                     v .! 103<*>
-                     v .! 104<*>
-                     v .! 105<*>
-                     v .! 106<*>
-                     v .! 107<*>
-                     v .! 108<*>
-                     v .! 109<*>
-                     v .! 110<*>
-                     v .! 111<*>
-                     v .! 112<*>
-                     v .! 113<*>
-                     v .! 114<*>
-                     v .! 115<*>
-                     v .! 116<*>
-                     v .! 117<*>
-                     v .! 118<*>
-                     v .! 119<*>
-                     v .! 120<*>
-                     v .! 121<*>
-                     v .! 122<*>
-                     v .! 123<*>
-                     v .! 124<*>
-                     v .! 125<*>
-                     v .! 126<*>
-                     v .! 127<*>
-                     v .! 128<*>
-                     v .! 129<*>
-                     v .! 130<*>
-                     v .! 131<*>
-                     v .! 132<*>
-                     v .! 133<*>
-                     v .! 134<*>
-                     v .! 135<*>
-                     v .! 136<*>
-                     v .! 137<*>
-                     v .! 138<*>
-                     v .! 139<*>
-                     v .! 140<*>
-                     v .! 141<*>
-                     v .! 142<*>
-                     v .! 143<*>
-                     v .! 144<*>
-                     v .! 145<*>
-                     v .! 146<*>
-                     v .! 147<*>
-                     v .! 148<*>
-                     v .! 149<*>
-                     v .! 150<*>
-                     v .! 151<*>
-                     v .! 152<*>
-                     v .! 153<*>
-                     v .! 154<*>
-                     v .! 155<*>
-                     v .! 156<*>
-                     v .! 157<*>
-                     v .! 158<*>
-                     v .! 159<*>
-                     v .! 160<*>
-                     v .! 161<*>
-                     v .! 162<*>
-                     v .! 163<*>
-                     v .! 164<*>
-                     v .! 165<*>
-                     v .! 166
-              False
-                -> fail $ "There are " ++ show (V.length v) ++ " columns instead of the expected " ++ (show expectedCols)
+instance CSV.FromRecord CSVFormat_tsnet_abilis_collector_v1
 
+instance CSV.ToRecord CSVFormat_tsnet_abilis_collector_v1
 
 instance CDRFormat CSVFormat_tsnet_abilis_collector_v1 where
 
@@ -2684,27 +2508,10 @@ data CSVFormat_rolf1
       , rolf1_provider_name :: !(ExportMaybeNull Text.Text)
    } deriving(Show, Generic, NFData)
 
-instance CSV.FromRecord CSVFormat_rolf1 where
-     parseRecord v =
-         case V.length v of
-              13   -- NOTE: important to use a number instead of an identifier
-                   -- otherwise it is assigned instead of selected as pattern matching.
-                -> CSVFormat_rolf1 <$>
-                     v .! 0<*>
-                     v .! 1<*>
-                     v .! 2<*>
-                     v .! 3<*>
-                     v .! 4<*>
-                     v .! 5<*>
-                     v .! 6<*>
-                     v .! 7<*>
-                     v .! 8<*>
-                     v .! 9<*>
-                     v .! 10<*>
-                     v .! 11<*>
-                     v .! 12
+instance CSV.FromRecord CSVFormat_rolf1
 
-              l -> fail $ "There are " ++ show l ++ " columns instead of the expected " ++ (show 13)
+instance CSV.ToRecord CSVFormat_rolf1
+
 
 instance CDRFormat CSVFormat_rolf1 where
   getCallDate record = rolf1_convertCallDate (rolf1_starttime record)

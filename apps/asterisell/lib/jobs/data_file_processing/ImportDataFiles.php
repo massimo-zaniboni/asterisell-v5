@@ -298,6 +298,9 @@ class ImportDataFiles extends FixedJobProcessor
 
         ArProblemException::garbageCollect(self::GARBAGE_KEY, null, null);
 
+        $this->deleteAlreadyProcessedFiles();
+        // NOTE: if there are files that can not be deleted, this job will be aborted
+
         if (self::thereAreNewImportedCDRs()) {
             // in case the rating process is blocked, we can not load new CDRs otherwise flags with new CDRs to rate will be overwritten.
             // And in any case it makes no sense to import new CDRs if there are are rating problems.
@@ -370,6 +373,12 @@ class ImportDataFiles extends FixedJobProcessor
             $prof->addToProcessedUnits($totLines);
 
             $countFiles++;
+        }
+
+        try {
+            $this->deleteAlreadyProcessedFiles();
+        } catch (ArProblemException $e) {
+            // problem already signaled
         }
 
         if ($countFiles > 0) {
@@ -479,6 +488,16 @@ class ImportDataFiles extends FixedJobProcessor
                 return 0;
             }
 
+            if (is_null($logicalTypeId) || is_null($versionTypeId)) {
+                self::signalError(
+                    "logical type - $sourceFile",
+                    "Missing type $logicalType, with version $versionType, for file $completeSourceFile",
+                    "CDRS will be not imported.",
+                    "Improve configuration of jobs, inside \"asterisell_instances.py\"",
+                    false,
+                    ArProblemDomain::CONFIGURATIONS);
+            }
+
             if ($logicalTypeId == ExportCDRSToReseller::SERVICE_LOGICAL_TYPE) {
                 $isImportedService = 1;
             } else {
@@ -511,10 +530,12 @@ class ImportDataFiles extends FixedJobProcessor
                 $debugFileName = 'null';
             }
 
+            $importFromDateS = '"' . fromUnixTimestampToMySQLTimestamp($this->getGlobalStartingDate()) . '"';
+
             $ratingParams = array();
             $cmd = RateEngineService::getToolExecutable()
                 . ' --import-data-file ' . $completeSourceFile
-                . RateEngineService::writeWithDBAccessParams($ratingParams)
+                . ' --params ' . RateEngineService::writeParams($ratingParams)
                 . ' --debug-file ' . $debugFileName
                 . ' --provider ' . $cdrProvider
                 . ' --provider-id ' . $cdrProviderId
@@ -522,6 +543,7 @@ class ImportDataFiles extends FixedJobProcessor
                 . ' --file-logical-type-id ' . $logicalTypeId
                 . ' --file-version-type ' . $versionType
                 . ' --file-version-type-id ' . $versionTypeId
+                . ' --from-date ' . $importFromDateS
                 . ' --is-imported-service ' . $isImportedService
                 . ' --is-status-file ' . $isStatusF
                 . ' --from-date ' . $minDateS
@@ -537,29 +559,7 @@ class ImportDataFiles extends FixedJobProcessor
             $exitStatus = 0;
             $resultLine = exec($cmd, $output, $exitStatus);
 
-            // Check if there are CDRS in the past respect the billing time-frame
-            $p = ArParamsPeer::getDefaultParams();
-            $d1 = fromMySQLTimestampToUnixTimestamp($p->getNewImportedCdrsFromCalldate());
-            $d2 = fromMySQLTimestampToUnixTimestamp($p->getOfficialCalldate());
-            if ($d1 < $d2) {
-                self::signalError(
-                    "cdrs in the past - $completeSourceFile - " . get_ordered_timeprefix_with_unique_id(),
-                    "The file \"$completeSourceFile\" contains new CDRS from date " . fromUnixTimestampToMySQLTimestamp($d1)
-                    . ", that are in an already billed time-frame. The new billing time-frame starts from date  "
-                    . fromUnixTimestampToMySQLTimestamp($d2),
-                    "Only CDRS in the unbilled time-frame will be rated, in order to not modify the already billed time-frame. "
-                    . "But doing so there can be CDRS not billed, or CDRS billed but having different prices. "
-                    . "They can be rerated selecting the proper time-frame, and pressing the re-rating button, because they are in the ar_source_cdr table. ",
-                    "Someone of your VoIP providers sent new CDRS or recalculated them, in a time-frame you already billed. So you had to coordinate better with them in order to bill CDRS only when they are confirmed. "
-                    . "NOTE: unlikely other error messages you will be informed only one time of this event. If you delete this message, it will be not generated again, except another file with the same problem will be received.",
-                    false,
-                    ArProblemDomain::CONFIGURATIONS
-                );
-
-                // Rate only unbilled calls.
-                $p->setNewImportedCdrsFromCalldate($d2);
-                $p->save();
-            }
+            RateEngineService::signalIfThereAreCDRSAlreadyBilled("file $completeSourceFile");
 
             // NOTE: the file will be signaled as imported, from the Haskell rating engine
 
@@ -780,7 +780,7 @@ class ImportDataFiles extends FixedJobProcessor
         $ratingParams = array();
         $cmd = RateEngineService::getToolExecutable()
             . ' --export-cdrs ' . $completeSourceFile
-            . RateEngineService::writeWithDBAccessParams($ratingParams)
+            . ' --params ' . RateEngineService::writeParams($ratingParams)
             . ' --provider ' . $cdrProviderName
             . ' --provider-id ' . $cdrProviderId
             . ' --file-logical-type ' . $logicalTypeName
@@ -802,6 +802,42 @@ class ImportDataFiles extends FixedJobProcessor
             echo "Error executing:\n\n$cmd\n\n";
             echo implode("\n", $output);
             return null;
+        }
+    }
+
+    public function deleteAlreadyProcessedFiles()
+    {
+        $conn = Propel::getConnection();
+
+        $allOk = true;
+        $notDeletedFiles = '';
+        $query = 'SELECT name FROM ar_local_file_to_delete ORDER BY id';
+        $stmt = $conn->prepare($query);
+        $stmt->execute();
+        while (($rs = $stmt->fetch(PDO::FETCH_NUM)) !== false) {
+            $completeSourceFile = $rs[0];
+            if (file_exists($completeSourceFile)) {
+                $isOk = unlink($completeSourceFile);
+                if (!$isOk) {
+                    $allOk = false;
+                    $notDeletedFiles .= $completeSourceFile . ', ';
+                }
+            }
+        }
+        $stmt->closeCursor();
+
+        $query = 'TRUNCATE ar_local_file_to_delete';
+        $conn->exec($query);
+
+        if (!$allOk) {
+            throw (ArProblemException::createWithoutGarbageCollection(
+                ArProblemType::TYPE_CRITICAL
+                , ArProblemDomain::CONFIGURATIONS
+                , null
+                , get_class($this) . ' - ' . md5($notDeletedFiles)
+                , "The job " . get_class($this) . " was unable to delete these already processed files $notDeletedFiles"
+                , "The content of these files will be processed more than one time, and so there can be duplicated data inside Asterisell database."
+                , "Check the rights of directories and users. The Asterisell user is \"apache\""));
         }
     }
 }

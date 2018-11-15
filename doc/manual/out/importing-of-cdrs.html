@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+   <head><meta charset="UTF-8" />
+      <title>Importing of CDRS</title><link href="res/webhelp.css" rel="stylesheet" type="text/css" /><meta content="Every source of CDRS is configured as a distinct CDRs provider inside the Web UI in Params-&gt;CDRs Providers." name="description" />
+      <meta content="XMLmind DITA Converter 3.3.0" name="generator" />
+   <script charset="UTF-8" defer="defer" src="_wh/snowball_en.min.js" type="text/javascript"></script><link href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/themes/smoothness/jquery-ui.css" rel="stylesheet" type="text/css" /><link href="_wh/wh.css" rel="stylesheet" type="text/css" /><script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js" type="text/javascript">
+    </script><script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js" type="text/javascript">
+    </script><script charset="UTF-8" src="_wh/wh.min.js" type="text/javascript">
+    </script><script charset="UTF-8" defer="defer" src="_wh/search.js" type="text/javascript">
+    </script></head>
+   
+<body>
+    
+
+    <div id="wh-body">
+      <div id="wh-navigation">
+        <ul id="wh-tabs">
+          <li id="wh-toc-tab"><a href="#wh-toc-pane"><span>Contents</span></a></li>
+          
+          <li id="wh-search-tab"><a href="#wh-search-pane"><span>Search</span></a></li>
+        </ul>
+        <div id="wh-toc-pane">
+          <div id="wh-toc-form">
+            <span id="wh-toc-control"><a href="#">Collapse 
+            All</a><a href="#">Expand All</a></span>
+            <button id="wh-toc-previous">Previous</button>
+            <button id="wh-toc-next">Next</button>
+            <button id="wh-toc-print">Print</button>
+          </div>
+          <script charset="UTF-8" src="_wh/toc.js" type="text/javascript">
+          </script>
+        </div>
+        
+        <div id="wh-search-pane">
+          <div id="wh-search-form">
+            <input id="wh-search-field" type="text" /><button id="wh-search-button">Search</button><span id="wh-highlight-group"><input checked="checked" id="wh-highlight-toggle" type="checkbox" /><label for="wh-highlight-toggle" id="wh-highlight-icon"><span class="ui-icon ui-icon-flag"></span></label></span>
+          </div>
+          <div id="wh-search-results">
+          </div>
+        </div>
+      </div>
+      <div id="wh-separator">
+      </div>
+      <div id="wh-content">
+      
+      <header class="page-navigation-header">
+         <table class="page-navigation-layout" style="width: 100%;">
+            <tr>
+               <td style="text-align: left;vertical-align: top;"><a class="navigation-link" href="manual.html" title="First page: Asterisell Manual"><img alt="First page" class="navigation-icon" height="16" src="res/first.png" width="16" /></a></td>
+               <td style="text-align: left;vertical-align: top;"><a class="navigation-link" href="call-reporting-mode.html" title="Previous page: Call reporting mode"><img alt="Previous page" class="navigation-icon" height="16" src="res/previous.png" width="16" /></a></td>
+               <td style="width: 25%;text-align: left;vertical-align: top;"><span class="page-navigation-previous">Call reporting mode</span></td>
+               <td style="width: 40%;text-align: center;vertical-align: top;"><span class="page-navigation-current">Importing of CDRS</span> <span class="page-navigation-page">(18 / 72)</span></td>
+               <td style="width: 25%;text-align: right;vertical-align: top;"><span class="page-navigation-next">Main rate plans</span></td>
+               <td style="text-align: right;vertical-align: top;"><a class="navigation-link" href="main-rate-plans.html" title="Next page: Main rate plans"><img alt="Next page" class="navigation-icon" height="16" src="res/next.png" width="16" /></a></td>
+               <td style="text-align: right;vertical-align: top;"><a class="navigation-link" href="about.html" title="Last page: About"><img alt="Last page" class="navigation-icon" height="16" src="res/last.png" width="16" /></a></td>
+            </tr>
+         </table>
+      </header>
+      <section class="topic" id="Importing_of_CDRS">
+         <h2 class="section2-title">Importing of CDRS</h2>
+         <p class="shortdesc">Every source of CDRS is configured as a distinct <a class="xref" href="cdrs-provider.html#CDRs_provider">CDRs provider</a> inside the Web UI in <code class="codeph">Params-&gt;CDRs Providers</code>.
+         </p>
+         <div class="body">
+            <section class="section" id="Importing_of_CDRS__I_tc2gp2_">
+               <h3 class="section-title">Import from CSV files</h3>
+               <div class="p">CDRS are imported from <a class="xref" href="cdrs-provider.html#CDRs_provider">CDRs provider</a> defining custom jobs. Some of them are defined in <a class="xref" href="manual-6.html#Instances_configuration_file">Instances configuration file</a>. You can create custom PHP class inside <code class="codeph">cutomizations</code> directory, inheriting from some template job defined in <code class="codeph">apps/asterisell/lib/jobs/data_file_processing</code> directory and subdirectories, and then completing missing (abstract) parameters.
+               </div>
+               <div class="p">Then you can add these jobs to the instance, as described in <a class="xref" href="custom-jobs.html#Custom_jobs">Custom jobs</a>.
+               </div>
+               <div class="p">The supported data formats are listed near the beginning of <code class="codeph">rating_tools/rate_engine/src/Asterisell/CustomerSpecificImporters.hs</code>, in the function <code class="codeph">supportedSourceCDRImporters</code>.
+               </div>
+            </section>
+            <section class="section" id="Importing_of_CDRS__I_qnl39p_">
+               <h3 class="section-title">Importing CDRS from an external collector</h3>
+               <div class="p">Add inside <code class="codeph">asterisell_instances.py</code> something like
+               </div><pre class="pre">class DefaultInstance(BillingInstance):
+
+  ...
+  
+
+  def conf_connection_params(self):
+        r = []
+
+        c = ConnectionParams()
+        c.connection_name = 'import-remote-cdrs-SOME-SOURCE-NAME'
+        c.provider = 'abilis-db-collector'
+        c.user = 'some-user'
+        c.password = self.get_password_for('SOME-SOURCE-NAME')
+        c.host = 'some-host'
+        c.port = '3306'
+        c.dbName = 'abiliscpx'
+        c.tableName = 'collector'
+        c.timeFrameInMinutes = '0'
+        c.dataSourceFormat = 'abilis-db-collector'
+        c.dataSourceVersion = 'v1'
+        c.fromDate = '2018-10-01'
+        c.removeOlderThanDays = '0'
+        r.append(c)
+</pre><div class="p">The prefix <code class="codeph">import-remote-cdrs-</code> will be used from the job <code class="codeph">ImportCDRSUsingAppConfs</code> for retrieving the data from the remote MySQL database, assuming it is in the <code class="codeph">abilis-db-collector</code> format.
+               </div>
+               <div class="p">The data will be retrieved in chunks, in a light way, and in a transaction safe way,
+                  also if the remote database does not support transactions (e.g. MyISAM tables).
+               </div>
+               <div class="p">The supported data formats are listed near the beginning of <code class="codeph">rating_tools/rate_engine/src/Asterisell/CustomerSpecificImporters.hs</code>, in the function <code class="codeph">supportedSourceCDRImporters</code>.
+               </div>
+               <div class="div role-h3">Setting users on remote database</div>
+               <div class="p">A remote database is a database that is not on the same Linux instance where Asterisell
+                  is installed. Supposing the remote Asterisell instance is on IP ‘10.10.10.10’, the
+                  SQL commands to execute are like:
+               </div><pre class="pre">    CREATE USER 'someuser'@'localhost' IDENTIFIED BY 'somepassword';
+    CREATE USER 'someuser'@'10.10.10.10' IDENTIFIED BY 'somepassword';
+    
+    GRANT SELECT,DELETE,UPDATE ON dbname.collector TO 'someuser'@'localhost';
+    GRANT SELECT,DELETE,UPDATE ON dbname.collector TO 'someuser'@'10.10.10.10';
+    
+    FLUSH PRIVILEGES;
+</pre><div class="div role-h3">Tables on the same host and database server</div>
+               <div class="p">If the table with source CDRs is on the same Host and Database Server, you can optimize
+                  further the processing of source CDRS, using the TokuDB engine also for the collector
+                  table.
+               </div>
+               <div class="p">If you have not many source CDRs, and you can interrupt the CDR stream flow, you can
+                  execute a command like
+               </div><pre class="pre">    ALTER TABLE your_source_cdrs_table_name 
+    ENGINE=TokuDB 
+    ROW_FORMAT=TOKUDB_SNAPPY, 
+    DEFAULT CHARACTER SET = utf8mb4, 
+    DEFAULT COLLATE = utf8mb4_bin;
+</pre></section>
+         </div>
+         <nav class="related-links">
+            <h3 class="related-links-title">Related information</h3>
+            <p class="link">‣ <a href="custom-jobs.html#Custom_jobs" title="Custom jobs usually are PHP files inside customizations directory. See .">Custom jobs</a></p>
+         </nav>
+      </section>
+      <footer class="page-navigation-footer">
+         <table class="page-navigation-layout" style="width: 100%;">
+            <tr>
+               <td style="text-align: left;vertical-align: top;"><a class="navigation-link" href="manual.html" title="First page: Asterisell Manual"><img alt="First page" class="navigation-icon" height="16" src="res/first.png" width="16" /></a></td>
+               <td style="text-align: left;vertical-align: top;"><a class="navigation-link" href="call-reporting-mode.html" title="Previous page: Call reporting mode"><img alt="Previous page" class="navigation-icon" height="16" src="res/previous.png" width="16" /></a></td>
+               <td style="width: 25%;text-align: left;vertical-align: top;"><span class="page-navigation-previous">Call reporting mode</span></td>
+               <td style="width: 40%;text-align: center;vertical-align: top;"><span class="page-navigation-current">Importing of CDRS</span> <span class="page-navigation-page">(18 / 72)</span></td>
+               <td style="width: 25%;text-align: right;vertical-align: top;"><span class="page-navigation-next">Main rate plans</span></td>
+               <td style="text-align: right;vertical-align: top;"><a class="navigation-link" href="main-rate-plans.html" title="Next page: Main rate plans"><img alt="Next page" class="navigation-icon" height="16" src="res/next.png" width="16" /></a></td>
+               <td style="text-align: right;vertical-align: top;"><a class="navigation-link" href="about.html" title="Last page: About"><img alt="Last page" class="navigation-icon" height="16" src="res/last.png" width="16" /></a></td>
+            </tr>
+         </table>
+      </footer>
+   </div>
+    </div>
+
+    
+  </body></html>
