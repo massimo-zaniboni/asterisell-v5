@@ -24,6 +24,7 @@ import Asterisell.TelephonePrefixes
 import Asterisell.VoIPChannelAndVendor
 import Asterisell.CustomerSpecificImporters
 
+import qualified Control.Monad as M
 import Control.Monad.State.Strict
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as LBS
@@ -44,6 +45,7 @@ import Control.Concurrent.MVar
 import Database.MySQL.Protocol.MySQLValue
 import Text.Heredoc
 import qualified Data.Csv as CSV
+import Control.Concurrent.Async
 
 -- ---------------------------------
 -- Params
@@ -252,54 +254,70 @@ rateEngine_importFromMySQLDB
 
           getCDRSStmt <- DB.prepareStmt remoteConn (DB.Query $ LBS.fromStrict $ fromStringToByteString inQ1)
 
-          mAgain <- newMVar True
           mLastId <- newMVar lastSavedId
+          mRecords <- newEmptyMVar
+          mRawCDR <- newEmptyMVar
 
-          sRecords <- S.makeInputStream (getRecords remoteConn getCDRSStmt param_chunkSize2 mLastId mAgain)
-          rawCDRS <- S.concatLists sRecords >>= S.map toRawSourceCDR
+          job1 <- async $ getRecords remoteConn getCDRSStmt param_chunkSize2 mLastId mRecords
+          -- NOTE: use a distinct thread so it can be idle waiting MySQL remote answers
 
-          rateEngine_importIntoDB
-            providerName
-            providerId
-            logicalTypeName
-            logicalTypeId
-            formatTypeName
-            formatTypeId
-            fromDate
-            False
-            Nothing
-            dbConf
-            4
-            rawCDRS
-            (\ conn -> do lastId <- takeMVar mLastId
-                          _ <- DB.execute conn  "UPDATE ar_cdr_provider SET last_imported_id = ? WHERE id = ?" [toDBInt64 lastId, toDBInt64 providerId]
-                          return ()
-            )
-      )
+          job2 <- async $ getRawCDRS mRecords mRawCDR
+
+          sRawCDRS <- S.makeInputStream $ takeMVar mRawCDR
+
+          r <- rateEngine_importIntoDB
+                 providerName
+                 providerId
+                 logicalTypeName
+                 logicalTypeId
+                 formatTypeName
+                 formatTypeId
+                 fromDate
+                 False
+                 Nothing
+                 dbConf
+                 4
+                 sRawCDRS
+                 (\ conn -> do lastId <- takeMVar mLastId
+                               _ <- DB.execute conn  "UPDATE ar_cdr_provider SET last_imported_id = ? WHERE id = ?" [toDBInt64 lastId, toDBInt64 providerId]
+                               return ())
+
+
+          _ <- waitAll [job1, job2] []
+          return r)
       (\_ remoteConn -> DB.close remoteConn)
       (createImportError)
 
   where
 
-   getRecords remoteConn getCDRSStmt chunkSize mLastId mAgain = do
-     again <- takeMVar mAgain
-     case again of
-       False -> return Nothing
-       True -> do
-         lastId <- takeMVar mLastId
-         (_, recordsS) <- DB.queryStmt remoteConn getCDRSStmt [toDBInt64 lastId, toDBInt64 chunkSize]
-         !records <- S.toList recordsS
-         let !lastId'
-               = case L.null records of
-                   True -> lastId
-                   False -> fromDBInt $ L.head $ L.last records
-         putMVar mLastId lastId'
-         let s = L.length records
-         putMVar mAgain (s >= chunkSize)
-         -- NOTE: use a condition on chunkSize, because if we test the empty result
-         -- there can be few but constant CDRS to process, and the loop will never terminate.
-         -- In this case we leave the remaining few CDRS to the next passage of the cron-job.
-         return $ Just records
+   getRecords remoteConn getCDRSStmt chunkSize mLastId mRecords = do
+       lastId <- takeMVar mLastId
+       (_, recordsS) <- DB.queryStmt remoteConn getCDRSStmt [toDBInt64 lastId, toDBInt64 chunkSize]
+       !records <- S.toList recordsS
+       putMVar mRecords (Just records)
+
+       let lastId' = case L.null records of
+                       True -> lastId
+                       False -> fromDBInt $ L.head $ L.last records
+       putMVar mLastId lastId'
+
+       -- NOTE: use a condition on chunkSize, because if we test the empty result
+       -- there can be few but constant CDRS to process, and the loop will never terminate.
+       -- In this case we leave the remaining few CDRS to the next passage of the cron-job.
+       case L.length records < chunkSize of
+         True -> do putMVar mRecords Nothing
+                    return ()
+         False -> getRecords remoteConn getCDRSStmt chunkSize mLastId mRecords
+
+   getRawCDRS mRecords mRawCDR = do
+       maybeRecord <- takeMVar mRecords
+       case maybeRecord of
+         Nothing -> do
+           putMVar mRawCDR Nothing
+           return ()
+         Just records -> do
+           M.mapM_ (\r -> putMVar mRawCDR $ Just $ toRawSourceCDR r) records
+           getRawCDRS mRecords mRawCDR
 
    -- | Convert to a CSV record, removing the last "\n" character
    toRawSourceCDR :: [DB.MySQLValue] -> RawSourceCDR
