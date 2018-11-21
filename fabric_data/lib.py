@@ -1024,11 +1024,12 @@ class Instance(object):
         elif self.debug_mode == 11:
             return "-O0 -fprof-auto-top -fno-ignore-asserts -threaded -rtsopts"
         elif self.debug_mode == 20 or self.debug_mode == 22:
-            return "-O -threaded -fprof-auto-top -rtsopts"
+            return "-O2 -threaded -fprof-auto-top -rtsopts"
         elif self.debug_mode == 21:
-            return "-O -threaded -fprof-auto -rtsopts"
+            return "-O2 -threaded -fprof-auto -rtsopts"
         else:
             return "UNKNOWN OPTION"
+        # NOTE: -O2 produces code slightly faster than -O, so maintain it
 
     def ghc_runtime_options(self):
         if self.debug_mode == 0 or self.debug_mode == 10:
