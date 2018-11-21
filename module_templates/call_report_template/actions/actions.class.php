@@ -830,11 +830,13 @@ protected function initTimeFrameFilters() {
   $fromDate1 = filterValue($this->filters, 'filter_on_calldate_from');
   if (!is_null($fromDate1)) {
     $fromDate = fromSymfonyTimestampToUnixTimestamp($fromDate1);
+    $this->filters['filter_on_calldate_from'] = $fromDate;
   }
 
   $toDate1 = filterValue($this->filters, 'filter_on_calldate_to');
   if (!is_null($toDate1)) {
     $toDate = fromSymfonyTimestampToUnixTimestamp($toDate1);
+    $this->filters['filter_on_calldate_to'] = $toDate;
   }
 
   $frame = filterValue($this->filters, 'filter_on_timeframe');

@@ -25,5 +25,6 @@ if (isset($filters['filter_on_calldate_to'])) {
 echo input_date_tag('filters[filter_on_calldate_to]', $d, array (
   'rich' => true,
   'withtime' => true,
+  'culture' => sfConfig::get('app_culture'),
   'calendar_button_img' => '/sf/sf_admin/images/date.png'));
 ?>
