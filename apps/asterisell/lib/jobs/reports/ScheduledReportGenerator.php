@@ -451,6 +451,10 @@ class ScheduledReportGenerator
         // Process organizations
 
         while (!empty($organizations)) {
+            ArReportPeer::clearInstancePool();
+            // NOTE: reports can use a lot of RAM because they contains documents,
+            // so do not cache them during generation.
+
             // NOTE: $organizationId is null only if this is a unique cumulative report
             $organizationId = array_pop($organizations);
 
