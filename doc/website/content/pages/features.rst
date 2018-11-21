@@ -197,7 +197,9 @@ Other features
 
 - it pre-calculates daily grouped totals for CDRS, in order to speedup the Web user-interface, and common filters on data
 - it can manage millions of monthly CDRS
+- it can store in a compressed way millions of ported telephone numbers
 - it imports and rates CDRS in an incremental way (also for rates with a bundle-state)
+- automatic rerating of unbilled CDRS in case of change of customers and rating params 
 - it detects problems in CDRS and rating plans, and it has detailed error messages 
 - used in production for many years
 
@@ -206,4 +208,4 @@ Why not using Asterisell
 
 - the Web UI is dated
 - it supports (up to date) only post-paid invoices
-- during processing it stores customer data into RAM, so it can support few thousands of customers, but not 10000 or more customers
+- during processing it loads customer data into RAM, so it can support ten thousands customers, but it can not scale to hundred thousands 
