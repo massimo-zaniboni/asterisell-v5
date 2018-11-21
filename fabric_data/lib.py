@@ -801,7 +801,6 @@ class Instance(object):
     conf_smtp_command = ''
     conf_smtp_reconnect_after_nr_of_messages = 0
     conf_smtp_seconds_of_pause_after_reconnection = 0
-    conf_smtp_sender_email_address = ''
     conf_instance_voip_domain = ''
 
     # Copy customer specific files inside `customizations` directory,
@@ -1217,7 +1216,6 @@ all:
     smtp_command: $conf_smtp_command
     reconnect_after_nr_of_messages: $conf_smtp_reconnect_after_nr_of_messages
     seconds_of_pause_after_reconnection: $conf_smtp_seconds_of_pause_after_reconnection
-    sender_email_address: $conf_smtp_sender_email_address
 
   available:
 
@@ -1521,7 +1519,6 @@ all:
             conf_smtp_reconnect_after_nr_of_messages=self.yaml_string(self.conf_smtp_reconnect_after_nr_of_messages),
             conf_smtp_seconds_of_pause_after_reconnection=self.yaml_string(
                 self.conf_smtp_seconds_of_pause_after_reconnection),
-            conf_smtp_sender_email_address=self.yaml_string(self.conf_smtp_sender_email_address),
             conf_show_extension_code=self.bool_value_str(self.conf_show_extension_code),
             conf_how_many_calls_in_call_report=self.yaml_string(self.conf_how_many_calls_in_call_report),
             conf_not_displayed_telephone_prefix=self.yaml_string(self.conf_not_displayed_telephone_prefix),

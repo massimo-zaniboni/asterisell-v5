@@ -163,6 +163,10 @@ function displayUsage()
       Recalculate all daily totals, of the table ar_cached_cdrs, according the new content of ar_cdr.
       Used only during development or maintenance, if some unusual operations corrupt the content of the table.
 
+  php asterisell.php debug send-test-email
+
+      Send a test email to the email address configured in Web UI Params.
+
 ##
 ## Maintenance operations
 ##
@@ -1632,6 +1636,10 @@ function manageCommand_debug(JobQueueProcessor $lock, $subCommand, $option1, $op
     } else if ($subCommand == 'reset-rerate-event') {
         FixedJobProcessor::signalAsDoneRerateCallsFromOfficialCalldate(null, true);
         FixedJobProcessor::rerateCalls(null);
+    } else if ($subCommand === 'send-test-email') {
+        $job = new SendTestEmail();
+        $msg = $job->process();
+        echo "\n" . $msg . "\n";
     } else if ($subCommand == 'some-code-test') {
         someCodeToTest();
     } else if ($subCommand == 'test') {
