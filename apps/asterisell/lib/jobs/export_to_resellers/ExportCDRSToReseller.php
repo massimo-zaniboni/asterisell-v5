@@ -149,7 +149,7 @@ abstract class ExportCDRSToReseller extends DailyStatusJob
                 // Export all the rates from this date, also if they are already exported,
                 // because the reseller must have a complete list of rates.
 
-                $fileName = ImportCDRSFromAsterisellProvider::SHARED_RATES_PREFIX . '_' . get_ordered_timeprefix_with_unique_id();
+                $fileName = ImportCDRSFromLocalAsterisellProvider::SHARED_RATES_PREFIX . '_' . get_ordered_timeprefix_with_unique_id();
                 $tmpFileName = normalizeFileNamePath(ImportDataFiles::getAbsoluteTmpDirectory() . '/' . $fileName);
                 @unlink($tmpFileName);
 

@@ -6,8 +6,6 @@ sfLoader::loadHelpers(array('I18N', 'Debug', 'Date', 'Asterisell'));
 
 /**
  * Import CSV files from a WebDAV server.
- * This is an abstract class, that must be customized in inherited subclasses, for performing the real work.
- * Obviously the job must be added to the `import_cdrs_job` parameter.
  */
 abstract class ImportCDRSFromRemoteAsterisellProvider extends ImportCDRSFromLocalAsterisellProvider
 {
