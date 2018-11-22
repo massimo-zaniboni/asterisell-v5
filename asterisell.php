@@ -1086,7 +1086,7 @@ function main($argc, $argv)
             $ask = true;
         }
         if ($ask) {
-          explicitConfirmForDeletion();
+            explicitConfirmForDeletion();
         }
         manageCommand_install(false, $dbRootUser, $dbRootPassword);
     } else if ($mainCommand == 'install-views-and-procedures') {
@@ -1110,7 +1110,7 @@ function main($argc, $argv)
         }
 
         if ($ask) {
-          explicitConfirmForDeletion();
+            explicitConfirmForDeletion();
         }
 
         list($database, $user, $password) = getDatabaseNameUserAndPassword();
@@ -1337,7 +1337,7 @@ function manageCommand_data($subCommand, $option1, $option2 = '', $option3 = '')
     } else if ($subCommand == "unbilled") {
         if (isEmptyOrNull($option1)) {
             displayUsage();
-            return(1);
+            return (1);
         } else {
             $d = $option1;
         }
@@ -1399,8 +1399,8 @@ function manageCommand_data($subCommand, $option1, $option2 = '', $option3 = '')
         $yamlJob = new ChangeOrganizationInfo();
         $yaml = $yamlJob->getYAMLContent(null, null, null);
         if (isEmptyOrNull($option1)) {
-          echo $yaml;
-          echo "\n";
+            echo $yaml;
+            echo "\n";
         } else {
             file_put_contents($option1, $yaml);
             echo "\nWritten to file $option1";
@@ -1445,12 +1445,13 @@ function manageCommand_data($subCommand, $option1, $option2 = '', $option3 = '')
             $stm->execute();
 
             echo "\nAvailable options (cdr-provider-code cdr-format) are:\n";
+            echo "\n    any default__format";
             while (($rs = $stm->fetch(PDO::FETCH_NUM)) !== false) {
-
                 echo "\n    " . $rs[0] . " " . $rs[1] . '__' . $rs[2];
             }
             $stm->closeCursor();
             echo "\n";
+            echo "\nUse provider and format \"any default__format\" for exporting all CDRS of any provider, in a default format.\n";
             echo "\nUse as time-frame \"yyyy-mm\" for exporting a month, or \"yyyy-mm-dd\" for exporting a day.\n";
         } else {
 
@@ -1488,22 +1489,29 @@ function manageCommand_data($subCommand, $option1, $option2 = '', $option3 = '')
                 return (1);
             }
 
-            $job = new ImportDataFiles();
-            $fileName = $job->exportStatusFile('exported', False, $cdrProviderName, $cdrProviderName, $logicalTypeName, $formatName, $statusYYYY, $statusMM, $statusDD);
+            $fileName = null;
+            if (strcmp($cdrProviderName, "any") == 0 && strcmp($logicalTypeName, "default") == 0) {
+                $job = new ExportAnyCdrToDefaultFormat();
+                $fileName = $job->exportStatusFile('exported-cdrs', $statusYYYY, $statusMM, $statusDD);
+            } else {
+                $job = new ImportDataFiles();
+                $fileName = $job->exportStatusFile('exported', False, $cdrProviderName, $cdrProviderName, $logicalTypeName, $formatName, $statusYYYY, $statusMM, $statusDD);
+
+                $format1 = ArLogicalSourcePeer::retrieveByName($logicalTypeName);
+                $format2 = ArPhysicalFormatPeer::retrieveByName($format1->getId(), $formatName);
+
+                echo "\nInfo about $logicalTypeName:\n" . $format1->getDescription();
+                echo "\n\n";
+                echo "Info about specific $logicalTypeName" . "__" . $formatName . " version:\n" . $format2->getDescription();
+                echo "\n\n";
+            }
 
             if (is_null($fileName)) {
                 echo "\nError processing request\n";
                 return (2);
             }
 
-            $format1 = ArLogicalSourcePeer::retrieveByName($logicalTypeName);
-            $format2 = ArPhysicalFormatPeer::retrieveByName($format1->getId(), $formatName);
-
-            echo "\nInfo about $logicalTypeName:\n" . $format1->getDescription();
-            echo "\n\n";
-            echo "Info about specific $logicalTypeName" . "__" . $formatName . " version:\n" . $format2->getDescription();
-            echo "\n\n";
-            echo "Produced file\n\n   $fileName\n\nYou can modify the file content, and put it into input directory\n\n   " . ImportDataFiles::getAbsoluteInputDirectory() . "\n\nfor loading a new version of the data in the specified time frame.\nImportant: do not change last part of file name because it is used for recognizing the format and time frame.\nImportant: you can maintain the original file, in order to restore previous info in case of errors.\n";
+            echo "Produced file\n\n   $fileName\n\nYou can modify the file content, and put it into input directory\n\n   " . ImportDataFiles::getAbsoluteInputDirectory() . "\n\nfor loading a new version of the data in the specified time frame.\nImportant: do not change last part of file name because it is used for recognizing the format and time frame.\nImportant: all CDRS of the provider $cdrProviderName in the specified time-frame will be deleted, and replaced with the content of this file.\nSo you can use it for fixing errors in the CDRS of the provider.\n";
 
             return (0);
         }
@@ -1569,8 +1577,8 @@ function manageCommand_debug(JobQueueProcessor $lock, $subCommand, $option1, $op
         }
 
         if ($ask) {
-           echo "\nMissing root and password.\n";
-           exit(1);
+            echo "\nMissing root and password.\n";
+            exit(1);
         }
 
         list($database, $user, $password) = getDatabaseNameUserAndPassword();
