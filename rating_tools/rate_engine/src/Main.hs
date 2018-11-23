@@ -364,6 +364,7 @@ mainRate = do
 
             let importFromDate
                   = fromJust1 "ma60" $ fromMySQLDateTimeToLocalTime importFromDateS
+
             handleAny
               (\(err :: SomeException)
                             -> do putStrLn $ show err

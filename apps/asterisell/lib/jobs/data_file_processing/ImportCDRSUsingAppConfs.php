@@ -202,11 +202,11 @@ class ImportCDRSUsingAppConfs extends FixedJobProcessor
                 $this->params = $params;
                 ArProblemException::garbageCollect($this->getGarbageKey(), null, null);
 
-                $s = $this->getParamValueOrSignalError('fromDate');
+                $s = $this->getParamValue('fromDate', null);
                 if (isEmptyOrNull($s)) {
                     $importFromDateS = fromUnixTimestampToMySQLTimestamp($this->getGlobalStartingDate());
                 } else {
-                    $importFromDateS = $s;
+                    $importFromDateS = trim($s);
                 }
 
                 $cdrProviderId = CustomCDRServices::getInstance()->getCdrProviderId($this->getCdrProvider());

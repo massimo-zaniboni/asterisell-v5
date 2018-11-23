@@ -992,7 +992,7 @@ class Instance(object):
                 r = r + indent1 + 'timeFrameInMinutes: ' + c.timeFrameInMinutes
                 r = r + indent1 + 'dataSourceFormat: ' + c.dataSourceFormat
                 r = r + indent1 + 'dataSourceVersion: ' + c.dataSourceVersion
-                r = r + indent1 + 'fromDate: ' + c.fromDate
+                r = r + indent1 + 'fromDate: \'' + c.fromDate + '\''
                 r = r + indent1 + 'removeOlderThanDays: ' + c.removeOlderThanDays
 
         r = r + '\n'
