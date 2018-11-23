@@ -94,8 +94,8 @@ class ExportAnyCdrToDefaultFormat extends FixedJobProcessor
                    ar_cdr.income,
                    IFNULL(ar_organization_unit.export_code, '\\N'),
                    IF(ar_cdr.to_calldate IS NULL, IFNULL(ar_cdr.cached_external_telephone_number, '\\N'), IFNULL(ar_cdr.cached_masked_external_telephone_number, '\\N')),
-                   IFNULL(ar_cdr.external_telephone_number_with_applied_portability, '\\N')
-
+                   IFNULL(ar_cdr.external_telephone_number_with_applied_portability, '\\N'),
+                   ar_communication_channel_type.internal_name
 NOWDOC;
         $query .= " INTO OUTFILE '$tmpFileName' ";
 
