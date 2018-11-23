@@ -139,7 +139,7 @@ rateEngine_importDataFile
                ))
 
       (\_ _ -> return ())
-      (createImportError)
+      createImportError
 
   where
 
@@ -427,8 +427,8 @@ rateEngine_importIntoDB
          return $ DeepSeq.force r
 
        -- Update the rating frame again.
-       case totLines > 0 && linesWithErrors == totLines of
-         True -> throwIO $ AsterisellException $ "The code can not parse correctly the content. The code processing the file contains errors, or the file has not the specified format."
+       case linesWithErrors > totLines of
+         True -> throwIO $ AsterisellException $ "The input file contains more errors (" ++ show linesWithErrors ++ "), than correctly imported CDRS (" ++ show totLines ++ "). This is suspect (i.e. input file in different format, error in the code). The file will be not imported, and it will remain in the input directory."
          False -> do case maybeStatusTimeFrame of
                        Just (d1, _) -> db_updateRatingTimeFrame conn d1
                        Nothing -> return ()

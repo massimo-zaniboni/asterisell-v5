@@ -791,7 +791,6 @@ class ImportDataFiles extends FixedJobProcessor
             . ' --to-date ' . $maxDateS
             . ' --use-only-cdrs-to-move ' . $onlyCdrsToMoveS;
 
-
         $output = array();
         $exitStatus = 0;
         exec($cmd, $output, $exitStatus);

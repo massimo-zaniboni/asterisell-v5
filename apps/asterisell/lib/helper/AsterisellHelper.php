@@ -1807,8 +1807,8 @@ function getConnectionParams($connectionName, $returnExtendedInfo = false, $asPr
                     , 'timeFrameInMinutes' => trim(strval($conf['timeFrameInMinutes']))
                     , 'dataSourceFormat' => trim($conf['dataSourceFormat'])
                     , 'dataSourceVersion' => trim($conf['dataSourceVersion'])
-                    , 'fromDate' => trim($con['fromDate'])
-                    , 'removeOlderThanDays' => trim($con['removeOlderThanDays'])
+                    , 'fromDate' => trim($conf['fromDate'])
+                    , 'removeOlderThanDays' => trim($conf['removeOlderThanDays'])
                     );
                 } else {
                     return array(
