@@ -73,185 +73,142 @@ exit($exitCode);
 function displayUsage()
 {
     $str = <<<HELP
-##
-## Installation/development operations
-##
+Installation/development operations
+-----------------------------------
 
   php asterisell.php activate
-
       Clear cache, set directories, and other common and safe management operations.
 
   php asterisell.php activate users [db-root-user] [db-root-password]
-
       Create again the MySQL users for accessing the application.
       NOTE: if a new name is used, then old users had to be deleted manually.
 
   php asterisell.php make-derived-files
-
       Internal command.
 
   php asterisell.php silently-activate
-
       Internal command.
 
   php asterisell.php install
-
       Initial install with empty database.
 
   php asterisell.php install-demo
-
       To call after "install" command for installing demo data.
 
   php asterisell.php install-views-and-procedures
-
       Install views, procedures, and calls rating procedures, without deleting data. Useful in case of restore from an instance with errors, or for updating of the code.
 
   php asterisell.php run [upgrade-jobs|db-upgrade-jobs]
-
       Execute only upgrading jobs. Called from the administrator.
 
   php asterisell.php data admin <some-password>
-
       Add an "admin" user, with the specified password.
 
   php asterisell.php data unbilled YY-MM-DD hh:mm:s
-
       All CDRS befor this calldate are considered as already billed.
 
   php asterisell.php data merge-telephone-prefixes
-
       Add new telephone prefixes to the telephone prefix table, reading them from "scripts/world_prefix_table.csv".
 
   php asterisell.php dev remove-model <SomeModelClassName>
-
       Remove from lib directory, the occurrences of the model.
 
   php asterisell.php dev update-customizations
-
       Update the description of rate formats, and other settings that are likely to be changed during development.
 
   php asterisell.php dev support-user <password>
-
       Create or modify an admin support user, with login "support", and the specified password.
 
   php asterisell.php debug stress-rerating [MAX-DAYS-IN-THE-PAST] [HOURS]
-
       Rerate starting from the specified days in the past, simulating new CDRS every specified hours, using random time-frames, and checking for errors in grouped cached CDRS.
 
   php asterisell.php debug test <test-class> <test-method>
-
       Called from regression test code for executing certain regression tests.
 
   php asterisell.php debug some-code-test
-
       Start some demo code, useful during development.
 
   php asterisell.php debug regression-test <db-root-user> <db-root-password>
-
       Execute unit tests on code.
 
   php asterisell.php debug signal-critical-problem-in-the-code
-
       Signal in the problem table, a critical problem in the code.
 
   php asterisell.php run scheduled-jobs
-
       Start job processor in silent mode, usually called from cron daemon.
 
   php asterisell.php data update-cached-cdrs
-
       Recalculate all daily totals, of the table ar_cached_cdrs, according the new content of ar_cdr.
       Used only during development or maintenance, if some unusual operations corrupt the content of the table.
 
   php asterisell.php debug send-test-email
-
       Send a test email to the email address configured in Web UI Params.
 
-##
-## Maintenance operations
-##
+Maintenance operations
+----------------------
 
   php asterisell.php cron [enable|disable|disable-for-upgrade]
-
       Enable or disable the cron job processor: the application can be used for viewing old data, but not process new data
 
   php asterisell.php app [enable|disable]
-
       Disable application access for normal users, saying that the application is under maintenance.
 
   php asterisell.php dev list-jobs
-
       List scheduled jobs with related development notes.
 
   php asterisell.php cron force-execution-of-all-jobs
-
       At next job execution also postponed (maintenance) jobs will be executed.
 
   php asterisell.php run jobs
-
       Start job processor. Called from the administrator.
 
   php asterisell.php debug jobs
-
       Start job processor reporting problems on the command line and in the log/asterisell_dev.log file, and executing the rating engine in debug/test mode.
       This mode is a lot slower, but it can detect more errors in the code.
 
   php asterisell.php debug rerate [yyyy-mm-dd]
-
       Schedule a rerate event. The CDRs will be rated at next execution of jobs.
       If none calldate is specified, then all not yet billed CDRS are scheduled for rerate.
 
   php asterisell.php debug rate [yyyy-mm-dd]
-
       Rate immediately the CDRs from the specified calldate.
 
   php asterisell.php debug debug-rate [yyyy-mm-dd]
-
       Rate immediately the CDRs from the specified calldate, generating debug info.
       NOTE: more accurate info is generated, but it is slower than normal rating.
 
   php asterisell.php debug reset-rerate-event
-
       Reset the scheduled rerate events.
 
-##
-## Data operations
-##
+Data operations
+---------------
 
   php asterisell.php data backup
-
       Create a file with the dump of the database.
 
   php asterisell.php data config-backup
-
       Make a compact backup of the database, excluding CDRs data.
 
   php asterisell.php data restore
-
       Restore the application data, according the content of "data_files/messages/backup" directory.
       This is the suggested way for restoring data.
       After the execution of this command the content of the backup directory will be overwritten with new data.
 
   php asterisell.php data export-organizations <file-name>
-
       Export organizations to file-name.
 
   php asterisell.php data import-organizations <file-name> [new]
-
       Import organizations from an YAML file.
       Specify "new" for considering all data as new data, also if the part-id is specified.
 
   php asterisell.php data complete-reseller-export-code <reseller-code>
-
       Given the code of a reseller, complete the export-code field of the children extensions, with the first value in extensions codes. Only extensions with an empty value are affected.
       This is a sane default value, that can be used for extensions to export to resellers, in case a batch initialization is needed. These values can be specified individually also in the user interface.
 
   php asterisell.php data delete-organization <id>
-
       Given the id of an organization (the unique identifier in a URL like "view/id/123"), delete from the database. Useful in case of infinite loops in definition of an organization, and other bad configurations.
 
   php asterisell.php data export-cdrs [cdr-provider-code] [cdr-format] [yyyy-mm-[dd]]
-
       Without params, list the available cdr-provider-codes and cdr-format.
       Use YYYY-MM for exporting all the CDRs of a month, and YYYY-MM-DD for exporting all the CDRs of a day.
 
