@@ -46,6 +46,7 @@ import Database.MySQL.Protocol.MySQLValue
 import Text.Heredoc
 import qualified Data.Csv as CSV
 import Control.Concurrent.Async
+import System.IO
 
 -- ---------------------------------
 -- Params
@@ -68,10 +69,15 @@ type SourceDataSummaryInfo
   = ( Maybe (LocalTime, LocalTime)
       -- ^ max and minimum found call date
     , Int
-      -- ^ total number of lines
+      -- ^ correctly parsed lines
     , Int
       -- ^ lines with errors
     )
+
+{-# INLINE newMaxMinCallDate #-}
+newMaxMinCallDate :: LocalTime -> Maybe (LocalTime, LocalTime) -> Maybe (LocalTime, LocalTime)
+newMaxMinCallDate d Nothing = Just (d, d)
+newMaxMinCallDate d (Just (minDD, maxDD)) = Just (min minDD d, max maxDD d)
 
 -- -------------------------------------------------------------------
 -- File as source of CDRS
@@ -80,6 +86,7 @@ type SourceDataSummaryInfo
 --
 rateEngine_importDataFile
   :: FilePath
+  -> Maybe FilePath
   -> CDRProviderName
   -> Int
   -> Text.Text
@@ -96,6 +103,7 @@ rateEngine_importDataFile
 
 rateEngine_importDataFile
   inputFile
+  maybeDebugFileName
   providerName
   providerId
   logicalTypeName
@@ -122,20 +130,34 @@ rateEngine_importDataFile
                (\fileContentStream -> do
                    rawCDRS <- (allLines params fileContentStream) >>= (maybeRemoveHeader params) >>= (utf8Lines params)
 
-                   rateEngine_importIntoDB
-                     providerName
-                     providerId
-                     logicalTypeName
-                     logicalTypeId
-                     formatTypeName
-                     formatTypeId
-                     fromCallDate
-                     isStatusFile
-                     maybeStatusTimeFrame
-                     dbConf
-                     precision
-                     rawCDRS
-                     (\ conn -> void $ DB.execute conn  "REPLACE INTO ar_local_file_to_delete(name) VALUES(?)" [toDBText $ Text.pack inputFile])
+                   case maybeDebugFileName of
+                     Nothing -> do
+                       rateEngine_importIntoDB
+                         providerName
+                         providerId
+                         logicalTypeName
+                         logicalTypeId
+                         formatTypeName
+                         formatTypeId
+                         fromCallDate
+                         isStatusFile
+                         maybeStatusTimeFrame
+                         dbConf
+                         precision
+                         rawCDRS
+                         (\ conn -> void $ DB.execute conn  "REPLACE INTO ar_local_file_to_delete(name) VALUES(?)" [toDBText $ Text.pack inputFile])
+                     Just debugFileName -> do
+                       rateEngine_debugCDRParsing
+                         providerName
+                         providerId
+                         logicalTypeName
+                         logicalTypeId
+                         formatTypeName
+                         formatTypeId
+                         dbConf
+                         precision
+                         rawCDRS
+                         debugFileName
                ))
 
       (\_ _ -> return ())
@@ -412,7 +434,7 @@ rateEngine_importIntoDB
               sourceCDR_mysqlCSVLoadCmd
               sourceCDR_toMySQLCSV
 
-       (_, summaryInfo@(maybeTimeFrame, totLines, linesWithErrors)) <- do
+       (_, summaryInfo@(maybeTimeFrame, correctLines, linesWithErrors)) <- do
          let parseCallDate rawCDR
                = case (parseTypedRawSourceCDRToCallDate theType sourceCDRParams 4 providerName rawCDR) of
                    Left err -> Just $ (rawCDR, Left err)
@@ -427,8 +449,8 @@ rateEngine_importIntoDB
          return $ DeepSeq.force r
 
        -- Update the rating frame again.
-       case linesWithErrors > totLines of
-         True -> throwIO $ AsterisellException $ "The input file contains more errors (" ++ show linesWithErrors ++ "), than correctly imported CDRS (" ++ show totLines ++ "). This is suspect (i.e. input file in different format, error in the code). The file will be not imported, and it will remain in the input directory."
+       case linesWithErrors > correctLines of
+         True -> throwIO $ AsterisellException $ "The input file contains more errors (" ++ show linesWithErrors ++ "), than correctly imported CDRS (" ++ show correctLines ++ "). This is suspect (i.e. input file in different format, error in the code). The file will be not imported, and it will remain in the input directory."
          False -> do case maybeStatusTimeFrame of
                        Just (d1, _) -> db_updateRatingTimeFrame conn d1
                        Nothing -> return ()
@@ -453,17 +475,17 @@ rateEngine_importIntoDB
      -> (RawSourceCDR, Either AsterisellError LocalTime)
      -> IO (LocalTime, SourceDataSummaryInfo)
 
-   sendToDB outChan (!lastCallDate, (!maybeMaxMinCallDate, !totLines, !linesWithErrors)) (!rawCDR, !maybeLocalTime)
+   sendToDB outChan (!lastCallDate, (!maybeMaxMinCallDate, !correctLines, !linesWithErrors)) (!rawCDR, !maybeLocalTime)
      = let (lastCallDate', summaryInfo')
              = case maybeLocalTime of
                  Left err
-                   -> (lastCallDate, (maybeMaxMinCallDate, totLines, linesWithErrors + 1))
+                   -> (lastCallDate, (maybeMaxMinCallDate, correctLines, linesWithErrors + 1))
                       -- NOTE: in case of error update only the count of lines with errors,
                       -- and use a "current date".
                       -- In this way the error will be reported in details when the user try to rate recent calls.
                       -- This is an hack but 99% of the times it is the correct thing to do.
                  Right callDate
-                   -> (callDate, (newMaxMinCallDate callDate maybeMaxMinCallDate, totLines + 1, linesWithErrors))
+                   -> (callDate, (newMaxMinCallDate callDate maybeMaxMinCallDate, correctLines + 1, linesWithErrors))
 
            cdr' = DBSourceCDR lastCallDate' providerId logicalTypeId formatTypeId rawCDR
 
@@ -474,10 +496,87 @@ rateEngine_importIntoDB
    createImportError e
      = SomeException $ AsterisellException $ "There is a critical error during the importing from provider " ++ (Text.unpack providerName) ++ ", format " ++  (Text.unpack logicalTypeName) ++ "__" ++  (Text.unpack formatTypeName) ++ ". " ++ (displayException e) ++ ".\nAll data from the provider or with the same format will be not rated.\nThis is probably an error in the application configuration. Contact the assistance."
 
-   {-# INLINE newMaxMinCallDate #-}
-   newMaxMinCallDate :: LocalTime -> Maybe (LocalTime, LocalTime) -> Maybe (LocalTime, LocalTime)
-   newMaxMinCallDate d Nothing = Just (d, d)
-   newMaxMinCallDate d (Just (minDD, maxDD)) = Just (min minDD d, max maxDD d)
+-- ---------------------------------------
+-- Debug 
+
+-- | Parse CDRS and print debug informations.
+--
+rateEngine_debugCDRParsing
+  :: CDRProviderName
+  -> Int
+  -> Text.Text
+  -> Int
+  -> Text.Text
+  -> Int
+  -> DBConf
+  -> CurrencyPrecisionDigits
+  -> InputStream RawSourceCDR
+  -- ^ the CDRs in source/raw format
+  -> FilePath
+  -> IO SourceDataSummaryInfo
+
+rateEngine_debugCDRParsing
+  providerName
+  providerId
+  logicalTypeName
+  logicalTypeId
+  formatTypeName
+  formatTypeId
+  dbConf
+  precision
+  inStream1
+  debugFileName = do
+
+   nrOfRatingJobs <- process_initCores 0
+
+   (CDRFormatSpec !sourceCDRParams !theType)
+     <- case getSupportedCDRSImporters logicalTypeName formatTypeName of
+          Nothing
+            -> throwIO $ AsterisellException ("There is no known/configured source data file importer for format " ++ (Text.unpack logicalTypeName) ++ ", and version " ++ (Text.unpack formatTypeName))
+          Just r
+            -> return r
+
+   nowLocalTime1 <- getZonedTime
+   let callDate0 = zonedTimeToLocalTime nowLocalTime1
+   -- NOTE: use an MVar instead of an IORef, because I had space-leak problems
+
+   let parseCDR rawCDR = (rawCDR, parseTypedRawSourceCDR theType sourceCDRParams precision providerName rawCDR)
+
+   withFile debugFileName WriteMode $ \outH -> do
+     inStream2 <- (S.map parseCDR inStream1) 
+     (_, r@(timeFrame, correctLines, linesWithErrors)) <- S.foldM (\ (!s) (!cdr) -> processCDR outH s cdr) (callDate0, (Nothing, 0, 0)) inStream2
+
+     hPutStrLn outH $ "\nTime frame: " ++ show timeFrame
+     hPutStrLn outH $ "Total correctly parsed lines: " ++ show correctLines ++ ", total lines with errors: " ++ show linesWithErrors
+
+     return r
+
+ where
+
+   processCDR
+     :: Handle
+     -> (LocalTime, SourceDataSummaryInfo)
+     -> (RawSourceCDR, Either AsterisellError (Maybe (LocalTime, Either AsterisellError [CDR])))
+     -> IO (LocalTime, SourceDataSummaryInfo)
+
+   processCDR outH (!lastCallDate, (!maybeMaxMinCallDate, !correctLines, !linesWithErrors)) (!rawCDR, !maybeParsedCDR) = do
+     hPutStrLn outH $ "\nSource CDR: " ++ fromByteStringToString rawCDR
+     case maybeParsedCDR of
+       Left err -> do
+           hPutStrLn outH $ "Critical error during parsing: " ++ show err
+           return (lastCallDate, (maybeMaxMinCallDate, correctLines, linesWithErrors + 1))
+       Right Nothing -> do
+           hPutStrLn outH $ "CDR to ignore"
+           return (lastCallDate, (maybeMaxMinCallDate, correctLines + 1, linesWithErrors))
+       Right (Just (callDate, Left err)) -> do
+           hPutStrLn outH $ "Call date is " ++ show callDate ++ ", but error during parsing: " ++ show err
+           return (callDate, (newMaxMinCallDate callDate maybeMaxMinCallDate, correctLines, linesWithErrors + 1))
+       Right (Just (callDate, Right [])) -> do
+           hPutStrLn outH $ "CDR to ignore"
+           return (callDate, (newMaxMinCallDate callDate maybeMaxMinCallDate, correctLines + 1, linesWithErrors))
+       Right (Just (callDate, Right cdrs)) -> do
+           M.mapM_ (\cdr -> hPutStrLn outH $ cdr_showDebug cdr) cdrs
+           return (callDate, (newMaxMinCallDate callDate maybeMaxMinCallDate, correctLines + 1, linesWithErrors))
 
 -- ---------------------------------------
 -- Export CDRS

@@ -340,16 +340,6 @@ class ImportDataFiles extends FixedJobProcessor
             );
         }
 
-        if ($this->getDebugMode()) {
-            $debugFileName = normalizeFileNamePath(self::getMySQLAccessibleTmpDirectory(self::GARBAGE_KEY) . '/' . ManageRateEvent::IMPORT_DEBUG_FILE_NAME);
-            if (file_exists($debugFileName)) {
-                @unlink($debugFileName);
-            }
-        } else {
-            $debugFileName = null;
-            // mandatory for signaling that there is no debug, and it is normal processing
-        }
-
         // the files sent from the client, can be ordered according the generation date,
         // and so insert first the files that are older. In this case if there are queued
         // status files, are processed first the older status files, and then the new
@@ -369,7 +359,8 @@ class ImportDataFiles extends FixedJobProcessor
                 continue;
             }
 
-            $totLines = $this->processFile($sourceFile, $debugFileName);
+            $completeSourceFile = normalizeFileNamePath($this->getAbsoluteInputDirectory() . '/' . $sourceFile);
+            $totLines = $this->processFile($completeSourceFile, null);
             $prof->addToProcessedUnits($totLines);
 
             $countFiles++;
@@ -389,15 +380,16 @@ class ImportDataFiles extends FixedJobProcessor
     }
 
     /**
-     * @param string $sourceFile file name inside input directory, to import.
-     * @param string|null $debugFileName null for normal processing
+     * @param string $completeSourceFile file name
+     * @param string|null $debugFile
      * @return int processed CDRs
      */
-    public function processFile($sourceFile, $debugFileName)
+    public function processFile($completeSourceFile, $debugFile = null)
     {
 
-        $completeSourceFile = normalizeFileNamePath($this->getAbsoluteInputDirectory() . '/' . $sourceFile);
+        $isDebug = !is_null($debugFile);
 
+        $sourceFile = basename($completeSourceFile);
         if (!is_file($completeSourceFile)) {
             // skip
             return 0;
@@ -526,7 +518,9 @@ class ImportDataFiles extends FixedJobProcessor
                 echo "\n      import $completeSourceFile";
             }
 
-            if (is_null($debugFileName)) {
+            if ($isDebug) {
+                $debugFileName = $debugFile;
+            } else {
                 $debugFileName = 'null';
             }
 
@@ -535,8 +529,8 @@ class ImportDataFiles extends FixedJobProcessor
             $ratingParams = array();
             $cmd = RateEngineService::getToolExecutable()
                 . ' --import-data-file ' . $completeSourceFile
-                . ' --params ' . RateEngineService::writeParams($ratingParams)
                 . ' --debug-file ' . $debugFileName
+                . ' --params ' . RateEngineService::writeParams($ratingParams)
                 . ' --provider ' . $cdrProvider
                 . ' --provider-id ' . $cdrProviderId
                 . ' --file-logical-type ' . $logicalType
@@ -551,7 +545,7 @@ class ImportDataFiles extends FixedJobProcessor
                 . ' '
                 . ManageRateEvent::DONT_TOUCH_DEBUG_MODE_GHC_PARAMS;
 
-            if ($this->getDebugMode()) {
+            if ($this->getDebugMode() || $isDebug) {
                 echo "\nExecute command: \n$cmd\n";
             }
 
@@ -559,11 +553,13 @@ class ImportDataFiles extends FixedJobProcessor
             $exitStatus = 0;
             $resultLine = exec($cmd, $output, $exitStatus);
 
-            RateEngineService::signalIfThereAreCDRSAlreadyBilled("file $completeSourceFile");
+            if (!$isDebug) {
+                RateEngineService::signalIfThereAreCDRSAlreadyBilled("file $completeSourceFile");
+            }
 
             // NOTE: the file will be signaled as imported, from the Haskell rating engine
 
-            $totLines = 0;
+            $correctLines = 0;
             if ($exitStatus == 0) {
 
                 $results = explode(',', $resultLine);
@@ -588,7 +584,7 @@ class ImportDataFiles extends FixedJobProcessor
 
                 $minDateStr = $results[$i++];
                 $maxDateStr = $results[$i++];
-                $totLines = intval($results[$i++]);
+                $correctLines = intval($results[$i++]);
                 $totLinesWithErrors = intval($results[$i++]);
 
                 // Preserve profiling files
@@ -611,7 +607,7 @@ class ImportDataFiles extends FixedJobProcessor
                     true);
             }
 
-            return $totLines;
+            return ($correctLines + $totLinesWithErrors);
 
         } catch (ArProblemException $e) {
             // nothing to do, already signaled

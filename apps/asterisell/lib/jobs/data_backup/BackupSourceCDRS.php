@@ -46,7 +46,7 @@ NOWDOC;
         CHARACTER SET 'utf8mb4'
         FIELDS TERMINATED BY ','
         OPTIONALLY ENCLOSED BY '"'
-        ESCAPED BY '\\'
+        ESCAPED BY '\'
         LINES TERMINATED BY '\r\n'
         FROM ar_source_cdr
         WHERE calldate >= ? AND calldate < ?
@@ -117,7 +117,7 @@ NOWDOC;
         CHARACTER SET 'utf8mb4'
         FIELDS TERMINATED BY ','
         OPTIONALLY ENCLOSED BY '"'
-        ESCAPED BY '\\'
+        ESCAPED BY '\'
         LINES TERMINATED BY '\r\n' STARTING BY ''
         (ar_cdr_provider_id, ar_physical_format_id, calldate, content) SET id = NULL;
         ';

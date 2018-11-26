@@ -78,7 +78,7 @@ NOWDOC;
         CHARACTER SET 'utf8mb4'
         FIELDS TERMINATED BY ','
         OPTIONALLY ENCLOSED BY '"'
-        ESCAPED BY '\\'
+        ESCAPED BY '\'
         LINES TERMINATED BY '\r\n'
         FROM ar_cdr
         WHERE calldate >= ? AND calldate < ?
@@ -149,7 +149,7 @@ NOWDOC;
         CHARACTER SET 'utf8mb4'
         FIELDS TERMINATED BY ','
         OPTIONALLY ENCLOSED BY '"'
-        ESCAPED BY '\\'
+        ESCAPED BY '\'
         LINES TERMINATED BY '\r\n' STARTING BY ''
         (   calldate
           , is_service_cdr

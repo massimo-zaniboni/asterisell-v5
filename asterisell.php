@@ -119,6 +119,11 @@ Installation/development operations
   php asterisell.php dev support-user <password>
       Create or modify an admin support user, with login "support", and the specified password.
 
+  php asterisell.php dev test-import-cdrs [SOME-FILE-NAME].manual-importing__v1__[SOME-FORMAT]__[SOME-VERSION]
+  php asterisell.php dev test-import-cdrs [SOME-FILE-NAME].[YYYY-MM-DD].manual-importing__v1__[SOME-FORMAT]__[SOME-VERSION]
+      Simulate (without writing to the DB) the importing of CDRS from an UTF8 file, in the specified SOME-FORMAT__SOME-VERSION.
+      Show result in a file with the same name of input-file, and suffix ".out"
+
   php asterisell.php debug stress-rerating [MAX-DAYS-IN-THE-PAST] [HOURS]
       Rerate starting from the specified days in the past, simulating new CDRS every specified hours, using random time-frames, and checking for errors in grouped cached CDRS.
 
@@ -1691,6 +1696,13 @@ function manageCommand_dev($subCommand, $option1 = '', $option2 = '', $option3 =
         echo "\nCreated user $login with password $password\n";
     } else if ($subCommand === 'reinstall_dev') {
         JobQueueProcessor::applyInitialConfigurationJobsToTheDatabase(true);
+
+    } else if ($subCommand == 'test-import-cdrs') {
+        $inFile = $option1;
+        $outFile = $inFile . '.out';
+        $job = new ImportDataFiles();
+        $job->processFile($inFile, $outFile);
+        echo "\nResult wrote to " . $outFile;
     } else if ($subCommand === 'these-remote-files-are-already-processed') {
         $r = theseRemoteFilesAreAlreadyProcessed($option1);
         if (is_null($r)) {

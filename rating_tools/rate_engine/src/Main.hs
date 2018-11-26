@@ -258,8 +258,8 @@ mainRate = do
               Nothing -> return ()
 
     [Exec_ImportDataFile fileName,
+     Exec_DebugFileName debugFileName,
      Exec_Params pFileName,
-     Exec_DebugFileName debugFileNameS,
      Exec_ProviderName providerName,
      Exec_ProviderId providerIdS,
      Exec_FileLogicalType logicalType,
@@ -292,10 +292,11 @@ mainRate = do
                    _   -> do putStrLn $ "Unrecognized is-imported-service value \"" ++ isImportedServiceS ++ "\"."
                              exitFailure
 
-            debugFileName
-              <- case debugFileNameS == "null" of
-                   True -> return Nothing
-                   False -> return $ Just debugFileNameS
+
+            let maybeDebugFileName
+                    = case debugFileName == "null" of
+                        True -> Nothing
+                        False -> Just $ debugFileName
 
             isStatus
               <- case isStatusS of
@@ -318,6 +319,7 @@ mainRate = do
               (maybeDateRange, totLines, totLinesWithErrors)
                 <- rateEngine_importDataFile
                      fileName
+                     maybeDebugFileName
                      (Text.pack providerName)
                      providerId
                      (Text.pack logicalType)
@@ -342,6 +344,7 @@ mainRate = do
               return ())
 
     [Exec_ImportFromDB pFileName,
+     Exec_DebugMode isDebugS,
      Exec_ProviderName providerName,
      Exec_ProviderId providerIdS,
      Exec_FileLogicalType logicalType,

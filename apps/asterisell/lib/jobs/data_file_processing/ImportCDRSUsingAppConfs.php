@@ -235,6 +235,7 @@ class ImportCDRSUsingAppConfs extends FixedJobProcessor
 
                 $cmd = RateEngineService::getToolExecutable()
                     . ' --import-from-db ' . RateEngineService::writeParams($params)
+                    . ' --debug-mode 0'
                     . ' --provider ' . $this->getCdrProvider()
                     . ' --provider-id ' . $cdrProviderId
                     . ' --file-logical-type ' . $this->getLogicalType()
