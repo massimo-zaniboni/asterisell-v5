@@ -19,7 +19,7 @@ abstract class ImportCDRSFromLocalAsterisellProvider extends FixedJobProcessor
     const SHARED_RATES_PREFIX = 'shared_rates';
 
     /**
-     * @return string the directory where there are status files to import.
+     * @return string the local directory where there are status files to import.
      */
     function getInputDirectory()
     {
@@ -38,22 +38,6 @@ abstract class ImportCDRSFromLocalAsterisellProvider extends FixedJobProcessor
      * associated to the same Vendor in the Asterisell application configurations.
      */
     abstract function getCDRProviderName();
-
-    /**
-     * @return string log message.
-     */
-    protected function initialProcessPhase()
-    {
-        return '';
-    }
-
-    /**
-     * @return string log message
-     */
-    protected function endingProcessPhase()
-    {
-        return '';
-    }
 
     // ---------------------------------------------
     // Job logic
@@ -93,16 +77,14 @@ abstract class ImportCDRSFromLocalAsterisellProvider extends FixedJobProcessor
     public function process()
     {
         $prof = new JobProfiler('CSV files from provider ' . $this->getCDRProviderName());
-        $log1 = '';
-        $log2 = '';
 
+        // NOTE: use this file also as synchronization method, for being sure to load files only
+        // after they are completely produced from the provider
         $n = normalizeFileNamePath($this->getInputDirectory() . '/' . ImportDataFiles::FILES_TO_EXPORT_LIST);
         if (file_exists($n)) {
             ArProblemException::garbageCollect($this->getGarbageKey(), null, null);
 
-            $log1 = $this->initialProcessPhase();
             $sourceFiles = $this->getSortedListOfFilesToProcess();
-
             foreach ($sourceFiles as $sourceFile) {
                 $this->processFile($sourceFile);
                 // NOTE: in case of an error also only on one file, interrupt all the process, because
@@ -132,10 +114,9 @@ abstract class ImportCDRSFromLocalAsterisellProvider extends FixedJobProcessor
                     throw($p);
                 }
             }
-
-            $log2 = $this->endingProcessPhase();
         }
-        return $log1 . $prof->stop() . $log2;
+
+        return $prof->stop();
     }
 
     /**

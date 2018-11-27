@@ -76,13 +76,9 @@ abstract class ImportCDRSFromRemoteAsterisellProvider extends ImportCDRSFromLoca
         return $r;
     }
 
-    /**
-     * @return string log message
-     * @throws ArProblemException
-     */
-    public function initialProcessPhase()
+    public function process()
     {
-        $profiler = new JobProfiler("imported remote CSV files");
+        $profiler = new JobProfiler("downloaded remote files");
 
         $connectionName = $this->getConnectionName();
         $conf = getConnectionParams($connectionName);
@@ -125,7 +121,10 @@ abstract class ImportCDRSFromRemoteAsterisellProvider extends ImportCDRSFromLoca
             $this->importRemoteFile($conf, ImportDataFiles::FILES_TO_EXPORT_LIST, false, true);
         }
 
-        return $profiler->stop();
+        // After downloading the files, process them
+        $log1 = $profiler->stop();
+        $log2 = parent::process();
+        return $log1 . "\n" .$log2;
     }
 
     /**
@@ -133,13 +132,13 @@ abstract class ImportCDRSFromRemoteAsterisellProvider extends ImportCDRSFromLoca
      *
      * @param array $conf
      * @param string $fileName
-     * @param bool $executeImport
+     * @param bool $executeDownload
      * @param bool $executeDelete
      * @param bool $errorIfDoesNotExist
      * @return bool true if the file exists, and was imported
      * @throws ArProblemException
      */
-    protected function importRemoteFile($conf, $fileName, $executeImport = true, $executeDelete = true, $errorIfDoesNotExist = true)
+    protected function importRemoteFile($conf, $fileName, $executeDownload = true, $executeDelete = true, $errorIfDoesNotExist = true)
     {
 
         try {
@@ -147,7 +146,7 @@ abstract class ImportCDRSFromRemoteAsterisellProvider extends ImportCDRSFromLoca
             $remoteFileName = $baseUrl . $fileName;
 
             $destFile = null;
-            if ($executeImport) {
+            if ($executeDownload) {
                 $tmpResultFileName = normalizeFileNamePath(ImportDataFiles::getAbsoluteTmpDirectory() . '/' . self::TEMP_FILE_NAME);
                 @unlink($tmpResultFileName);
                 $fp = fopen($tmpResultFileName, 'w');
@@ -168,7 +167,7 @@ abstract class ImportCDRSFromRemoteAsterisellProvider extends ImportCDRSFromLoca
                     $isOk = curl_exec($ch);
                     fclose($fp);
 
-                    if ($isOk === FALSE) {
+                     if ($isOk === FALSE) {
                         if ($errorIfDoesNotExist) {
                             $curlErr = curl_error($ch);
                             curl_close($ch);
@@ -209,6 +208,7 @@ abstract class ImportCDRSFromRemoteAsterisellProvider extends ImportCDRSFromLoca
                         , null
                     );
                 }
+
             }
 
             if ($executeDelete) {
