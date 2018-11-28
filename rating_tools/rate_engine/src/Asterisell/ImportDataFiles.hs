@@ -450,7 +450,7 @@ rateEngine_importIntoDB
 
        -- Update the rating frame again.
        case linesWithErrors > correctLines of
-         True -> throwIO $ AsterisellException $ "The input file contains more errors (" ++ show linesWithErrors ++ "), than correctly imported CDRS (" ++ show correctLines ++ "). This is suspect (i.e. input file in different format, error in the code). The file will be not imported, and it will remain in the input directory."
+         True -> throwIO $ AsterisellException $ "The input file contains more errors (" ++ show linesWithErrors ++ "), than correctly imported CDRS (" ++ show correctLines ++ "). This is suspect (i.e. input file in different format, error in the code). The file will be not imported, and it will remain in the input directory. For more details about the parsing errors, use the admin command `php asterisell.php dev test-import-cdrs`."
          False -> do case maybeStatusTimeFrame of
                        Just (d1, _) -> db_updateRatingTimeFrame conn d1
                        Nothing -> return ()
