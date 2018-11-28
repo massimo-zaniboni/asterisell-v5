@@ -39,9 +39,9 @@ Support for bundle rates, and number portability.
 Billing
 -------
 
-Schedule the generation of invoices and reports.
+Schedule the generation of invoices and reports, and send invoices by email.
 
-Send invoices by email.
+Postpone invoices with low amounts. 
 
 |screen_005|
 
@@ -201,11 +201,11 @@ Other features
 - it imports and rates CDRS in an incremental way (also for rates with a bundle-state)
 - automatic rerating of unbilled CDRS in case of change of customers and rating params 
 - it detects problems in CDRS and rating plans, and it has detailed error messages 
-- used in production for many years
+- used in production from 2009
 
 Why not using Asterisell
 ------------------------
 
 - the Web UI is dated
 - it supports (up to date) only post-paid invoices
-- during processing it loads customer data into RAM, so it can support ten thousands customers, but it can not scale to hundred thousands 
+- during processing it loads customer data into RAM, so it can not scale to 100000 (100K) customers 
