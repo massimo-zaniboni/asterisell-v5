@@ -219,8 +219,8 @@ exit 0
 
                 # Disable SE Linux because TokuDB requires this
                 run('setenforce 0; true')
-                run('sed -i "/SELINUX=enforcing/c\SELINUX=disabled" /etc/selinux/config ; true')
-                run('sed -i "/SELINUX=permissive/c\SELINUX=disabled" /etc/selinux/config ; true')
+                run('sed -i "/SELINUX=enforcing/c\\SELINUX=disabled" /etc/selinux/config ; true')
+                run('sed -i "/SELINUX=permissive/c\\SELINUX=disabled" /etc/selinux/config ; true')
 
                 # REMI is a repository with last versions of PHP.
                 # EPEL is a repository with extra packages.

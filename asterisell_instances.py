@@ -101,6 +101,48 @@ class DefaulHttpDomain(HttpDomain):
     A web domain for accessing Asterisell instances, on port http/80, without any encription.
     It can make sense using this type of connection if the instance is accessed from an https proxy,
     providing correct SSL encription.
+
+    In case you can configure the host NGINX in this way:
+
+    server {
+      listen 80;
+      server_name www.example.net;
+
+      # NOTE: this is needed by Letsencrypt for testing that you are the owner
+      # of the server pointed from the DNS entry.
+      location /.well-known/acme-challenge {
+        root /var/www/letsencrypt;
+      }
+
+      location / {
+        return 404;
+      }
+    }
+
+    server {
+      listen 443 ssl http2;
+      server_name www.example.net;
+  
+      ssl on;
+      ssl_certificate /etc/letsencrypt/live/www.example.net/fullchain.pem; # managed by Certbot
+      ssl_certificate_key /etc/letsencrypt/live/www.example.net/privkey.pem; # managed by Certbot
+      include /etc/letsencrypt/options-ssl-nginx.conf; # managed by Certbot
+      ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem; # managed by Certbot
+
+      # max upload size
+      client_max_body_size 30m;
+      client_body_buffer_size 128k;
+
+      location / {
+        proxy_pass http://your-internal-ip;
+        proxy_redirect off;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+      }
+    }
+
     """
 
     fully_qualified_domain_name = 'www.example.net'
