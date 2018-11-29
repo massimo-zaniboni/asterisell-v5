@@ -466,6 +466,36 @@ class Domain(object):
         return files.exists(self.get_file_name_check_for_certificate_creation())
 
 
+class HttpDomain(Domain):
+
+    def get_file_name_check_for_certificate_creation(self):
+        """A name of file to use for testing the creation of the certificate."""
+        return os.path.join('/', 'var', 'opt', 'asterisell', 'httpdomain__' + self.fully_qualified_domain_name + '.chk')
+
+    def create_ssl_certificate(self):
+        pass
+
+    def get_nginx_conf_before_ssl_certificate(self):
+        return ''
+
+    def get_nginx_conf_after_ssl_certificate(self, php_fpm_conf):
+
+        t = Template("""
+    server {
+      listen 80;
+      server_name ${fqdn};
+
+      # max upload size
+      client_max_body_size 30m;
+      client_body_buffer_size 128k;
+
+      $php_fpm_conf
+    }
+                     """)
+
+        return t.substitute(fqdn=self.fully_qualified_domain_name, php_fpm_conf=php_fpm_conf)
+
+
 class SelfSignedDomain(Domain):
 
     def get_file_name_check_for_certificate_creation(self):

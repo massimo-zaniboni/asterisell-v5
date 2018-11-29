@@ -18,7 +18,7 @@ from __future__ import with_statement
 from fabric.api import run, cd
 import os.path
 import datetime
-from fabric_data.lib import Domain, SelfSignedDomain, LetsEncryptDomain, Host, \
+from fabric_data.lib import Domain, HttpDomain, SelfSignedDomain, LetsEncryptDomain, Host, \
     Instance, BillingInstance, CallReportingInstance, ConnectionParams
 
 # -------------------------------
@@ -94,6 +94,20 @@ class DefaultHost(Host):
     def execute_install_task_post(self, is_initial_install):
         """Code executed after the default installation."""
         pass
+
+
+class DefaulHttpDomain(HttpDomain):
+    """
+    A web domain for accessing Asterisell instances, on port http/80, without any encription.
+    It can make sense using this type of connection if the instance is accessed from an https proxy,
+    providing correct SSL encription.
+    """
+
+    fully_qualified_domain_name = 'www.example.net'
+    """
+    A DNS FQDN or the IP address of the server.
+    NGINX will listen on this name/address for incoming connections.
+    """
 
 
 class DefaultSelfSignedDomain(SelfSignedDomain):
