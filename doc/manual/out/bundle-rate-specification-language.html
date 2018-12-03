@@ -63,23 +63,10 @@
             rates are applied to next calls.
          </p>
          <div class="body">
-            <div class="p">Bundle-rates specification can be complex. So you can ask for help to Asterisell assistance.
-               This documentation will be improved according.
+            <div class="p">Bundle-rates have higher priority respect normal-rates. Normal-rates are selected
+               only if there is no bundle-rate matching the call, or the call is outside the bundle-rate
+               limits.
             </div>
-            <div class="p">A bundle-rate has effect in a time-frame. For example there can be monthly bundles,
-               weekly bundles, and so on.
-            </div>
-            <div class="p">At the end of each bundle time-frame, the bundle-rate status is resetted:</div>
-            <ul class="ul">
-               <li class="li">limits are set to their initial values.</li>
-               <li class="li"><a class="xref" href="manual-6.html#Service_CDR">Service CDR</a> are generated.
-               </li>
-            </ul>
-            <div class="p">A bundle-rate rate calls in two ways:</div>
-            <ul class="ul">
-               <li class="li">rating the calls that are part of the bundle, with the rate associated to the bundle-rate</li>
-               <li class="li">generating the service-cdrs at the beginning of the bundle-rate timeframe</li>
-            </ul>
             <div class="p">Bundle-rates can be used for specifying things like:</div>
             <ul class="ul">
                <li class="li">apply a fixed cost of 10 EUR, for the first 60 minutes of mobile calls of a month,
@@ -87,10 +74,24 @@
                </li>
                <li class="li">rate the first 60 minutes of mobile calls of a month, using a discounted cost;</li>
             </ul>
+            <div class="p">Bundle-rates specification can be complex. So you can ask for help to Asterisell assistance.
+               This documentation will be improved according.
+            </div>
+            <div class="p">A bundle-rate has effect in a time-frame. For example there can be monthly bundles,
+               weekly bundles, and so on.
+            </div>
+            <div class="p">At the end of each bundle time-frame, the bundle-rate status is reset: limits are
+               set to their initial values.
+            </div>
+            <div class="p">A bundle-rate rate calls in two ways:</div>
+            <ul class="ul">
+               <li class="li">rating the calls that are part of the bundle, with the rate associated to the bundle-rate</li>
+               <li class="li">generating the service-cdrs at the beginning of the bundle-rate timeframe</li>
+            </ul>
             <div class="p">Up to date, bundle-rates can be used only for specifying the income of a call, not
                the vendor cost.
             </div>
-            <section class="section" id="Bundle_rates_specification_language__I_xr6ox4_">
+            <section class="section" id="Bundle_rates_specification_language__I_19z9yl_">
                <h3 class="section-title">Example</h3><pre class="pre">bundle-rate {
   id: bundle-1000
   service-cdr-type: iBundle 1000
@@ -120,7 +121,7 @@
   }
 }
 </pre></section>
-            <section class="section" id="Bundle_rates_specification_language__I_7n3as2_">
+            <section class="section" id="Bundle_rates_specification_language__I_lpja17_">
                <h3 class="section-title">Specification</h3><pre class="pre">bundle-rate {
   id: [reference]
 
@@ -164,9 +165,9 @@
   # If an organization/extension inherits the price-category from its parent
   # organization, but it has no direct assignment,
   # then it has no a distinct bundle-rate status:
+  # * a service-cdr is generated only for its parents with direct assignment;
   # * there is no separate limits allocated for the extension,
   #   but the limits of the parent organization are used instead;
-  # * a service-cdr is generated only for its parents with direct assignment;
   #
   # The date of price-category assignment is used for determining when the bundle-rate
   # can be applied.
@@ -215,7 +216,8 @@
   #
   # Bundle Calc Params
   #
-  # These params are applied to service-cdrs associated to the bundle.
+  # These params are applied to service-cdrs associated to the bundle,
+  # and not to the calls.
   #
 
   set-bundle-initial-cost: [monetary-value]
@@ -230,13 +232,13 @@
   # these are the params used for normal rates.
   # The calls inside the bundle will be rated using these params.
 
+
   rate {
     # this is a child-rate of the bundle-rate, and it is used for rating the calls
-    # inside the bundle, and for specifying nested bundle limits.
+    # inside the bundle, and/or for specifying nested bundle limits.
     #
-    # Children rates, can be of any admitted type for normal rates.
-    #
-    # The cost of the calls are associated to the root parent bundle-rate.
+    # Children rates, can be of any admitted type for normal rates,
+    # or of bundle-rates.
 
     id: [reference]
 
@@ -292,12 +294,8 @@
   [other-children-rates]
 }
 </pre></section>
-            <section class="section" id="Bundle_rates_specification_language__I_yapsx6_">
+            <section class="section" id="Bundle_rates_specification_language__I_k9bibl_">
                <h3 class="section-title">Nested bundle rates</h3>
-               <div class="p">Bundle-rates have higher priority respect normal-rates. Normal-rates are selected
-                  only if there is no bundle-rate matching the call, or the call is outside the bundle-rate
-                  limits.
-               </div>
                <div class="p">First the system select the bundle-rate with the best matching, respect other bundle-rates.
                   It is selected the deepest bundle-rate. Then test if the call respect the bundle-rate
                   limits. If they are respected the bundle-rate is applied, otherwise no other bundle-rate
@@ -311,7 +309,7 @@
                   <li class="li">other normal rate conditions;</li>
                </ul>
             </section>
-            <section class="section" id="Bundle_rates_specification_language__I_2o07z8_">
+            <section class="section" id="Bundle_rates_specification_language__I_ktvp8f_">
                <h3 class="section-title">Residual call duration</h3>
                <div class="p">If “calls-can-be-split” is set to false, then a call C is rated using some bundle-rate,
                   only if its duration is completely inside the limits of the bundle-rate. Otherwise
@@ -331,7 +329,7 @@
                   <li class="li">residual-C is rated using normal rates;</li>
                </ul>
             </section>
-            <section class="section" id="Bundle_rates_specification_language__I_9m94uy_">
+            <section class="section" id="Bundle_rates_specification_language__I_8xwx63_">
                <h3 class="section-title">Nested organizations</h3>
                <div class="p">Suppose that there is this organization hierachy:</div>
                <ul class="ul">
@@ -382,7 +380,7 @@
                   </li>
                </ul>
             </section>
-            <section class="section" id="Bundle_rates_specification_language__I_i6hyh9_">
+            <section class="section" id="Bundle_rates_specification_language__I_a3y4bh_">
                <h3 class="section-title">Limitations</h3>
                <div class="p">Up to date bundle-rates:</div>
                <ul class="ul">

@@ -4,24 +4,9 @@ A bundle-rate is a way to rate a group of calls, while certain limits
 are respected. After the limits are reached, the bundle-rate can not be
 anymore applied, and normal rates are applied to next calls.
 
-Bundle-rates specification can be complex. So you can ask for help to
-Asterisell assistance. This documentation will be improved according.
-
-A bundle-rate has effect in a time-frame. For example there can be
-monthly bundles, weekly bundles, and so on.
-
-At the end of each bundle time-frame, the bundle-rate status is
-resetted:
-
-  - limits are set to their initial values.
-  - [service-cdr] are generated.
-
-A bundle-rate rate calls in two ways:
-
-  - rating the calls that are part of the bundle, with the rate
-    associated to the bundle-rate
-  - generating the service-cdrs at the beginning of the bundle-rate
-    timeframe
+Bundle-rates have higher priority respect normal-rates. Normal-rates are
+selected only if there is no bundle-rate matching the call, or the call
+is outside the bundle-rate limits.
 
 Bundle-rates can be used for specifying things like:
 
@@ -29,6 +14,22 @@ Bundle-rates can be used for specifying things like:
     calls of a month, and rate normally other calls;
   - rate the first 60 minutes of mobile calls of a month, using a
     discounted cost;
+
+Bundle-rates specification can be complex. So you can ask for help to
+Asterisell assistance. This documentation will be improved according.
+
+A bundle-rate has effect in a time-frame. For example there can be
+monthly bundles, weekly bundles, and so on.
+
+At the end of each bundle time-frame, the bundle-rate status is
+reset: limits are set to their initial values.
+
+A bundle-rate rate calls in two ways:
+
+  - rating the calls that are part of the bundle, with the rate
+    associated to the bundle-rate
+  - generating the service-cdrs at the beginning of the bundle-rate
+    timeframe
 
 Up to date, bundle-rates can be used only for specifying the income of a
 call, not the vendor cost.
@@ -112,9 +113,9 @@ bundle-rate {
   # If an organization/extension inherits the price-category from its parent
   # organization, but it has no direct assignment,
   # then it has no a distinct bundle-rate status:
+  # * a service-cdr is generated only for its parents with direct assignment;
   # * there is no separate limits allocated for the extension,
   #   but the limits of the parent organization are used instead;
-  # * a service-cdr is generated only for its parents with direct assignment;
   #
   # The date of price-category assignment is used for determining when the bundle-rate
   # can be applied.
@@ -163,7 +164,8 @@ bundle-rate {
   #
   # Bundle Calc Params
   #
-  # These params are applied to service-cdrs associated to the bundle.
+  # These params are applied to service-cdrs associated to the bundle,
+  # and not to the calls.
   #
 
   set-bundle-initial-cost: [monetary-value]
@@ -178,13 +180,13 @@ bundle-rate {
   # these are the params used for normal rates.
   # The calls inside the bundle will be rated using these params.
 
+
   rate {
     # this is a child-rate of the bundle-rate, and it is used for rating the calls
-    # inside the bundle, and for specifying nested bundle limits.
+    # inside the bundle, and/or for specifying nested bundle limits.
     #
-    # Children rates, can be of any admitted type for normal rates.
-    #
-    # The cost of the calls are associated to the root parent bundle-rate.
+    # Children rates, can be of any admitted type for normal rates,
+    # or of bundle-rates.
 
     id: [reference]
 
@@ -242,10 +244,6 @@ bundle-rate {
 ```
 
 ## Nested bundle rates
-
-Bundle-rates have higher priority respect normal-rates. Normal-rates are
-selected only if there is no bundle-rate matching the call, or the call
-is outside the bundle-rate limits.
 
 First the system select the bundle-rate with the best matching, respect
 other bundle-rates. It is selected the deepest bundle-rate. Then test if
