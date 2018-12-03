@@ -243,10 +243,15 @@ protected function initListInfo() {
 
   // Aggregate all possible different intervals of daily aggregate data,
   // for obtaining a unique view.
+  // $interval :
+  // - 0 the entire non whole interval on ar_cdr,
+  // - 1 the starting non-whole part on ar_cdr,
+  // - 2 the entire whole part on ar_cached_grouped_cdr,
+  // - 3 the ending non whole-part on ar_cdr
   for ($interval = 0; $interval < 4; $interval++) {
     $isWholeDay = VariableFrame::$isWholeDay;
 
-    if ($isWholeDay && $interval !== 2) {
+    if ($isWholeDay && VariableFrame::$srcCanBeGrouped && $interval !== 2) {
       continue;
       // NOTE: skip because in case of whole intervals, suffice to process only the whole interval
     }
@@ -436,60 +441,20 @@ protected function initListInfo() {
  * The result is cached, and the next call is faster.
  */
 protected function canUseCachedGroupedCDRSForTotals() {
-  static $r = null;
-
-  if (is_null($r)) {
-    // start optimistic
-    $r = TRUE;
-
-  <?php
-
-  $fieldsToShow = FieldsToShow::getFieldsToShowInCallReport($generateForAdmin);
-
-  // the order of fields, is the same showing order
-  foreach ($fieldsToShow as $fieldToShow) {
-    switch ($fieldToShow) {
-        case FieldsToShow::CALL_DIRECTION:
-            ?>
-            if (isset($this->filters['is_redirect']) && $this->filters['is_redirect'] !== '')
-            {
-              if ($this->filters['is_redirect']) {
-                $r = FALSE;
-              }
-            }
-            <?php
-            break;
-
-        case FieldsToShow::EXTERNAL_TELEPHONE_NUMBER:
-            ?>
-            $loc = filterValue($this->filters, 'filter_on_external_telephone_number');
-            if (! isEmptyOrNull($loc)) {
-              $loc = trim($loc);
-              if (substr($loc, -1, 1) == '*') {
-                $loc = substr($loc, 0, -1);
-              }
-              if ($loc !== FALSE && !isEmptyOrNull($loc)) {
-                $r = FALSE;
-              }
-            }
-
-            <?php
-            break;
-
-        case FieldsToShow::VENDOR:
-            ?>
-            $vendorCostF = filterValue($this->filters, 'filter_on_vendor_cost');
-            if ($vendorCostF === DestinationType::VENDOR_COST_DIFFERENT_FROM_EXPECTED) {
-              $r = FALSE;
-             }
-            <?php
-            break;
-    }
-  }
-?>
+  if (! is_null(filterValue($this->filters, 'is_redirect'))) {
+    return FALSE;
   }
 
-  return $r;
+  if (! is_null(filterValue($this->filters, 'filter_on_external_telephone_number'))) {
+    return FALSE;
+  }
+
+  $vendorCostF = filterValue($this->filters, 'filter_on_vendor_cost');
+  if (!is_null($vendorCostF) && $vendorCostF === DestinationType::VENDOR_COST_DIFFERENT_FROM_EXPECTED) {
+    return FALSE;
+  }
+
+  return TRUE;
 }
 
 /**

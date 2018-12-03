@@ -2217,7 +2217,7 @@ function addSpecialTelephoneNumberToTelephonePrefixTable($telephoneNumber, $desc
  *
  * @param bool $isAdmin false for generating a view with data visible to the customer, true for the admin
  * @param int $groupOn
- * - 0 list all single/ungrouped calls,
+ * - 0 list all single/ungrouped calls (i.e. you are interested to list of CDRS, not to totals)
  * - 1 calls grouped on cached_parent_id_hierarchy, but no telephone location
  * - 2 calls grouped on billable_ar_organization_unit_id, but no telephone location
  * - 3 calls grouped on extension and all other visible fields: direction, telephone location, vendor, communication channel
@@ -2237,23 +2237,25 @@ function addSpecialTelephoneNumberToTelephonePrefixTable($telephoneNumber, $desc
 function getCdrListView($isAdmin, $groupOn, $filterOnOrganization, $canUseGroupedCDRS, & $wherePart, & $groupByPart, & $selectPart)
 {
 
-    /**
-     * @var bool true when instead of using ar_cached_grouped_cdr, ar_cdr is used, and a group is performed,
-     * for simulating the values of ar_cached_grouped_cdr, but with more fine grained filters.
-     * false for using plain ar_cdr or ar_cached_grouped_cdr without any group on them.
+   /**
+     * @var bool true for reading content from ar_cdr, false for reading from ar_cached_grouped_cdr
      */
-    $forceGroupOnArCdr = !$canUseGroupedCDRS;
+    $useArCdr = FALSE;
     if ($groupOn == 0 || $groupOn == 4) {
-        $forceGroupOnArCdr = false;
+        $useArCdr = TRUE;
+    } else {
+        $useArCdr = !$canUseGroupedCDRS;
     }
-    // NOTE: the meaning is that for grouping on 1, 2, 3, 100, the ar_cdr are grouped only
-    // if !$canUseGroupedCDRS,
-    // otherwise for group on 0 and 4 (list of calls), never do a grouping of ar_cdr
 
     /**
-     * @var bool true for reading content of ar_cdr, false for reading ar_cached_grouped_cdr
+     * @var bool true for using `ar_cdr` and performing a group by on it,
+     * for simulating `ar_cached_grouped_cdr`, but with more fine grained group conditions.
      */
-    $useArCdr = ($forceGroupOnArCdr || $groupOn == 0 || $groupOn == 4);
+    if ($groupOn == 0 || $groupOn == 4) {
+        $forceGroupOnArCdr = false;
+    } else {
+        $forceGroupOnArCdr = !$canUseGroupedCDRS;
+    }
 
     $fieldsToShow = FieldsToShow::getFieldsToShowInCallReport($isAdmin);
     $showCallDetails = ($groupOn == 0) || ($groupOn == 4) || ($groupOn == 3) || ($groupOn == 100);
