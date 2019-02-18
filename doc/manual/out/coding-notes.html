@@ -2,7 +2,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml">
    <head><meta charset="UTF-8" />
       <title>Code development</title><link href="res/webhelp.css" rel="stylesheet" type="text/css" /><meta content="These notes are interesting only if you want to extend the Asterisell application source code." name="description" />
-      <meta content="XMLmind DITA Converter 3.3.0" name="generator" />
+      <meta content="XMLmind DITA Converter 3.3.1" name="generator" />
    <script charset="UTF-8" defer="defer" src="_wh/snowball_en.min.js" type="text/javascript"></script><link href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/themes/smoothness/jquery-ui.css" rel="stylesheet" type="text/css" /><link href="_wh/wh.css" rel="stylesheet" type="text/css" /><script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js" type="text/javascript">
     </script><script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js" type="text/javascript">
     </script><script charset="UTF-8" src="_wh/wh.min.js" type="text/javascript">
@@ -62,7 +62,7 @@
             source code.
          </p>
          <div class="body">
-            <section class="section" id="Code_development__I_360qe9_">
+            <section class="section" id="Code_development__I_kjqg0_">
                <h3 class="section-title">How changing the database schema</h3>
                <div class="p">Change the file <code class="codeph">config/schema.yml</code>.
                </div><pre class="pre">./fab.sh
@@ -76,7 +76,7 @@ cd /asterisell/scripts
                   complete this
                </div>
             </section>
-            <section class="section" id="Code_development__I_jsod45_">
+            <section class="section" id="Code_development__I_4bmona_">
                <h3 class="section-title">How changing the content of the management container</h3>
                <div class="p">Customize <code class="codeph">Dockerfile</code>, then tart the management tool with
                </div><pre class="pre">./fab.sh --upgrade
@@ -90,7 +90,7 @@ cd /asterisell/scripts
 docker image prune
 </pre><div class="p">for removing data not anymore used.</div>
             </section>
-            <section class="section" id="Code_development__I_5wt0kc_">
+            <section class="section" id="Code_development__I_9yi0ho_">
                <h3 class="section-title">How generating UI web modules</h3><pre class="pre">./fab.sh
 
 php symfony propel:generate-admin asterisell ArReportScheduler --module=report_scheduling
@@ -176,7 +176,7 @@ php symfony propel:generate-admin asterisell ArReportScheduler --module=report_s
           title: Extension Codes (alias telephone numbers associated to an Extension)
           display: [ar_extension, code]
 </pre></section>
-            <section class="section" id="Code_development__I_y2w45n_">
+            <section class="section" id="Code_development__I_x0hbou_">
                <h3 class="section-title">How profiling and solve speace leaks of the Haskell Rating Engine</h3>
                <ul class="ul">
                   <li class="li">Enable <code class="codeph">debug_mode</code> in the instance params.
@@ -196,14 +196,14 @@ php symfony propel:generate-admin asterisell ArReportScheduler --module=report_s
                <div class="p">It is possible executing only specific parts of the rating engine using the <code class="codeph">--run-level</code> options. See the source code of the rating engine for more info.
                </div>
             </section>
-            <section class="section" id="Code_development__I_uk3qyq_">
+            <section class="section" id="Code_development__I_s8ds29_">
                <h3 class="section-title">Adding LOG message</h3>
                <div class="p">Inside an action</div><pre class="pre">    $this-&gt;logMessage('help me!', 'info');
 </pre><div class="p">Outside an action</div><pre class="pre">    sfContext::getInstance()-&gt;getLogger()-&gt;info($message);
     sfContext::getInstance()-&gt;getLogger()-&gt;err($message);
 </pre><div class="p">Inside a template if the error must be viewed on the web toolbar</div><pre class="pre">    echo log_message(...);
 </pre></section>
-            <section class="section" id="Code_development__I_5wxzh8_">
+            <section class="section" id="Code_development__I_n37zpi_">
                <h3 class="section-title">Asterisell jobs</h3>
                <div class="p">Jobs are read from <code class="codeph">apps/asterisell/config/app.yml</code> file, that is generated from <code class="codeph">fabric_data/lib.py</code> management tool, according the content of <code class="codeph">asterisell_instances.py</code> file.
                </div>

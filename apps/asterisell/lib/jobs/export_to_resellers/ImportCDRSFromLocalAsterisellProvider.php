@@ -1,6 +1,7 @@
 <?php
 
 // SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2009-2019 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
 
 sfLoader::loadHelpers(array('I18N', 'Debug', 'Date', 'Asterisell'));
 
@@ -318,7 +319,11 @@ abstract class ImportCDRSFromLocalAsterisellProvider extends FixedJobProcessor
                 continue;
             }
 
-            $files[] = normalizeFileNamePath($dir . '/' . $filename);
+            $n = normalizeFileNamePath($dir . '/' . $filename);
+            if (is_dir($n)) {
+                continue;
+            }
+            $files[] = $n;
         }
 
         sort($files);

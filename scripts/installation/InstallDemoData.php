@@ -1,6 +1,7 @@
 <?php
 
 // SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2009-2019 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
 
 class InstallDemoData extends InstallationService
 {
@@ -468,18 +469,13 @@ rate {
 
   rate {
     id: default-outgoing
-
     match-call-direction: outgoing
-    external-rate {
-      id: csv-1
-      use: csv-1
-      set-cost-for-minute: this
-    }
+    use: csv-1
+    set-cost-for-minute: external
   }
 
   rate {
     id: free-incoming
-
     match-call-direction: incoming
   }
 
@@ -491,7 +487,7 @@ rate {
         ';
 
             $incomeRateSpec = '
-bundle-rate {
+bundle {
   id: free-60-calls
 
   service-cdr-type: Bundle Rate
@@ -501,28 +497,24 @@ bundle-rate {
   schedule-from: 1
   apply-for-each: normal
 
-  limit-on-first-calls: none
-  limit-on-first-seconds: 3600
   limits-are-proportionals-to-activation-date: true
-  calls-can-be-split: false
   only-for-calls-with-a-cost: true
 
-  set-bundle-initial-cost: 10
+  bundle-cost: 10
+
+  rate {
+    id: bundle
+    limit-on-first-calls: none
+    limit-on-first-seconds: 3600
+  }
 }
 
 rate {
   id: outgoing
-
   match-call-direction: outgoing
+  use: csv-1
   set-cost-on-call: 0.1
-
-  external-rate {
-    id: csv-1
-      use: csv-1
-
-      set-cost-on-call: parent
-      set-cost-for-minute: this
-  }
+  set-cost-for-minute: external
 }
 
 rate {

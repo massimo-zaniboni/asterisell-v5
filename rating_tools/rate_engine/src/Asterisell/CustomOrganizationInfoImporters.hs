@@ -1,6 +1,8 @@
 {-# LANGUAGE ScopedTypeVariables, BangPatterns, OverloadedStrings, QuasiQuotes, DeriveGeneric, DeriveAnyClass  #-}
 
 -- SPDX-License-Identifier: GPL-3.0-or-later
+-- Copyright (C) 2009-2019 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
+
 
 -- | Import organization info from external sources.
 --   These are usually customizations for specific customers.
@@ -583,10 +585,10 @@ rolf1_synchro localDBConf remoteDBConf organizationToIgnore currencyInfo dataSou
 
 
            (Just _, Nothing) ->
-              error "ERR 66753: unexpected error in the code. Contact the assistance."
+              pError "ERR 66753: unexpected error in the code. Contact the assistance."
 
            (Nothing, Just _) ->
-              error "ERR 66754: unexpected error in the code. Contact the assistance."
+              pError "ERR 66754: unexpected error in the code. Contact the assistance."
 
            (Just unitRec, Just extensionStructRec) -> do
              let unitId = trecord "id" unitRec
@@ -669,7 +671,7 @@ rolf1_synchro localDBConf remoteDBConf organizationToIgnore currencyInfo dataSou
                     , Just extensionUnitId'
                     , Just extensionStructId'
                     , maybeUserId'
-                    , assert ((addToHistory' && isNothing maybeStructureId') || (not addToHistory' && isJust maybeStructureId')) addToHistory'
+                    , pAssert "ERR 001" ((addToHistory' && isNothing maybeStructureId') || (not addToHistory' && isJust maybeStructureId')) addToHistory'
                     , False
                     )
 

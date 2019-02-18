@@ -1,6 +1,7 @@
 {-# Language OverloadedStrings, ScopedTypeVariables, DeriveGeneric, DeriveDataTypeable, QuasiQuotes #-}
 
 -- SPDX-License-Identifier: GPL-3.0-or-later
+-- Copyright (C) 2009-2019 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
 
 -- | Manage errors.
 --
@@ -46,8 +47,7 @@ import Database.MySQL.Base as DB
 import qualified Database.MySQL.Protocol.Escape as DB
 import Database.MySQL.Protocol.MySQLValue
 import Data.Hashable
-import Data.HashSet as Set
-import qualified Data.Map as Map
+import qualified Data.Map.Strict as Map
 import Data.String
 import Control.Monad.Except
 import qualified Test.HUnit as HUnit
@@ -209,9 +209,8 @@ createError errType errDomain key descr effect solution
        , asterisellError_proposedSolution = solution
      }
 
---
--- DEBUG MESSAGES
---
+-- -------------------------------------------------
+-- Debug Messages
 
 -- | An AsterisellError used ad debug/informative message, associated to a CDR.
 type DebugMessage = AsterisellError
@@ -222,7 +221,6 @@ debugMessage_create key description
 
 -- ------------------------------------------------
 -- Error Dictionary
---
 
 type AsterisellErrorDupKey = Text
 
@@ -240,9 +238,8 @@ type AsterisellErrorsDictionary = Map.Map AsterisellErrorDupKey (CallDate, CallD
 asterisellErrorsDictionary_empty :: AsterisellErrorsDictionary
 asterisellErrorsDictionary_empty = Map.empty
 
---
+-- -----------------------------------------
 -- Compatibility with Haskell errors
---
 
 -- | Critical errors blocking the entire rating process are throwed as
 --   IO Exception.
@@ -365,7 +362,6 @@ debugFile_init (Just f)
 
 -- ---------------------------------
 -- Design by Contract Errors
---
 
 dbc_error :: String -> String
 dbc_error errorCode

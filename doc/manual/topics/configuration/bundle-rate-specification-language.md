@@ -1,43 +1,16 @@
-# Bundle rates specification language
+# Bundl rates
 
-A bundle-rate is a way to rate a group of calls, while certain limits
-are respected. After the limits are reached, the bundle-rate can not be
-anymore applied, and normal rates are applied to next calls.
+Bundle-rates rate calls using a special rate, until certain conditions are respected. Then normal rates are applied.
 
-Bundle-rates have higher priority respect normal-rates. Normal-rates are
-selected only if there is no bundle-rate matching the call, or the call
-is outside the bundle-rate limits.
+## Example 
 
-Bundle-rates can be used for specifying things like:
-
-  - apply a fixed cost of 10 EUR, for the first 60 minutes of mobile
-    calls of a month, and rate normally other calls;
-  - rate the first 60 minutes of mobile calls of a month, using a
-    discounted cost;
-
-Bundle-rates specification can be complex. So you can ask for help to
-Asterisell assistance. This documentation will be improved according.
-
-A bundle-rate has effect in a time-frame. For example there can be
-monthly bundles, weekly bundles, and so on.
-
-At the end of each bundle time-frame, the bundle-rate status is
-reset: limits are set to their initial values.
-
-A bundle-rate rate calls in two ways:
-
-  - rating the calls that are part of the bundle, with the rate
-    associated to the bundle-rate
-  - generating the service-cdrs at the beginning of the bundle-rate
-    timeframe
-
-Up to date, bundle-rates can be used only for specifying the income of a
-call, not the vendor cost.
-
-## Example
+A customer with price-category ``bundle-1000`` pays 10 EUR monthly, and he has 1000 free minutes of national calls.
+The calls not matched by the bundle conditions (e.g. international calls in this case)
+are rated using normal rates, and they do not decrease the limit of the bundle.
+Calls without an cost (for the consumer) are not considered inside the bundle.
 
 ```
-bundle-rate {
+bundle {
   id: bundle-1000
   service-cdr-type: iBundle 1000
   service-cdr-description: 1000 minutes on all national directions
@@ -47,30 +20,92 @@ bundle-rate {
 
   apply-for-each: bundle-1000
   
-  limit-on-first-calls: none
-  limit-on-first-seconds: 60000
-
   limits-are-proportionals-to-activation-date: true
-
-  calls-can-be-split: true
-
   only-for-calls-with-a-cost: true
-
-  set-bundle-initial-cost: 10
+  bundle-cost: 10
 
   rate {
-    id: bundle
+    id: cost
+   
     match-call-direction: outgoing
+    # NOTE: without an explicit filter on outgoing calls,
+    # also incoming calls can be theorically applied to a bundle.
+    # In this case the "only-for-calls-with-a-cost" can prevent this.
+    
     match-communication-channel: local,national,mobile
+    
+    limit-on-first-calls: none
+    limit-on-first-seconds: 60000
     set-cost-for-minute: 0
   }
 }
 ```
 
-## Specification
+## Example of a nested bundle rate
+
+Customer with price-category ``allinc-500`` pays 50 EUR monthly, and he:
+
+* has 500 free minutes of Italian fixed-line calls
+* has  500 free minutes of Italian mobile calls
+* pays apart calls to national special telephone numbers
+* pays apart international calls
+* calls without a cost for the customer (free numbers, and so on) are not counted inside the bundle.
 
 ```
-bundle-rate {
+bundle {
+  id: allinc-500
+
+  service-cdr-type: Bundle Rate
+  service-cdr-description: All inclusive: 500 fixed-line minutes, 500 minutes mobile
+
+  schedule: monthly
+  schedule-from: 1
+  apply-for-each: allinc-500
+  limits-are-proportionals-to-activation-date: true
+  only-for-calls-with-a-cost: true
+  bundle-cost: 50
+  
+  rate {
+    id: national
+    
+    match-telephone-number: 39*
+    match-call-direction: outgoing
+    
+    limit-on-first-calls: none
+    limit-on-first-seconds: none
+    
+    set-cost-for-minute: 0
+ 
+    rate {
+      id: fixed-line
+      
+      match-telephone-number: 390*
+      # fixed-line operators
+      
+      limit-on-first-calls: none
+      limit-on-first-seconds: 30000
+       
+      set-cost-for-minute: 0
+    }
+
+    rate {
+      id: mobile-line
+      
+      match-telephone-number: 393*
+      # mobile operators
+ 
+      limit-on-first-calls: none
+      limit-on-first-seconds: 30000
+      
+    }
+  }
+}
+```
+
+## Bundle rate specification
+
+```
+bundle {
   id: [reference]
 
   service-cdr-type: [textual description]
@@ -87,10 +122,6 @@ bundle-rate {
   # It will be generated for each organization associated to the bundle-rate.
   # There will be a unique service-cdr, with the sum of all the cost of nested bundle-rates.
 
-  #
-  # Mandatory Bundle Rate Schedule Options
-  #
-
   schedule: [monthly|weekly]
   # after each scheduling period (time-frame), the bundle rate status is resetted,
   # and the bundle-rate service-cdrs are produced.
@@ -102,18 +133,14 @@ bundle-rate {
   schedule-at: 00:00:00
   # (optional) schedule at hh:mm:ss, of the new rating-frame day.
 
-  #
-  # Mandatory Bundle Rate Grouping Options
-  #
-
   apply-for-each: [list of price-category]
   # This bundle-rate is applied to organizations/extensions
-  # with a direct assignment to this specified price-categories.
+  # with an explicit assignment to this specified price-categories.
   #
   # If an organization/extension inherits the price-category from its parent
-  # organization, but it has no direct assignment,
+  # organization, but it has no explicit assignment,
   # then it has no a distinct bundle-rate status:
-  # * a service-cdr is generated only for its parents with direct assignment;
+  # * a service-cdr is generated only for its parents with explicit assignment;
   # * there is no separate limits allocated for the extension,
   #   but the limits of the parent organization are used instead;
   #
@@ -121,18 +148,6 @@ bundle-rate {
   # can be applied.
   #
   # Service-cdr is generated also if there are no calls for him, inside the time-frame.
-
-  #
-  # Mandatory Bundle Rate Limit Options.
-  #
-
-  limit-on-first-calls: [number|none]
-  # apply the bundle-rate only to the first specified calls, then use normal rates.
-  # "none" for no limit on the number of calls.
-
-  limit-on-first-seconds: [number|none]
-  # apply only for calls until the specified seconds.
-  # "none" for no limit on duration of calls.
 
   limits-are-proportionals-to-activation-date: [true|false]
   # true if the bundle-rate limits on an organization/extension created not at the beginning of a time-frame,
@@ -148,201 +163,175 @@ bundle-rate {
   # In case there are repeated assignments to the same price-category, inside the same time-frame of the bundle-rate,
   # only the first assignment is taken in account.
 
-  calls-can-be-split: [true|false]
-  # true if the duration of a call can be split between a part respecting the bundle-rate limits,
-  # and another part outside these limits. The part respecting the limits, is rated using
-  # the bundle-rate, while the part not respecting the limits (the residual-duration)
-  # is rated using rates not associated to the bundle-rate.
-  # If false, then if a call is not completely inside the bundle-rate limits, is rated using the normal rates.
-
   only-for-calls-with-a-cost: [true|false]
   # true for applying the bundle only to calls having a positive cost.
   # So free calls are not counted as inside the bundle.
   # This is an advantage for end customers, because they can use the bundle
   # only for calls with a cost.
 
-  #
-  # Bundle Calc Params
-  #
-  # These params are applied to service-cdrs associated to the bundle,
-  # and not to the calls.
-  #
-
-  set-bundle-initial-cost: [monetary-value]
+  bundle-cost: [monetary-value]
   # what the customer pays for activating the bundle.
   # Default value: 0
 
-  #
-  # Rating Params
-  #
-
-  [rate-calc-params]
-  # these are the params used for normal rates.
-  # The calls inside the bundle will be rated using these params.
-
-
   rate {
-    # this is a child-rate of the bundle-rate, and it is used for rating the calls
-    # inside the bundle, and/or for specifying nested bundle limits.
-    #
-    # Children rates, can be of any admitted type for normal rates,
-    # or of bundle-rates.
-
     id: [reference]
-
-    [match-filters]
-    # The rate can be applied only if filters are respected.
-    # These are the filters used for normal rates.
-    #
-    # The filter "match-price-category" is not allowed,
-    # because its semantic is in conflict with "apply-for-each" of the parent rate.
-    # So the price-category is implicitely the same of the parent rate.
-
-    #
-    # Optional Bundle Rate Limit Options
-    #
-
+   
+    [match conditions]
+    # apply the rate/bundle only if the rating conditions are respected
+    
     limit-on-first-calls: [number|none]
-    # For example if the parent bundle-rate, is limited to 100 calls,
-    # and the chidren bundle-rate on mobile-calls is limited to 50 calls,
-    # then the first 50 mobile calls decrease the limit of the parent rate
-    # to 50, and of the children bundle-rate on mobile-calls to 0.
+    # apply the bundle-rate only to the first specified calls, then use normal rates.
+    # "none" for no limit on the number of calls.
     #
-    # A limit in this rate is in logical "and" with the limit of the parent bundle-rate.
-    # So a user can place only 50 mobile calls, and if he place 25 mobile calls, he can make only
-    # 75 calls because the parent limit was decreased to 75.
+    # If this rate has a parent rate, then check and decrease also the limits
+    # of the parent rate.
 
     limit-on-first-seconds: [number|none]
-    # apply only for calls until the specified seconds.
-    # The behaviour is similar to the case of "limit-on-first-calls".
-
+    # apply only for calls until the specified seconds. 
+    # "none" for no limit on duration of calls.
     #
-    # Optional Bundle Calc Params.
-    #
+    # In case of nested rates, the behaviour is similar 
+    # to the case of "limit-on-first-calls".
+ 
+    [rating params]
+    # calc the cost of the CDR according these params
 
-    set-bundle-initial-cost: [monetary-value]
-    # default value: 0
-
-    # NOTE: all other params of the bundle-rate can not be changed, and they are the same of the parent bundle-rate.
-
-    #
-    # Rating Params
-    #
-
-    [rate-calc-params]
-    # Rate calls inside the bundle (respecting the time-frame, the match conditions, and the limits)
-    # according this rate params.
-    #
-    # The starting params are the params of the parent rate,
-    # and these params can overwrite them.
-
-    [other-nested-children-rates]
+    [other nested rates]
   }
-
-  [other-children-rates]
+  
+  [other nested rates]
 }
 ```
 
-## Nested bundle rates
+## Bundle-rate semantic
 
-First the system select the bundle-rate with the best matching, respect
-other bundle-rates. It is selected the deepest bundle-rate. Then test if
-the call respect the bundle-rate limits. If they are respected the
-bundle-rate is applied, otherwise no other bundle-rate is applied, and
-the best matching normal-rate is applied.
+- a bundle rate is applied to exactly one price-category, so price-category of different bundles must be distinct
+- the bundle is activated for every customer/organization/extension explicitly associated to the price-category of the bundle
+- at beginning of bundle-time frame, the bundle generates a service CDR with the cost of the bundle, for each customer/organization/extension with an explicit association to the price-category
+- if an organization/extension inherits the price-category from its parent organization, then no bundle service CDR is generated, and it shares the limits with the limits of its parent organization
+- if an organization/extension is explicitly assigned to the price-category of the bundle, an additional service CDR is generated, and the organization/extension has its own limits 
+- a bundle is applied to a call only if it is matching the conditions of one of it nested rates (it can decide the cost of the call), and the bundle limits are not yet reached, otherwise normal rates will be used
 
-The match condition on a bundle-rate are:
+In case of nested bundles limits:
 
-  - the call is associated (directly or indirectly) to an organization
-    with a direct assignment to the price-category of the bundle-rate;
-  - other normal rate conditions;
+- the most specific matched bundle is used for managing the bundle-limit, and for rating the call
+- if a parent bundle matches a condition, and it has one or more nested bundles, then it must exists a most specific nested bundle, because in this case the parent bundle is only used as base condition for selecting the best nested bundle. This is the same behaviour of nested rates
+- the limits and conditions of the parent bundle are put in logical AND with the limits and conditions of the nested bundles
+- if a call is rated inside a nested-bundle rate, then it will decrease the limits of every parent in the selected hierarchy
+- the best bundle is selected testing matching conditions, but not bundle limits, then it is applied only if its limits are respected, otherwise normal rates are used. So bundle limits are not used for searching the best bundle, but only for deciding if using normal rates
 
-## Residual call duration
+See this example
 
-If "calls-can-be-split" is set to false, then a call C is rated using
-some bundle-rate, only if its duration is completely inside the limits
-of the bundle-rate. Otherwise a normal rate is selected.
+```
+bundle {
+  id: A
+  [...]
+  bundle-cost: 50
 
-If "calls-can-be-split" is set to true, then the residual duration of
-the call is calculated, in case the call duration is not entirely within
-the limits of the bundle-rates. For example if call C duration is
-insidie B1 limits, but partially inside B2 limits, then:
+  rate {
+    id: outgoing
+    match-call-direction: outgoing
+    match-telephone-number: 39*
+    limit-on-first-calls: none
+    limit-on-first-seconds: none
+ 
+    rate {
+      id: B
+      match-telephone-number: 390*
+      limit-on-first-calls: none
+      limit-on-first-seconds: 1000
+    }
 
-  - bundle-C is the call derived from C, with the duration inside the
-    limits of B2;
-  - residual-C is the call derived from C, with the duration part
-    outside the limits of B2;
-  - bundle-C is rated using B1/B2, because it respects the limits;
-  - residual-C is rated using normal rates;
+    rate {
+      id: C
+      match-telephone-number: 393*
+      limit-on-first-calls: none
+      limit-on-first-seconds: 1000
+    }
+  }
+}
+```
 
-## Nested organizations
+A call matching the condition of ``A/outgoing``:
 
-Suppose that there is this organization hierachy:
+- had to match ``A/outgoing/B`` or ``A/outgoing/C``, otherwise an error is generated
+- it decreases the bundle limits of ``A/outgoing`` and the bundle limits of the matched ``A/outgoing/B`` or ``A/outgoing/C``
+- it is rated according the bundle params, only if the limits of ``A/outgoing`` and of the matched ``A/outgoing/B`` or ``A/outgoing/C`` are respected, otherwise it is rated using normal rates
+- a call not matching the condition ``A/outgoing``, is rated using normal rates
 
-  - `A*`
-  - `A/B*`
-  - `A*/C` where `A/B*` and `A*/C` are children of the parent
-    organization `A*`.
+A call with an income 0 according using normal rates is never matched by ``A``.
+
+Every ``rate`` follows the matching and application semantic of rates.
+
+### Nested organizations
+
+Suppose this organization hierarchy:
+
+  - ``A*``
+  - ``A/B*``
+  - ``A*/C`` where ``A/B*`` and ``A*/C`` are children of the parent
+    organization ``A*``.
 
 Suppose that:
 
-  - `A*` is directly assigned to price-category pA
-  - `A*/B*` is directly assigned to price-category pB
-  - `A*/C` is not assigned directly to any price-category, so its
-    inherit the price-category of `A*`
+  - ``A*`` is explicitly assigned to price-category ``PA``
+  - ``A*/B*`` is explicitly assigned to price-category ``PB``
+  - ``A*/C`` is not assigned explicitly to any price-category, so its
+    inherit the price-category of ``A*``
 
 So we have a situation where we have nested organizations (main
 organization, departments, offices, extensions), and where each part of
-the organization can be assigned to a different price-category, and a
-different bundle-rate.
+the organization can be assigned to a different price-category, and
+different bundle-rates.
 
-The rating method, favours always bundle-rates, respect normal rates.
-When bundle-rates can not be applied, it tries with normal rates.
+For a call associated to ``A*/C``, it tries to apply the bundle-rate
+associated to ``A*``, because ``C`` has no bundle-rate, but ``A*`` is
+subscribed to ``PA`` bundle-rate, and so it must take advantage of this for
+all its extensions. If the bundle-rate can be applied to ``A*/C``, then
+the limits of ``A*`` are updated.
 
-So for a call associated to `A*/C`, it tries to apply the bundle-rate
-associated to `A*`, because `C` has no bundle-rate, but `A*` is
-subscribed to pA bundle-rate, and so it must take advantage of this for
-all its extensions. If the bundle-rate can be applied to `A*/C`, then
-the limits of `A*` are updated.
+For a call associated to ``A*/B*`` organization, it tries to apply the
+bundle-rate associated to ``PB`` price-category, because organization
+``A*/B*`` is associated explicitly to ``PB``. If the ``PB`` bundle-rate can be
+applied to ``A*/B*``, then only the limits of ``A*/B*`` are updated, while
+``A*`` is not updated.
 
-For a call associated to `A*/B*` organization, it tries to apply the
-bundle-rate associated to `pB` price-category, because organization
-`p/B*` is associated directly to `pB`. If the `pB` bundle-rate can be
-applied to `A*/B*`, then only the limits of `A*/B*` are updated, while
-`A*` is not updated.
+If in ``A*/B*``, ``B*`` is explicitly assigned to a normal (no-bundle) rate, then this normal rate is applied, 
+without using the ``A*`` bundle-rate. 
 
-If there is no bundle-rate on `pB`, or `A*/B*` has consumed all its
-bundle-limits, then the system tries rating the call using the
-bundle-rate associated to price-category `pA`, because `A/B*` is a
-children organization of `A`, and `A` is "subscribed" to a bundle-rate.
-
-If there is no bundle-rate on `pA`, or `A*` has used all its limits,
-then normal-rates are used.
+If ``A*/B*`` is a bundle-rate that has consumed all its
+bundle-limits, then the system will rate the call using normal rates,
+and not the ``PA`` bundle-rate associated to ``A*``.
 
 Summing up:
 
-  - a bundle rate can be applied to all children extensions;
-  - a bundle rate generate a service-cdr (a cost) for each extension
-    with a direct price-category assignation, corresponding to a
-    bundle-rate;
-  - an extension with a direct association to a bundle-rate
-    price-category, has its own limits, also because it pays for them;
-  - if an extension has used all its bundle-rate limits, then the parent
-    organization bundle-rate limits can be used, and they can be
-    associated to a different type of bundle-rate, because the
-    bundle-rate hireararchy is distinct from the organization hierarchy,
-    and extensions can have different price-categories respect the
-    parent organization;
+- explicit price-category assignations have priority respect inherited assignations
+- a bundle rate can be applied to all children extensions having no explicit price-category assignations
+- a bundle rate generate a service-cdr (a cost) for each extension with an explicit price-category assignation, corresponding to a bundle-rate
+- an extension with an explicit association to a bundle-rate price-category, has its own limits, also because it pays for them
+- if an extension has used all its bundle-rate limits, the limits of the parent organization  will not be used. This mainly for simplifying the implementation of bundle rates, and because bundle-rates are not used usually for big organizations, so this is a good-enough approach
+
+### Nested bundle-rates vs nested organizations
+
+The semantic of nested bundle-rates follows contrary criteria respect nested organizations: 
+
+- the limits of the parent nested bundle, and child bundle must be both valid, and they are both decreased if the bundle is applied to a call;
+- on the contrary a nested organization decrease only its bundle limits, and not the limits of its parent organization, and only its own limits must be valid;
+
+### Call duration exceeding the bundle limits 
+
+A call will be rated inside the bundle only if its duration is entirely inside the bundle left limits. 
+Otherwise normal rates will be used, and the bundle will be used for next shorter calls.
+
+This approach is used because there can be calls with a fixed cost at answer, and so it can be not an advantage
+for the customer using both the bundle and the normal rate for the residual part outside the bundle limit.
 
 ## Limitations
 
 Up to date bundle-rates:
 
-  - can be used only for specifying incomes for customers, and not cost
-    for vendors;
-  - do not accept children bundle-rates with scheduling periods
-    (time-frames) different from parent bundle-rate;
-  - do not accept children bundle-rates with "calls-can-be-split" value
-    different from parent bundle-rate;
-  - the application will advise if they ends after the billing time-frame, because it is not clear which semantic apply
-  
+- can be used only for specifying incomes for customers, and not cost for vendors
+- do not accept children bundle-rates with scheduling periods (time-frames) different from parent bundle-rate
+- an organization/extension can not change bundle-rate during the bundle-rate time-frame, but only at the end (the application will check this constraint and warn in case)
+- all combinations of nested bundle-rates and nested organizations are not fully covered by tests, so in case of complex bundle-rates ask for funding some additional test coverage
+

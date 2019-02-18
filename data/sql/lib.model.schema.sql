@@ -39,12 +39,6 @@ CREATE TABLE `ar_cdr`
 	`ar_problem_duplication_key` VARCHAR(255),
 	`debug_cost_rate` VARCHAR(512),
 	`debug_income_rate` VARCHAR(512),
-	`debug_residual_income_rate` VARCHAR(512),
-	`debug_residual_call_duration` INTEGER,
-	`debug_bundle_left_calls` INTEGER,
-	`debug_bundle_left_duration` INTEGER,
-	`debug_bundle_left_cost` BIGINT,
-	`debug_rating_details` VARCHAR(5000),
 	PRIMARY KEY (`calldate`,`id`,`is_service_cdr`)
 )ENGINE=TokuDB ROW_FORMAT=TOKUDB_SNAPPY, DEFAULT CHARACTER SET = utf8mb4, DEFAULT COLLATE = utf8mb4_bin;
 
@@ -1825,6 +1819,7 @@ CREATE TABLE `ar_cached_grouped_cdr`
 	`income` BIGINT  NOT NULL,
 	`cost_saving` BIGINT  NOT NULL,
 	`cost` BIGINT  NOT NULL,
+	`count_of_records` BIGINT  NOT NULL,
 	`id` SMALLINT default 0 NOT NULL,
 	PRIMARY KEY (`cached_parent_id_hierarchy`,`billable_ar_organization_unit_id`,`calldate`,`destination_type`,`ar_communication_channel_type_id`,`operator_type`,`ar_vendor_id`,`geographic_location`)
 )ENGINE=TokuDB ROW_FORMAT=TOKUDB_SNAPPY, DEFAULT CHARACTER SET = utf8mb4, DEFAULT COLLATE = utf8mb4_bin;

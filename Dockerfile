@@ -46,8 +46,8 @@ RUN yum groupinstall -y "Development Tools" -y && \
 # --------------------------------
 # Documentation generation tools
 
-RUN cd /opt && wget http://www.xmlmind.com/ditac/_download/ditac-3_3_0-plus-fop.zip
-RUN cd /opt && unzip ditac-3_3_0-plus-fop.zip && mv ditac-3_3_0 ditac && chmod -R ugo+rwx /opt/ditac
+RUN cd /opt && wget  https://downloads.asterisell.com/ditac-3_3_1-plus-fop.zip
+RUN cd /opt && unzip ditac-3_3_1-plus-fop.zip && mv ditac-3_3_1 ditac && chmod -R ugo+rwx /opt/ditac
 
 RUN yum -y install epel-release && \
     yum -y install python2-pip && \

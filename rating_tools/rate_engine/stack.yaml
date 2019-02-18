@@ -3,4 +3,4 @@ packages:
 - .
 extra-deps:
 - ./bytestring-trie-0.3.0.4
-resolver: lts-12.19
+resolver: lts-12.26

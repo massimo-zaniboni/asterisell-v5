@@ -49,6 +49,7 @@ class ArCachedGroupedCdrTableMap extends TableMap {
 		$this->addColumn('INCOME', 'Income', 'BIGINT', true, null, null);
 		$this->addColumn('COST_SAVING', 'CostSaving', 'BIGINT', true, null, null);
 		$this->addColumn('COST', 'Cost', 'BIGINT', true, null, null);
+		$this->addColumn('COUNT_OF_RECORDS', 'CountOfRecords', 'BIGINT', true, null, null);
 		$this->addColumn('ID', 'Id', 'SMALLINT', true, null, 0);
 		// validators
 	} // initialize()

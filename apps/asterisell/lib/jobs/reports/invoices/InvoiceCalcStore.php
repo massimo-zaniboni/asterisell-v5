@@ -1,6 +1,7 @@
 <?php
 
 // SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2009-2019 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
 
 sfLoader::loadHelpers(array('I18N', 'Debug', 'Date', 'Asterisell'));
 
@@ -53,7 +54,7 @@ class InvoiceCalcStore extends ReportCalcStore
     protected $values;
 
     /**
-     * @var array billabre_ar_organization_id => int the from date that can be in the past
+     * @var array billable_ar_organization_id => int the from date that can be in the past
      * respect the report reference from_date in case of postponed organizations.
      */
     protected $organizationFromDate;
@@ -421,10 +422,10 @@ GROUP BY
         // Scan all CDRs in the date range, completing stats
 
         $params = array(
-            fromUnixTimestampToMySQLTimestamp($minCallDate)
-          , fromUnixTimestampToMySQLTimestamp($this->fromTime)
-          , fromUnixTimestampToMySQLTimestamp($this->fromTime)
-          , fromUnixTimestampToMySQLTimestamp($this->toTime));
+            fromUnixTimestampToMySQLDate($this->fromTime)      // report from this date (or postponed)
+          , fromUnixTimestampToMySQLTimestamp($minCallDate)    // worst-case postponed date used for efficient CDR range
+          , fromUnixTimestampToMySQLTimestamp($this->fromTime) // sum CDRS from this date (or postponed)
+          , fromUnixTimestampToMySQLTimestamp($this->toTime)); // sum CDRS until this date
 
         $stm = $conn->prepare($query);
         $stm->execute($params);

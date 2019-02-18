@@ -75,11 +75,6 @@ class ArCdr extends BaseArCdr
      */
     public function getDebugDescription()
     {
-        $debugDetails = $this->getDebugRatingDetails();
-        if (is_null($debugDetails)) {
-            $debugDetails = 'this debug info is available only when rating in debug mode, with "php asterisell.php debug rerate YY-MM-DD && php asterisell.php debug jobs"';
-        }
-
         return "\nid: " . $this->getId()
             . "\ncalldate: " . self::showMyValue($this->getCalldate())
             . "\ncount_of_calls: " . self::showMyValue($this->getCountOfCalls())
@@ -105,12 +100,6 @@ class ArCdr extends BaseArCdr
             . "\nexternal_telephone_number_with_applied_portability: " . self::showMyValue($this->calcMaskedTelephoneNumber($this->getExternalTelephoneNumberWithAppliedPortability(), false, false))
             . "\napplied cost rate: " . self::showMyValue($this->getDebugCostRate())
             . "\napplied income rate: " . self::showMyValue($this->getDebugIncomeRate())
-            . "\nresidual call duration: " . self::showMyValue($this->getDebugResidualCallDuration())
-            . "\napplied income rate on residual call duration: " . self::showMyValue($this->getDebugResidualIncomeRate())
-            . "\nleft calls in the bundle: " . self::showMyValue($this->getDebugBundleLeftCalls())
-            . "\nleft duration in the bundle: " . self::showMyValue($this->getDebugBundleLeftDuration())
-            . "\nleft cost in the bundle: " . self::showMyValue($this->getDebugBundleLeftCost())
-            . "\nrating details: " . $debugDetails
             ;
     }
 

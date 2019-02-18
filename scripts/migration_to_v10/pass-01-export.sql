@@ -26,13 +26,7 @@ SELECT
 	  `error_destination_type`,
 	  `ar_problem_duplication_key`,
 	  `debug_cost_rate`,
-	  `debug_income_rate`,
-	  `debug_residual_income_rate`,
-	  `debug_residual_call_duration`,
-	  `debug_bundle_left_calls`,
-	  `debug_bundle_left_duration`,
-	  `debug_bundle_left_cost`,
-	  `debug_rating_details`
+	  `debug_income_rate`
 
   INTO OUTFILE '/var/tmp/ar_cdr.csv'
        CHARACTER SET 'utf8mb4'

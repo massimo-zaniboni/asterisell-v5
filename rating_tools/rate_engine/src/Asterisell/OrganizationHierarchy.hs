@@ -1,6 +1,7 @@
 {-# Language BangPatterns, OverloadedStrings, ScopedTypeVariables, TypeSynonymInstances, FlexibleInstances, DeriveGeneric, DeriveAnyClass, FlexibleContexts, QuasiQuotes  #-}
 
 -- SPDX-License-Identifier: GPL-3.0-or-later
+-- Copyright (C) 2009-2019 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
 
 -- | Import organization hierarchies and extensions.
 --
@@ -12,12 +13,15 @@ module Asterisell.OrganizationHierarchy (
   ParentHiearchy,
   DirectPriceCategories,
   ParentIdHierarchy,
+  DirectPriceCategory,
   Info(..),
   UserId,
   info_getUnitIdByInternalName,
   info_getDataInfoForUnitId,
   info_getDataInfoParent,
+  info_getParentId,
   info_getDirectPriceCategory,
+  info_getPriceCategoryId,
   info_getDataInfoForExtensionCode,
   info_getParentIdHierarchy,
   info_getBillableDataInfo,
@@ -646,6 +650,17 @@ info_getDataInfoParent info unitInfo date isStrict
       Just parentId
         -> info_getDataInfoForUnitId info parentId date isStrict
 
+info_getParentId :: Info -> UnitId -> LocalTime -> Maybe UnitId
+info_getParentId info unitId date
+  = case info_getDataInfoForUnitId info unitId date True of
+      Nothing
+        -> Nothing
+      Just dataInfo
+        -> case structure_exists dataInfo of
+             True -> structure_parentUnitId dataInfo
+             False -> Nothing
+{-# INLINE info_getParentId #-}
+
 -- | All the parents, from the main root, to the specific data-info.
 --
 info_getDataInfoParentHierarchy :: Info -> DataInfo -> LocalTime -> IsStrictResult -> ParentHiearchy
@@ -696,6 +711,27 @@ info_getDirectPriceCategory info unitId localTime
         -> Nothing
       Just dataInfo
         -> structure_rateCategoryId dataInfo
+{-# INLINE info_getDirectPriceCategory #-}
+
+-- | The first direct price-category assignment, following the parent hierarchy.
+type DirectPriceCategory = (PriceCategoryId, UnitId)
+
+-- | Return the first direct price-category assignment following the parent hierarchy.
+info_getPriceCategoryId :: Info -> UnitId -> LocalTime -> Maybe DirectPriceCategory 
+info_getPriceCategoryId info unitId localTime
+  = case info_getDataInfoForUnitId info unitId localTime True of
+      Nothing -> Nothing
+      Just dataInfo
+          -> case structure_exists dataInfo of
+             False
+               -> Nothing
+             True
+               -> case structure_rateCategoryId dataInfo of
+                       Nothing
+                         -> case structure_parentUnitId dataInfo of
+                                    Just parentId -> info_getPriceCategoryId info parentId localTime
+                                    Nothing -> Nothing
+                       Just priceCategoryId -> Just (priceCategoryId, unitId)
 
 -- | Get the name of the organization, starting from the specified level.
 --   Use 0 for showing all the organization hierachy.
@@ -755,7 +791,7 @@ info_getAllActiveExtensions info fromDate
 
    f s1 extension
      = case (info_getDataInfoForExtensionCode info extension fromDate) of
-         Left err -> error $ show $ asterisellError_toException $ err 
+         Left err -> pError $ show $ asterisellError_toException $ err 
          Right Nothing -> s1 
          Right (Just (dataInfo, _))
            -> case structure_exists dataInfo of
@@ -1142,7 +1178,6 @@ partyTagInfo_load conn isDebugMode = do
 -- ----------------
 -- TRecord data
 
--- TODO chec if set PK fields also the index
 organizationUnit_tfields :: TFields
 organizationUnit_tfields = TFields "ar_organization_unit" $
     [ TField "id" True True False

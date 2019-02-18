@@ -36,12 +36,6 @@ abstract class BaseArCdrFormFilter extends BaseFormFilterPropel
       'ar_problem_duplication_key'                         => new sfWidgetFormFilterInput(),
       'debug_cost_rate'                                    => new sfWidgetFormFilterInput(),
       'debug_income_rate'                                  => new sfWidgetFormFilterInput(),
-      'debug_residual_income_rate'                         => new sfWidgetFormFilterInput(),
-      'debug_residual_call_duration'                       => new sfWidgetFormFilterInput(),
-      'debug_bundle_left_calls'                            => new sfWidgetFormFilterInput(),
-      'debug_bundle_left_duration'                         => new sfWidgetFormFilterInput(),
-      'debug_bundle_left_cost'                             => new sfWidgetFormFilterInput(),
-      'debug_rating_details'                               => new sfWidgetFormFilterInput(),
     ));
 
     $this->setValidators(array(
@@ -69,12 +63,6 @@ abstract class BaseArCdrFormFilter extends BaseFormFilterPropel
       'ar_problem_duplication_key'                         => new sfValidatorPass(array('required' => false)),
       'debug_cost_rate'                                    => new sfValidatorPass(array('required' => false)),
       'debug_income_rate'                                  => new sfValidatorPass(array('required' => false)),
-      'debug_residual_income_rate'                         => new sfValidatorPass(array('required' => false)),
-      'debug_residual_call_duration'                       => new sfValidatorSchemaFilter('text', new sfValidatorInteger(array('required' => false))),
-      'debug_bundle_left_calls'                            => new sfValidatorSchemaFilter('text', new sfValidatorInteger(array('required' => false))),
-      'debug_bundle_left_duration'                         => new sfValidatorSchemaFilter('text', new sfValidatorInteger(array('required' => false))),
-      'debug_bundle_left_cost'                             => new sfValidatorSchemaFilter('text', new sfValidatorInteger(array('required' => false))),
-      'debug_rating_details'                               => new sfValidatorPass(array('required' => false)),
     ));
 
     $this->widgetSchema->setNameFormat('ar_cdr_filters[%s]');
@@ -119,12 +107,6 @@ abstract class BaseArCdrFormFilter extends BaseFormFilterPropel
       'ar_problem_duplication_key'                         => 'Text',
       'debug_cost_rate'                                    => 'Text',
       'debug_income_rate'                                  => 'Text',
-      'debug_residual_income_rate'                         => 'Text',
-      'debug_residual_call_duration'                       => 'Number',
-      'debug_bundle_left_calls'                            => 'Number',
-      'debug_bundle_left_duration'                         => 'Number',
-      'debug_bundle_left_cost'                             => 'Number',
-      'debug_rating_details'                               => 'Text',
     );
   }
 }

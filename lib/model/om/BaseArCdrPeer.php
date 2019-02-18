@@ -25,7 +25,7 @@ abstract class BaseArCdrPeer {
 	const TM_CLASS = 'ArCdrTableMap';
 	
 	/** The total number of columns. */
-	const NUM_COLUMNS = 33;
+	const NUM_COLUMNS = 27;
 
 	/** The number of lazy-loaded columns. */
 	const NUM_LAZY_LOAD_COLUMNS = 0;
@@ -111,24 +111,6 @@ abstract class BaseArCdrPeer {
 	/** the column name for the DEBUG_INCOME_RATE field */
 	const DEBUG_INCOME_RATE = 'ar_cdr.DEBUG_INCOME_RATE';
 
-	/** the column name for the DEBUG_RESIDUAL_INCOME_RATE field */
-	const DEBUG_RESIDUAL_INCOME_RATE = 'ar_cdr.DEBUG_RESIDUAL_INCOME_RATE';
-
-	/** the column name for the DEBUG_RESIDUAL_CALL_DURATION field */
-	const DEBUG_RESIDUAL_CALL_DURATION = 'ar_cdr.DEBUG_RESIDUAL_CALL_DURATION';
-
-	/** the column name for the DEBUG_BUNDLE_LEFT_CALLS field */
-	const DEBUG_BUNDLE_LEFT_CALLS = 'ar_cdr.DEBUG_BUNDLE_LEFT_CALLS';
-
-	/** the column name for the DEBUG_BUNDLE_LEFT_DURATION field */
-	const DEBUG_BUNDLE_LEFT_DURATION = 'ar_cdr.DEBUG_BUNDLE_LEFT_DURATION';
-
-	/** the column name for the DEBUG_BUNDLE_LEFT_COST field */
-	const DEBUG_BUNDLE_LEFT_COST = 'ar_cdr.DEBUG_BUNDLE_LEFT_COST';
-
-	/** the column name for the DEBUG_RATING_DETAILS field */
-	const DEBUG_RATING_DETAILS = 'ar_cdr.DEBUG_RATING_DETAILS';
-
 	/**
 	 * An identiy map to hold any loaded instances of ArCdr objects.
 	 * This must be public so that other peer classes can access this when hydrating from JOIN
@@ -152,11 +134,11 @@ abstract class BaseArCdrPeer {
 	 * e.g. self::$fieldNames[self::TYPE_PHPNAME][0] = 'Id'
 	 */
 	private static $fieldNames = array (
-		BasePeer::TYPE_PHPNAME => array ('Calldate', 'Id', 'IsServiceCdr', 'ToCalldate', 'CountOfCalls', 'DestinationType', 'IsRedirect', 'Duration', 'Billsec', 'ArOrganizationUnitId', 'CachedParentIdHierarchy', 'BillableArOrganizationUnitId', 'BundleArOrganizationUnitId', 'Income', 'CostSaving', 'ArVendorId', 'ArCommunicationChannelTypeId', 'Cost', 'ExpectedCost', 'ArTelephonePrefixId', 'CachedExternalTelephoneNumber', 'ExternalTelephoneNumberWithAppliedPortability', 'CachedMaskedExternalTelephoneNumber', 'ErrorDestinationType', 'ArProblemDuplicationKey', 'DebugCostRate', 'DebugIncomeRate', 'DebugResidualIncomeRate', 'DebugResidualCallDuration', 'DebugBundleLeftCalls', 'DebugBundleLeftDuration', 'DebugBundleLeftCost', 'DebugRatingDetails', ),
-		BasePeer::TYPE_STUDLYPHPNAME => array ('calldate', 'id', 'isServiceCdr', 'toCalldate', 'countOfCalls', 'destinationType', 'isRedirect', 'duration', 'billsec', 'arOrganizationUnitId', 'cachedParentIdHierarchy', 'billableArOrganizationUnitId', 'bundleArOrganizationUnitId', 'income', 'costSaving', 'arVendorId', 'arCommunicationChannelTypeId', 'cost', 'expectedCost', 'arTelephonePrefixId', 'cachedExternalTelephoneNumber', 'externalTelephoneNumberWithAppliedPortability', 'cachedMaskedExternalTelephoneNumber', 'errorDestinationType', 'arProblemDuplicationKey', 'debugCostRate', 'debugIncomeRate', 'debugResidualIncomeRate', 'debugResidualCallDuration', 'debugBundleLeftCalls', 'debugBundleLeftDuration', 'debugBundleLeftCost', 'debugRatingDetails', ),
-		BasePeer::TYPE_COLNAME => array (self::CALLDATE, self::ID, self::IS_SERVICE_CDR, self::TO_CALLDATE, self::COUNT_OF_CALLS, self::DESTINATION_TYPE, self::IS_REDIRECT, self::DURATION, self::BILLSEC, self::AR_ORGANIZATION_UNIT_ID, self::CACHED_PARENT_ID_HIERARCHY, self::BILLABLE_AR_ORGANIZATION_UNIT_ID, self::BUNDLE_AR_ORGANIZATION_UNIT_ID, self::INCOME, self::COST_SAVING, self::AR_VENDOR_ID, self::AR_COMMUNICATION_CHANNEL_TYPE_ID, self::COST, self::EXPECTED_COST, self::AR_TELEPHONE_PREFIX_ID, self::CACHED_EXTERNAL_TELEPHONE_NUMBER, self::EXTERNAL_TELEPHONE_NUMBER_WITH_APPLIED_PORTABILITY, self::CACHED_MASKED_EXTERNAL_TELEPHONE_NUMBER, self::ERROR_DESTINATION_TYPE, self::AR_PROBLEM_DUPLICATION_KEY, self::DEBUG_COST_RATE, self::DEBUG_INCOME_RATE, self::DEBUG_RESIDUAL_INCOME_RATE, self::DEBUG_RESIDUAL_CALL_DURATION, self::DEBUG_BUNDLE_LEFT_CALLS, self::DEBUG_BUNDLE_LEFT_DURATION, self::DEBUG_BUNDLE_LEFT_COST, self::DEBUG_RATING_DETAILS, ),
-		BasePeer::TYPE_FIELDNAME => array ('calldate', 'id', 'is_service_cdr', 'to_calldate', 'count_of_calls', 'destination_type', 'is_redirect', 'duration', 'billsec', 'ar_organization_unit_id', 'cached_parent_id_hierarchy', 'billable_ar_organization_unit_id', 'bundle_ar_organization_unit_id', 'income', 'cost_saving', 'ar_vendor_id', 'ar_communication_channel_type_id', 'cost', 'expected_cost', 'ar_telephone_prefix_id', 'cached_external_telephone_number', 'external_telephone_number_with_applied_portability', 'cached_masked_external_telephone_number', 'error_destination_type', 'ar_problem_duplication_key', 'debug_cost_rate', 'debug_income_rate', 'debug_residual_income_rate', 'debug_residual_call_duration', 'debug_bundle_left_calls', 'debug_bundle_left_duration', 'debug_bundle_left_cost', 'debug_rating_details', ),
-		BasePeer::TYPE_NUM => array (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, )
+		BasePeer::TYPE_PHPNAME => array ('Calldate', 'Id', 'IsServiceCdr', 'ToCalldate', 'CountOfCalls', 'DestinationType', 'IsRedirect', 'Duration', 'Billsec', 'ArOrganizationUnitId', 'CachedParentIdHierarchy', 'BillableArOrganizationUnitId', 'BundleArOrganizationUnitId', 'Income', 'CostSaving', 'ArVendorId', 'ArCommunicationChannelTypeId', 'Cost', 'ExpectedCost', 'ArTelephonePrefixId', 'CachedExternalTelephoneNumber', 'ExternalTelephoneNumberWithAppliedPortability', 'CachedMaskedExternalTelephoneNumber', 'ErrorDestinationType', 'ArProblemDuplicationKey', 'DebugCostRate', 'DebugIncomeRate', ),
+		BasePeer::TYPE_STUDLYPHPNAME => array ('calldate', 'id', 'isServiceCdr', 'toCalldate', 'countOfCalls', 'destinationType', 'isRedirect', 'duration', 'billsec', 'arOrganizationUnitId', 'cachedParentIdHierarchy', 'billableArOrganizationUnitId', 'bundleArOrganizationUnitId', 'income', 'costSaving', 'arVendorId', 'arCommunicationChannelTypeId', 'cost', 'expectedCost', 'arTelephonePrefixId', 'cachedExternalTelephoneNumber', 'externalTelephoneNumberWithAppliedPortability', 'cachedMaskedExternalTelephoneNumber', 'errorDestinationType', 'arProblemDuplicationKey', 'debugCostRate', 'debugIncomeRate', ),
+		BasePeer::TYPE_COLNAME => array (self::CALLDATE, self::ID, self::IS_SERVICE_CDR, self::TO_CALLDATE, self::COUNT_OF_CALLS, self::DESTINATION_TYPE, self::IS_REDIRECT, self::DURATION, self::BILLSEC, self::AR_ORGANIZATION_UNIT_ID, self::CACHED_PARENT_ID_HIERARCHY, self::BILLABLE_AR_ORGANIZATION_UNIT_ID, self::BUNDLE_AR_ORGANIZATION_UNIT_ID, self::INCOME, self::COST_SAVING, self::AR_VENDOR_ID, self::AR_COMMUNICATION_CHANNEL_TYPE_ID, self::COST, self::EXPECTED_COST, self::AR_TELEPHONE_PREFIX_ID, self::CACHED_EXTERNAL_TELEPHONE_NUMBER, self::EXTERNAL_TELEPHONE_NUMBER_WITH_APPLIED_PORTABILITY, self::CACHED_MASKED_EXTERNAL_TELEPHONE_NUMBER, self::ERROR_DESTINATION_TYPE, self::AR_PROBLEM_DUPLICATION_KEY, self::DEBUG_COST_RATE, self::DEBUG_INCOME_RATE, ),
+		BasePeer::TYPE_FIELDNAME => array ('calldate', 'id', 'is_service_cdr', 'to_calldate', 'count_of_calls', 'destination_type', 'is_redirect', 'duration', 'billsec', 'ar_organization_unit_id', 'cached_parent_id_hierarchy', 'billable_ar_organization_unit_id', 'bundle_ar_organization_unit_id', 'income', 'cost_saving', 'ar_vendor_id', 'ar_communication_channel_type_id', 'cost', 'expected_cost', 'ar_telephone_prefix_id', 'cached_external_telephone_number', 'external_telephone_number_with_applied_portability', 'cached_masked_external_telephone_number', 'error_destination_type', 'ar_problem_duplication_key', 'debug_cost_rate', 'debug_income_rate', ),
+		BasePeer::TYPE_NUM => array (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, )
 	);
 
 	/**
@@ -166,11 +148,11 @@ abstract class BaseArCdrPeer {
 	 * e.g. self::$fieldNames[BasePeer::TYPE_PHPNAME]['Id'] = 0
 	 */
 	private static $fieldKeys = array (
-		BasePeer::TYPE_PHPNAME => array ('Calldate' => 0, 'Id' => 1, 'IsServiceCdr' => 2, 'ToCalldate' => 3, 'CountOfCalls' => 4, 'DestinationType' => 5, 'IsRedirect' => 6, 'Duration' => 7, 'Billsec' => 8, 'ArOrganizationUnitId' => 9, 'CachedParentIdHierarchy' => 10, 'BillableArOrganizationUnitId' => 11, 'BundleArOrganizationUnitId' => 12, 'Income' => 13, 'CostSaving' => 14, 'ArVendorId' => 15, 'ArCommunicationChannelTypeId' => 16, 'Cost' => 17, 'ExpectedCost' => 18, 'ArTelephonePrefixId' => 19, 'CachedExternalTelephoneNumber' => 20, 'ExternalTelephoneNumberWithAppliedPortability' => 21, 'CachedMaskedExternalTelephoneNumber' => 22, 'ErrorDestinationType' => 23, 'ArProblemDuplicationKey' => 24, 'DebugCostRate' => 25, 'DebugIncomeRate' => 26, 'DebugResidualIncomeRate' => 27, 'DebugResidualCallDuration' => 28, 'DebugBundleLeftCalls' => 29, 'DebugBundleLeftDuration' => 30, 'DebugBundleLeftCost' => 31, 'DebugRatingDetails' => 32, ),
-		BasePeer::TYPE_STUDLYPHPNAME => array ('calldate' => 0, 'id' => 1, 'isServiceCdr' => 2, 'toCalldate' => 3, 'countOfCalls' => 4, 'destinationType' => 5, 'isRedirect' => 6, 'duration' => 7, 'billsec' => 8, 'arOrganizationUnitId' => 9, 'cachedParentIdHierarchy' => 10, 'billableArOrganizationUnitId' => 11, 'bundleArOrganizationUnitId' => 12, 'income' => 13, 'costSaving' => 14, 'arVendorId' => 15, 'arCommunicationChannelTypeId' => 16, 'cost' => 17, 'expectedCost' => 18, 'arTelephonePrefixId' => 19, 'cachedExternalTelephoneNumber' => 20, 'externalTelephoneNumberWithAppliedPortability' => 21, 'cachedMaskedExternalTelephoneNumber' => 22, 'errorDestinationType' => 23, 'arProblemDuplicationKey' => 24, 'debugCostRate' => 25, 'debugIncomeRate' => 26, 'debugResidualIncomeRate' => 27, 'debugResidualCallDuration' => 28, 'debugBundleLeftCalls' => 29, 'debugBundleLeftDuration' => 30, 'debugBundleLeftCost' => 31, 'debugRatingDetails' => 32, ),
-		BasePeer::TYPE_COLNAME => array (self::CALLDATE => 0, self::ID => 1, self::IS_SERVICE_CDR => 2, self::TO_CALLDATE => 3, self::COUNT_OF_CALLS => 4, self::DESTINATION_TYPE => 5, self::IS_REDIRECT => 6, self::DURATION => 7, self::BILLSEC => 8, self::AR_ORGANIZATION_UNIT_ID => 9, self::CACHED_PARENT_ID_HIERARCHY => 10, self::BILLABLE_AR_ORGANIZATION_UNIT_ID => 11, self::BUNDLE_AR_ORGANIZATION_UNIT_ID => 12, self::INCOME => 13, self::COST_SAVING => 14, self::AR_VENDOR_ID => 15, self::AR_COMMUNICATION_CHANNEL_TYPE_ID => 16, self::COST => 17, self::EXPECTED_COST => 18, self::AR_TELEPHONE_PREFIX_ID => 19, self::CACHED_EXTERNAL_TELEPHONE_NUMBER => 20, self::EXTERNAL_TELEPHONE_NUMBER_WITH_APPLIED_PORTABILITY => 21, self::CACHED_MASKED_EXTERNAL_TELEPHONE_NUMBER => 22, self::ERROR_DESTINATION_TYPE => 23, self::AR_PROBLEM_DUPLICATION_KEY => 24, self::DEBUG_COST_RATE => 25, self::DEBUG_INCOME_RATE => 26, self::DEBUG_RESIDUAL_INCOME_RATE => 27, self::DEBUG_RESIDUAL_CALL_DURATION => 28, self::DEBUG_BUNDLE_LEFT_CALLS => 29, self::DEBUG_BUNDLE_LEFT_DURATION => 30, self::DEBUG_BUNDLE_LEFT_COST => 31, self::DEBUG_RATING_DETAILS => 32, ),
-		BasePeer::TYPE_FIELDNAME => array ('calldate' => 0, 'id' => 1, 'is_service_cdr' => 2, 'to_calldate' => 3, 'count_of_calls' => 4, 'destination_type' => 5, 'is_redirect' => 6, 'duration' => 7, 'billsec' => 8, 'ar_organization_unit_id' => 9, 'cached_parent_id_hierarchy' => 10, 'billable_ar_organization_unit_id' => 11, 'bundle_ar_organization_unit_id' => 12, 'income' => 13, 'cost_saving' => 14, 'ar_vendor_id' => 15, 'ar_communication_channel_type_id' => 16, 'cost' => 17, 'expected_cost' => 18, 'ar_telephone_prefix_id' => 19, 'cached_external_telephone_number' => 20, 'external_telephone_number_with_applied_portability' => 21, 'cached_masked_external_telephone_number' => 22, 'error_destination_type' => 23, 'ar_problem_duplication_key' => 24, 'debug_cost_rate' => 25, 'debug_income_rate' => 26, 'debug_residual_income_rate' => 27, 'debug_residual_call_duration' => 28, 'debug_bundle_left_calls' => 29, 'debug_bundle_left_duration' => 30, 'debug_bundle_left_cost' => 31, 'debug_rating_details' => 32, ),
-		BasePeer::TYPE_NUM => array (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, )
+		BasePeer::TYPE_PHPNAME => array ('Calldate' => 0, 'Id' => 1, 'IsServiceCdr' => 2, 'ToCalldate' => 3, 'CountOfCalls' => 4, 'DestinationType' => 5, 'IsRedirect' => 6, 'Duration' => 7, 'Billsec' => 8, 'ArOrganizationUnitId' => 9, 'CachedParentIdHierarchy' => 10, 'BillableArOrganizationUnitId' => 11, 'BundleArOrganizationUnitId' => 12, 'Income' => 13, 'CostSaving' => 14, 'ArVendorId' => 15, 'ArCommunicationChannelTypeId' => 16, 'Cost' => 17, 'ExpectedCost' => 18, 'ArTelephonePrefixId' => 19, 'CachedExternalTelephoneNumber' => 20, 'ExternalTelephoneNumberWithAppliedPortability' => 21, 'CachedMaskedExternalTelephoneNumber' => 22, 'ErrorDestinationType' => 23, 'ArProblemDuplicationKey' => 24, 'DebugCostRate' => 25, 'DebugIncomeRate' => 26, ),
+		BasePeer::TYPE_STUDLYPHPNAME => array ('calldate' => 0, 'id' => 1, 'isServiceCdr' => 2, 'toCalldate' => 3, 'countOfCalls' => 4, 'destinationType' => 5, 'isRedirect' => 6, 'duration' => 7, 'billsec' => 8, 'arOrganizationUnitId' => 9, 'cachedParentIdHierarchy' => 10, 'billableArOrganizationUnitId' => 11, 'bundleArOrganizationUnitId' => 12, 'income' => 13, 'costSaving' => 14, 'arVendorId' => 15, 'arCommunicationChannelTypeId' => 16, 'cost' => 17, 'expectedCost' => 18, 'arTelephonePrefixId' => 19, 'cachedExternalTelephoneNumber' => 20, 'externalTelephoneNumberWithAppliedPortability' => 21, 'cachedMaskedExternalTelephoneNumber' => 22, 'errorDestinationType' => 23, 'arProblemDuplicationKey' => 24, 'debugCostRate' => 25, 'debugIncomeRate' => 26, ),
+		BasePeer::TYPE_COLNAME => array (self::CALLDATE => 0, self::ID => 1, self::IS_SERVICE_CDR => 2, self::TO_CALLDATE => 3, self::COUNT_OF_CALLS => 4, self::DESTINATION_TYPE => 5, self::IS_REDIRECT => 6, self::DURATION => 7, self::BILLSEC => 8, self::AR_ORGANIZATION_UNIT_ID => 9, self::CACHED_PARENT_ID_HIERARCHY => 10, self::BILLABLE_AR_ORGANIZATION_UNIT_ID => 11, self::BUNDLE_AR_ORGANIZATION_UNIT_ID => 12, self::INCOME => 13, self::COST_SAVING => 14, self::AR_VENDOR_ID => 15, self::AR_COMMUNICATION_CHANNEL_TYPE_ID => 16, self::COST => 17, self::EXPECTED_COST => 18, self::AR_TELEPHONE_PREFIX_ID => 19, self::CACHED_EXTERNAL_TELEPHONE_NUMBER => 20, self::EXTERNAL_TELEPHONE_NUMBER_WITH_APPLIED_PORTABILITY => 21, self::CACHED_MASKED_EXTERNAL_TELEPHONE_NUMBER => 22, self::ERROR_DESTINATION_TYPE => 23, self::AR_PROBLEM_DUPLICATION_KEY => 24, self::DEBUG_COST_RATE => 25, self::DEBUG_INCOME_RATE => 26, ),
+		BasePeer::TYPE_FIELDNAME => array ('calldate' => 0, 'id' => 1, 'is_service_cdr' => 2, 'to_calldate' => 3, 'count_of_calls' => 4, 'destination_type' => 5, 'is_redirect' => 6, 'duration' => 7, 'billsec' => 8, 'ar_organization_unit_id' => 9, 'cached_parent_id_hierarchy' => 10, 'billable_ar_organization_unit_id' => 11, 'bundle_ar_organization_unit_id' => 12, 'income' => 13, 'cost_saving' => 14, 'ar_vendor_id' => 15, 'ar_communication_channel_type_id' => 16, 'cost' => 17, 'expected_cost' => 18, 'ar_telephone_prefix_id' => 19, 'cached_external_telephone_number' => 20, 'external_telephone_number_with_applied_portability' => 21, 'cached_masked_external_telephone_number' => 22, 'error_destination_type' => 23, 'ar_problem_duplication_key' => 24, 'debug_cost_rate' => 25, 'debug_income_rate' => 26, ),
+		BasePeer::TYPE_NUM => array (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, )
 	);
 
 	/**
@@ -267,12 +249,6 @@ abstract class BaseArCdrPeer {
 		$criteria->addSelectColumn(ArCdrPeer::AR_PROBLEM_DUPLICATION_KEY);
 		$criteria->addSelectColumn(ArCdrPeer::DEBUG_COST_RATE);
 		$criteria->addSelectColumn(ArCdrPeer::DEBUG_INCOME_RATE);
-		$criteria->addSelectColumn(ArCdrPeer::DEBUG_RESIDUAL_INCOME_RATE);
-		$criteria->addSelectColumn(ArCdrPeer::DEBUG_RESIDUAL_CALL_DURATION);
-		$criteria->addSelectColumn(ArCdrPeer::DEBUG_BUNDLE_LEFT_CALLS);
-		$criteria->addSelectColumn(ArCdrPeer::DEBUG_BUNDLE_LEFT_DURATION);
-		$criteria->addSelectColumn(ArCdrPeer::DEBUG_BUNDLE_LEFT_COST);
-		$criteria->addSelectColumn(ArCdrPeer::DEBUG_RATING_DETAILS);
 	}
 
 	/**

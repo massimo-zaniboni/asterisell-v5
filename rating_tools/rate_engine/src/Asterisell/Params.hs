@@ -1,6 +1,7 @@
 {-# Language BangPatterns, OverloadedStrings, QuasiQuotes, ScopedTypeVariables, TypeSynonymInstances, FlexibleInstances, DeriveGeneric, DeriveAnyClass, FlexibleContexts  #-}
 
 -- SPDX-License-Identifier: GPL-3.0-or-later
+-- Copyright (C) 2009-2019 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
 
 -- | Manage `ar_params`
 --
@@ -20,7 +21,6 @@ import qualified System.IO as SIO
 import Data.Map.Strict as Map
 import qualified Data.HashMap.Strict as HMap
 import qualified Data.IntMap.Strict as IMap
-import qualified Data.Set as Set
 import Data.List as L
 
 import GHC.Generics

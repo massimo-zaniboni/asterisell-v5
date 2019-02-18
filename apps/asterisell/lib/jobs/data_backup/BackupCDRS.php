@@ -1,6 +1,7 @@
 <?php
 
 // SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2009-2019 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
 
 sfLoader::loadHelpers(array('I18N', 'Debug', 'Date', 'Asterisell'));
 
@@ -65,11 +66,6 @@ class BackupCDRS extends DailyBackupJob
           , ar_problem_duplication_key
           , debug_cost_rate
           , debug_income_rate
-          , debug_residual_income_rate
-          , debug_residual_call_duration
-          , debug_bundle_left_calls
-          , debug_bundle_left_duration
-          , debug_bundle_left_cost
 
 NOWDOC;
         $query .= " INTO OUTFILE '$tmpFileName' ";
@@ -177,11 +173,6 @@ NOWDOC;
           , ar_problem_duplication_key
           , debug_cost_rate
           , debug_income_rate
-          , debug_residual_income_rate
-          , debug_residual_call_duration
-          , debug_bundle_left_calls
-          , debug_bundle_left_duration
-          , debug_bundle_left_cost
         ) SET id = NULL;
         ';
 HEREDOC;

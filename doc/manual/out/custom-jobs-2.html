@@ -2,7 +2,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml">
    <head><meta charset="UTF-8" />
       <title>Custom jobs</title><link href="res/webhelp.css" rel="stylesheet" type="text/css" /><meta content="Add Customized file with custom jobs to the Instances configuration file of the provider and reseller instance." name="description" />
-      <meta content="XMLmind DITA Converter 3.3.0" name="generator" />
+      <meta content="XMLmind DITA Converter 3.3.1" name="generator" />
    <script charset="UTF-8" defer="defer" src="_wh/snowball_en.min.js" type="text/javascript"></script><link href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/themes/smoothness/jquery-ui.css" rel="stylesheet" type="text/css" /><link href="_wh/wh.css" rel="stylesheet" type="text/css" /><script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js" type="text/javascript">
     </script><script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js" type="text/javascript">
     </script><script charset="UTF-8" src="_wh/wh.min.js" type="text/javascript">
@@ -61,7 +61,7 @@
          <p class="shortdesc">Add <a class="xref" href="manual-6.html#Customized_file">Customized file</a> with custom jobs  to the <a class="xref" href="manual-6.html#Instances_configuration_file">Instances configuration file</a> of the provider and reseller instance.
          </p>
          <div class="body">
-            <section class="section" id="Custom_jobs-2__I_i1shhs_">
+            <section class="section" id="Custom_jobs-2__I_qbol1c_">
                <h3 class="section-title">Export CDRS</h3>
                <div class="p">On the configuration of the provider, add a <a class="xref" href="manual-6.html#Customized_file">Customized file</a> PHP class like <code class="codeph">customizations/ExportTo&lt;your_reseller&gt;.php</code>, and define abstract/missing methods (here <code class="codeph">Minitel</code> is an example of reseller name).
                </div><pre class="pre">    class ExportToMiniTel extends ExportCDRSToReseller
@@ -105,12 +105,12 @@
 </pre><div class="p">Add the CDR exporting job to the list of jobs, for exporting the CDRs. Usually it
                   is a line like this in <a class="xref" href="manual-6.html#Instances_configuration_file">Instances configuration file</a></div><pre class="pre">    custom_export_cdrs_jobs = [ 'ExportToMiniTel' ]
 </pre></section>
-            <section class="section" id="Custom_jobs-2__I_am9jtz_">
+            <section class="section" id="Custom_jobs-2__I_tb3odf_">
                <h3 class="section-title">Exporting service CDRS</h3>
                <div class="p">For exporting <a class="xref" href="manual-6.html#Service_CDR">Service CDR</a> create an exporting job like for normal CDRS, but using a subclass of <code class="codeph">ExportServiceCDRSToReseler</code>.
                </div>
             </section>
-            <section class="section" id="Custom_jobs-2__I_nn4250_">
+            <section class="section" id="Custom_jobs-2__I_fwtzw0_">
                <h3 class="section-title">Importing</h3>
                <div class="p">TODO continue</div>
             </section>

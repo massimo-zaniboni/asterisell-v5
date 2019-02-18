@@ -1,4 +1,5 @@
 /*  SPDX-License-Identifier: GPL-3.0-or-later */
+/* Copyright (C) 2009-2019 Massimo Zaniboni <massimo.zaniboni@asterisell.com> */
 
 #ifndef __CALL_FLOW_MERGER_17753__
 #define __CALL_FLOW_MERGER_17753__

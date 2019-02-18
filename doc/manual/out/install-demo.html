@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml">
    <head><meta charset="UTF-8" />
-      <title>Install the demo instance</title><link href="res/webhelp.css" rel="stylesheet" type="text/css" /><meta content="XMLmind DITA Converter 3.3.0" name="generator" />
+      <title>Install the demo instance</title><link href="res/webhelp.css" rel="stylesheet" type="text/css" /><meta content="XMLmind DITA Converter 3.3.1" name="generator" />
    <script charset="UTF-8" defer="defer" src="_wh/snowball_en.min.js" type="text/javascript"></script><link href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/themes/smoothness/jquery-ui.css" rel="stylesheet" type="text/css" /><link href="_wh/wh.css" rel="stylesheet" type="text/css" /><script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js" type="text/javascript">
     </script><script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js" type="text/javascript">
     </script><script charset="UTF-8" src="_wh/wh.min.js" type="text/javascript">
@@ -71,7 +71,10 @@ fab install:asterisell/demo
                reused for all other instances, also on different hosts.
             </div>
             <div class="p">If you change setting of the host or domain you can upgrade using</div><pre class="pre">fab upgrade_conf:asterisell/demo
-</pre></div>
+</pre><div class="p">After first installation, reboot the HOST for being sure to use the last kernel, and
+               loading the proper SELinux settings.
+            </div>
+         </div>
       </section>
       <footer class="page-navigation-footer">
          <table class="page-navigation-layout" style="width: 100%;">

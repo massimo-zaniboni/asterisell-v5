@@ -25,7 +25,7 @@ abstract class BaseArCachedGroupedCdrPeer {
 	const TM_CLASS = 'ArCachedGroupedCdrTableMap';
 	
 	/** The total number of columns. */
-	const NUM_COLUMNS = 14;
+	const NUM_COLUMNS = 15;
 
 	/** The number of lazy-loaded columns. */
 	const NUM_LAZY_LOAD_COLUMNS = 0;
@@ -69,6 +69,9 @@ abstract class BaseArCachedGroupedCdrPeer {
 	/** the column name for the COST field */
 	const COST = 'ar_cached_grouped_cdr.COST';
 
+	/** the column name for the COUNT_OF_RECORDS field */
+	const COUNT_OF_RECORDS = 'ar_cached_grouped_cdr.COUNT_OF_RECORDS';
+
 	/** the column name for the ID field */
 	const ID = 'ar_cached_grouped_cdr.ID';
 
@@ -95,11 +98,11 @@ abstract class BaseArCachedGroupedCdrPeer {
 	 * e.g. self::$fieldNames[self::TYPE_PHPNAME][0] = 'Id'
 	 */
 	private static $fieldNames = array (
-		BasePeer::TYPE_PHPNAME => array ('CachedParentIdHierarchy', 'BillableArOrganizationUnitId', 'Calldate', 'DestinationType', 'ArCommunicationChannelTypeId', 'OperatorType', 'ArVendorId', 'GeographicLocation', 'CountOfCalls', 'Billsec', 'Income', 'CostSaving', 'Cost', 'Id', ),
-		BasePeer::TYPE_STUDLYPHPNAME => array ('cachedParentIdHierarchy', 'billableArOrganizationUnitId', 'calldate', 'destinationType', 'arCommunicationChannelTypeId', 'operatorType', 'arVendorId', 'geographicLocation', 'countOfCalls', 'billsec', 'income', 'costSaving', 'cost', 'id', ),
-		BasePeer::TYPE_COLNAME => array (self::CACHED_PARENT_ID_HIERARCHY, self::BILLABLE_AR_ORGANIZATION_UNIT_ID, self::CALLDATE, self::DESTINATION_TYPE, self::AR_COMMUNICATION_CHANNEL_TYPE_ID, self::OPERATOR_TYPE, self::AR_VENDOR_ID, self::GEOGRAPHIC_LOCATION, self::COUNT_OF_CALLS, self::BILLSEC, self::INCOME, self::COST_SAVING, self::COST, self::ID, ),
-		BasePeer::TYPE_FIELDNAME => array ('cached_parent_id_hierarchy', 'billable_ar_organization_unit_id', 'calldate', 'destination_type', 'ar_communication_channel_type_id', 'operator_type', 'ar_vendor_id', 'geographic_location', 'count_of_calls', 'billsec', 'income', 'cost_saving', 'cost', 'id', ),
-		BasePeer::TYPE_NUM => array (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, )
+		BasePeer::TYPE_PHPNAME => array ('CachedParentIdHierarchy', 'BillableArOrganizationUnitId', 'Calldate', 'DestinationType', 'ArCommunicationChannelTypeId', 'OperatorType', 'ArVendorId', 'GeographicLocation', 'CountOfCalls', 'Billsec', 'Income', 'CostSaving', 'Cost', 'CountOfRecords', 'Id', ),
+		BasePeer::TYPE_STUDLYPHPNAME => array ('cachedParentIdHierarchy', 'billableArOrganizationUnitId', 'calldate', 'destinationType', 'arCommunicationChannelTypeId', 'operatorType', 'arVendorId', 'geographicLocation', 'countOfCalls', 'billsec', 'income', 'costSaving', 'cost', 'countOfRecords', 'id', ),
+		BasePeer::TYPE_COLNAME => array (self::CACHED_PARENT_ID_HIERARCHY, self::BILLABLE_AR_ORGANIZATION_UNIT_ID, self::CALLDATE, self::DESTINATION_TYPE, self::AR_COMMUNICATION_CHANNEL_TYPE_ID, self::OPERATOR_TYPE, self::AR_VENDOR_ID, self::GEOGRAPHIC_LOCATION, self::COUNT_OF_CALLS, self::BILLSEC, self::INCOME, self::COST_SAVING, self::COST, self::COUNT_OF_RECORDS, self::ID, ),
+		BasePeer::TYPE_FIELDNAME => array ('cached_parent_id_hierarchy', 'billable_ar_organization_unit_id', 'calldate', 'destination_type', 'ar_communication_channel_type_id', 'operator_type', 'ar_vendor_id', 'geographic_location', 'count_of_calls', 'billsec', 'income', 'cost_saving', 'cost', 'count_of_records', 'id', ),
+		BasePeer::TYPE_NUM => array (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, )
 	);
 
 	/**
@@ -109,11 +112,11 @@ abstract class BaseArCachedGroupedCdrPeer {
 	 * e.g. self::$fieldNames[BasePeer::TYPE_PHPNAME]['Id'] = 0
 	 */
 	private static $fieldKeys = array (
-		BasePeer::TYPE_PHPNAME => array ('CachedParentIdHierarchy' => 0, 'BillableArOrganizationUnitId' => 1, 'Calldate' => 2, 'DestinationType' => 3, 'ArCommunicationChannelTypeId' => 4, 'OperatorType' => 5, 'ArVendorId' => 6, 'GeographicLocation' => 7, 'CountOfCalls' => 8, 'Billsec' => 9, 'Income' => 10, 'CostSaving' => 11, 'Cost' => 12, 'Id' => 13, ),
-		BasePeer::TYPE_STUDLYPHPNAME => array ('cachedParentIdHierarchy' => 0, 'billableArOrganizationUnitId' => 1, 'calldate' => 2, 'destinationType' => 3, 'arCommunicationChannelTypeId' => 4, 'operatorType' => 5, 'arVendorId' => 6, 'geographicLocation' => 7, 'countOfCalls' => 8, 'billsec' => 9, 'income' => 10, 'costSaving' => 11, 'cost' => 12, 'id' => 13, ),
-		BasePeer::TYPE_COLNAME => array (self::CACHED_PARENT_ID_HIERARCHY => 0, self::BILLABLE_AR_ORGANIZATION_UNIT_ID => 1, self::CALLDATE => 2, self::DESTINATION_TYPE => 3, self::AR_COMMUNICATION_CHANNEL_TYPE_ID => 4, self::OPERATOR_TYPE => 5, self::AR_VENDOR_ID => 6, self::GEOGRAPHIC_LOCATION => 7, self::COUNT_OF_CALLS => 8, self::BILLSEC => 9, self::INCOME => 10, self::COST_SAVING => 11, self::COST => 12, self::ID => 13, ),
-		BasePeer::TYPE_FIELDNAME => array ('cached_parent_id_hierarchy' => 0, 'billable_ar_organization_unit_id' => 1, 'calldate' => 2, 'destination_type' => 3, 'ar_communication_channel_type_id' => 4, 'operator_type' => 5, 'ar_vendor_id' => 6, 'geographic_location' => 7, 'count_of_calls' => 8, 'billsec' => 9, 'income' => 10, 'cost_saving' => 11, 'cost' => 12, 'id' => 13, ),
-		BasePeer::TYPE_NUM => array (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, )
+		BasePeer::TYPE_PHPNAME => array ('CachedParentIdHierarchy' => 0, 'BillableArOrganizationUnitId' => 1, 'Calldate' => 2, 'DestinationType' => 3, 'ArCommunicationChannelTypeId' => 4, 'OperatorType' => 5, 'ArVendorId' => 6, 'GeographicLocation' => 7, 'CountOfCalls' => 8, 'Billsec' => 9, 'Income' => 10, 'CostSaving' => 11, 'Cost' => 12, 'CountOfRecords' => 13, 'Id' => 14, ),
+		BasePeer::TYPE_STUDLYPHPNAME => array ('cachedParentIdHierarchy' => 0, 'billableArOrganizationUnitId' => 1, 'calldate' => 2, 'destinationType' => 3, 'arCommunicationChannelTypeId' => 4, 'operatorType' => 5, 'arVendorId' => 6, 'geographicLocation' => 7, 'countOfCalls' => 8, 'billsec' => 9, 'income' => 10, 'costSaving' => 11, 'cost' => 12, 'countOfRecords' => 13, 'id' => 14, ),
+		BasePeer::TYPE_COLNAME => array (self::CACHED_PARENT_ID_HIERARCHY => 0, self::BILLABLE_AR_ORGANIZATION_UNIT_ID => 1, self::CALLDATE => 2, self::DESTINATION_TYPE => 3, self::AR_COMMUNICATION_CHANNEL_TYPE_ID => 4, self::OPERATOR_TYPE => 5, self::AR_VENDOR_ID => 6, self::GEOGRAPHIC_LOCATION => 7, self::COUNT_OF_CALLS => 8, self::BILLSEC => 9, self::INCOME => 10, self::COST_SAVING => 11, self::COST => 12, self::COUNT_OF_RECORDS => 13, self::ID => 14, ),
+		BasePeer::TYPE_FIELDNAME => array ('cached_parent_id_hierarchy' => 0, 'billable_ar_organization_unit_id' => 1, 'calldate' => 2, 'destination_type' => 3, 'ar_communication_channel_type_id' => 4, 'operator_type' => 5, 'ar_vendor_id' => 6, 'geographic_location' => 7, 'count_of_calls' => 8, 'billsec' => 9, 'income' => 10, 'cost_saving' => 11, 'cost' => 12, 'count_of_records' => 13, 'id' => 14, ),
+		BasePeer::TYPE_NUM => array (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, )
 	);
 
 	/**
@@ -196,6 +199,7 @@ abstract class BaseArCachedGroupedCdrPeer {
 		$criteria->addSelectColumn(ArCachedGroupedCdrPeer::INCOME);
 		$criteria->addSelectColumn(ArCachedGroupedCdrPeer::COST_SAVING);
 		$criteria->addSelectColumn(ArCachedGroupedCdrPeer::COST);
+		$criteria->addSelectColumn(ArCachedGroupedCdrPeer::COUNT_OF_RECORDS);
 		$criteria->addSelectColumn(ArCachedGroupedCdrPeer::ID);
 	}
 

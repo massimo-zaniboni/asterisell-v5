@@ -189,42 +189,6 @@ abstract class BaseArCdr extends BaseObject  implements Persistent {
 	protected $debug_income_rate;
 
 	/**
-	 * The value for the debug_residual_income_rate field.
-	 * @var        string
-	 */
-	protected $debug_residual_income_rate;
-
-	/**
-	 * The value for the debug_residual_call_duration field.
-	 * @var        int
-	 */
-	protected $debug_residual_call_duration;
-
-	/**
-	 * The value for the debug_bundle_left_calls field.
-	 * @var        int
-	 */
-	protected $debug_bundle_left_calls;
-
-	/**
-	 * The value for the debug_bundle_left_duration field.
-	 * @var        int
-	 */
-	protected $debug_bundle_left_duration;
-
-	/**
-	 * The value for the debug_bundle_left_cost field.
-	 * @var        string
-	 */
-	protected $debug_bundle_left_cost;
-
-	/**
-	 * The value for the debug_rating_details field.
-	 * @var        string
-	 */
-	protected $debug_rating_details;
-
-	/**
 	 * Flag to prevent endless save loop, if this object is referenced
 	 * by another object which falls in this transaction.
 	 * @var        boolean
@@ -594,66 +558,6 @@ abstract class BaseArCdr extends BaseObject  implements Persistent {
 	public function getDebugIncomeRate()
 	{
 		return $this->debug_income_rate;
-	}
-
-	/**
-	 * Get the [debug_residual_income_rate] column value.
-	 * 
-	 * @return     string
-	 */
-	public function getDebugResidualIncomeRate()
-	{
-		return $this->debug_residual_income_rate;
-	}
-
-	/**
-	 * Get the [debug_residual_call_duration] column value.
-	 * 
-	 * @return     int
-	 */
-	public function getDebugResidualCallDuration()
-	{
-		return $this->debug_residual_call_duration;
-	}
-
-	/**
-	 * Get the [debug_bundle_left_calls] column value.
-	 * 
-	 * @return     int
-	 */
-	public function getDebugBundleLeftCalls()
-	{
-		return $this->debug_bundle_left_calls;
-	}
-
-	/**
-	 * Get the [debug_bundle_left_duration] column value.
-	 * 
-	 * @return     int
-	 */
-	public function getDebugBundleLeftDuration()
-	{
-		return $this->debug_bundle_left_duration;
-	}
-
-	/**
-	 * Get the [debug_bundle_left_cost] column value.
-	 * 
-	 * @return     string
-	 */
-	public function getDebugBundleLeftCost()
-	{
-		return $this->debug_bundle_left_cost;
-	}
-
-	/**
-	 * Get the [debug_rating_details] column value.
-	 * 
-	 * @return     string
-	 */
-	public function getDebugRatingDetails()
-	{
-		return $this->debug_rating_details;
 	}
 
 	/**
@@ -1258,126 +1162,6 @@ abstract class BaseArCdr extends BaseObject  implements Persistent {
 	} // setDebugIncomeRate()
 
 	/**
-	 * Set the value of [debug_residual_income_rate] column.
-	 * 
-	 * @param      string $v new value
-	 * @return     ArCdr The current object (for fluent API support)
-	 */
-	public function setDebugResidualIncomeRate($v)
-	{
-		if ($v !== null) {
-			$v = (string) $v;
-		}
-
-		if ($this->debug_residual_income_rate !== $v) {
-			$this->debug_residual_income_rate = $v;
-			$this->modifiedColumns[] = ArCdrPeer::DEBUG_RESIDUAL_INCOME_RATE;
-		}
-
-		return $this;
-	} // setDebugResidualIncomeRate()
-
-	/**
-	 * Set the value of [debug_residual_call_duration] column.
-	 * 
-	 * @param      int $v new value
-	 * @return     ArCdr The current object (for fluent API support)
-	 */
-	public function setDebugResidualCallDuration($v)
-	{
-		if ($v !== null) {
-			$v = (int) $v;
-		}
-
-		if ($this->debug_residual_call_duration !== $v) {
-			$this->debug_residual_call_duration = $v;
-			$this->modifiedColumns[] = ArCdrPeer::DEBUG_RESIDUAL_CALL_DURATION;
-		}
-
-		return $this;
-	} // setDebugResidualCallDuration()
-
-	/**
-	 * Set the value of [debug_bundle_left_calls] column.
-	 * 
-	 * @param      int $v new value
-	 * @return     ArCdr The current object (for fluent API support)
-	 */
-	public function setDebugBundleLeftCalls($v)
-	{
-		if ($v !== null) {
-			$v = (int) $v;
-		}
-
-		if ($this->debug_bundle_left_calls !== $v) {
-			$this->debug_bundle_left_calls = $v;
-			$this->modifiedColumns[] = ArCdrPeer::DEBUG_BUNDLE_LEFT_CALLS;
-		}
-
-		return $this;
-	} // setDebugBundleLeftCalls()
-
-	/**
-	 * Set the value of [debug_bundle_left_duration] column.
-	 * 
-	 * @param      int $v new value
-	 * @return     ArCdr The current object (for fluent API support)
-	 */
-	public function setDebugBundleLeftDuration($v)
-	{
-		if ($v !== null) {
-			$v = (int) $v;
-		}
-
-		if ($this->debug_bundle_left_duration !== $v) {
-			$this->debug_bundle_left_duration = $v;
-			$this->modifiedColumns[] = ArCdrPeer::DEBUG_BUNDLE_LEFT_DURATION;
-		}
-
-		return $this;
-	} // setDebugBundleLeftDuration()
-
-	/**
-	 * Set the value of [debug_bundle_left_cost] column.
-	 * 
-	 * @param      string $v new value
-	 * @return     ArCdr The current object (for fluent API support)
-	 */
-	public function setDebugBundleLeftCost($v)
-	{
-		if ($v !== null) {
-			$v = (string) $v;
-		}
-
-		if ($this->debug_bundle_left_cost !== $v) {
-			$this->debug_bundle_left_cost = $v;
-			$this->modifiedColumns[] = ArCdrPeer::DEBUG_BUNDLE_LEFT_COST;
-		}
-
-		return $this;
-	} // setDebugBundleLeftCost()
-
-	/**
-	 * Set the value of [debug_rating_details] column.
-	 * 
-	 * @param      string $v new value
-	 * @return     ArCdr The current object (for fluent API support)
-	 */
-	public function setDebugRatingDetails($v)
-	{
-		if ($v !== null) {
-			$v = (string) $v;
-		}
-
-		if ($this->debug_rating_details !== $v) {
-			$this->debug_rating_details = $v;
-			$this->modifiedColumns[] = ArCdrPeer::DEBUG_RATING_DETAILS;
-		}
-
-		return $this;
-	} // setDebugRatingDetails()
-
-	/**
 	 * Indicates whether the columns in this object are only set to default values.
 	 *
 	 * This method can be used in conjunction with isModified() to indicate whether an object is both
@@ -1474,12 +1258,6 @@ abstract class BaseArCdr extends BaseObject  implements Persistent {
 			$this->ar_problem_duplication_key = ($row[$startcol + 24] !== null) ? (string) $row[$startcol + 24] : null;
 			$this->debug_cost_rate = ($row[$startcol + 25] !== null) ? (string) $row[$startcol + 25] : null;
 			$this->debug_income_rate = ($row[$startcol + 26] !== null) ? (string) $row[$startcol + 26] : null;
-			$this->debug_residual_income_rate = ($row[$startcol + 27] !== null) ? (string) $row[$startcol + 27] : null;
-			$this->debug_residual_call_duration = ($row[$startcol + 28] !== null) ? (int) $row[$startcol + 28] : null;
-			$this->debug_bundle_left_calls = ($row[$startcol + 29] !== null) ? (int) $row[$startcol + 29] : null;
-			$this->debug_bundle_left_duration = ($row[$startcol + 30] !== null) ? (int) $row[$startcol + 30] : null;
-			$this->debug_bundle_left_cost = ($row[$startcol + 31] !== null) ? (string) $row[$startcol + 31] : null;
-			$this->debug_rating_details = ($row[$startcol + 32] !== null) ? (string) $row[$startcol + 32] : null;
 			$this->resetModified();
 
 			$this->setNew(false);
@@ -1489,7 +1267,7 @@ abstract class BaseArCdr extends BaseObject  implements Persistent {
 			}
 
 			// FIXME - using NUM_COLUMNS may be clearer.
-			return $startcol + 33; // 33 = ArCdrPeer::NUM_COLUMNS - ArCdrPeer::NUM_LAZY_LOAD_COLUMNS).
+			return $startcol + 27; // 27 = ArCdrPeer::NUM_COLUMNS - ArCdrPeer::NUM_LAZY_LOAD_COLUMNS).
 
 		} catch (Exception $e) {
 			throw new PropelException("Error populating ArCdr object", $e);
@@ -1866,24 +1644,6 @@ abstract class BaseArCdr extends BaseObject  implements Persistent {
 			case 26:
 				return $this->getDebugIncomeRate();
 				break;
-			case 27:
-				return $this->getDebugResidualIncomeRate();
-				break;
-			case 28:
-				return $this->getDebugResidualCallDuration();
-				break;
-			case 29:
-				return $this->getDebugBundleLeftCalls();
-				break;
-			case 30:
-				return $this->getDebugBundleLeftDuration();
-				break;
-			case 31:
-				return $this->getDebugBundleLeftCost();
-				break;
-			case 32:
-				return $this->getDebugRatingDetails();
-				break;
 			default:
 				return null;
 				break;
@@ -1932,12 +1692,6 @@ abstract class BaseArCdr extends BaseObject  implements Persistent {
 			$keys[24] => $this->getArProblemDuplicationKey(),
 			$keys[25] => $this->getDebugCostRate(),
 			$keys[26] => $this->getDebugIncomeRate(),
-			$keys[27] => $this->getDebugResidualIncomeRate(),
-			$keys[28] => $this->getDebugResidualCallDuration(),
-			$keys[29] => $this->getDebugBundleLeftCalls(),
-			$keys[30] => $this->getDebugBundleLeftDuration(),
-			$keys[31] => $this->getDebugBundleLeftCost(),
-			$keys[32] => $this->getDebugRatingDetails(),
 		);
 		return $result;
 	}
@@ -2050,24 +1804,6 @@ abstract class BaseArCdr extends BaseObject  implements Persistent {
 			case 26:
 				$this->setDebugIncomeRate($value);
 				break;
-			case 27:
-				$this->setDebugResidualIncomeRate($value);
-				break;
-			case 28:
-				$this->setDebugResidualCallDuration($value);
-				break;
-			case 29:
-				$this->setDebugBundleLeftCalls($value);
-				break;
-			case 30:
-				$this->setDebugBundleLeftDuration($value);
-				break;
-			case 31:
-				$this->setDebugBundleLeftCost($value);
-				break;
-			case 32:
-				$this->setDebugRatingDetails($value);
-				break;
 		} // switch()
 	}
 
@@ -2119,12 +1855,6 @@ abstract class BaseArCdr extends BaseObject  implements Persistent {
 		if (array_key_exists($keys[24], $arr)) $this->setArProblemDuplicationKey($arr[$keys[24]]);
 		if (array_key_exists($keys[25], $arr)) $this->setDebugCostRate($arr[$keys[25]]);
 		if (array_key_exists($keys[26], $arr)) $this->setDebugIncomeRate($arr[$keys[26]]);
-		if (array_key_exists($keys[27], $arr)) $this->setDebugResidualIncomeRate($arr[$keys[27]]);
-		if (array_key_exists($keys[28], $arr)) $this->setDebugResidualCallDuration($arr[$keys[28]]);
-		if (array_key_exists($keys[29], $arr)) $this->setDebugBundleLeftCalls($arr[$keys[29]]);
-		if (array_key_exists($keys[30], $arr)) $this->setDebugBundleLeftDuration($arr[$keys[30]]);
-		if (array_key_exists($keys[31], $arr)) $this->setDebugBundleLeftCost($arr[$keys[31]]);
-		if (array_key_exists($keys[32], $arr)) $this->setDebugRatingDetails($arr[$keys[32]]);
 	}
 
 	/**
@@ -2163,12 +1893,6 @@ abstract class BaseArCdr extends BaseObject  implements Persistent {
 		if ($this->isColumnModified(ArCdrPeer::AR_PROBLEM_DUPLICATION_KEY)) $criteria->add(ArCdrPeer::AR_PROBLEM_DUPLICATION_KEY, $this->ar_problem_duplication_key);
 		if ($this->isColumnModified(ArCdrPeer::DEBUG_COST_RATE)) $criteria->add(ArCdrPeer::DEBUG_COST_RATE, $this->debug_cost_rate);
 		if ($this->isColumnModified(ArCdrPeer::DEBUG_INCOME_RATE)) $criteria->add(ArCdrPeer::DEBUG_INCOME_RATE, $this->debug_income_rate);
-		if ($this->isColumnModified(ArCdrPeer::DEBUG_RESIDUAL_INCOME_RATE)) $criteria->add(ArCdrPeer::DEBUG_RESIDUAL_INCOME_RATE, $this->debug_residual_income_rate);
-		if ($this->isColumnModified(ArCdrPeer::DEBUG_RESIDUAL_CALL_DURATION)) $criteria->add(ArCdrPeer::DEBUG_RESIDUAL_CALL_DURATION, $this->debug_residual_call_duration);
-		if ($this->isColumnModified(ArCdrPeer::DEBUG_BUNDLE_LEFT_CALLS)) $criteria->add(ArCdrPeer::DEBUG_BUNDLE_LEFT_CALLS, $this->debug_bundle_left_calls);
-		if ($this->isColumnModified(ArCdrPeer::DEBUG_BUNDLE_LEFT_DURATION)) $criteria->add(ArCdrPeer::DEBUG_BUNDLE_LEFT_DURATION, $this->debug_bundle_left_duration);
-		if ($this->isColumnModified(ArCdrPeer::DEBUG_BUNDLE_LEFT_COST)) $criteria->add(ArCdrPeer::DEBUG_BUNDLE_LEFT_COST, $this->debug_bundle_left_cost);
-		if ($this->isColumnModified(ArCdrPeer::DEBUG_RATING_DETAILS)) $criteria->add(ArCdrPeer::DEBUG_RATING_DETAILS, $this->debug_rating_details);
 
 		return $criteria;
 	}
@@ -2293,18 +2017,6 @@ abstract class BaseArCdr extends BaseObject  implements Persistent {
 		$copyObj->setDebugCostRate($this->debug_cost_rate);
 
 		$copyObj->setDebugIncomeRate($this->debug_income_rate);
-
-		$copyObj->setDebugResidualIncomeRate($this->debug_residual_income_rate);
-
-		$copyObj->setDebugResidualCallDuration($this->debug_residual_call_duration);
-
-		$copyObj->setDebugBundleLeftCalls($this->debug_bundle_left_calls);
-
-		$copyObj->setDebugBundleLeftDuration($this->debug_bundle_left_duration);
-
-		$copyObj->setDebugBundleLeftCost($this->debug_bundle_left_cost);
-
-		$copyObj->setDebugRatingDetails($this->debug_rating_details);
 
 
 		$copyObj->setNew(true);

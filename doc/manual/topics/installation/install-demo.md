@@ -23,3 +23,6 @@ If you change setting of the host or domain you can upgrade using
 ```
 fab upgrade_conf:asterisell/demo
 ```
+
+After first installation, reboot the HOST for being sure to use the last kernel, and loading the proper SELinux settings.
+

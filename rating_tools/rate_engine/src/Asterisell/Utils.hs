@@ -1,7 +1,7 @@
 {-# Language OverloadedStrings, ScopedTypeVariables, BangPatterns #-}
 
 -- SPDX-License-Identifier: GPL-3.0-or-later
-
+-- Copyright (C) 2009-2019 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
 
 -- | Utils functions used from other modules.
 --
@@ -21,6 +21,7 @@ module Asterisell.Utils (
   FoldlWithKey,
   cparams_load,
   cparams_get,
+  maybeIf,
   fromAsteriskLastDataToExtension,
   parseMySQLDateTimeToUTC,
   parseMySQLDateTimeToLocalTime,
@@ -61,6 +62,7 @@ module Asterisell.Utils (
   mathRound,
   fromJust1,
   fromJust2,
+  fromRight1,
   tt_parseTests,
   IsApplicationError,
   ConfigurationErrors,
@@ -102,14 +104,16 @@ module Asterisell.Utils (
   process_initCores,
   process_orderedChunks,
   process_orderedChunksUsingFun,
-  waitAll
+  orderedStream_put,
+  mapAccumLM,
+  pError,
+  pAssert
 ) where
 
 import Data.Int
 import Control.Applicative ((<$>), (<|>), (<*>))
 import Text.Megaparsec as P
 import Text.Megaparsec.Char as P
-import Text.Megaparsec.Error as P
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as LText
 import qualified Data.Text.Lazy.Encoding as LText
@@ -125,18 +129,14 @@ import Data.Hashable
 import qualified Data.HashMap.Strict as HMap
 import qualified Data.HashTable.IO as IMH
 import qualified Data.Set as Set
-import Data.List as L
-import Data.Monoid
 import qualified Test.HUnit as HUnit
 import Data.Text.Encoding
 import Data.Text.Encoding.Error
 import Data.Time.Calendar
 import Data.Char
-import Data.Maybe
 import Control.Monad as M
 import Control.Concurrent.MVar
 import Control.Monad.IO.Class
-import Debug.Trace
 import Data.IORef
 import Control.Exception.Base (BlockedIndefinitelyOnMVar, BlockedIndefinitelyOnSTM, AssertionFailed(..))
 import GHC.Conc (getNumProcessors)
@@ -144,34 +144,26 @@ import Control.Concurrent (forkIO, setNumCapabilities, getNumCapabilities)
 import qualified Control.Concurrent.Async as C
 import qualified Control.DeepSeq as C
 import qualified System.IO.Streams as S
-import qualified System.IO.Streams.Text as S
-import qualified System.IO.Streams.Combinators as S
-import qualified System.IO.Streams.List as S
-import qualified System.IO.Streams.List as S
-import qualified System.IO.Streams.File as S
-import qualified System.IO.Streams.Vector as S
 import Data.Void
 import qualified Data.Csv as CSV
 import qualified Data.Vector as V
-import Data.Int
-import Data.Maybe
 import Data.Either
 import Data.Typeable
-import System.IO.Unsafe
 import Control.Concurrent.Async
 import Control.Exception.Safe
 import qualified Control.Monad.Catch as C
-import Control.Exception.Assert.Sugar
 import Control.DeepSeq as DeepSeq
 import Data.Maybe
 import Data.List as L
+import Debug.Trace
+import System.IO.Unsafe
 
 -- ------------------------------
 -- Common types
 
 -- | Fold elements `e` into state `s`.
 --   Used for writing more compact types in foldl code.
-type Foldl e s = s -> e -> s 
+type Foldl e s = s -> e -> s
 
 -- | Fold elements `e` of a map with key `k`, into state `s`
 type FoldlWithKey k e s = s -> k -> e -> s
@@ -182,19 +174,44 @@ type Foldr e s = e -> s -> s
 -- ------------------------------
 -- Errors
 
+pError :: [Char] -> a
+pError msg
+  = unsafePerformIO $ do
+      putStrLn msg
+      return $ error msg
+{-# INLINE pError #-}
+
+pAssert :: String -> Bool -> a -> a
+pAssert msg t v = assert f v
+ where
+  {-# INLINE f #-}
+  f = if t
+      then True
+      else unsafePerformIO $ do
+             putStrLn msg
+             return False
+{-# INLINE pAssert #-}
+
 fromJust1 :: String -> Maybe a -> a
 fromJust1 n mA
   = case mA of
       Just a -> a
-      Nothing -> error $ "unexpected error in the application, in point labelled as \"" ++ n ++ "\""
+      Nothing -> pError $ "unexpected error in the application, in point labelled as \"" ++ n ++ "\""
 {-# INLINE fromJust1 #-}
 
 fromJust2 :: String -> Maybe (a, b) -> a
 fromJust2 n mA
   = case mA of
       Just (a, _) -> a
-      Nothing -> error $ "unexpected error in the application, in point labelled as \"" ++ n ++ "\""
+      Nothing -> pError $ "unexpected error in the application, in point labelled as \"" ++ n ++ "\""
 {-# INLINE fromJust2 #-}
+
+fromRight1 :: Show e => String -> Either e a -> a
+fromRight1 n mA
+  = case mA of
+      Right a -> a
+      Left err -> pError $ "unexpected error in the application, in point labelled as \"" ++ n ++ "\": " ++ show err
+{-# INLINE fromRight1 #-}
 
 type LineNumber = Int
 
@@ -202,6 +219,14 @@ type LineNumber = Int
 type IsApplicationError = Bool
 
 type ConfigurationErrors = Set.Set String
+
+-- ------------------------------------------
+-- Utils
+
+maybeIf :: Bool -> Maybe a -> Maybe a
+maybeIf True x = x
+maybeIf False _ = Nothing
+{-# INLINE maybeIf #-}
 
 -- -------------------------------------------
 -- String dictionary
@@ -695,12 +720,12 @@ toBeginOfTheDay :: LocalTime -> LocalTime
 toBeginOfTheDay t1 = t1 { localTimeOfDay = midnight }
 {-# INLINE toBeginOfTheDay #-}
 
--- | Return today at midnight. 
+-- | Return today at midnight.
 today :: LocalTime -> LocalTime
 today = toBeginOfTheDay
 {-# INLINE today #-}
 
--- | Return yesterday at midnight. 
+-- | Return yesterday at midnight.
 yesterday :: LocalTime -> LocalTime
 yesterday t1
     = LocalTime {
@@ -709,7 +734,7 @@ yesterday t1
       }
 {-# INLINE yesterday #-}
 
--- | Return tomorrow at midnight. 
+-- | Return tomorrow at midnight.
 tomorrow :: LocalTime -> LocalTime
 tomorrow t1
     = LocalTime {
@@ -918,7 +943,19 @@ multiMap_add :: (Ord k) => MultiMap k v -> k -> v -> MultiMap k v
 multiMap_add map1 k v
   = Map.insertWith (\newValue oldValue -> newValue ++ oldValue) k [v] map1
 
------------------
+-- --------------
+-- List utils
+
+mapAccumLM :: (s -> b -> IO (s, c)) -> s -> [b] -> IO (s, [c])
+mapAccumLM act s1 bs = mapAccumLM' act (s1, []) bs
+ where
+
+  mapAccumLM' _ (s1, cs) [] = return (s1, L.reverse cs)
+  mapAccumLM' act (s1, cs) (b:bs) = do
+    (!s2, !c2) <- act s1 b
+    mapAccumLM' act (s2, c2:cs) bs
+
+-- --------------
 -- CmdParams
 
 -- | Read command-like params from a CSV file.
@@ -930,12 +967,12 @@ cparams_load :: String -> IO CmdParams
 cparams_load fileName = do
   c <- LBS.readFile fileName
   case CSV.decode CSV.NoHeader c of
-    Left err -> error ("Error during decoding of " ++ fileName ++ ": " ++ err) 
+    Left err -> pError ("Error during decoding of " ++ fileName ++ ": " ++ err)
     Right vv -> return $ V.foldl' (\m1 v -> Map.insert (V.head v) (V.last v) m1) Map.empty vv
 
 cparams_get :: CmdParams -> BS.ByteString -> BS.ByteString
 cparams_get pp n = case Map.lookup n pp of
-                     Nothing -> error ("Missing cmd param " ++ fromByteStringToString n ++ " inside " ++ show pp) 
+                     Nothing -> pError ("Missing cmd param " ++ fromByteStringToString n ++ " inside " ++ show pp)
                      Just v -> v
 
 -- --------------------------------------------------
@@ -960,15 +997,25 @@ process_initCores cores = do
 --   Data is processed at chunks because usually calcs in each phase are cheaps,
 --   and the objective is using data on local CPU cache for a while,
 --   before passing to next processing phase.
+--   This in case there are less logical threads than cores.
 type Chunk a = V.Vector a
 
 -- | A stream of Chunks, following the ordered of `process_orderedChunks`.
 --   Nothing when the stream end (EOF)
 type OrderedStream a = MVar (Maybe (Chunk a))
 
+orderedStream_put
+  :: (NFData a)
+  => OrderedStream a -- ^ out channel
+  -> Maybe (Chunk a) -- ^ Nothing for closing the stream
+  -> IO () -- ^ send a DeepSeq.force chunk on the OrderedStream
+
+orderedStream_put out v = putMVar out $ DeepSeq.force v
+{-# INLINE orderedStream_put  #-}
+
 -- | Manage jobs requiring ordered data, ensuring that ordered results will be produced.
 --   The idea is having jobs reading data from an input MVar, and writing the result to another MVar.
---   This function will coordinate these jobs, sending data to process in order, and retrieving results in order. 
+--   This function will coordinate these jobs, sending data to process in order, and retrieving results in order.
 process_orderedChunks
   :: String
      -- ^ process name, for debug reasons
@@ -990,11 +1037,8 @@ process_orderedChunks
   --   @ensure EOF (Nothing) signal can be used from the job for closing resources and calculating final results,
   --   while its output EOF signal is used from the manager job for knowing when all the jobs terminated
   --   their processing.
-  -> (Int -> a -> Bool)
-   -- ^ true if the specified job in the input mvar can consume the piece of input data
-   -- @require input data can be partiotioned and fully consumed from jobs
   -> OrderedStream b
-  -- ^ the final result of the processing chain 
+  -- ^ where the consumer will read the produced data
   -- @ensure it will contain ordered data
   -> Bool
   -- ^ True for propagating the Nothing signal (EOF) to the outChan
@@ -1002,7 +1046,7 @@ process_orderedChunks
   -> IO (V.Vector (Async ()))
   -- ^ the process to close at the end of the work
 
-process_orderedChunks processName inChan inJobsChan outJobsChan partitionFun outChan propagateEOF = do
+process_orderedChunks processName inChan inJobsChan outJobsChan outChan propagateEOF = do
    jobEOF <- newEmptyMVar
    pid1 <- async $ inJob jobEOF 0
    pid2 <- async $ outJob nrOfJobs jobEOF 0
@@ -1011,7 +1055,7 @@ process_orderedChunks processName inChan inJobsChan outJobsChan partitionFun out
   where
 
    nrOfJobs :: Int
-   nrOfJobs = assert (V.length inJobsChan == V.length outJobsChan) $ V.length inJobsChan
+   nrOfJobs = pAssert "ERR 10" (V.length inJobsChan == V.length outJobsChan) $ V.length inJobsChan
    {-# INLINE nrOfJobs #-}
 
    allJobs :: Int -> [Int]
@@ -1023,7 +1067,7 @@ process_orderedChunks processName inChan inJobsChan outJobsChan partitionFun out
    nextPos i = mod (i + 1) nrOfJobs
    {-# INLINE nextPos #-}
 
-   showPos :: Int -> String 
+   showPos :: Int -> String
    showPos i = show (i + 1) ++ "/" ++ show nrOfJobs
 
    -- | A synchronous producers, reading the input data from the unique MVar, and sending to parallel jobs in order.
@@ -1033,11 +1077,10 @@ process_orderedChunks processName inChan inJobsChan outJobsChan partitionFun out
        Just v
          -> do
                -- putStrLn $ processName ++ " inJob: from pos " ++ showPos outPos
-               lastJob <- sendDataToJobs outPos v outPos
-               -- putStrLn $ processName ++ " inJob: to   pos " ++ showPos lastJob
-               inJob jobEOF (nextPos lastJob)
+               putMVar ((V.!) inJobsChan outPos) (Just v)
+               inJob jobEOF (nextPos outPos)
        Nothing
-         -> do 
+         -> do
                M.mapM_ (\i -> putMVar ((V.!) inJobsChan i) Nothing) (allJobs outPos)
                -- putStrLn $ processName ++ " inJob: sent EOF to " ++ show (allJobs outPos)
                waitForLastInJobEOF jobEOF nrOfJobs
@@ -1050,36 +1093,25 @@ process_orderedChunks processName inChan inJobsChan outJobsChan partitionFun out
      mv <- takeMVar ((V.!) outJobsChan outPos)
      case mv of
        Just v
-         -> do 
+         -> do
                putMVar outChan (Just v)
                -- putStrLn $ processName ++ " outJob: processed data " ++ showPos outPos
                outJob activeJobs jobEOF (nextPos outPos)
        Nothing
-         -> do 
+         -> do
                putMVar jobEOF ()
                -- putStrLn $ processName ++ " outPos: processed EOF " ++ showPos outPos
                case activeJobs > 1 of
                  True -> outJob (activeJobs - 1) jobEOF (nextPos outPos)
                  False -> return ()
 
-   -- | Send the data starting from the first free job, and only the data that the job can process (by partitioning).
-   --   Return the last job that have received data to process.
-   sendDataToJobs initialPos jobsData jobPos = do
-     let (jobData, otherData) = V.partition (partitionFun jobPos) jobsData
-     putMVar ((V.!) inJobsChan jobPos) (Just jobData)
-     -- NOTE: send also empty data, for being sure to mantain results ordered
-     case V.null otherData of
-       True -> return jobPos
-       False -> let !np = nextPos jobPos
-                in  sendDataToJobs initialPos otherData (assert (initialPos /= np) np)
-
    -- | Wait all jobs received and processed the Nothing signal, and then send a unique EOF signal on the outChan.
    waitForLastInJobEOF jobEOF activeJobs
      = case activeJobs == 0 of
-         True -> do 
+         True -> do
                     when propagateEOF (putMVar outChan Nothing)
                     -- putStrLn $ processName ++ " all jobs terminated. Sent EOF to the out channel."
-         False -> do 
+         False -> do
                      eofFromJob <- takeMVar jobEOF
                      -- putStrLn $ processName ++ " waiting termination of left jobs " ++ show activeJobs
                      -- NOTE: start processing EOF signals only after the first job produce an EOF
@@ -1095,10 +1127,10 @@ process_orderedChunksUsingFun
   -> Int
   -- ^ the number of processing jobs
   -> (a -> IO b)
-  -- ^ a processing function that can work on any element of any chunk,
-  --   without partition problems
+  -- ^ the processing function
   -> OrderedStream b
-  -- ^ the final result of the processing chain 
+  -- ^ the final result of the processing chain.
+  -- Result will be DeepSeq by default.
   -- @ensure it will contain ordered data
   -> Bool
   -- ^ True for propagating the Nothing signal (EOF) to outChan.
@@ -1107,28 +1139,27 @@ process_orderedChunksUsingFun
      -- ^ the pid to close at the end
 
 process_orderedChunksUsingFun processName inChan nrOfJobs procFun outChan propagateEOF = do
-  inChans :: V.Vector (OrderedStream a) <- V.fromList <$> M.replicateM nrOfJobs newEmptyMVar 
-  outChans :: V.Vector (OrderedStream b) <- V.fromList <$> M.replicateM nrOfJobs newEmptyMVar 
+  inChans :: V.Vector (OrderedStream a) <- V.fromList <$> M.replicateM nrOfJobs newEmptyMVar
+  outChans :: V.Vector (OrderedStream b) <- V.fromList <$> M.replicateM nrOfJobs newEmptyMVar
 
   jobs1 <- V.mapM (\(inJobChan, outJobChan) -> async $ processAll inJobChan outJobChan) (V.zip inChans outChans)
 
-  jobs2 <- process_orderedChunks processName inChan inChans outChans consumeAll outChan propagateEOF
+  jobs2 <- process_orderedChunks processName inChan inChans outChans outChan propagateEOF
 
-  return $ V.concat [jobs1, jobs2] 
+  return $ V.concat [jobs1, jobs2]
 
  where
-
-   consumeAll _ _ = True
 
    processAll inJobChan outJobChan = do
      mv <- takeMVar inJobChan
      case mv of
-       Nothing
-         -> do putMVar outJobChan Nothing
-       Just v
-         -> do v' <- V.mapM procFun v
-               putMVar outJobChan $ DeepSeq.force $ Just v'
-               processAll inJobChan outJobChan 
+       Nothing -> do
+         putMVar outJobChan Nothing
+       Just v -> do
+ 
+         v' <- V.mapM procFun v
+         orderedStream_put outJobChan $ Just v'
+         processAll inJobChan outJobChan
 
 -------------------------
 -- Streams
@@ -1190,58 +1221,6 @@ stream_sequence seed0 generator = do
 -- -----------------------
 -- Brackets
 
--- | Wait termination of all supplied asynchronous operations.
---   The jobs are considered childs of the same parent job,
---   so if one of the job fails raising an exception,
---   other jobs are cancelled.
---   Only the more informative exception is rethrown to the parent thread (i.e. the caller of `waitAll`).
-waitAll
-    :: [Async a]
-    -- ^ wait termination of these jobs
-    -> [Async a]
-    -- ^ do not wait the termination of these jobs,
-    -- but if one of the waiting jobs fail, then cancel also these related jobs
-    -> IO [a]
-waitAll allJobs otherJobs
-  = w allJobs
-
-  where
-
-    w [] = (rights . catMaybes) <$> mapM poll allJobs
-
-    w jobs1
-      = catchAsync
-          (do (job2, _) <- waitAny jobs1
-              let jobs3 = L.filter ((/=) job2) jobs1
-              w jobs3)
-          (\(e :: SomeException)
-               -> do exceptions <- (lefts . catMaybes) <$> mapM poll allJobs
-                     let e3 = foldl' moreSpecificException e exceptions
-                     mapM_ (\j -> do _ :: Either SomeException () <- C.try (cancel j); return ()) $ allJobs ++ otherJobs
-                     throwIO e3)
-
-    moreSpecificException :: SomeException  -> SomeException -> SomeException
-    moreSpecificException exc1 exc2
-      = case cast (toException exc1) of
-          Just (_ :: AssertionFailed)
-            -> exc1
-          Nothing
-            -> case cast  (toException exc2) of
-                 Just (_ :: BlockedIndefinitelyOnMVar)
-                   -> exc1
-                 Nothing
-                   -> case cast (toException exc2) of
-                        Just (_ :: BlockedIndefinitelyOnSTM)
-                          -> exc1
-                        Nothing
-                          -> case cast (toException exc2) of
-                               Just (_ :: AssertionFailed)
-                                 -> exc2
-                               Nothing
-                                 -> if isSyncException exc2 then exc2 else exc1
-                                    -- NOTE: async exceptions are generated from external threads,
-                                    -- so they are less informative than synchronous exceptions.
-
 -- | Acquire a resource, process, and release the resource in case of synchrounous or asynchronous exceptions.
 --   Exceptions are always re-thrown, but only synchronous exceptions (i.e error inside the processing phase)
 --   can be enriched with informative messages to the user, while asynchronous exceptions (i.e. requests of interruption from the outside)
@@ -1265,7 +1244,7 @@ withResource
       -- ^ the exception to thrown, meant to contain more informative messages respect the initial exception
      )
   -> m a
-  -- ^ the result of the processing, or an exception 
+  -- ^ the result of the processing, or an exception
 
 withResource acquire process release informativeException = do
     !maybeResource <- C.try acquire
@@ -1294,14 +1273,14 @@ withResource'
       -- ^ the resource to release
       -> m ())
   -> (SomeException
-      -- ^ the original synchronous exception (i.e. an error inside the processing phase) 
+      -- ^ the original synchronous exception (i.e. an error inside the processing phase)
       -> SomeException
       -- ^ the exception to throw, meant to contain more informative messages respect the initial exception
      )
   -> m a
 
 withResource' acquire process release informativeError
-    = withResource acquire (\b -> do !r <- process b; return $ DeepSeq.force r) release informativeError 
+    = withResource acquire (\b -> do !r <- process b; return $ DeepSeq.force r) release informativeError
 
 -- | Like `withResource'` but the resources are closed only in case of error in the computation.
 withResource''
@@ -1313,7 +1292,7 @@ withResource''
   -> (b -- ^ the resource to release in case of error
       -> m ())
   -> (SomeException
-      -- ^ the original synchronous exception (i.e. an error inside the processing phase) 
+      -- ^ the original synchronous exception (i.e. an error inside the processing phase)
       -> SomeException
       -- ^ the exception to throw, meant to contain more informative messages respect the initial exception
      )

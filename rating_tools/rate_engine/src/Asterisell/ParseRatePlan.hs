@@ -1,15 +1,11 @@
 {-# LANGUAGE ScopedTypeVariables, BangPatterns, OverloadedStrings, QuasiQuotes #-}
 
 -- SPDX-License-Identifier: GPL-3.0-or-later
+-- Copyright (C) 2009-2019 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
 
-
--- | Support the MainRatePlan format.
+-- | Parse the Asterisell rate-plan DSL.
 --
---   The main rate plan is a configuration language,
---   for combining different specific rates, and it is executed
---   for rating the CDRs.
---
-module Asterisell.MainRatePlan(
+module Asterisell.ParseRatePlan(
     mainRatePlanParser
   , tt_rateSpecificationsTests
   , test_interactiveDebug
@@ -34,8 +30,8 @@ import Data.Char
 import Data.Either
 import Data.Ratio
 import Data.Ord as Ord
-import qualified Data.Map as Map
-import qualified Data.IntMap as IMap
+import qualified Data.Map.Strict as Map
+import qualified Data.IntMap.Strict as IMap
 import qualified Data.ByteString.Lazy as LBS
 import qualified Data.ByteString as BS
 import Data.Text.Encoding as Text
@@ -53,11 +49,9 @@ import Text.Heredoc
 import Control.Monad
 import Data.Time.LocalTime
 
-------------------------------------
--- PARSE MAIN RATE SPECIFICATIONS --
-------------------------------------
--- See the PHP web interface for a description of the rate format.
--- or /apps/asterisell/lib/jobs/admin/InitRateFormats.php
+--------------------------------------------
+-- Parse a DSL for rating CDRS.
+-- The language is specified in the manual.
 
 mainRatePlanParser :: RatingParams -> BS.ByteString -> Either String MainRatePlan
 mainRatePlanParser env rateContent
@@ -79,7 +73,7 @@ mainRatePlanParser_parse env
        rates :: [Either RootBundleRatePlan RatePlan]
          <- Parsec.many1 $ do
              p_spacesAndComments
-             (Right <$> p_rateOrClassPlan False env) <|> (Left <$> p_rootBundleRate False env)
+             (Right <$> p_ratePlan False env) <|> (Left <$> p_rootBundleRate False env)
 
        Parsec.eof
 
@@ -100,46 +94,36 @@ mainRatePlanParser_parse env
          Right r
            -> return r
 
-p_spacesAndComments :: Parsec.Parser ()
-p_spacesAndComments = do
-  p_freeSpaces
-  _ <- Parsec.many p_comment
-  p_freeSpaces
-  return ()
-
 -- | Used for specifying different types of rates.
-p_rateOrClassPlan :: Bool -> RatingParams -> Parsec.Parser RatePlan
-p_rateOrClassPlan withComments env
+p_ratePlan :: Bool -> RatingParams -> Parsec.Parser RatePlan
+p_ratePlan withComments env
   = do
        case withComments of
          True -> p_spacesAndComments
          False -> return ()
 
-       isExternalRate
-         <-     (do p_symbol "rate"
-                    return False)
-            <|> (do p_symbol "external-rate"
-                    return True)
+       p_symbol "rate"
 
        p_beginDef
 
        id <- p_id
 
-       children <- case isExternalRate of
-                     True
-                       -> do p_symbol "use:"
-                             v <- p_referenceNameValue
-                             return $ Left v
-                     False
-                       -> return $ Right []
-
        filters <- p_filters env True
+
+       bundleParams
+         <- Parsec.option Nothing $ do
+              v <- p_bundleParams env
+              return $ Just v
+
+       externalRateRef
+         <- Parsec.option Nothing $ do
+              p_symbol "use:"
+              v <- p_referenceNameValue
+              return $ Just v
+ 
        calcParams <- p_commonCalcParams
 
-       children <- case isExternalRate of
-                     True -> return children
-                     False -> do r <- Parsec.many (p_rateOrClassPlan True env)
-                                 return $ Right r
+       children <- Parsec.many (p_ratePlan True env)
 
        p_endDef
        p_freeSpaces
@@ -148,25 +132,23 @@ p_rateOrClassPlan withComments env
          <- Parsec.option [] $ do
               p_symbol "else"
               p_beginDef
-              elseRates <- Parsec.many1 $ p_rateOrClassPlan True env
+              elseRates <- Parsec.many1 $ p_ratePlan True env
               p_endDef
               return elseRates
 
        Parsec.many p_comment
        p_freeSpaces
 
-       let params
-             = RateParams {
-                 rate_userId = id
-               , rate_match = matchFun_create filters calcParams
-               }
-
        let plan
              = RatePlan {
-                 rate_systemId = 0
-               , rate_params = params
-               , rate_children = children
+                 rate_userId = id
+               , rate_systemId = 0
+               , rate_parentSystemId = Nothing
+               , rate_matchBeforeUse = matchFun_create filters calcParams
+               , rate_use = externalRateRef
+               , rate_bundleParams = bundleParams
                , rate_elsePart = elsePart
+               , rate_children = children
                }
 
        return plan
@@ -178,7 +160,7 @@ p_rootBundleRate withSpacesAndComments env
          True -> p_spacesAndComments
          False -> return ()
 
-       p_symbol "bundle-rate"
+       p_symbol "bundle"
        p_beginDef
        id <- p_id
 
@@ -202,65 +184,33 @@ p_rootBundleRate withSpacesAndComments env
        p_symbol "apply-for-each:"
        priceCategories <- p_referenceList "price category" (fst $ params_rateCategories env)
 
-       leftCalls <- p_maybeInt "none" "limit-on-first-calls:"
-       leftDuration <- p_maybeInt "none" "limit-on-first-seconds:"
-
        p_symbol "limits-are-proportionals-to-activation-date:"
        proportionalLimits <- p_bool
-
-       p_symbol "calls-can-be-split:"
-       callsCanBeSplit <- p_bool
 
        p_symbol "only-for-calls-with-a-cost:"
        onlyForCallsWithACost <- p_bool
 
-       bundleInitialCost <- p_moneyParamOrDefaultValue "set-bundle-initial-cost:" 0
+       bundleInitialCost <- p_moneyParamOrDefaultValue "bundle-cost:" 0
 
        filters <- p_filters env False
-       calcParams <- p_commonCalcParams
-
-       children
-         <- do r <- Parsec.many (p_bundleRatePlan env)
-               return $ Right r
+       plans <- Parsec.many1 (p_ratePlan True env)  
 
        p_endDef
        p_freeSpaces
        Parsec.many p_comment
        p_freeSpaces
 
-       let params
-             = RateParams {
-                 rate_userId = id
-               , rate_match = matchFun_create filters calcParams
-               }
-
-       let bundleParams
-             = BundleParams {
-                 bundle_initialCost = bundleInitialCost
-               , bundle_leftCalls = leftCalls
-               , bundle_leftDuration = leftDuration
-               , bundle_leftCost = Nothing
-               , bundle_appliedCost = 0
-               }
-
-       let plan
-             = BundleRatePlan {
-                 bundle_systemId = 0
-               , bundle_rateParams = params
-               , bundle_bundleParams = bundleParams
-               , bundle_children = children
-                      }
-
        let rootPlan
              = RootBundleRatePlan {
-                 bundle_serviceCDRType = serviceCdrType
+                 bundle_userId = id
+               , bundle_serviceCDRType = serviceCdrType
                , bundle_serviceCDRDescription = serviceCdrDescription
                , bundle_timeFrame = schedule
                , bundle_priceCategoryIds = priceCategories
                , bundle_limitsAreProportionalsToActivationDate = proportionalLimits
-               , bundle_canSplit = callsCanBeSplit
                , bundle_onlyForCallsWithACost = onlyForCallsWithACost
-               , bundle_plan = plan
+               , bundle_children = plans
+               , bundle_initialCost = bundleInitialCost
                }
 
        return rootPlan
@@ -317,66 +267,108 @@ p_rootBundleRate withSpacesAndComments env
   p_dayOfWeek _ []
     = fail "Unrecognized day of week"
 
--- REFACTORING: join the code in common beetween p_rootBundleRate and p_bundleRatePlan
+p_bundleParams :: RatingParams -> Parsec.Parser BundleParams
+p_bundleParams env = do
+  leftCalls <- p_maybeIntOrNothing "none" "limit-on-first-calls:"
+  leftDuration <- p_maybeIntOrNothing "none" "limit-on-first-seconds:"
+  return $ bundleParams_empty {
+               bundle_leftCalls = leftCalls
+             , bundle_leftDuration = leftDuration
+             }
 
-p_bundleRatePlan :: RatingParams -> Parsec.Parser BundleRatePlan
-p_bundleRatePlan env
-  = do p_freeSpaces
-       Parsec.many p_comment
-       p_freeSpaces
+p_commonCalcParams :: Parsec.Parser CalcParams
+p_commonCalcParams
+  = do params <- return calcParams_empty
 
-       isExternalRate
-         <- (do p_symbol "rate"
-                return (False))
-            <|> (do p_symbol "external-rate"
-                    return (True))
-       p_beginDef
+       params <- (do r <- integerValue "set-free-seconds:"
+                     return $ params { calcParams_freeSecondsAfterCostOnCall = r }
+                 ) <|> return params
 
-       id <- p_id
-       filters <- p_filters env False
-       leftCalls <- p_maybeIntOrNothing "none" "limit-on-first-calls:"
-       leftDuration <- p_maybeIntOrNothing "none" "limit-on-first-seconds:"
-       bundleInitialCost <- p_moneyParamOrDefaultValue "set-bundle-initial-cost:" 0.0
-       calcParams <- p_commonCalcParams
-       children <- case isExternalRate of
-                     True
-                       -> do p_symbol "use:"
-                             v <- p_referenceNameValue
-                             return $ Left v
-                     False
-                       -> do r <- Parsec.many (p_bundleRatePlan env)
-                             return $ Right r
+       params <- (do r <- maybeIntegerValue "set-duration-discrete-increments:"
+                     return $ params { calcParams_durationDiscreteIncrements = r }
+                 ) <|> return params
 
-       p_endDef
-       p_freeSpaces
-       Parsec.many p_comment
-       p_freeSpaces
+       params <- (do r <- integerValue "set-at-least-seconds:"
+                     return $ params { calcParams_atLeastXSeconds = r }
+                 ) <|> return params
 
-       let params
-             = RateParams {
-                 rate_userId = id
-               , rate_match = matchFun_create filters calcParams
-               }
+       params <- (do r <- monetaryValueOrImported "set-cost-on-call:"
+                     return $ params { calcParams_costOnCall = r }
+                 ) <|> return params
 
-       let bundleParams
-             = BundleParams {
-                 bundle_initialCost = bundleInitialCost
-               , bundle_leftCalls = leftCalls
-               , bundle_leftDuration = leftDuration
-               , bundle_leftCost = Nothing
-               , bundle_appliedCost = 0
-               }
+       params <- (do r <- monetaryValue "set-cost-for-minute:"
+                     return $ params { calcParams_costForMinute = r }
+                 ) <|> return params
 
-       let plan
-             = BundleRatePlan {
-                 bundle_systemId = 0
-               , bundle_rateParams = params
-               , bundle_bundleParams = bundleParams
-               , bundle_children = children
-                      }
+       params <- (do r <- maybeMonetaryValue "set-max-cost-of-call:"
+                     return $ params { calcParams_maxCostOfCall = r }
+                 ) <|> return params
 
-       return plan
+       params <- (do r <- maybeMonetaryValue "set-min-cost-of-call:"
+                     return $ params { calcParams_minCostOfCall = r }
+                 ) <|> return params
 
+       params <- (do r <- maybeIntegerValue "set-round-to-decimal-digits:"
+                     return $ params { calcParams_roundToDecimalDigits = r }
+                 ) <|> return params
+
+       params <- (do r <- maybeIntegerValue "set-ceil-to-decimal-digits:"
+                     return $ params { calcParams_ceilToDecimalDigits = r }
+                 ) <|> return params
+
+       params <- (do r <- maybeIntegerValue "set-floor-to-decimal-digits:"
+                     return $ params { calcParams_floorToDecimalDigits = r }
+                 ) <|> return params
+
+       return params
+
+ where
+
+  integerValue name
+    = do p_symbol name
+         p_thisOrParentOrValue p_integer
+
+  floatValue name = monetaryValue name
+
+  monetaryValueOrImported name
+    = do p_symbol name
+         p_thisOrParentOrValue ((do p_symbol "imported"
+                                    return $ RateCost_imported)
+                                <|> (do p_symbol "expected"
+                                        return $ RateCost_expected)
+                                <|> (do v <- p_float
+                                        return $ RateCost_cost v))
+
+  monetaryValue name
+    = do p_symbol name
+         p_thisOrParentOrValue p_float
+
+  referenceValue name
+    = do p_symbol name
+         p_thisOrParentOrValue p_referenceNameValue
+
+  maybeMonetaryValue name
+    = do r <- monetaryValue name
+         return $ toMaybeValue r
+
+  maybeIntegerValue name
+    = do r <- integerValue name
+         return $ toMaybeValue r
+
+  toMaybeValue mv
+    = case mv of
+        Nothing -> Nothing
+        Just v -> Just $ Just v
+
+----------------------------------
+-- Low level parsing 
+
+p_spacesAndComments :: Parsec.Parser ()
+p_spacesAndComments = do
+  p_freeSpaces
+  _ <- Parsec.many p_comment
+  p_freeSpaces
+  return ()
 
 p_intParamOrDefaultValue :: Text -> Int -> Parsec.Parser Int
 p_intParamOrDefaultValue name d
@@ -545,90 +537,6 @@ p_reference errorSubject dictionary
   expectedValues
     = Text.concat $ List.intersperse "," (Map.keys dictionary)
 
-p_commonCalcParams :: Parsec.Parser CalcParams
-p_commonCalcParams
-  = do params <- return calcParams_empty
-
-       params <- (do r <- integerValue "set-free-seconds:"
-                     return $ params { calcParams_freeSecondsAfterCostOnCall = r }
-                 ) <|> return params
-
-       params <- (do r <- maybeIntegerValue "set-duration-discrete-increments:"
-                     return $ params { calcParams_durationDiscreteIncrements = r }
-                 ) <|> return params
-
-       params <- (do r <- integerValue "set-at-least-seconds:"
-                     return $ params { calcParams_atLeastXSeconds = r }
-                 ) <|> return params
-
-       params <- (do r <- monetaryValueOrImported "set-cost-on-call:"
-                     return $ params { calcParams_costOnCall = r }
-                 ) <|> return params
-
-       params <- (do r <- monetaryValue "set-cost-for-minute:"
-                     return $ params { calcParams_costForMinute = r }
-                 ) <|> return params
-
-       params <- (do r <- maybeMonetaryValue "set-max-cost-of-call:"
-                     return $ params { calcParams_maxCostOfCall = r }
-                 ) <|> return params
-
-       params <- (do r <- maybeMonetaryValue "set-min-cost-of-call:"
-                     return $ params { calcParams_minCostOfCall = r }
-                 ) <|> return params
-
-       params <- (do r <- maybeIntegerValue "set-round-to-decimal-digits:"
-                     return $ params { calcParams_roundToDecimalDigits = r }
-                 ) <|> return params
-
-       params <- (do r <- maybeIntegerValue "set-ceil-to-decimal-digits:"
-                     return $ params { calcParams_ceilToDecimalDigits = r }
-                 ) <|> return params
-
-       params <- (do r <- maybeIntegerValue "set-floor-to-decimal-digits:"
-                     return $ params { calcParams_floorToDecimalDigits = r }
-                 ) <|> return params
-
-       return params
-
- where
-
-  integerValue name
-    = do p_symbol name
-         p_thisOrParentOrValue p_integer
-
-  floatValue name = monetaryValue name
-
-  monetaryValueOrImported name
-    = do p_symbol name
-         p_thisOrParentOrValue ((do p_symbol "imported"
-                                    return $ RateCost_imported)
-                                <|> (do p_symbol "expected"
-                                        return $ RateCost_expected)
-                                <|> (do v <- p_float
-                                        return $ RateCost_cost v))
-
-  monetaryValue name
-    = do p_symbol name
-         p_thisOrParentOrValue p_float
-
-  referenceValue name
-    = do p_symbol name
-         p_thisOrParentOrValue p_referenceNameValue
-
-  maybeMonetaryValue name
-    = do r <- monetaryValue name
-         return $ toMaybeValue r
-
-  maybeIntegerValue name
-    = do r <- integerValue name
-         return $ toMaybeValue r
-
-  toMaybeValue mv
-    = case mv of
-        Nothing -> Nothing
-        Just v -> Just $ Just v
-
 p_direction
   = do p_symbol "incoming"
        p_nl
@@ -674,7 +582,7 @@ p_telephoneNumbers = do
   return $ List.map fromByteStringToText $ extensionCodes_extractFromUserSpecification line
 
 p_thisOrParentOrValue valueParser
-  = do r <- (do  r <- p_symbol "parent" <|> p_symbol "this"
+  = do r <- (do  r <- p_symbol "parent" <|> p_symbol "external"
                  p_nl
                  return Nothing
             ) <|> (Just <$> valueParser)
@@ -772,9 +680,8 @@ p_symbol name
                    return ()
                )
 
-----------------
--- UNIT TESTS --
-----------------
+------------------------------------------
+-- Unit tests
 
 -- | Some tests activable using --debug option for seeing the result, but without testing explicitely.
 test_interactiveDebug :: IO ()
@@ -785,6 +692,8 @@ test_interactiveDebug :: IO ()
        showParsingResult case3 bundleState2
 
  where
+
+  bundleState_empty = (Nothing, IMap.empty)
 
   -- TODO test if CDRS with empty channels or similar ar rated, or a correct error is signaled
 
@@ -811,7 +720,7 @@ test_interactiveDebug :: IO ()
          let mainRate :: MainRatePlan
                = case Parsec.runP (mainRatePlanParser_parse env) () "" (Text.pack rateContent) of
                    Left err
-                     -> error (show err) 
+                     -> pError (show err) 
                    Right r
                      -> r
 
@@ -865,7 +774,7 @@ rate {
 |]
 
   case3 = [here|
-bundle-rate {
+bundle {
   id: bundle-demo-1
 
   service-cdr-description: 10 free weekly calls
@@ -877,33 +786,24 @@ bundle-rate {
   limit-on-first-calls: 10
   limit-on-first-seconds: none
   limits-are-proportionals-to-activation-date: true
-  calls-can-be-split: false
   only-for-calls-with-a-cost: true
 
-  set-bundle-initial-cost: 10
-  set-bundle-min-cost: 0
-
-  match-call-direction: outgoing
+  bundle-cost: 10
 
   rate {
     id: free
+    match-call-direction: outgoing
     set-cost-on-call: 0
   }
 }
 
 rate {
   id: normal
-
   match-call-direction: outgoing
+
+  use: csv-1
   set-cost-on-call: 0.1
-
-  external-rate {
-    id: csv-1
-      use: csv-1
-
-      set-cost-on-call: parent
-      set-cost-for-minute: this
-  }
+  set-cost-for-minute: external
 }
 
 rate {
@@ -929,15 +829,9 @@ rate {
 
     match-call-direction: outgoing
 
+    use: csv-1
     set-cost-on-call: 0.1
-
-    external-rate {
-      id: csv-1
-      use: csv-1
-
-      set-cost-on-call: parent
-      set-cost-for-minute: this
-    }
+    set-cost-for-minute: external
   }
 
   rate {
@@ -1046,7 +940,7 @@ rate {
   }
 }
 
-bundle-rate {
+bundle {
   id: cooptel-1
 
   service-cdr-type: Canone Fisso
@@ -1056,21 +950,17 @@ bundle-rate {
   schedule-from: 1
   apply-for-each: price-A
 
-  limit-on-first-calls: none
-  limit-on-first-seconds: none
-
   limits-are-proportionals-to-activation-date: true
-  calls-can-be-split: false
   only-for-calls-with-a-cost: true
 
-  set-bundle-initial-cost: 25
+  bundle-cost: 25
 
   rate {
-    id: fixed-line1
-    match-communication-channel: local
-    match-telephone-number: 39*
-    limit-on-first-seconds: 7200
-    # 120 minuti
+      id: fixed-line1
+      match-communication-channel: local
+      match-telephone-number: 39*
+      limit-on-first-seconds: 7200
+      # 120 minuti
   }
 
   rate {
@@ -1087,7 +977,7 @@ bundle-rate {
   case2 = [here|
 # Test bundle rate before rate and different orders
 
-bundle-rate {
+bundle {
   id: cooptel-1
 
   service-cdr-type: Canone Fisso
@@ -1097,14 +987,10 @@ bundle-rate {
   schedule-from: 1
   apply-for-each: price-A
 
-  limit-on-first-calls: none
-  limit-on-first-seconds: none
-
   limits-are-proportionals-to-activation-date: true
-  calls-can-be-split: false
   only-for-calls-with-a-cost: true
 
-  set-bundle-initial-cost: 25
+  bundle-cost: 25
 
   rate {
     id: fixed-line1
@@ -1161,7 +1047,7 @@ rate {
   }
 }
 
-bundle-rate {
+bundle {
   id: cooptel-2
 
   service-cdr-type: Canone Fisso
@@ -1171,14 +1057,10 @@ bundle-rate {
   schedule-from: 1
   apply-for-each: price-A
 
-  limit-on-first-calls: none
-  limit-on-first-seconds: none
-
   limits-are-proportionals-to-activation-date: true
-  calls-can-be-split: false
   only-for-calls-with-a-cost: true
 
-  set-bundle-initial-cost: 25
+  bundle-cost: 25
 
   rate {
     id: fixed-line1

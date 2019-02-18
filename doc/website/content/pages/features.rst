@@ -8,7 +8,7 @@ Specify rating plans using a powerful domain specific language.
 
 Group customers or extensions into distinct price list categories.
 
-Change rates, and price lists assignments over time.
+Change rates and price lists assignments over time.
 
 Support for bundle rates, and number portability.
 
@@ -22,17 +22,10 @@ Support for bundle rates, and number portability.
     rate {
       id: wholesale
       match-price-category: wholesale
-      # this part of rate plan is applicable
-      # only to customers in "wholesale" category.
   
-      external-rate {
-        # this is an external CSV file,
-        # where each line has a telephone prefix
-        # and a related cost.
-        id: wholesale
-        use: sell-wholesale
-        set-cost-for-minute: this
-      }
+      use: sell-wholesale
+      set-cost-for-minute: external
+      # use the cost on the CSV `sell-wholesale` file
     }
   }
 
@@ -76,7 +69,7 @@ Stats about unrated calls.
 Enable Resellers
 ----------------
 
-Resellers sell VoIP calls to their customers, but using your VoIP infrastructure behind the scene.
+Resellers sell VoIP calls to their customers but using your VoIP infrastructure behind the scene.
 
 |provider_reseller|
 
@@ -85,7 +78,7 @@ Install on Private Servers
 
 Install Asterisell on your private servers.
 
-You can customize nearly any aspect of the application, because you will receive application source code, and CDRs processing is based on customizable jobs.
+You can customize nearly any aspect of the application because you will receive application source code, and CDRs processing is based on customizable jobs.
 
 ::
 
@@ -185,17 +178,17 @@ Other features
 
 - fast rating engine:
 
-  - 8500 CDRS/s on dedicated fast host: 4 cores, 8GB RAM, 2xSSD
-  - 4300 CDRS/s on shared cloud host: 1 core, 2GB RAM, SSD
-  - 2600 CDRS/s on host with slow HDD 
+  - 8000 CDRS/s on dedicated fast host: 4 cores, 8GB RAM, 2xSSD
+  - 4200 CDRS/s on shared cloud host: 1 core, 2GB RAM, SSD
+  - 2400 CDRS/s on host with slow HDD 
 
 - it uses TokuDB engine:
 
-  - CDRS are saved in compressed state
+  - CDRS are saved in a compressed state
   - SSD/HDD friendly because it performs a lot of sequential writes
   - performances do not degrade in case of a lot of data, but they remain constant, because all nodes of the btree are written in full state, not only leafs
 
-- it pre-calculates daily grouped totals for CDRS, in order to speedup the Web user-interface, and common filters on data
+- it pre-calculates daily grouped totals for CDRS, in order to speed up the Web user-interface, and common filters on data
 - it can manage millions of monthly CDRS
 - it can store in a compressed way millions of ported telephone numbers
 - it imports and rates CDRS in an incremental way (also for rates with a bundle-state)
@@ -208,4 +201,4 @@ Why not using Asterisell
 
 - the Web UI is dated
 - it supports (up to date) only post-paid invoices
-- during processing it loads customer data into RAM, so it can not scale to 100000 (100K) customers 
+- it can not scale to 100000 (100K) customers because it loads customer data into RAM during the rating process 

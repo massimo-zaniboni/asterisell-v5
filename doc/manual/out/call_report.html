@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml">
    <head><meta charset="UTF-8" />
-      <title>Call report</title><link href="res/webhelp.css" rel="stylesheet" type="text/css" /><meta content="XMLmind DITA Converter 3.3.0" name="generator" />
+      <title>Call report</title><link href="res/webhelp.css" rel="stylesheet" type="text/css" /><meta content="XMLmind DITA Converter 3.3.1" name="generator" />
    <script charset="UTF-8" defer="defer" src="_wh/snowball_en.min.js" type="text/javascript"></script><link href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/themes/smoothness/jquery-ui.css" rel="stylesheet" type="text/css" /><link href="_wh/wh.css" rel="stylesheet" type="text/css" /><script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js" type="text/javascript">
     </script><script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js" type="text/javascript">
     </script><script charset="UTF-8" src="_wh/wh.min.js" type="text/javascript">
@@ -58,7 +58,7 @@
       <section class="topic" id="Call_report">
          <h2 class="section2-title">Call report</h2>
          <div class="body">
-            <section class="section" id="Call_report__I_fh71kz_">
+            <section class="section" id="Call_report__I_uorjct_">
                <h3 class="section-title">Recent calls</h3>
                <div class="p">Recent calls are the calls that are not yet billed to customers, as specified in <code class="codeph">Params-&gt;Official Call Date</code>.
                </div>
@@ -73,20 +73,20 @@
                   time you change some param.
                </div>
             </section>
-            <section class="section" id="Call_report__I_u0504j_">
+            <section class="section" id="Call_report__I_4a58jd_">
                <h3 class="section-title">Sorting</h3>
                <div class="p">CDRs can be sorted on various columns, but the only guarantee fast sorting method
                   is on calldate, because it can take advantage of fast indexes. Sorting on other columns
                   will be a lot slow in case there are many CDRS.
                </div>
             </section>
-            <section class="section" id="Call_report__I_vja9gu_">
+            <section class="section" id="Call_report__I_pwxbiu_">
                <h3 class="section-title">Debugging rate CDRS</h3>
                <div class="p">The admin (and only the admin) can click on calls cost/income field, for inspecting
                   the rating details. More details are present if CDRS are rated in debug mode.
                </div>
             </section>
-            <section class="section" id="Call_report__I_9fzj56_">
+            <section class="section" id="Call_report__I_ikbbks_">
                <h3 class="section-title">System calls</h3>
                <div class="p">System calls are associated to internal services/costs. Usually they are used for
                   managing system related services/costs, like services imported from <a class="xref" href="manual-6.html#Vendor">Vendor</a>.
@@ -95,7 +95,7 @@
                   as specified in the <a class="xref" href="manual-6.html#Instances_configuration_file">Instances configuration file</a>.
                </div>
             </section>
-            <section class="section" id="Call_report__I_sc7u5w_">
+            <section class="section" id="Call_report__I_ni2dcl_">
                <h3 class="section-title">Cost Precision</h3>
                <div class="p">Costs are displayed using the default currency precision but they are stored (and
                   summed) using full precision, as specified in the <a class="xref" href="manual-6.html#Instances_configuration_file">Instances configuration file</a>.
@@ -105,8 +105,8 @@
          </div>
          <nav class="related-links">
             <h3 class="related-links-title">Related information</h3>
-            <p class="link">‣ <a href="bundle-rate-specification-language.html#Bundle_rates_specification_language" title="A bundle-rate is a way to rate a group of calls, while certain limits are respected. After the limits are reached, the bundle-rate can not be anymore applied, and normal rates are applied to next calls.">Bundle rates specification language</a></p>
-            <p class="link">‣ <a href="rate-specification-language.html#Rate_specification_language" title="Main rate plan are specified using a domain-specific language, describing the high-level details of a rating-plan in a compact and readable way.">Rate specification language</a></p>
+            <p class="link">‣ <a href="bundle-rate-specification-language.html#Bundl_rates" title="Bundle-rates rate calls using a special rate, until certain conditions are respected. Then normal rates are applied.">Bundl rates</a></p>
+            <p class="link">‣ <a href="rate-specification-language.html#Rate_specification_language" title="Main rate plan are specified using a domain-specific language: the rate plan captures the high level logic, while price details are on external data (CSV) rates, that can be frequently updated.">Rate specification language</a></p>
             <p class="link">‣ <a href="rate-plan-example.html#CSV_rate_plan_example" title="This is a CSV rate, with prices specified by minute, and applied by second. The prices are in Italian format: with “,” as decimal separator.">CSV rate plan example</a></p>
             <p class="link">‣ <a href="debug-cdrs-rating.html#Debug_rating_process">Debug rating process</a></p>
          </nav>

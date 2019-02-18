@@ -1,6 +1,7 @@
 {-# LANGUAGE FlexibleInstances, ScopedTypeVariables, BangPatterns, OverloadedStrings, ExistentialQuantification, DeriveGeneric, DeriveAnyClass, RankNTypes, QuasiQuotes #-}
 
 -- SPDX-License-Identifier: GPL-3.0-or-later
+-- Copyright (C) 2009-2019 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
 
 -- | Import CDRS from external files or external databases inside `ar_source_cdr` table.
 --   Signal only problems about callDate, because all other problems will be reported
@@ -47,6 +48,7 @@ import Text.Heredoc
 import qualified Data.Csv as CSV
 import Control.Concurrent.Async
 import System.IO
+import Data.Either
 
 -- ---------------------------------
 -- Params
@@ -186,7 +188,7 @@ rateEngine_importDataFile
            -> do stream2 <- S.splitOn (\c -> c == '\n' || c == '\r') stream1
                  stream3 <- S.filter (\s -> not $ BS.null s) stream2
                  return stream3
-         _ -> error "Parsing of CSV files with new lines inside quoted fields is not yet supported by the application. Contact the assistance. "
+         _ -> pError "Parsing of CSV files with new lines inside quoted fields is not yet supported by the application. Contact the assistance. "
 
    createImportError e
      = SomeException $ AsterisellException $ "There is an error during the importing of file \"" ++ inputFile ++ "\". " ++ (displayException e)
@@ -261,7 +263,7 @@ rateEngine_importFromMySQLDB
               [] -> 0
               [[DB.MySQLNull]] -> 0
               [[v]] -> fromDBInt v
-              _ -> error "ERR 5203: unexpeted result"
+              _ -> pError "ERR 5203: unexpeted result"
     DB.close conn
 
     withResource'
@@ -305,7 +307,8 @@ rateEngine_importFromMySQLDB
                                return ())
 
 
-          _ <- waitAll [job1, job2] []
+          _ <- wait job1
+          _ <- wait job2
           return r)
       (\_ remoteConn -> DB.close remoteConn)
       (createImportError)
@@ -414,10 +417,10 @@ rateEngine_importIntoDB
    let pipeName = BS.concat ["/var/tmp/import_raw_cdrs_pipe__", dbConf_dbName dbConf]
 
    withResource'
-     (do conn <- db_openConnection dbConf False
-         db_openTransaction conn
-         return conn)
-     (\conn -> do
+    (db_init dbConf Nothing precision)
+    (\dbState -> do
+       let conn = fromRight (error "err 2553") $ dbps_conn dbState
+       db_openTransaction conn
 
        when isStatusFile (db_deleteFromArSource conn formatTypeId providerId maybeStatusTimeFrame)
 
@@ -428,7 +431,7 @@ rateEngine_importIntoDB
 
        (rawCDRSChan, writeToDBProcess)
          <- db_loadDataFromNamedPipe
-              (Right conn)
+              dbState
               pipeName
               "ar_source_cdr"
               sourceCDR_mysqlCSVLoadCmd
@@ -445,8 +448,10 @@ rateEngine_importIntoDB
          !r <- S.foldM (\ (!s) (!cdr) -> sendToDB rawCDRSChan s cdr) (callDate0, summaryInfo0) inStream2
 
          putMVar rawCDRSChan Nothing
-         _ <- waitAll (V.toList writeToDBProcess) []
+         V.mapM_ wait writeToDBProcess
          return $ DeepSeq.force r
+
+       _ <- takeMVar $ dbps_semaphore dbState
 
        -- Update the rating frame again.
        case linesWithErrors > correctLines of
@@ -459,12 +464,19 @@ rateEngine_importIntoDB
                        Nothing -> do return ()
                        Just (rateFromCallDate, _) -> db_updateRatingTimeFrame conn rateFromCallDate
 
+       putMVar (dbps_semaphore dbState) ()                                                     
+
        commitAction conn
 
        return summaryInfo)
-     (\isOk conn -> do
-         db_releaseResource isOk conn)
-     (createImportError)
+    (\isOk dbState -> do
+       when (not isOk) $ do
+         tryPutMVar (dbps_semaphore dbState) ()
+         return ()
+         -- NOTE: in case of interrupted processing, there can be no ownership in the DB,
+         -- so force it
+       db_releaseResourceR isOk dbState)
+    (createImportError)
 
  where
 

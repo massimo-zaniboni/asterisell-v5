@@ -17,7 +17,7 @@ back-ported to the OSS repository.
 
 ## Current status
 
-Asterisell is used in production from 2007.
+Asterisell is used in production from 2009. 
 
 Asterisell v5 is used in production from 2015, and it can be considered
 a stable and tested application.

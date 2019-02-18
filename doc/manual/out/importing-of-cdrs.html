@@ -2,7 +2,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml">
    <head><meta charset="UTF-8" />
       <title>Importing of CDRS</title><link href="res/webhelp.css" rel="stylesheet" type="text/css" /><meta content="Every source of CDRS is configured as a distinct CDRs provider inside the Web UI in Params-&gt;CDRs Providers." name="description" />
-      <meta content="XMLmind DITA Converter 3.3.0" name="generator" />
+      <meta content="XMLmind DITA Converter 3.3.1" name="generator" />
    <script charset="UTF-8" defer="defer" src="_wh/snowball_en.min.js" type="text/javascript"></script><link href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/themes/smoothness/jquery-ui.css" rel="stylesheet" type="text/css" /><link href="_wh/wh.css" rel="stylesheet" type="text/css" /><script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js" type="text/javascript">
     </script><script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js" type="text/javascript">
     </script><script charset="UTF-8" src="_wh/wh.min.js" type="text/javascript">
@@ -61,7 +61,7 @@
          <p class="shortdesc">Every source of CDRS is configured as a distinct <a class="xref" href="cdrs-provider.html#CDRs_provider">CDRs provider</a> inside the Web UI in <code class="codeph">Params-&gt;CDRs Providers</code>.
          </p>
          <div class="body">
-            <section class="section" id="Importing_of_CDRS__I_tc2gp2_">
+            <section class="section" id="Importing_of_CDRS__I_hy7r7z_">
                <h3 class="section-title">Import from CSV files</h3>
                <div class="p">CDRS are imported from <a class="xref" href="cdrs-provider.html#CDRs_provider">CDRs provider</a> defining custom jobs. Some of them are defined in <a class="xref" href="manual-6.html#Instances_configuration_file">Instances configuration file</a>. You can create custom PHP class inside <code class="codeph">cutomizations</code> directory, inheriting from some template job defined in <code class="codeph">apps/asterisell/lib/jobs/data_file_processing</code> directory and subdirectories, and then completing missing (abstract) parameters.
                </div>
@@ -70,7 +70,7 @@
                <div class="p">The supported data formats are listed near the beginning of <code class="codeph">rating_tools/rate_engine/src/Asterisell/CustomerSpecificImporters.hs</code>, in the function <code class="codeph">supportedSourceCDRImporters</code>.
                </div>
             </section>
-            <section class="section" id="Importing_of_CDRS__I_qnl39p_">
+            <section class="section" id="Importing_of_CDRS__I_mpu9uc_">
                <h3 class="section-title">Importing CDRS from an external collector</h3>
                <div class="p">Add inside <code class="codeph">asterisell_instances.py</code> something like
                </div><pre class="pre">class DefaultInstance(BillingInstance):

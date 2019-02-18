@@ -71,13 +71,14 @@ executable RateEngine
   hs-source-dirs: src
   other-modules: Asterisell.Cdr
                  Asterisell.Error
+                 Asterisell.Params
                  Asterisell.RatePlan
-                 Asterisell.MainRatePlan
+                 Asterisell.ParseRatePlan
+                 Asterisell.ApplyRatePlan
                  Asterisell.RateEngine
                  Asterisell.ImportDataFiles
                  Asterisell.Utils
                  Asterisell.Trie
-                 Asterisell.Params
                  Asterisell.TelephonePrefixes
                  Asterisell.VoIPChannelAndVendor
                  Asterisell.Holiday

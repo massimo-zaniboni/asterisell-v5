@@ -41,12 +41,6 @@ abstract class BaseArCdrForm extends BaseFormPropel
       'ar_problem_duplication_key'                         => new sfWidgetFormInputText(),
       'debug_cost_rate'                                    => new sfWidgetFormInputText(),
       'debug_income_rate'                                  => new sfWidgetFormInputText(),
-      'debug_residual_income_rate'                         => new sfWidgetFormInputText(),
-      'debug_residual_call_duration'                       => new sfWidgetFormInputText(),
-      'debug_bundle_left_calls'                            => new sfWidgetFormInputText(),
-      'debug_bundle_left_duration'                         => new sfWidgetFormInputText(),
-      'debug_bundle_left_cost'                             => new sfWidgetFormInputText(),
-      'debug_rating_details'                               => new sfWidgetFormInputText(),
     ));
 
     $this->setValidators(array(
@@ -77,12 +71,6 @@ abstract class BaseArCdrForm extends BaseFormPropel
       'ar_problem_duplication_key'                         => new sfValidatorString(array('max_length' => 255, 'required' => false)),
       'debug_cost_rate'                                    => new sfValidatorString(array('max_length' => 512, 'required' => false)),
       'debug_income_rate'                                  => new sfValidatorString(array('max_length' => 512, 'required' => false)),
-      'debug_residual_income_rate'                         => new sfValidatorString(array('max_length' => 512, 'required' => false)),
-      'debug_residual_call_duration'                       => new sfValidatorInteger(array('min' => -2147483648, 'max' => 2147483647, 'required' => false)),
-      'debug_bundle_left_calls'                            => new sfValidatorInteger(array('min' => -2147483648, 'max' => 2147483647, 'required' => false)),
-      'debug_bundle_left_duration'                         => new sfValidatorInteger(array('min' => -2147483648, 'max' => 2147483647, 'required' => false)),
-      'debug_bundle_left_cost'                             => new sfValidatorInteger(array('min' => -9.2233720368548E+18, 'max' => 9223372036854775807, 'required' => false)),
-      'debug_rating_details'                               => new sfValidatorString(array('max_length' => 5000, 'required' => false)),
     ));
 
     $this->widgetSchema->setNameFormat('ar_cdr[%s]');

@@ -1,5 +1,7 @@
 {-# LANGUAGE ScopedTypeVariables, BangPatterns, OverloadedStrings, QuasiQuotes, TypeSynonymInstances, FlexibleInstances, DeriveGeneric #-}
 
+-- SPDX-License-Identifier: GPL-3.0-or-later
+-- Copyright (C) 2009-2019 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
 
 -- | Define rate plans specific for customers/operators.
 --   Usually they are CSV files specifying rates in a compact way.
@@ -27,7 +29,7 @@ import Asterisell.RateCategories
 import Asterisell.OrganizationHierarchy
 import Asterisell.RatePlan
 import Asterisell.CustomerSpecificImporters
-import Asterisell.MainRatePlan
+import Asterisell.ParseRatePlan
 import Asterisell.Holiday
 
 import Control.Applicative ((<$>), (<|>), (<*>))
@@ -140,17 +142,16 @@ createRatePlanParserFromCSVLineParserWithMatchFun lineParser skipHeader initialR
 
           trie <- parseAllLines envParams (trie_update trie_empty initialRates)
 
-          let rateParams = RateParams {
-                             rate_userId = ""
-                           , rate_match = deriveRateMatchFun trie
-                           }
-
           let ratePlan = RatePlan {
-                          rate_systemId = 0
-                        , rate_params = rateParams
-                        , rate_children = Right []
-                        , rate_elsePart = []
-                        }
+                           rate_systemId = 0
+                         , rate_parentSystemId = Nothing
+                         , rate_userId = ""
+                         , rate_matchBeforeUse = deriveRateMatchFun trie
+                         , rate_children = []
+                         , rate_elsePart = []
+                         , rate_use = Nothing
+                         , rate_bundleParams = Nothing
+                         }
 
           return mainRatePlan_empty {
                    mainRatePlan_bundleRates = []
@@ -636,16 +637,15 @@ parse_ecnNationalCallsFormat fieldSeparator decimalSeparator
 
       ecn <- parseAllLines envParams offPeakCodes ecn_empty
 
-      let rateParams = RateParams {
-                         rate_userId = ""
-                       , rate_match = ecn_toMatchFun ecn
-                       }
-
       let ratePlan = RatePlan {
-                        rate_systemId = 0
-                      , rate_params = rateParams
-                      , rate_children = Right []
+                        rate_userId = ""
+                      , rate_systemId = 0
+                      , rate_parentSystemId = Nothing
+                      , rate_matchBeforeUse = ecn_toMatchFun ecn
+                      , rate_children = []
                       , rate_elsePart = []
+                      , rate_use = Nothing
+                      , rate_bundleParams = Nothing
                       }
 
       return mainRatePlan_empty {

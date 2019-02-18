@@ -1,6 +1,7 @@
 <?php
 
 // SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2009-2019 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
 
 sfLoader::loadHelpers(array('Number', 'Date', 'Url'));
 
@@ -2240,21 +2241,18 @@ function getCdrListView($isAdmin, $groupOn, $filterOnOrganization, $canUseGroupe
    /**
      * @var bool true for reading content from ar_cdr, false for reading from ar_cached_grouped_cdr
      */
-    $useArCdr = FALSE;
+    $useArCdr = !$canUseGroupedCDRS;
     if ($groupOn == 0 || $groupOn == 4) {
         $useArCdr = TRUE;
-    } else {
-        $useArCdr = !$canUseGroupedCDRS;
     }
 
     /**
      * @var bool true for using `ar_cdr` and performing a group by on it,
      * for simulating `ar_cached_grouped_cdr`, but with more fine grained group conditions.
      */
+    $forceGroupOnArCdr = !$canUseGroupedCDRS;
     if ($groupOn == 0 || $groupOn == 4) {
         $forceGroupOnArCdr = false;
-    } else {
-        $forceGroupOnArCdr = !$canUseGroupedCDRS;
     }
 
     $fieldsToShow = FieldsToShow::getFieldsToShowInCallReport($isAdmin);
@@ -2313,7 +2311,11 @@ function getCdrListView($isAdmin, $groupOn, $filterOnOrganization, $canUseGroupe
 
     if ($forceGroupOnArCdr || $aggregateIgnoredFields) {
         $selectPart[] = 'MIN(c.id) AS id';
-        $selectPart[] = 'COUNT(c.id) AS count_of_records';
+        if ($useArCdr) {
+            $selectPart[] = 'COUNT(c.id) AS count_of_records';
+        } else {
+            $selectPart[] = 'SUM(c.count_of_records) AS count_of_records';
+        }
         $selectPart[] = 'SUM(c.count_of_calls) AS count_of_calls';
         $selectPart[] = 'SUM(c.billsec) AS billsec';
         $selectPart[] = 'SUM(c.income) AS income';
@@ -2321,6 +2323,7 @@ function getCdrListView($isAdmin, $groupOn, $filterOnOrganization, $canUseGroupe
         $selectPart[] = 'SUM(c.cost_saving) AS cost_saving';
     } else {
         $selectPart[] = 'c.id AS id';
+        $selectPart[] = '1 AS count_of_records';
         $selectPart[] = 'c.count_of_calls AS count_of_calls';
         $selectPart[] = 'c.billsec AS billsec';
         $selectPart[] = 'c.income AS income';
@@ -2364,13 +2367,6 @@ function getCdrListView($isAdmin, $groupOn, $filterOnOrganization, $canUseGroupe
     if ($showDebugInfo && $useArCdr) {
         $selectPart[] = 'debug_cost_rate';
         $selectPart[] = 'debug_income_rate';
-        $selectPart[] = 'debug_residual_income_rate';
-        $selectPart[] = 'debug_residual_call_duration';
-        $selectPart[] = 'debug_bundle_left_calls';
-        $selectPart[] = 'debug_bundle_left_calls';
-        $selectPart[] = 'debug_bundle_left_duration';
-        $selectPart[] = 'debug_bundle_left_cost';
-        $selectPart[] = 'debug_rating_details';
     }
 
     if ($showCallDetails) {

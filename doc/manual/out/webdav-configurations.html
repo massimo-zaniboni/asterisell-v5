@@ -2,7 +2,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml">
    <head><meta charset="UTF-8" />
       <title>Configuring WebDAV</title><link href="res/webhelp.css" rel="stylesheet" type="text/css" /><meta content="It is possible sending files to a remote Reseller using the WebDav protocol. WebDAV is a standard protocol based on HTTP connections, so it has encryption by default (using HTTPS), and it can pass through firewalls." name="description" />
-      <meta content="XMLmind DITA Converter 3.3.0" name="generator" />
+      <meta content="XMLmind DITA Converter 3.3.1" name="generator" />
    <script charset="UTF-8" defer="defer" src="_wh/snowball_en.min.js" type="text/javascript"></script><link href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/themes/smoothness/jquery-ui.css" rel="stylesheet" type="text/css" /><link href="_wh/wh.css" rel="stylesheet" type="text/css" /><script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js" type="text/javascript">
     </script><script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js" type="text/javascript">
     </script><script charset="UTF-8" src="_wh/wh.min.js" type="text/javascript">
@@ -62,7 +62,7 @@
             so it has encryption by default (using HTTPS), and it can pass through firewalls.
          </p>
          <div class="body">
-            <section class="section" id="Configuring_WebDAV__I_zhjb3b_">
+            <section class="section" id="Configuring_WebDAV__I_5jen6a_">
                <h3 class="section-title">On provider</h3>
                <div class="p">Create a file <code class="codeph">customizations/ExportToFoo.php</code> like this
                </div><pre class="pre">    class ExportToFoo extends ExportCDRSToReseller
@@ -113,7 +113,7 @@
                   expose the WebDAV service on <code class="codeph">https://provider-url/get-foo</code> You can inspect the <code class="codeph">/etc/nginx/</code> configurations inside the <a class="xref" href="manual-6.html#Asterisell_instance">Asterisell instance</a>.
                </div>
             </section>
-            <section class="section" id="Configuring_WebDAV__I_7fqw8e_">
+            <section class="section" id="Configuring_WebDAV__I_kpmsyj_">
                <h3 class="section-title">On reseller on the same host</h3>
                <div class="p">In case the reseller is an instance on the same host of the provider, create a Job
                   like this
@@ -154,7 +154,7 @@
 </pre><div class="p">You had to set the password on <a class="xref" href="manual-6.html#Password_file">Password file</a>.
                </div>
             </section>
-            <section class="section" id="Configuring_WebDAV__I_2pnfsl_">
+            <section class="section" id="Configuring_WebDAV__I_ik11bp_">
                <h3 class="section-title">On resellers on external hosts</h3>
                <div class="p">In case the reseller is on a different host respect the provider, create a Job like
                   this

@@ -7,8 +7,9 @@ Support
 =======
 
 * `Asterisell GitHub Repository`_ : issues and development
-* support@asterisell.com : commercial support and customization
 * `RSS feeds`_ for notifications about upgrades
+* support@asterisell.com : commercial support and customizations
+* Asterisell is not anymore supported for new users, but only for current customers already using it. 
 
 Open source development
 -----------------------
@@ -22,3 +23,4 @@ Asterisell is used in production from 2009, so it is stable.
 
 Main features of the application are tested by unit tests, but new releases can introduce unexpected problems on minor features.
 
+Asterisell is not anymore supported for new users, but only for current customers already using it.

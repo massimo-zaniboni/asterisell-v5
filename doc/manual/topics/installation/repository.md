@@ -9,7 +9,7 @@ Use the command
     git clone --depth 1 https://github.com/massimo-zaniboni/asterisell-v5
 ```
 
-Asterisell uses Git <http://en.wikipedia.org/wiki/Git\_(software)> also upgrading, because:
+Asterisell uses Git <http://en.wikipedia.org/wiki/Git\_(software)> also for upgrading, because:
 
   - only the incremental changes are transferred
   - private customizations and configurations can be merged with default

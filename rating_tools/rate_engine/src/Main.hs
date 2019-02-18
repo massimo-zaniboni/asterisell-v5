@@ -1,6 +1,7 @@
 {-# LANGUAGE OverloadedStrings, CPP, TemplateHaskell, ScopedTypeVariables, BangPatterns #-}
 
 -- SPDX-License-Identifier: GPL-3.0-or-later
+-- Copyright (C) 2009-2019 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
 
 module Main (
     main
@@ -10,7 +11,8 @@ module Main (
 import Asterisell.Cdr
 import Asterisell.Error
 import Asterisell.RatePlan
-import Asterisell.MainRatePlan
+import Asterisell.ParseRatePlan
+import Asterisell.ApplyRatePlan
 import Asterisell.ImportDataFiles
 import Asterisell.RateEngine
 import Asterisell.Utils

@@ -1,6 +1,8 @@
 {-# LANGUAGE ScopedTypeVariables, BangPatterns, OverloadedStrings, ExistentialQuantification, RankNTypes, QuasiQuotes, DeriveGeneric, DeriveAnyClass  #-}
 
 -- SPDX-License-Identifier: GPL-3.0-or-later
+-- Copyright (C) 2009-2019 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
+
 
 -- | Import specific format for a Customer.
 --   The import guidelines are:
@@ -67,7 +69,7 @@ import Data.Time.Calendar.WeekDate
 import Data.Csv as CSV
 import qualified Test.HUnit as HUnit
 import qualified Data.HashMap.Strict as HashMap
-import qualified Data.IntMap as IntMap
+import qualified Data.IntMap.Strict as IntMap
 
 import Database.MySQL.Base as DB
 import Text.Heredoc
@@ -111,7 +113,7 @@ deriveFastLookupCDRImportes conn = do
                            Nothing -> m
                            Just s -> IntMap.insert (fromDBInt i) (s, fromDBText fName, fromDBText vName) m
                     unexpected
-                      -> error ("Error 11776 in application code. Unexpected result: " ++ show unexpected ++ ", with column defs " ++ show colDefs) 
+                      -> pError ("Error 11776 in application code. Unexpected result: " ++ show unexpected ++ ", with column defs " ++ show colDefs) 
          ) IntMap.empty inS
 
 
@@ -2399,7 +2401,6 @@ convert_CSVFormat_tsnet_abilis_collector_v1_toCDR1 precision provider cdr
   const_INTERNAL_TRANSIT_VOIP_ACCOUNT = Text.pack "transit"
 
   const_ANONYMOUS_CALLER_NUMBER = Text.pack "anonimo";
-
 
   -- | Accounts that must be composed like "CesenaNET/1234", where "1234" is the internal telephone number.
   --   In this way it is possible to associate to a single account, multiple virtual accounts.

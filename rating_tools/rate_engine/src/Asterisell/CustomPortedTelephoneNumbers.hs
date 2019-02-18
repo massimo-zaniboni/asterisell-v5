@@ -1,6 +1,8 @@
 {-# LANGUAGE ScopedTypeVariables, BangPatterns, OverloadedStrings, QuasiQuotes, DeriveGeneric, DeriveAnyClass  #-}
 
 -- SPDX-License-Identifier: GPL-3.0-or-later
+-- Copyright (C) 2009-2019 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
+
 
 -- | Import "ported telephone numbers" from different customer-specific sources.
 --   The processing workflow is:

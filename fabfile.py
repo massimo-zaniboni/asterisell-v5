@@ -262,6 +262,11 @@ def manage_instance(action, instance_code, passw = ''):
         if action == 'install':
             instance.host.execute_install()
             instance.execute_install_task(on_same_host, on_same_domain)
+            print """
+
+NOTE: in case of first installation on an HOST, a reboot is suggested, in order to use the last kernel, and loading the proper SELinux settings.
+
+            """
         elif action == 'upgrade_app':
             instance.execute_upgrade_task(on_same_host, on_same_domain, False)
         elif action == 'uninstall':

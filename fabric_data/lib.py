@@ -1,5 +1,6 @@
 
 # SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2009-2019 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
 
 """
 Define Asterisell instances as Python objects.
@@ -194,9 +195,9 @@ class Host(object):
 
             if is_initial_install:
                 # Disable transparent huge pages because they do not play nices with TokuDB and DBMS in general
-                put_template('/etc/rc.local', """
-#!/bin/sh
-#
+                # IMPORTANT: it had to start with sheebang exactly on the first line, otherwise the systemd rc.local service will die
+                put_template('/etc/rc.local', """#!/bin/bash
+
 # This script will be executed *after* all the other init scripts.
 # You can put your own initialization stuff in here if you don't
 # want to do the full Sys V style init stuff.
@@ -288,11 +289,14 @@ enabled=1
                 run_yum_install('nginx', options ='--nogpgcheck')
 
                 # Percona Server for MySQL is the owner of TokuDB engine, so I prefer this respect MariaDB.
-                run_yum_install('http://www.percona.com/downloads/percona-release/redhat/0.1-6/percona-release-0.1-6.noarch.rpm')
+                run_yum_install('https://repo.percona.com/yum/percona-release-latest.noarch.rpm')
+                run('percona-release setup ps57')
                 run_yum_install("""jemalloc \
-                                 Percona-Server-client-57 \
-                                 Percona-Server-devel-57  \
-                                 Percona-Server-tokudb-57""")
+                                   Percona-Server-client-57 \
+                                   Percona-Server-devel-57  \
+                                   Percona-Server-shared-57  \
+                                   Percona-Server-server-57  \
+                                   Percona-Server-tokudb-57""")
 
                 # Configure password and enable TokuDB
                 run('rm -f /etc/my.cnf.d/asterisell.cnf')
@@ -424,7 +428,7 @@ WantedBy=multi-user.target
             run("sed -i \"/memory_limit/c\\memory_limit = " + str(self.get_php_opcache_in_mb()) + "M  \" /etc/php.ini")
             run("sed -i \"/date.timezone/c\\date.timezone=" + self.date_timezone.replace("/", "\\/") + "\" /etc/php.ini")
 
-            if not is_fast_upgrade:
+            if (not is_fast_upgrade) or is_initial_install:
                 run('yum update -y')
                 # NOTE: do only now, otherwise there can be conflicts on MySQL packages
 
@@ -1339,6 +1343,7 @@ all:
       - Upgrade_2018_01_23
       - Upgrade_2018_02_14
       - Upgrade_2018_03_00
+      - Upgrade_2019_02_16
       $custom_upgrade_jobs
 
   organization_to_ignore: $organization_to_ignore

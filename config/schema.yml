@@ -138,18 +138,6 @@ propel:
     # NULL for pure service CDRS, not NULL for bundle rates, and normal calls
     # DEV-NOTE: this info (despite the name) is not used only for debug, but also for production code.
 
-    debug_residual_income_rate: varchar(512)
-
-    debug_residual_call_duration: integer
-
-    debug_bundle_left_calls: integer
-
-    debug_bundle_left_duration: integer
-
-    debug_bundle_left_cost: bigint
-
-    debug_rating_details: varchar(5000)
-
   ar_destination_type:
     id:
 
@@ -2060,6 +2048,8 @@ propel:
    cost_saving: { type: bigint, required: true  }
 
    cost: { type: bigint, required: true }
+
+   count_of_records: { type: bigint, required: true }
 
    id: { type: smallint, required: true, default: 0 }
    # not used, but required for not breaking some queries

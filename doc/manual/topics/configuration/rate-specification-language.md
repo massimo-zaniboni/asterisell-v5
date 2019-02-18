@@ -1,50 +1,15 @@
 # Rate specification language
 
-[main-rate-plan] are specified using a domain-specific language, describing the high-level details of a rating-plan in a compact and readable way.
+[main-rate-plan] are specified using a domain-specific language: the rate plan captures the high level logic, while price details are on external data (CSV) rates, that can be frequently updated.
 
-``main-income-rate-plan`` is the name of the income [main-rate-plan], and ``main-cost-rate-plan`` is the name of the cost [main-rate-plan].
+There are two [main-rate-plan]:
 
-## Income rate example
+* ``main-cost-rate-plan`` for calculating the cost of a CDR
+* ``main-income-rate-plan`` for calculating the income of a CDR
+
+## Income rate plan example
 
 ```
-rate {
-  id: outgoing
-
-  match-call-direction: outgoing
-
-  rate {
-    id: free-emergency-telephone-numbers
-    match-telephone-number: 118,113,11X
-    set-cost-for-minute: 0
-  }
-
-  rate {
-    id: normal
-
-    match-price-category: normal
-    set-cost-on-call: 0.05
-
-    external-rate {
-      id: csv-1
-      use: csv-1
-      set-cost-for-minute: this
-    }
-  }
-
-  rate {
-    id: discounted
-
-    match-price-category: discounted
-    set-cost-on-call: 0.05
-
-    external-rate {
-      id: csv-discounted-2
-      use: csv-discounted-2
-      set-cost-for-minute: this
-    }
-  }
-}
-
 rate {
   id: free-incoming
   match-call-direction: incoming
@@ -56,27 +21,63 @@ rate {
   match-call-direction: internal
   set-cost-for-minute: 0
 }
+
+rate {
+  id: outgoing
+
+  match-call-direction: outgoing
+
+  rate {
+    id: free-emergency-telephone-numbers
+    match-telephone-number: 118,113,11X
+    set-cost-for-minute: 0
+  } else {
+
+    rate {
+      id: normal
+      # NOTE: the complete name of this rate is `/outgoing/normal`
+      
+      match-price-category: normal
+      # NOTE: applicable for all customers with `normal` price-category
+      
+      use: csv-1
+      # NOTE: use the content of the CSV file stored inside the rate with id `csv-1` 
+      # having the physical and logical format as specified on the external `csv-1`
+      # rate.
+      # In particular there will be matches between telephone prefix and the cost to apply.
+      
+      set-cost-on-call: 0.05
+      # NOTE: rate the CDR using this fixed cost every time there is a call
+      
+      set-cost-for-minute: external
+      # NOTE: use the cost for minute specified in the `csv-1` rate,
+      # in the line matching the conditions of the CDR (the best matching telephone prefix)
+    }
+
+    rate {
+      id: discounted
+      match-price-category: discounted
+      use: csv-discounted-2
+      set-cost-on-call: 0.05
+      set-cost-for-minute: external
+    }
+  }
+}
 ```
 
-Rates are nested. So a CDR can be rated by ``outgoing/discounted/csv-discounted-2`` rate.
-
-The best matching rate is selected. Matching criteria are usually telephone prefixes. 
-
-## Full specification
+## Rating params 
 
 ```
 rate {
-  # "rate" is a rate that can be applied to a CDR, and that can calc its cost/income.
-
 
   id: [reference]
   # a short internal reference name, used also in debug sessions for
   # discovering which rate is applied to a CDR.
+  # Valid names are like "abcd-123_456"
 
   #
   # Specify on which CDRs the rate is applicable
   #
-
   # All these matches are optionals.
 
   match-communication-channel: [list of communication channel types]
@@ -135,18 +136,17 @@ rate {
   # Peak-code can be used for rating also incomes, because customers should be informed of their rating plan,
   # and they know the call time.
 
+
   #
   # Specify how to calculate the cost of the call
   #
-
-  # NOTE: Sets must be always specified after the match part.
-
   # These are the tranformations that can be applied on the
   # billable duration of a call.
   # The tranformations are applied in the specified order,
   # so also the order of specification is mandatory.
   # If a parameter is not specified, the default value is assumed.
-
+  #
+  
   set-free-seconds: [number of seconds]
   # do not apply the cost-for-minute to these first seconds.
   # 0 is the default value.
@@ -161,11 +161,6 @@ rate {
 
   set-at-least-seconds: [number of seconds]
   # consider the call at least as the specified seconds
-
-  # These are the tranformations that are applied to the cost of a call.
-  # The tranformations are applied in the specified order,
-  # so also the order of specification is mandatory.
-  # If a parameter is not specified, the default value is assumed.
 
   set-cost-on-call: [1.0|imported|expected]
   # the initial cost of the call (default value is 0)
@@ -201,74 +196,138 @@ rate {
   # For example both 2.41, 2.44, 2.48, became 2.4, when flooring to the 1st decimal digit.
   # If left unspecified, use the maximum possible precision, without any rounding.
   # This operation is done after the ceil operation.
+}
+```
+
+## Nested rates
+
+Rates can be arbitrary nested.
+
+```
+rate {
+  id: [reference]
+
+  [match conditions]
+  
+  [calc settings]
 
   rate {
-    # A child rate, inherits all the sets and matches of its parent rate, and it can override them.
-    # Rates can be arbitrary nested, in order to grouping rates by common characteristics.
-    # For avoiding ratinng errors, if a rate has one ore more children, then one and only one of its children
-    # must match the CDR with stronger priority, and it will be used for rating the CDR.
-    # If there are two or more matching rates, then an error is signaled.
-    # If no children match the CDR, then an error is signaled.
-
-    id: [reference]
-    # this can be a short id, because the complete rate reference name will
+    id: [reference]  
+    # this can be a short and not unique id, because the complete rate reference name will
     # contain automatically also the parent id.
     # For example "root/outgoing/emergency-telephone-numbers" is a complete path of ids,
-    # where the single id parts are "root" for the id of the initial root rate,
-    # "outgoing" is the id of the first nested rate, and "emergency-telephone-numbers" is
-    # the id of the final nested rate. If the final nested rate is applied to a CDR,
-    # then the signaled applied rate is "root/outgoing/emergency-telephone-numbers".
-    # So there can be repeated "id" names in nested rates, because only the full
-    # path id must be unique.
+    # built from Asterisell joining the ids of the nested hiearchy.
 
-    [continue with another rate specification]
+    [match conditions]
+    # this rate is selected if these conditions are respected.
 
+    [calc settings]
+    # A nested rate inherits all the setting of its parent rate.
+    # Then here it can override some of them, or use "parent" for using 
+    # the same value specified in the parent rate.
+    
+    [other nested rates]
   }
+  
+  [other nested rates]
+  
+}
+```
 
+The parent rate selects the nested rate with the strongest matching conditions:
+
+* in case of rates with equal matching, Asterisell signals an error, because rating conditions are ambigous
+* only the matching conditions of the rates at the same nesting level are considered
+* after selecting a nested rate, the selection process is repeated for its children rates
+* the parent rates with nested rates can not be used for rating the calls, but only theirs leaf rates, otherwise Asterisell will signal an error. Doing so one is sure that the strongest matching rate will be always used, and there are no logical-holes/errors in the rating-plan.
+
+For example, for these rates
+
+```
+rate {
+  id: a
+  [...]
+  
   rate {
-    [another rate specification]
+    id: b1
+    [...]
   }
-
-  # A child rate is selected only if:
-  # * the parent rate is applicable (so it inherits the matches of the parent)
-  # * it is applicable
-  # * there is no other children rate that is applicable using stronger matches on the match-telephone-number part
-  # So it is always selected the children rate with the longest matching telephone number.
-
-  # In case of two children rates matching a telephone number with the same strength, a rating error is signaled
-
-  external-rate {
-    # this is another child rate, but of type "external-rate", instead of generic "rate"
-    #
-    # An "external-rate" calls another rating method, specified in an external rate specification file,
-    # typically a CSV file in some rating format associated to it.
-    #
-    # An external-rate can have no nested children rates.
-
-    id: [reference]
-
-    use: [rate-reference-name]
-    # the name used in "Rates->Rates" form, for naming the external rate to call.
-    # The format of the rate is specified in "Rates->Rates".
-    # The external rate contains additional matches, and return calc params on the CDR.
-
-    set-cost-on-call: [this|parent|specific-value]
-    # Use "this" for using the value returned from the called external rate (usually a CSV file).
-    # Use "parent" if the value is not in the CSV file, and the value of the parent rate must be used.
-    # Indicate a specific value, if the value is not in the CSV file.
-
-    set-cost-for-minute: [...]
-    set-max-cost-of-call: [...]
-    # NOTE: the same syntax applies to `set-cost-for-minute` and all other rating params
+  
+  rate {
+    id: b2
+    [...]
+    
+    rate {
+      id: c1
+      [...]
+    }
+    
+    rate {
+      id: c2
+      [...]
+    }
   }
+}
+```
 
+* if ``a`` match the CDR, but none of its nested rates can match, an error is signaled from Asterisell, because ``a`` can not be used alone for rating the CDR 
+* ``a/b2`` is selected if it matches the CDR stronger than ``a/b1``. Usually this mean that ``a/b2`` match a telephone prefix with more digits respect ``a/b1``.
+* the same selection process is repeated for selecting between ``a/b2/c1`` and ``a/b2/c2``.
+* ``a/b2/c2`` rate the CDR using the rating params of ``a``, overridden by params of ``a/b2`` and ``a/b2/c2``.
+
+## External rates 
+
+Rates in Asterisell can have different physical and logical formats (e.g. CSV files, YAML files with different columns and data, like telephone prefix, telephone operator to match, and cost by minute, off-peak cost and so on).
+
+A main rate plan can reference these external rates for matching conditions and for applying rating params. For example
+
+```
+rate {
+  id: national
+     
+  match-price-category: normal
+      
+  use: csv-normal
+  # this external rate will match according telephone prefix and it will specify the cost for minute
+     
+  set-cost-on-call: 0.05
+  set-cost-for-minute: external
+  # use the cost for minute specified on `csv-normal` external rate
+}
+```
+
+The specification is
+
+```
+rate {
+  id: [reference]
+
+  [matching conditions]
+  
+  use: [rate-reference-name]
+  # the name used in "Rates->Rates" form, for naming the external rate to call.
+  # The format of the rate is specified in "Rates->Rates".
+  # The external rate contains additional matches, and returns calc params to use for rating the CDR.
+  # The matching conditions of the external rate are in logical AND with the conditions of the rate
+  # The calc params of the external rate are overridden from the params of this rate. 
+
+  set-cost-on-call: [external|parent|specific-value]
+  # Use "external" for using the value returned from the called external rate (usually a CSV file).
+  # Use "parent" if the value is not in the CSV file, and the value of the parent rate must be used.
+  # Use a specific value, otherwise.
+
+  [the same for other cost params]
+  
+  [other nested rates]
+  # but it is unlikely that a rate with a reference to an external rate
+  # needs other nested rates for completing the rating of a CDR
 }
 ```
 
 ## Rates with explicit priority
 
 By default rates are selected according the longest matched telephone
-prefix. But rates can have also an explicit priority, thanks to `else`
+prefix. But rates can have also an explicit priority, thanks to ``else``
 construct. 
 
 ```

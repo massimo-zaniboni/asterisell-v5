@@ -170,24 +170,8 @@ generator:
             case FieldsToShow::DEBUG_INCOME_RATE:
                     break;
 
-            case FieldsToShow::DEBUG_RESIDUAL_CALL_DURATION:
-                    break;
-
-            case FieldsToShow::DEBUG_RESIDUAL_CALL_DURATION:
-                    break;
-
             case FieldsToShow::DEBUG_BUNDLE_ORGANIZATION_ID:
                     break;
-
-            case FieldsToShow::DEBUG_BUNDLE_LEFT_CALLS:
-                    break;
-
-            case FieldsToShow::DEBUG_BUNDLE_LEFT_DURATION:
-                    break;
-
-            case FieldsToShow::DEBUG_BUNDLE_LEFT_COST:
-                    break;
-
 
             default:
             $fileName = basename($_SERVER['PHP_SELF']);

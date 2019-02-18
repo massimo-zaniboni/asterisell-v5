@@ -63,12 +63,6 @@ class ArCdrTableMap extends TableMap {
 		$this->addColumn('AR_PROBLEM_DUPLICATION_KEY', 'ArProblemDuplicationKey', 'VARCHAR', false, 255, null);
 		$this->addColumn('DEBUG_COST_RATE', 'DebugCostRate', 'VARCHAR', false, 512, null);
 		$this->addColumn('DEBUG_INCOME_RATE', 'DebugIncomeRate', 'VARCHAR', false, 512, null);
-		$this->addColumn('DEBUG_RESIDUAL_INCOME_RATE', 'DebugResidualIncomeRate', 'VARCHAR', false, 512, null);
-		$this->addColumn('DEBUG_RESIDUAL_CALL_DURATION', 'DebugResidualCallDuration', 'INTEGER', false, null, null);
-		$this->addColumn('DEBUG_BUNDLE_LEFT_CALLS', 'DebugBundleLeftCalls', 'INTEGER', false, null, null);
-		$this->addColumn('DEBUG_BUNDLE_LEFT_DURATION', 'DebugBundleLeftDuration', 'INTEGER', false, null, null);
-		$this->addColumn('DEBUG_BUNDLE_LEFT_COST', 'DebugBundleLeftCost', 'BIGINT', false, null, null);
-		$this->addColumn('DEBUG_RATING_DETAILS', 'DebugRatingDetails', 'VARCHAR', false, 5000, null);
 		// validators
 	} // initialize()
 

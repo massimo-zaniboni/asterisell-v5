@@ -2,7 +2,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml">
    <head><meta charset="UTF-8" />
       <title>Data backup</title><link href="res/webhelp.css" rel="stylesheet" type="text/css" /><meta content="Asterisell can perform daily backup of configurations, reports, rated CDRs on the container directory /var/www/instance-name/admin/data_files/messages/backup." name="description" />
-      <meta content="XMLmind DITA Converter 3.3.0" name="generator" />
+      <meta content="XMLmind DITA Converter 3.3.1" name="generator" />
    <script charset="UTF-8" defer="defer" src="_wh/snowball_en.min.js" type="text/javascript"></script><link href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/themes/smoothness/jquery-ui.css" rel="stylesheet" type="text/css" /><link href="_wh/wh.css" rel="stylesheet" type="text/css" /><script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js" type="text/javascript">
     </script><script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js" type="text/javascript">
     </script><script charset="UTF-8" src="_wh/wh.min.js" type="text/javascript">
@@ -65,7 +65,7 @@
             <div class="p">CDRS are backuped in an incremental way, so it is rather efficient.</div>
             <div class="p">Backup had to be enabled in the <a class="xref" href="manual-6.html#Instances_configuration_file">Instances configuration file</a>.
             </div>
-            <section class="section" id="Data_backup__I_m5tv1f_">
+            <section class="section" id="Data_backup__I_1vqpzv_">
                <h3 class="section-title">Space usage</h3>
                <div class="p">CDRs are repeated in many places:</div>
                <ol class="ol">
@@ -82,7 +82,7 @@
                   usage.
                </div>
             </section>
-            <section class="section" id="Data_backup__I_fqmx4m_">
+            <section class="section" id="Data_backup__I_mxumd4_">
                <h3 class="section-title">Remote backup</h3>
                <div class="p">Asterisell has a job for enabling backup of data to a remote server.</div>
                <div class="p">Create a backup server, distinct from Asterisell server.</div>
@@ -115,7 +115,7 @@
                   <li class="li"><code class="codeph">instance/data_files/messages/backup</code></li>
                </ul>
             </section>
-            <section class="section" id="Data_backup__I_5z5tgl_">
+            <section class="section" id="Data_backup__I_jx46w6_">
                <h3 class="section-title">Backup of management tool</h3>
                <div class="p">The backup of instances does not suffices, because you need also a backup of the Instance
                   Management Tool, on your host system, containing all the configurations, for recreating
@@ -134,7 +134,7 @@
 </pre><div class="p">Make it executable</div><pre class="pre">    chmod u+x /etc/cron.daily/asterisell_deploy_backup.sh
 </pre><div class="p">Test it</div><pre class="pre">    /etc/cron.daily/asterisell_deploy_backup.sh
 </pre></section>
-            <section class="section" id="Data_backup__I_kccodz_">
+            <section class="section" id="Data_backup__I_uxqtnk_">
                <h3 class="section-title">Data restore</h3>
                <div class="p">Recreate an instance of the application.</div>
                <div class="p">Put data backup</div><pre class="pre">    fab help

@@ -1,6 +1,7 @@
 {-# LANGUAGE ScopedTypeVariables, BangPatterns, OverloadedStrings, ExistentialQuantification, RankNTypes, DeriveGeneric, DeriveAnyClass, QuasiQuotes #-}
 
 -- SPDX-License-Identifier: GPL-3.0-or-later
+-- Copyright (C) 2009-2019 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
 
 -- | Manage Call Detail Records (CDRs)
 --
@@ -19,6 +20,8 @@ module Asterisell.Cdr (
   FormatId,
   ParsedCDR(..),
   ParsedCDR1(..),
+  parsedCDR1_toCDR,
+  cdr_directionIsWellFormed,
   CDRFormatSpec(..),
   FastLookupCDRImporters,
   ExpandedExtension(..),
@@ -30,13 +33,13 @@ module Asterisell.Cdr (
   cdr_isNormalCDR,
   cdr_empty,
   ServiceCDR,
+  serviceCDR_toParsedCDR1,
   LocaleConversion(..),
   serviceCdr_defaultCommunicationChannel,
   serviceCdr_defaultExternalTelephoneNumber,
   CDRDirection(..),
   MonetaryValue,
   monetaryValue_show,
-  CurrencyPrecisionDigits,
   cdr_uniqueErrorKey,
   cdrDirection_asterisellCode,
   SourceDataFileHandle,
@@ -105,7 +108,7 @@ import Data.Time.LocalTime
 import Data.Maybe
 import Data.List as List
 import Data.Monoid
-import qualified Data.IntMap as IntMap
+import qualified Data.IntMap.Strict as IntMap
 import qualified Data.HashMap.Strict as Map
 import qualified Data.Hash.MD5 as MD5
 import qualified Data.Csv as Csv
@@ -236,10 +239,6 @@ monetaryValue_show v
 
 type TelephonePrefixId = Int
 
--- | How many precision digits to use when exporting currencies.
---
-type CurrencyPrecisionDigits = Int
-
 -- | The name of CDRProvider, that can be used also as channel-name for associating the CDRs to the correct provider.
 type CDRProviderName = Text.Text
 
@@ -360,17 +359,6 @@ data CDR
 
     , cdr_debug_income_rate :: ! (Maybe Text.Text)
 
-    , cdr_debug_residual_income_rate :: ! (Maybe Text.Text)
-
-    , cdr_debug_residual_call_duration :: ! (Maybe Int)
-
-    , cdr_debug_bundle_left_calls :: ! (Maybe Int)
-
-    , cdr_debug_bundle_left_duration :: ! (Maybe Int)
-
-    , cdr_debug_bundle_left_cost :: ! (Maybe MonetaryValue)
-
-    , cdr_debug_rating_details :: ! (Maybe Text.Text)
   }
  deriving(Show, Eq, Generic, NFData)
 
@@ -413,14 +401,17 @@ cdr_empty t p
 
     , cdr_debug_cost_rate = Nothing
     , cdr_debug_income_rate = Nothing
-    , cdr_debug_residual_income_rate = Nothing
-    , cdr_debug_residual_call_duration = Nothing
-    , cdr_debug_bundle_left_calls = Nothing
-    , cdr_debug_bundle_left_duration = Nothing
-    , cdr_debug_bundle_left_cost = Nothing
-    , cdr_debug_rating_details = Nothing
   }
 
+cdr_directionIsWellFormed :: Bool -> CDR -> Bool
+cdr_directionIsWellFormed isWithoutError cdr =
+    case isWithoutError of
+      True -> cdr_errorDirection cdr == CDR_none
+                && cdr_direction cdr /= CDR_none
+                   && cdr_direction cdr /= CDR_error
+      False -> cdr_direction cdr == CDR_error
+                && cdr_errorDirection cdr /= CDR_none
+                   && cdr_errorDirection cdr /= CDR_error
 
 -- | A unique key associated to the CDR content, to use during error generation.
 --
@@ -431,6 +422,12 @@ cdr_uniqueErrorKey cdr
 
 -- | A pseudo CDR representing the billing of a bundle-rate service.
 type ServiceCDR = CDR
+
+-- | Convert assuming that ServiceCDRS are system generated, so always correct.
+serviceCDR_toParsedCDR1 :: ServiceCDR -> ParsedCDR1
+serviceCDR_toParsedCDR1 serviceCDR
+    = ParsedCDR1((serviceCdr_defaultCommunicationChannel, cdr_calldate serviceCDR, 0, ""), Nothing, serviceCDR)
+{-# INLINE serviceCDR_toParsedCDR1 #-}
 
 -- | The default communication channel to associate to servive-cdrs.
 --   DEV NOTE: keep updated with `ConfigureCommunicationChannels` on the PHP side.
@@ -508,13 +505,7 @@ cdr_mysqlCSVLoadCmd
      "error_destination_type",
      "ar_problem_duplication_key",
      "debug_cost_rate",
-     "debug_income_rate",
-     "debug_residual_income_rate",
-     "debug_residual_call_duration",
-     "debug_bundle_left_calls",
-     "debug_bundle_left_duration",
-     "debug_bundle_left_cost",
-     "debug_rating_details"]
+     "debug_income_rate"]
 
 -- | Export to a ByteString in UTF8 format,
 --   '\t' as field separator,
@@ -548,13 +539,7 @@ cdr_toMySQLCSV cdr
       toMySQLCSV_int (cdrDirection_asterisellCode $ cdr_errorDirection cdr) <> B.charUtf8 '\t' <>
       toMySQLCSV_maybeText (cdr_problemDuplicationKey  cdr) <> B.charUtf8 '\t' <>
       toMySQLCSV_maybeText (cdr_debug_cost_rate cdr) <> B.charUtf8 '\t' <>
-      toMySQLCSV_maybeText (cdr_debug_income_rate cdr) <> B.charUtf8 '\t' <>
-      toMySQLCSV_maybeText (cdr_debug_residual_income_rate cdr) <> B.charUtf8 '\t' <>
-      toMySQLCSV_maybeInt (cdr_debug_residual_call_duration cdr) <> B.charUtf8 '\t' <>
-      toMySQLCSV_maybeInt (cdr_debug_bundle_left_calls cdr) <> B.charUtf8 '\t' <>
-      toMySQLCSV_maybeInt (cdr_debug_bundle_left_duration cdr) <> B.charUtf8 '\t' <>
-      toMySQLCSV_maybeMoney precision (cdr_debug_bundle_left_cost cdr) <> B.charUtf8 '\t' <>
-      toMySQLCSV_maybeText (cdr_debug_rating_details cdr)
+      toMySQLCSV_maybeText (cdr_debug_income_rate cdr)
 
  where
 
@@ -624,6 +609,10 @@ toParsedCDR1 chunk
                               -> V.fromList $ List.map (\cdr -> ParsedCDR1 ((providerName, localTime, formatId, rawCDR), Nothing, cdr)) cdrs 
                   ) chunk
 {-# INLINE toParsedCDR1 #-}
+
+parsedCDR1_toCDR :: ParsedCDR1 -> CDR
+parsedCDR1_toCDR (ParsedCDR1 (_, _, cdr)) = cdr
+{-# INLINE parsedCDR1_toCDR #-}
 
 -- | Use a Type as parameter of a function.
 data AType a = AType
@@ -803,7 +792,7 @@ parseTypedRawSourceCDR
                   -- ^ an error during parsing of CDR
                   [CDR]
               )
-        )
+       )
        -- ^ the calls or Nothing if they can be safely ignored,
        -- because there is no info to extract
 
@@ -862,6 +851,7 @@ parseRawSourceCDR precision cdrImporters providerName formatId rawCDR
 
        Just (CDRFormatSpec sourceParams aType, logicalTypeName, formatTypeName)
          -> parseTypedRawSourceCDR aType sourceParams precision providerName rawCDR
+{-# INLINE parseRawSourceCDR #-}
 
 -- | Given a sourceCDR return a human readable description of its content,
 --   to use during error reporting.
@@ -1166,7 +1156,7 @@ type ImportMaybeNull a = ExportMaybeNull a
 
 fromExport :: ExportMaybeNull a -> a
 fromExport (Export x) = x
-fromExport _ = error "unexpected ExportNull"
+fromExport _ = pError "unexpected ExportNull"
 {-# INLINE fromExport #-}
 
 fromExport1 :: Text.Text -> (Text.Text -> Text.Text) -> ExportMaybeNull Text.Text -> Text.Text
@@ -1322,11 +1312,6 @@ instance Csv.ToRecord CDR where
             , toField $ toMaybeField $ cdr_problemDuplicationKey cdr
             , toField $ toMaybeField $ cdr_debug_cost_rate cdr
             , toField $ toMaybeField $ cdr_debug_income_rate cdr
-            , toField $ toMaybeField $ cdr_debug_residual_income_rate cdr
-            , toField $ toMaybeField $ cdr_debug_residual_call_duration cdr
-            , toField $ toMaybeField $ cdr_debug_bundle_left_calls cdr
-            , toField $ toMaybeField $ cdr_debug_bundle_left_duration cdr
-            , toField $ toMaybeMonetaryValueWithFixedPrecision precision (cdr_debug_bundle_left_cost cdr)
       ]
 
 toMySQLCSV_money :: CurrencyPrecisionDigits -> MonetaryValue -> B.Builder

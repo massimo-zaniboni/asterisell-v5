@@ -1,4 +1,5 @@
 /*  SPDX-License-Identifier: GPL-3.0-or-later */
+/* Copyright (C) 2009-2019 Massimo Zaniboni <massimo.zaniboni@asterisell.com> */
 
 #include "debug_info.h"
 #include "import_pincodes.h"

@@ -186,50 +186,10 @@ foreach($fieldsToShow as $fieldToShow) {
             <?php
             break;
 
-        case FieldsToShow::DEBUG_RESIDUAL_INCOME_RATE:
-            ?>
-        if (VariableFrame::$groupOn == 0) {
-            echo csv_field(__('Applied Residual Income Rate'));
-        }
-            <?php
-            break;
-
-        case FieldsToShow::DEBUG_RESIDUAL_CALL_DURATION:
-            ?>
-        if (VariableFrame::$groupOn == 0) {
-            echo csv_field(__('Residual Call Duration'));
-        }
-            <?php
-            break;
-
         case FieldsToShow::DEBUG_BUNDLE_ORGANIZATION_ID:
             ?>
         if (VariableFrame::$groupOn == 0) {
             echo csv_field(__('Bundle Organization Id'));
-        }
-            <?php
-            break;
-
-        case FieldsToShow::DEBUG_BUNDLE_LEFT_CALLS:
-            ?>
-        if (VariableFrame::$groupOn == 0) {
-             echo csv_field(__('Left Calls in Bundle'));
-        }
-            <?php
-            break;
-
-        case FieldsToShow::DEBUG_BUNDLE_LEFT_DURATION:
-            ?>
-        if (VariableFrame::$groupOn == 0) {
-             echo csv_field(__('Left Duration in Bundle'));
-        }
-            <?php
-            break;
-
-        case FieldsToShow::DEBUG_BUNDLE_LEFT_COST:
-            ?>
-        if (VariableFrame::$groupOn == 0) {
-             echo csv_field(__('Left Cost in Bundle'));
         }
             <?php
             break;
@@ -422,22 +382,6 @@ foreach($fieldsToShow as $fieldToShow) {
             <?php
             break;
 
-        case FieldsToShow::DEBUG_RESIDUAL_INCOME_RATE:
-            ?>
-        if (VariableFrame::$groupOn == 0) {
-             echo csv_field($r['debug_residual_income_rate']);
-        }
-            <?php
-            break;
-
-        case FieldsToShow::DEBUG_RESIDUAL_CALL_DURATION:
-            ?>
-        if (VariableFrame::$groupOn == 0) {
-             echo csv_numeric_field($r['debug_residual_call_duration'], false);
-        }
-            <?php
-            break;
-
         case FieldsToShow::DEBUG_BUNDLE_ORGANIZATION_ID:
             ?>
         if (VariableFrame::$groupOn == 0) {
@@ -448,30 +392,6 @@ foreach($fieldsToShow as $fieldToShow) {
                $n = OrganizationUnitInfo::getInstance()->getFullNameAtDate($id, $cdrDate, false, false, null, false);
              }
              echo csv_field($n, false);
-        }
-            <?php
-            break;
-
-        case FieldsToShow::DEBUG_BUNDLE_LEFT_CALLS:
-            ?>
-        if (VariableFrame::$groupOn == 0) {
-             echo csv_numeric_field($r['debug_bundle_left_calls'], false);
-        }
-            <?php
-            break;
-
-        case FieldsToShow::DEBUG_BUNDLE_LEFT_DURATION:
-            ?>
-        if (VariableFrame::$groupOn == 0) {
-             echo csv_numeric_field($r['debug_bundle_left_duration'], false);
-        }
-            <?php
-            break;
-
-        case FieldsToShow::DEBUG_BUNDLE_LEFT_COST:
-            ?>
-        if (VariableFrame::$groupOn == 0) {
-             echo csv_numeric_field(from_db_decimal_to_php_decimal($r['debug_bundle_left_cost']), false);
         }
             <?php
             break;

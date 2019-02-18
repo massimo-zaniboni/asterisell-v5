@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml">
    <head><meta charset="UTF-8" />
-      <title>Rate specification language</title><link href="res/webhelp.css" rel="stylesheet" type="text/css" /><meta content="Main rate plan are specified using a domain-specific language, describing the high-level details of a rating-plan in a compact and readable way." name="description" />
-      <meta content="XMLmind DITA Converter 3.3.0" name="generator" />
+      <title>Rate specification language</title><link href="res/webhelp.css" rel="stylesheet" type="text/css" /><meta content="Main rate plan are specified using a domain-specific language: the rate plan captures the high level logic, while price details are on external data (CSV) rates, that can be frequently updated." name="description" />
+      <meta content="XMLmind DITA Converter 3.3.1" name="generator" />
    <script charset="UTF-8" defer="defer" src="_wh/snowball_en.min.js" type="text/javascript"></script><link href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/themes/smoothness/jquery-ui.css" rel="stylesheet" type="text/css" /><link href="_wh/wh.css" rel="stylesheet" type="text/css" /><script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js" type="text/javascript">
     </script><script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js" type="text/javascript">
     </script><script charset="UTF-8" src="_wh/wh.min.js" type="text/javascript">
@@ -50,60 +50,29 @@
                <td style="text-align: left;vertical-align: top;"><a class="navigation-link" href="rate-plan-example.html" title="Previous page: CSV rate plan example"><img alt="Previous page" class="navigation-icon" height="16" src="res/previous.png" width="16" /></a></td>
                <td style="width: 25%;text-align: left;vertical-align: top;"><span class="page-navigation-previous">CSV rate plan example</span></td>
                <td style="width: 40%;text-align: center;vertical-align: top;"><span class="page-navigation-current">Rate specification language</span> <span class="page-navigation-page">(23 / 72)</span></td>
-               <td style="width: 25%;text-align: right;vertical-align: top;"><span class="page-navigation-next">Bundle rates specification language</span></td>
-               <td style="text-align: right;vertical-align: top;"><a class="navigation-link" href="bundle-rate-specification-language.html" title="Next page: Bundle rates specification language"><img alt="Next page" class="navigation-icon" height="16" src="res/next.png" width="16" /></a></td>
+               <td style="width: 25%;text-align: right;vertical-align: top;"><span class="page-navigation-next">Bundl rates</span></td>
+               <td style="text-align: right;vertical-align: top;"><a class="navigation-link" href="bundle-rate-specification-language.html" title="Next page: Bundl rates"><img alt="Next page" class="navigation-icon" height="16" src="res/next.png" width="16" /></a></td>
                <td style="text-align: right;vertical-align: top;"><a class="navigation-link" href="about.html" title="Last page: About"><img alt="Last page" class="navigation-icon" height="16" src="res/last.png" width="16" /></a></td>
             </tr>
          </table>
       </header>
       <section class="topic" id="Rate_specification_language">
          <h2 class="section2-title">Rate specification language</h2>
-         <p class="shortdesc"><a class="xref" href="manual-6.html#Main_rate_plan">Main rate plan</a> are specified using a domain-specific language, describing the high-level details
-            of a rating-plan in a compact and readable way.
+         <p class="shortdesc"><a class="xref" href="manual-6.html#Main_rate_plan">Main rate plan</a> are specified using a domain-specific language: the rate plan captures the high level
+            logic, while price details are on external data (CSV) rates, that can be frequently
+            updated.
          </p>
          <div class="body">
-            <div class="p"><code class="codeph">main-income-rate-plan</code> is the name of the income <a class="xref" href="manual-6.html#Main_rate_plan">Main rate plan</a>, and <code class="codeph">main-cost-rate-plan</code> is the name of the cost <a class="xref" href="manual-6.html#Main_rate_plan">Main rate plan</a>.
+            <div class="p">There are two <a class="xref" href="manual-6.html#Main_rate_plan">Main rate plan</a>:
             </div>
-            <section class="section" id="Rate_specification_language__I_v94mfx_">
-               <h3 class="section-title">Income rate example</h3><pre class="pre">rate {
-  id: outgoing
-
-  match-call-direction: outgoing
-
-  rate {
-    id: free-emergency-telephone-numbers
-    match-telephone-number: 118,113,11X
-    set-cost-for-minute: 0
-  }
-
-  rate {
-    id: normal
-
-    match-price-category: normal
-    set-cost-on-call: 0.05
-
-    external-rate {
-      id: csv-1
-      use: csv-1
-      set-cost-for-minute: this
-    }
-  }
-
-  rate {
-    id: discounted
-
-    match-price-category: discounted
-    set-cost-on-call: 0.05
-
-    external-rate {
-      id: csv-discounted-2
-      use: csv-discounted-2
-      set-cost-for-minute: this
-    }
-  }
-}
-
-rate {
+            <ul class="ul">
+               <li class="li"><code class="codeph">main-cost-rate-plan</code> for calculating the cost of a CDR
+               </li>
+               <li class="li"><code class="codeph">main-income-rate-plan</code> for calculating the income of a CDR
+               </li>
+            </ul>
+            <section class="section" id="Rate_specification_language__I_trj9dw_">
+               <h3 class="section-title">Income rate plan example</h3><pre class="pre">rate {
   id: free-incoming
   match-call-direction: incoming
   set-cost-for-minute: 0
@@ -114,23 +83,60 @@ rate {
   match-call-direction: internal
   set-cost-for-minute: 0
 }
-</pre><div class="p">Rates are nested. So a CDR can be rated by <code class="codeph">outgoing/discounted/csv-discounted-2</code> rate.
-               </div>
-               <div class="p">The best matching rate is selected. Matching criteria are usually telephone prefixes.</div>
-            </section>
-            <section class="section" id="Rate_specification_language__I_56gjbt_">
-               <h3 class="section-title">Full specification</h3><pre class="pre">rate {
-  # &quot;rate&quot; is a rate that can be applied to a CDR, and that can calc its cost/income.
 
+rate {
+  id: outgoing
+
+  match-call-direction: outgoing
+
+  rate {
+    id: free-emergency-telephone-numbers
+    match-telephone-number: 118,113,11X
+    set-cost-for-minute: 0
+  } else {
+
+    rate {
+      id: normal
+      # NOTE: the complete name of this rate is `/outgoing/normal`
+      
+      match-price-category: normal
+      # NOTE: applicable for all customers with `normal` price-category
+      
+      use: csv-1
+      # NOTE: use the content of the CSV file stored inside the rate with id `csv-1` 
+      # having the physical and logical format as specified on the external `csv-1`
+      # rate.
+      # In particular there will be matches between telephone prefix and the cost to apply.
+      
+      set-cost-on-call: 0.05
+      # NOTE: rate the CDR using this fixed cost every time there is a call
+      
+      set-cost-for-minute: external
+      # NOTE: use the cost for minute specified in the `csv-1` rate,
+      # in the line matching the conditions of the CDR (the best matching telephone prefix)
+    }
+
+    rate {
+      id: discounted
+      match-price-category: discounted
+      use: csv-discounted-2
+      set-cost-on-call: 0.05
+      set-cost-for-minute: external
+    }
+  }
+}
+</pre></section>
+            <section class="section" id="Rate_specification_language__I_379y96_">
+               <h3 class="section-title">Rating params</h3><pre class="pre">rate {
 
   id: [reference]
   # a short internal reference name, used also in debug sessions for
   # discovering which rate is applied to a CDR.
+  # Valid names are like &quot;abcd-123_456&quot;
 
   #
   # Specify on which CDRs the rate is applicable
   #
-
   # All these matches are optionals.
 
   match-communication-channel: [list of communication channel types]
@@ -189,18 +195,17 @@ rate {
   # Peak-code can be used for rating also incomes, because customers should be informed of their rating plan,
   # and they know the call time.
 
+
   #
   # Specify how to calculate the cost of the call
   #
-
-  # NOTE: Sets must be always specified after the match part.
-
   # These are the tranformations that can be applied on the
   # billable duration of a call.
   # The tranformations are applied in the specified order,
   # so also the order of specification is mandatory.
   # If a parameter is not specified, the default value is assumed.
-
+  #
+  
   set-free-seconds: [number of seconds]
   # do not apply the cost-for-minute to these first seconds.
   # 0 is the default value.
@@ -215,11 +220,6 @@ rate {
 
   set-at-least-seconds: [number of seconds]
   # consider the call at least as the specified seconds
-
-  # These are the tranformations that are applied to the cost of a call.
-  # The tranformations are applied in the specified order,
-  # so also the order of specification is mandatory.
-  # If a parameter is not specified, the default value is assumed.
 
   set-cost-on-call: [1.0|imported|expected]
   # the initial cost of the call (default value is 0)
@@ -255,70 +255,134 @@ rate {
   # For example both 2.41, 2.44, 2.48, became 2.4, when flooring to the 1st decimal digit.
   # If left unspecified, use the maximum possible precision, without any rounding.
   # This operation is done after the ceil operation.
-
-  rate {
-    # A child rate, inherits all the sets and matches of its parent rate, and it can override them.
-    # Rates can be arbitrary nested, in order to grouping rates by common characteristics.
-    # For avoiding ratinng errors, if a rate has one ore more children, then one and only one of its children
-    # must match the CDR with stronger priority, and it will be used for rating the CDR.
-    # If there are two or more matching rates, then an error is signaled.
-    # If no children match the CDR, then an error is signaled.
-
-    id: [reference]
-    # this can be a short id, because the complete rate reference name will
-    # contain automatically also the parent id.
-    # For example &quot;root/outgoing/emergency-telephone-numbers&quot; is a complete path of ids,
-    # where the single id parts are &quot;root&quot; for the id of the initial root rate,
-    # &quot;outgoing&quot; is the id of the first nested rate, and &quot;emergency-telephone-numbers&quot; is
-    # the id of the final nested rate. If the final nested rate is applied to a CDR,
-    # then the signaled applied rate is &quot;root/outgoing/emergency-telephone-numbers&quot;.
-    # So there can be repeated &quot;id&quot; names in nested rates, because only the full
-    # path id must be unique.
-
-    [continue with another rate specification]
-
-  }
-
-  rate {
-    [another rate specification]
-  }
-
-  # A child rate is selected only if:
-  # * the parent rate is applicable (so it inherits the matches of the parent)
-  # * it is applicable
-  # * there is no other children rate that is applicable using stronger matches on the match-telephone-number part
-  # So it is always selected the children rate with the longest matching telephone number.
-
-  # In case of two children rates matching a telephone number with the same strength, a rating error is signaled
-
-  external-rate {
-    # this is another child rate, but of type &quot;external-rate&quot;, instead of generic &quot;rate&quot;
-    #
-    # An &quot;external-rate&quot; calls another rating method, specified in an external rate specification file,
-    # typically a CSV file in some rating format associated to it.
-    #
-    # An external-rate can have no nested children rates.
-
-    id: [reference]
-
-    use: [rate-reference-name]
-    # the name used in &quot;Rates-&gt;Rates&quot; form, for naming the external rate to call.
-    # The format of the rate is specified in &quot;Rates-&gt;Rates&quot;.
-    # The external rate contains additional matches, and return calc params on the CDR.
-
-    set-cost-on-call: [this|parent|specific-value]
-    # Use &quot;this&quot; for using the value returned from the called external rate (usually a CSV file).
-    # Use &quot;parent&quot; if the value is not in the CSV file, and the value of the parent rate must be used.
-    # Indicate a specific value, if the value is not in the CSV file.
-
-    set-cost-for-minute: [...]
-    set-max-cost-of-call: [...]
-    # NOTE: the same syntax applies to `set-cost-for-minute` and all other rating params
-  }
-
 }
 </pre></section>
-            <section class="section" id="Rate_specification_language__I_cpi6ex_">
+            <section class="section" id="Rate_specification_language__I_huewhn_">
+               <h3 class="section-title">Nested rates</h3>
+               <div class="p">Rates can be arbitrary nested.</div><pre class="pre">rate {
+  id: [reference]
+
+  [match conditions]
+  
+  [calc settings]
+
+  rate {
+    id: [reference]  
+    # this can be a short and not unique id, because the complete rate reference name will
+    # contain automatically also the parent id.
+    # For example &quot;root/outgoing/emergency-telephone-numbers&quot; is a complete path of ids,
+    # built from Asterisell joining the ids of the nested hiearchy.
+
+    [match conditions]
+    # this rate is selected if these conditions are respected.
+
+    [calc settings]
+    # A nested rate inherits all the setting of its parent rate.
+    # Then here it can override some of them, or use &quot;parent&quot; for using 
+    # the same value specified in the parent rate.
+    
+    [other nested rates]
+  }
+  
+  [other nested rates]
+  
+}
+</pre><div class="p">The parent rate selects the nested rate with the strongest matching conditions:</div>
+               <ul class="ul">
+                  <li class="li">in case of rates with equal matching, Asterisell signals an error, because rating
+                     conditions are ambigous
+                  </li>
+                  <li class="li">only the matching conditions of the rates at the same nesting level are considered</li>
+                  <li class="li">after selecting a nested rate, the selection process is repeated for its children
+                     rates
+                  </li>
+                  <li class="li">the parent rates with nested rates can not be used for rating the calls, but only
+                     theirs leaf rates, otherwise Asterisell will signal an error. Doing so one is sure
+                     that the strongest matching rate will be always used, and there are no logical-holes/errors
+                     in the rating-plan.
+                  </li>
+               </ul>
+               <div class="p">For example, for these rates</div><pre class="pre">rate {
+  id: a
+  [...]
+  
+  rate {
+    id: b1
+    [...]
+  }
+  
+  rate {
+    id: b2
+    [...]
+    
+    rate {
+      id: c1
+      [...]
+    }
+    
+    rate {
+      id: c2
+      [...]
+    }
+  }
+}
+</pre><ul class="ul">
+                  <li class="li">if <code class="codeph">a</code> match the CDR, but none of its nested rates can match, an error is signaled from
+                     Asterisell, because <code class="codeph">a</code> can not be used alone for rating the CDR
+                  </li>
+                  <li class="li"><code class="codeph">a/b2</code> is selected if it matches the CDR stronger than <code class="codeph">a/b1</code>. Usually this mean that <code class="codeph">a/b2</code> match a telephone prefix with more digits respect <code class="codeph">a/b1</code>.
+                  </li>
+                  <li class="li">the same selection process is repeated for selecting between <code class="codeph">a/b2/c1</code> and <code class="codeph">a/b2/c2</code>.
+                  </li>
+                  <li class="li"><code class="codeph">a/b2/c2</code> rate the CDR using the rating params of <code class="codeph">a</code>, overridden by params of <code class="codeph">a/b2</code> and <code class="codeph">a/b2/c2</code>.
+                  </li>
+               </ul>
+            </section>
+            <section class="section" id="Rate_specification_language__I_5i8f8o_">
+               <h3 class="section-title">External rates</h3>
+               <div class="p">Rates in Asterisell can have different physical and logical formats (e.g. CSV files,
+                  YAML files with different columns and data, like telephone prefix, telephone operator
+                  to match, and cost by minute, off-peak cost and so on).
+               </div>
+               <div class="p">A main rate plan can reference these external rates for matching conditions and for
+                  applying rating params. For example
+               </div><pre class="pre">rate {
+  id: national
+     
+  match-price-category: normal
+      
+  use: csv-normal
+  # this external rate will match according telephone prefix and it will specify the cost for minute
+     
+  set-cost-on-call: 0.05
+  set-cost-for-minute: external
+  # use the cost for minute specified on `csv-normal` external rate
+}
+</pre><div class="p">The specification is</div><pre class="pre">rate {
+  id: [reference]
+
+  [matching conditions]
+  
+  use: [rate-reference-name]
+  # the name used in &quot;Rates-&gt;Rates&quot; form, for naming the external rate to call.
+  # The format of the rate is specified in &quot;Rates-&gt;Rates&quot;.
+  # The external rate contains additional matches, and returns calc params to use for rating the CDR.
+  # The matching conditions of the external rate are in logical AND with the conditions of the rate
+  # The calc params of the external rate are overridden from the params of this rate. 
+
+  set-cost-on-call: [external|parent|specific-value]
+  # Use &quot;external&quot; for using the value returned from the called external rate (usually a CSV file).
+  # Use &quot;parent&quot; if the value is not in the CSV file, and the value of the parent rate must be used.
+  # Use a specific value, otherwise.
+
+  [the same for other cost params]
+  
+  [other nested rates]
+  # but it is unlikely that a rate with a reference to an external rate
+  # needs other nested rates for completing the rating of a CDR
+}
+</pre></section>
+            <section class="section" id="Rate_specification_language__I_4pb5t8_">
                <h3 class="section-title">Rates with explicit priority</h3>
                <div class="p">By default rates are selected according the longest matched telephone prefix. But
                   rates can have also an explicit priority, thanks to <code class="codeph">else</code> construct.
@@ -372,8 +436,8 @@ rate {
                <td style="text-align: left;vertical-align: top;"><a class="navigation-link" href="rate-plan-example.html" title="Previous page: CSV rate plan example"><img alt="Previous page" class="navigation-icon" height="16" src="res/previous.png" width="16" /></a></td>
                <td style="width: 25%;text-align: left;vertical-align: top;"><span class="page-navigation-previous">CSV rate plan example</span></td>
                <td style="width: 40%;text-align: center;vertical-align: top;"><span class="page-navigation-current">Rate specification language</span> <span class="page-navigation-page">(23 / 72)</span></td>
-               <td style="width: 25%;text-align: right;vertical-align: top;"><span class="page-navigation-next">Bundle rates specification language</span></td>
-               <td style="text-align: right;vertical-align: top;"><a class="navigation-link" href="bundle-rate-specification-language.html" title="Next page: Bundle rates specification language"><img alt="Next page" class="navigation-icon" height="16" src="res/next.png" width="16" /></a></td>
+               <td style="width: 25%;text-align: right;vertical-align: top;"><span class="page-navigation-next">Bundl rates</span></td>
+               <td style="text-align: right;vertical-align: top;"><a class="navigation-link" href="bundle-rate-specification-language.html" title="Next page: Bundl rates"><img alt="Next page" class="navigation-icon" height="16" src="res/next.png" width="16" /></a></td>
                <td style="text-align: right;vertical-align: top;"><a class="navigation-link" href="about.html" title="Last page: About"><img alt="Last page" class="navigation-icon" height="16" src="res/last.png" width="16" /></a></td>
             </tr>
          </table>

@@ -27,6 +27,7 @@ abstract class BaseArCachedGroupedCdrForm extends BaseFormPropel
       'income'                           => new sfWidgetFormInputText(),
       'cost_saving'                      => new sfWidgetFormInputText(),
       'cost'                             => new sfWidgetFormInputText(),
+      'count_of_records'                 => new sfWidgetFormInputText(),
       'id'                               => new sfWidgetFormInputText(),
     ));
 
@@ -44,6 +45,7 @@ abstract class BaseArCachedGroupedCdrForm extends BaseFormPropel
       'income'                           => new sfValidatorInteger(array('min' => -9.2233720368548E+18, 'max' => 9223372036854775807)),
       'cost_saving'                      => new sfValidatorInteger(array('min' => -9.2233720368548E+18, 'max' => 9223372036854775807)),
       'cost'                             => new sfValidatorInteger(array('min' => -9.2233720368548E+18, 'max' => 9223372036854775807)),
+      'count_of_records'                 => new sfValidatorInteger(array('min' => -9.2233720368548E+18, 'max' => 9223372036854775807)),
       'id'                               => new sfValidatorInteger(array('min' => -32768, 'max' => 32767)),
     ));
 

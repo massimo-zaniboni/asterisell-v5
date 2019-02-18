@@ -1,6 +1,7 @@
 <?php
 
 // SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2009-2019 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
 
 /**
  * Call Report related modules are generated at "compile-time", accordig some parameters:
@@ -65,17 +66,7 @@ class FieldsToShow
 
     const DEBUG_INCOME_RATE = 17;
 
-    const DEBUG_RESIDUAL_INCOME_RATE = 18;
-
-    const DEBUG_RESIDUAL_CALL_DURATION = 19;
-
-    const DEBUG_BUNDLE_ORGANIZATION_ID = 20;
-
-    const DEBUG_BUNDLE_LEFT_CALLS = 21;
-
-    const DEBUG_BUNDLE_LEFT_DURATION = 22;
-
-    const DEBUG_BUNDLE_LEFT_COST = 23;
+    const DEBUG_BUNDLE_ORGANIZATION_ID = 18;
 
     const ORGANIZATION_LEVEL = 24;
 
@@ -194,11 +185,7 @@ class FieldsToShow
             if ($showIncomeAndEarn) {
                 $r[] = self::DEBUG_COST_RATE;
                 $r[] = self::DEBUG_INCOME_RATE;
-                $r[] = self::DEBUG_RESIDUAL_CALL_DURATION;
                 $r[] = self::DEBUG_BUNDLE_ORGANIZATION_ID ;
-                $r[] = self::DEBUG_BUNDLE_LEFT_CALLS;
-                $r[] = self::DEBUG_BUNDLE_LEFT_DURATION;
-                $r[] = self::DEBUG_BUNDLE_LEFT_COST;
             } else {
                 // TODO add more fields in case of switch/refactoring to field INCOME instead of COST
                 $r[] = self::DEBUG_COST_RATE;
@@ -371,22 +358,7 @@ class FieldsToShow
                 case FieldsToShow::DEBUG_INCOME_RATE:
                     break;
 
-                case FieldsToShow::DEBUG_RESIDUAL_CALL_DURATION:
-                    break;
-
-                case FieldsToShow::DEBUG_RESIDUAL_CALL_DURATION:
-                    break;
-
                 case FieldsToShow::DEBUG_BUNDLE_ORGANIZATION_ID:
-                    break;
-
-                case FieldsToShow::DEBUG_BUNDLE_LEFT_CALLS:
-                    break;
-
-                case FieldsToShow::DEBUG_BUNDLE_LEFT_DURATION:
-                    break;
-
-                case FieldsToShow::DEBUG_BUNDLE_LEFT_COST:
                     break;
 
                 case FieldsToShow::CURRENCY:

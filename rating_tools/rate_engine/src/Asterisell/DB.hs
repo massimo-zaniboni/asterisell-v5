@@ -1,6 +1,7 @@
 {-# LANGUAGE FlexibleInstances, ScopedTypeVariables, BangPatterns, OverloadedStrings, ExistentialQuantification, DeriveGeneric, DeriveAnyClass, RankNTypes, QuasiQuotes #-}
 
 -- SPDX-License-Identifier: GPL-3.0-or-later
+-- Copyright (C) 2009-2019 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
 
 -- | Manage DB connections.
 --
@@ -42,9 +43,18 @@ module Asterisell.DB (
   nn,
   nnn,
   toShowByteString,
+  db_init,
   db_garbagePastErrors,
   dbErrors_insert,
   dbErrors_prepareInsertStmt,
+  db_commitTransactionR,
+  db_rollBackTransactionR,
+  db_releaseResourceR,
+  db_deleteCDRS,
+  db_errorFileName,
+  db_groupedCDRSFileName,
+  db_groupedErrorsFileName,
+  createDBFile,
   TField(..),
   DataSourceName,
   TableName,
@@ -61,7 +71,9 @@ module Asterisell.DB (
   trecord_delete,
   trecord_set,
   trecord_setMany,
-  db_loadDataFromNamedPipe
+  db_loadDataFromNamedPipe,
+  CurrencyPrecisionDigits,
+  DBState(..),
  ) where
 
 import Asterisell.Error
@@ -103,6 +115,7 @@ import Data.Int
 import System.IO as IO
 import System.Directory as IO
 import System.IO
+import qualified Data.HashSet as HS
 import Data.IORef
 import Control.Concurrent.MVar
 import Control.Concurrent.Async
@@ -347,19 +360,19 @@ fromDBInt (MySQLInt8 v) = fromIntegral v
 fromDBInt (MySQLInt8U v) = fromIntegral v
 fromDBInt (MySQLInt16 v) = fromIntegral v
 fromDBInt (MySQLInt16U v) = fromIntegral v
-fromDBInt v = error ("fromDBInt: unsupported MySQL value" ++ show v) 
+fromDBInt v = pError ("fromDBInt: unsupported MySQL value" ++ show v)
 {-# INLINE fromDBInt #-}
 
 fromDBText :: DB.MySQLValue -> Text.Text
 fromDBText (MySQLText v) = v
 fromDBText (MySQLBytes v) = fromByteStringToText v
-fromDBText v = error ("fromDBText: unsupported MySQL value " ++ show v) 
+fromDBText v = pError ("fromDBText: unsupported MySQL value " ++ show v)
 {-# INLINE fromDBText #-}
 
 fromDBByteString :: DB.MySQLValue -> BS.ByteString
 fromDBByteString (MySQLText v) = fromTextToByteString v
 fromDBByteString (MySQLBytes v) = v
-fromDBByteString v = error ("fromDBByteString: unsupported MySQL value " ++ show v) 
+fromDBByteString v = pError ("fromDBByteString: unsupported MySQL value " ++ show v)
 {-# INLINE fromDBByteString #-}
 
 -- | Convert a NULL string into an empty string.
@@ -372,25 +385,25 @@ fromMaybeDBByteStringToMaybeEmpty mv
 fromDBLocalTime :: DB.MySQLValue -> LocalTime
 fromDBLocalTime (MySQLDateTime v) = v
 fromDBLocalTime (MySQLTimeStamp v) = v
-fromDBLocalTime (MySQLDate v) = LocalTime v midnight 
-fromDBLocalTime v = error ("fromDBLocalTime: unsupported MySQL value " ++ show v) 
+fromDBLocalTime (MySQLDate v) = LocalTime v midnight
+fromDBLocalTime v = pError ("fromDBLocalTime: unsupported MySQL value " ++ show v)
 {-# inline  fromDBLocalTime #-}
 
 fromDBTime :: DB.MySQLValue -> TimeOfDay
 fromDBTime (MySQLTime _ td) = td
 {-# inline  fromDBTime #-}
 
--- | MySQL has no built-in bool type, so recognize common variants. 
+-- | MySQL has no built-in bool type, so recognize common variants.
 fromDBBool :: DB.MySQLValue -> Bool
 fromDBBool sv
     = case sv of
         (MySQLInt32 v) -> (v > 0)
-        (MySQLInt64 v) -> (v > 0) 
-        (MySQLInt32U v) -> (v > 0) 
-        (MySQLInt64U v) -> (v > 0) 
-        (MySQLInt8 v) -> (v > 0) 
-        (MySQLInt8U v) -> (v > 0) 
-        (MySQLInt16 v) -> (v > 0) 
+        (MySQLInt64 v) -> (v > 0)
+        (MySQLInt32U v) -> (v > 0)
+        (MySQLInt64U v) -> (v > 0)
+        (MySQLInt8 v) -> (v > 0)
+        (MySQLInt8U v) -> (v > 0)
+        (MySQLInt16 v) -> (v > 0)
         (MySQLInt16U v) -> (v > 0)
         (MySQLText v)
           -> case v of
@@ -400,7 +413,7 @@ fromDBBool sv
                 "f" -> False
                 "F" -> False
                 "0" -> False
-                _ -> error ("fromDBBool: unsupported MySQL value " ++ show sv) 
+                _ -> pError ("fromDBBool: unsupported MySQL value " ++ show sv)
         (MySQLBytes v)
           -> case v of
                 "t" -> True
@@ -409,8 +422,8 @@ fromDBBool sv
                 "f" -> False
                 "F" -> False
                 "0" -> False
-                _ -> error ("fromDBBool: unsupported MySQL value " ++ show sv) 
-        _ -> error ("fromDBBool: unsupported MySQL value " ++ show sv) 
+                _ -> pError ("fromDBBool: unsupported MySQL value " ++ show sv)
+        _ -> pError ("fromDBBool: unsupported MySQL value " ++ show sv)
 
 fromMaybeDBValue :: (DB.MySQLValue -> a) -> DB.MySQLValue -> Maybe a
 fromMaybeDBValue  _ (MySQLNull) = Nothing
@@ -452,7 +465,7 @@ nnn :: String -> Int -> (DB.MySQLValue -> a) -> DB.MySQLValue -> a
 nnn table id f x
    = case fromMaybeDBValue f x of
        Just a -> a
-       Nothing -> error $ "Unexpected field with NULL value in " ++ table ++ " with id " ++ show id
+       Nothing -> pError $ "Unexpected field with NULL value in " ++ table ++ " with id " ++ show id
 {-# INLINE nnn #-}
 
 -- ---------------------------------------------------
@@ -509,7 +522,7 @@ toShowByteString dbv
         MySQLNull -> "<NULL>"
         (MySQLDateTime v) -> fromStringToByteString $ showLocalTime v
         (MySQLTimeStamp v) -> fromStringToByteString $ showLocalTime v
-        (MySQLBytes v) ->  v 
+        (MySQLBytes v) ->  v
         (MySQLText v) -> fromTextToByteString v
         (MySQLInt16 v) -> fromStringToByteString $ show $ toInteger v
         (MySQLInt32 v) -> fromStringToByteString $ show $ toInteger v
@@ -519,7 +532,7 @@ toShowByteString dbv
         (MySQLInt32U v) -> fromStringToByteString $ show $ toInteger v
         (MySQLInt64U v) -> fromStringToByteString $ show $ toInteger v
         (MySQLInt8U v) -> fromStringToByteString $ show $ toInteger v
-        _ -> "<unknown format>" 
+        _ -> "<unknown format>"
 
 -- -----------------
 -- Hashable support
@@ -545,7 +558,7 @@ dbNullToCSV = "\\N"
 {-# INLINE dbNullToCSV #-}
 
 instance CSV.ToField DB.MySQLValue where
-  toField MySQLNull = fromStringToByteString dbNullToCSV  
+  toField MySQLNull = fromStringToByteString dbNullToCSV
   toField (MySQLDateTime v) = CSV.toField v
   toField (MySQLTimeStamp v) = CSV.toField v
   toField (MySQLBytes v) = CSV.toField v
@@ -614,7 +627,7 @@ trecord :: BS.ByteString -> TRecord -> DB.MySQLValue
 trecord n tr
     = case Map.lookup n tr of
         Just (_, r) -> r
-        Nothing -> error ("There is no field " ++ fromByteStringToString n ++ ", inside TRecord " ++ show tr) 
+        Nothing -> pError ("There is no field " ++ fromByteStringToString n ++ ", inside TRecord " ++ show tr)
 
 -- | The results of all tfields to import.
 tfields_results :: DB.MySQLConn -> TFields -> Maybe (BS.ByteString, [DB.MySQLValue]) -> IO (S.InputStream TRecord)
@@ -628,7 +641,7 @@ tfields_results conn (TFields tableName tfields1) maybeCondition
                     -> (BS.byteString " WHERE " <> BS.byteString cond, params)
 
         qb :: BS.Builder
-        qb = "SELECT " <> (mconcat $ L.intersperse (BS.charUtf8 ',') (L.map (\n -> BS.charUtf8 '`' <> BS.byteString n <> BS.charUtf8 '`') $ L.map tfield_name tfields2)) <> (BS.byteString " FROM ") <> (BS.byteString tableName) <> condB 
+        qb = "SELECT " <> (mconcat $ L.intersperse (BS.charUtf8 ',') (L.map (\n -> BS.charUtf8 '`' <> BS.byteString n <> BS.charUtf8 '`') $ L.map tfield_name tfields2)) <> (BS.byteString " FROM ") <> (BS.byteString tableName) <> condB
         q = BS.toLazyByteString qb
     in do (_, records) <-DB.query conn (DB.Query q) condV
           S.map (\tvalues
@@ -787,10 +800,7 @@ namedPipe_create pipeName = do
 --   generating consecutive IDS. The ID field had not to be specified in the schema and in the generated data,
 --   and it will be automatically inserted.
 db_loadDataFromNamedPipe
-  :: (Either
-        String        -- ^ write to this (debug) file, instead of the DB
-        DB.MySQLConn  -- ^ write to the DB
-     )
+  :: DBState
   -> BS.ByteString
   -- ^ named-pipe name to use as input
   -> BS.ByteString
@@ -810,7 +820,9 @@ db_loadDataFromNamedPipe
         -- @require until this process does not terminate, no other DB actions can be called
         )
 
-db_loadDataFromNamedPipe maybeConn pipeName tableName columns f = do
+db_loadDataFromNamedPipe dbState pipeName tableName columns f = do
+  _ <- takeMVar $ dbps_semaphore dbState
+
   inChan <- newEmptyMVar
   (pipeH, p1) <- namedPipe_create (fromByteStringToString pipeName)
   p2 <-async process_load
@@ -821,19 +833,21 @@ db_loadDataFromNamedPipe maybeConn pipeName tableName columns f = do
 
  where
 
-  process_load
-    = case maybeConn of
-        Left outFileName -> do 
-          -- NOTE: simulate an external process reading from the pipe and writing to disk, like in case of MySQL process.
-          Process.callCommand $ "cat " ++ (fromByteStringToString pipeName) ++ " > " ++ outFileName
-        Right conn -> do
-          let q = B.byteString "LOAD DATA INFILE ? INTO TABLE "
-                       <>  B.byteString tableName
-                       <> B.byteString " CHARACTER SET utf8mb4 (`id`,"
-                       <> mconcat (L.intersperse (B.byteString ",") $ L.map B.byteString columns)
-                       <> B.byteString ")"
-          _ <- DB.execute conn (DB.Query $ B.toLazyByteString q) [toDBByteString pipeName]
-          return ()
+  process_load = do
+    case dbps_conn dbState of
+      Left outFileName -> do
+        -- NOTE: simulate an external process reading from the pipe and writing to disk, like in case of MySQL process.
+        Process.callCommand $ "cat " ++ (fromByteStringToString pipeName) ++ " > " ++ outFileName
+      Right conn -> do
+        let q = B.byteString "LOAD DATA INFILE ? INTO TABLE "
+                     <>  B.byteString tableName
+                     <> B.byteString " CHARACTER SET utf8mb4 (`id`,"
+                     <> mconcat (L.intersperse (B.byteString ",") $ L.map B.byteString columns)
+                     <> B.byteString ")"
+        _ <- DB.execute conn (DB.Query $ B.toLazyByteString q) [toDBByteString pipeName]
+        return ()
+
+    putMVar (dbps_semaphore dbState) ()
 
   process_writeToMySQLNamedPipe maybeInDataR f outH uniqueId1 = do
      maybeInData <- takeMVar maybeInDataR
@@ -845,9 +859,123 @@ db_loadDataFromNamedPipe maybeConn pipeName tableName columns f = do
       Just inData
         -> do
               !lastUniqueId
-                <- V.foldM (\uniqueId cdr -> do
-                               B.hPutBuilder outH $ B.int32Dec uniqueId <> B.charUtf8 '\t' <> f cdr <> B.charUtf8 '\n'
-                               return $ uniqueDateId_next uniqueId) uniqueId1 inData
+                <- V.foldM' (\uniqueId cdr -> do
+                                B.hPutBuilder outH $
+                                 -- MAYBE DeepSeq.force $
+                                   B.int32Dec uniqueId <> B.charUtf8 '\t' <> f cdr <> B.charUtf8 '\n'
+                                return $ uniqueDateId_next uniqueId) uniqueId1 inData
 
               process_writeToMySQLNamedPipe maybeInDataR f outH lastUniqueId
 
+-- ---------------------------------
+-- Asterisell specific transactions
+
+-- | How many precision digits to use when exporting currencies.
+--
+type CurrencyPrecisionDigits = Int
+
+data DBState
+       = DBState {
+           dbps_conn :: Either String DB.MySQLConn
+           -- ^ Left fileName for writing to a file instead to DB
+         , dbps_name :: String
+         , dbps_currencyPrecision :: CurrencyPrecisionDigits
+         , dbps_semaphore :: MVar ()
+         }
+
+db_init :: DBConf -> Maybe String -> CurrencyPrecisionDigits -> IO DBState
+
+db_init dbConf maybeFileName currencyPrecision = do
+  conn <-
+      case maybeFileName of
+        Nothing -> do
+          c <- db_openConnection dbConf False
+          db_openTransaction c
+          return $ Right c
+        Just fileName -> return $ Left fileName
+
+  s <- newMVar ()
+  let !r = DBState {
+             dbps_conn = conn
+           , dbps_name = fromByteStringToString $ dbConf_dbName dbConf
+           , dbps_currencyPrecision = currencyPrecision
+           , dbps_semaphore = s
+           }
+  return r
+
+-- | Save data and normal error messages.
+--   Errors are saved only if the transaction is not aborted.
+--   So critical errors (aborting the transaction), must be returned using `throwIO`
+--   and normal errors will be discarded.
+db_commitTransactionR :: DBState -> IO ()
+db_commitTransactionR state = do
+  _ <- takeMVar $ dbps_semaphore state
+  case dbps_conn state of
+    Left _ -> return ()
+    Right conn -> db_commitTransaction conn
+
+  putMVar (dbps_semaphore state) ()
+
+db_rollBackTransactionR :: DBState -> IO ()
+db_rollBackTransactionR state = do
+  _ <- takeMVar $ dbps_semaphore state
+  case dbps_conn state of
+    Left _ -> return ()
+    Right conn -> db_rollBackTransaction conn
+  putMVar (dbps_semaphore state) ()
+
+db_releaseResourceR :: Bool -> DBState -> IO ()
+db_releaseResourceR  isOk dbState = do
+  _ <- takeMVar $ dbps_semaphore dbState
+  case dbps_conn dbState of
+    Left _ -> return ()
+    Right conn -> do
+      case isOk of
+        True -> db_commitTransaction conn
+        False -> db_rollBackTransaction conn
+      DB.close conn
+  putMVar (dbps_semaphore dbState) ()
+
+-- | Delete old calculated CDRs before calculating new ones.
+--   Delete also `ar_cached_grouped_cdrs` and `ar_cached_errors`, because they will be updated
+--   from installed DB triggers.
+db_deleteCDRS :: DBState -> LocalTime -> IO ()
+
+db_deleteCDRS state fromCallDate = do
+  _ <- takeMVar $ dbps_semaphore state
+  case dbps_conn state of
+    Left _ -> return ()
+    Right conn -> do
+      let d1 = toDBLocalTime fromCallDate
+      let q1 = "DELETE FROM ar_cdr WHERE calldate >= ?"
+      DB.execute conn (DB.Query q1) [d1]
+      return ()
+  putMVar (dbps_semaphore state) ()
+
+db_errorFileName :: String -> String
+db_errorFileName dbName = "/var/tmp/errors__" ++ dbName ++ ".csv"
+
+db_bundleFileName :: String -> String
+db_bundleFileName dbName = "/var/tmp/bundles__" ++ dbName ++ ".csv"
+
+db_groupedCDRSFileName :: String -> String
+db_groupedCDRSFileName dbName = "/var/tmp/grouped_cdrs__" ++ dbName ++ ".csv"
+
+db_groupedErrorsFileName :: String -> String
+db_groupedErrorsFileName dbName = "/var/tmp/grouped_errors__" ++ dbName ++ ".csv"
+
+-- | Create a DB file, accessible only from MySQL.
+createDBFile :: String -> IO Handle
+createDBFile fileName = do
+  e <- IO.doesFileExist fileName
+  when e (removeFile fileName)
+  let mysqlCanRead = Posix.unionFileModes Posix.ownerModes Posix.groupReadMode
+  fd <- Posix.createFile (fromStringToByteString fileName) mysqlCanRead
+  mysqlUser <- Posix.groupID <$> Posix.getGroupEntryForName "mysql"
+  Posix.setOwnerAndGroup (fromStringToByteString fileName) (0 - 1) mysqlUser
+  -- NOTE: the file must be accessible from MySQL
+
+  outH <- Posix.fdToHandle fd
+  hSetBuffering outH (BlockBuffering Nothing)
+
+  return outH

@@ -97,6 +97,12 @@ abstract class BaseArCachedGroupedCdr extends BaseObject  implements Persistent 
 	protected $cost;
 
 	/**
+	 * The value for the count_of_records field.
+	 * @var        string
+	 */
+	protected $count_of_records;
+
+	/**
 	 * The value for the id field.
 	 * Note: this column has a database default value of: 0
 	 * @var        int
@@ -298,6 +304,16 @@ abstract class BaseArCachedGroupedCdr extends BaseObject  implements Persistent 
 	public function getCost()
 	{
 		return $this->cost;
+	}
+
+	/**
+	 * Get the [count_of_records] column value.
+	 * 
+	 * @return     string
+	 */
+	public function getCountOfRecords()
+	{
+		return $this->count_of_records;
 	}
 
 	/**
@@ -603,6 +619,26 @@ abstract class BaseArCachedGroupedCdr extends BaseObject  implements Persistent 
 	} // setCost()
 
 	/**
+	 * Set the value of [count_of_records] column.
+	 * 
+	 * @param      string $v new value
+	 * @return     ArCachedGroupedCdr The current object (for fluent API support)
+	 */
+	public function setCountOfRecords($v)
+	{
+		if ($v !== null) {
+			$v = (string) $v;
+		}
+
+		if ($this->count_of_records !== $v) {
+			$this->count_of_records = $v;
+			$this->modifiedColumns[] = ArCachedGroupedCdrPeer::COUNT_OF_RECORDS;
+		}
+
+		return $this;
+	} // setCountOfRecords()
+
+	/**
 	 * Set the value of [id] column.
 	 * 
 	 * @param      int $v new value
@@ -677,7 +713,8 @@ abstract class BaseArCachedGroupedCdr extends BaseObject  implements Persistent 
 			$this->income = ($row[$startcol + 10] !== null) ? (string) $row[$startcol + 10] : null;
 			$this->cost_saving = ($row[$startcol + 11] !== null) ? (string) $row[$startcol + 11] : null;
 			$this->cost = ($row[$startcol + 12] !== null) ? (string) $row[$startcol + 12] : null;
-			$this->id = ($row[$startcol + 13] !== null) ? (int) $row[$startcol + 13] : null;
+			$this->count_of_records = ($row[$startcol + 13] !== null) ? (string) $row[$startcol + 13] : null;
+			$this->id = ($row[$startcol + 14] !== null) ? (int) $row[$startcol + 14] : null;
 			$this->resetModified();
 
 			$this->setNew(false);
@@ -687,7 +724,7 @@ abstract class BaseArCachedGroupedCdr extends BaseObject  implements Persistent 
 			}
 
 			// FIXME - using NUM_COLUMNS may be clearer.
-			return $startcol + 14; // 14 = ArCachedGroupedCdrPeer::NUM_COLUMNS - ArCachedGroupedCdrPeer::NUM_LAZY_LOAD_COLUMNS).
+			return $startcol + 15; // 15 = ArCachedGroupedCdrPeer::NUM_COLUMNS - ArCachedGroupedCdrPeer::NUM_LAZY_LOAD_COLUMNS).
 
 		} catch (Exception $e) {
 			throw new PropelException("Error populating ArCachedGroupedCdr object", $e);
@@ -1023,6 +1060,9 @@ abstract class BaseArCachedGroupedCdr extends BaseObject  implements Persistent 
 				return $this->getCost();
 				break;
 			case 13:
+				return $this->getCountOfRecords();
+				break;
+			case 14:
 				return $this->getId();
 				break;
 			default:
@@ -1059,7 +1099,8 @@ abstract class BaseArCachedGroupedCdr extends BaseObject  implements Persistent 
 			$keys[10] => $this->getIncome(),
 			$keys[11] => $this->getCostSaving(),
 			$keys[12] => $this->getCost(),
-			$keys[13] => $this->getId(),
+			$keys[13] => $this->getCountOfRecords(),
+			$keys[14] => $this->getId(),
 		);
 		return $result;
 	}
@@ -1131,6 +1172,9 @@ abstract class BaseArCachedGroupedCdr extends BaseObject  implements Persistent 
 				$this->setCost($value);
 				break;
 			case 13:
+				$this->setCountOfRecords($value);
+				break;
+			case 14:
 				$this->setId($value);
 				break;
 		} // switch()
@@ -1170,7 +1214,8 @@ abstract class BaseArCachedGroupedCdr extends BaseObject  implements Persistent 
 		if (array_key_exists($keys[10], $arr)) $this->setIncome($arr[$keys[10]]);
 		if (array_key_exists($keys[11], $arr)) $this->setCostSaving($arr[$keys[11]]);
 		if (array_key_exists($keys[12], $arr)) $this->setCost($arr[$keys[12]]);
-		if (array_key_exists($keys[13], $arr)) $this->setId($arr[$keys[13]]);
+		if (array_key_exists($keys[13], $arr)) $this->setCountOfRecords($arr[$keys[13]]);
+		if (array_key_exists($keys[14], $arr)) $this->setId($arr[$keys[14]]);
 	}
 
 	/**
@@ -1195,6 +1240,7 @@ abstract class BaseArCachedGroupedCdr extends BaseObject  implements Persistent 
 		if ($this->isColumnModified(ArCachedGroupedCdrPeer::INCOME)) $criteria->add(ArCachedGroupedCdrPeer::INCOME, $this->income);
 		if ($this->isColumnModified(ArCachedGroupedCdrPeer::COST_SAVING)) $criteria->add(ArCachedGroupedCdrPeer::COST_SAVING, $this->cost_saving);
 		if ($this->isColumnModified(ArCachedGroupedCdrPeer::COST)) $criteria->add(ArCachedGroupedCdrPeer::COST, $this->cost);
+		if ($this->isColumnModified(ArCachedGroupedCdrPeer::COUNT_OF_RECORDS)) $criteria->add(ArCachedGroupedCdrPeer::COUNT_OF_RECORDS, $this->count_of_records);
 		if ($this->isColumnModified(ArCachedGroupedCdrPeer::ID)) $criteria->add(ArCachedGroupedCdrPeer::ID, $this->id);
 
 		return $criteria;
@@ -1317,6 +1363,8 @@ abstract class BaseArCachedGroupedCdr extends BaseObject  implements Persistent 
 		$copyObj->setCostSaving($this->cost_saving);
 
 		$copyObj->setCost($this->cost);
+
+		$copyObj->setCountOfRecords($this->count_of_records);
 
 		$copyObj->setId($this->id);
 

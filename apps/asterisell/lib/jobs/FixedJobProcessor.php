@@ -1,6 +1,7 @@
 <?php
 
 // SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2009-2019 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
 
 sfLoader::loadHelpers(array('I18N', 'Debug', 'Date', 'Asterisell'));
 
@@ -192,7 +193,7 @@ abstract class FixedJobProcessor
     /**
      * Reset the global command and internal command.
      * @param PDO|null
-     * @param bool resetAll true for resetting both the user, and internal flag, false for resetting only the flag.
+     * @param bool $resetAll true for resetting both the user, and internal flag, false for resetting only the flag.
      */
     static public function signalAsDoneRerateCallsFromOfficialCalldate($conn = null, $resetAll = true)
     {
@@ -405,6 +406,8 @@ abstract class FixedJobProcessor
 
     /**
      * To call before starting the rating process.
+     * Requirements: during rerating new changes of rates are not lost,
+     * and they must schedule another rerating.
      * @param PDO|null $conn
      */
     static public function startRatingProcess($conn = null)

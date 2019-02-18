@@ -2,7 +2,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml">
    <head><meta charset="UTF-8" />
       <title>Enable SSH access</title><link href="res/webhelp.css" rel="stylesheet" type="text/css" /><meta content="Instances are managed using Python Fabric tool, and they are accessed using SSH." name="description" />
-      <meta content="XMLmind DITA Converter 3.3.0" name="generator" />
+      <meta content="XMLmind DITA Converter 3.3.1" name="generator" />
    <script charset="UTF-8" defer="defer" src="_wh/snowball_en.min.js" type="text/javascript"></script><link href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/themes/smoothness/jquery-ui.css" rel="stylesheet" type="text/css" /><link href="_wh/wh.css" rel="stylesheet" type="text/css" /><script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js" type="text/javascript">
     </script><script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js" type="text/javascript">
     </script><script charset="UTF-8" src="_wh/wh.min.js" type="text/javascript">
@@ -60,13 +60,13 @@
          <h2 class="section2-title">Enable SSH access</h2>
          <p class="shortdesc">Instances are managed using Python Fabric tool, and they are accessed using SSH.</p>
          <div class="body">
-            <section class="section" id="Enable_SSH_access__I_ke2sc8_">
+            <section class="section" id="Enable_SSH_access__I_35hj77_">
                <h3 class="section-title">On the instance (remote) server</h3>
                <div class="p">Install the SSH server on the <a class="xref" href="manual-6.html#Asterisell_host">Asterisell host</a></div><pre class="pre">yum install openssh-server
 </pre><div class="p">Enable SSH root login, because the <a class="xref" href="manual-6.html#Instances_configuration_tool">Instances configuration tool</a> need it. Set in <code class="codeph">/etc/ssh/sshd_config</code></div><pre class="pre">PermitRootLogin yes
 </pre><div class="p">and restart the SSH server</div><pre class="pre">systemctl restart sshd
 </pre></section>
-            <section class="section" id="Enable_SSH_access__I_bbshyq_">
+            <section class="section" id="Enable_SSH_access__I_y6cu74_">
                <h3 class="section-title">On the management server</h3>
                <div class="p">The <a class="xref" href="manual-6.html#Instances_configuration_tool">Instances configuration tool</a> create a <code class="codeph">/home/user/.ssh/id_rsa.pub</code> and <code class="codeph">/home/user/.ssh/id_rsa</code> public/private key pair, installed only inside the Docker container used for administering
                   other Asterisell instances. Enable root access for these keys executing in the <a class="xref" href="manual-6.html#Instances_configuration_tool">Instances configuration tool</a> directory
@@ -81,7 +81,7 @@ fab authorize_ssh_access:asterisell/demo
                   server.
                </div>
             </section>
-            <section class="section" id="Enable_SSH_access__I_bfnx61_">
+            <section class="section" id="Enable_SSH_access__I_w0xpy6_">
                <h3 class="section-title">Restrict SSH root access</h3>
                <div class="p">If you want restrict direct root login access only to <a class="xref" href="manual-6.html#Instances_configuration_tool">Instances configuration tool</a>, set in <code class="codeph">/etc/ssh/sshd_config</code> of the <a class="xref" href="manual-6.html#Asterisell_host">Asterisell host</a></div><pre class="pre">PermitRootLogin without-password
 PubkeyAuthentication yes

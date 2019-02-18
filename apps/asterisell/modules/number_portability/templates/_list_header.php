@@ -1,6 +1,7 @@
 <?php
 
 // SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2009-2019 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
 
 echo '<br/>';
 echo form_tag("number_portability/importCSV", 'multipart=true') . input_file_tag('csvFile', array('size' => 30)) . '      '. submit_tag(__('Import from CSV'), array('name' => 'csv')) . '      '  . submit_tag(__('Import from TWT'), array('name' => 'twt')) . '</form>';

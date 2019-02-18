@@ -17,6 +17,7 @@ abstract class BaseArCachedGroupedCdrFormFilter extends BaseFormFilterPropel
       'income'                           => new sfWidgetFormFilterInput(array('with_empty' => false)),
       'cost_saving'                      => new sfWidgetFormFilterInput(array('with_empty' => false)),
       'cost'                             => new sfWidgetFormFilterInput(array('with_empty' => false)),
+      'count_of_records'                 => new sfWidgetFormFilterInput(array('with_empty' => false)),
       'id'                               => new sfWidgetFormFilterInput(array('with_empty' => false)),
     ));
 
@@ -26,6 +27,7 @@ abstract class BaseArCachedGroupedCdrFormFilter extends BaseFormFilterPropel
       'income'                           => new sfValidatorSchemaFilter('text', new sfValidatorInteger(array('required' => false))),
       'cost_saving'                      => new sfValidatorSchemaFilter('text', new sfValidatorInteger(array('required' => false))),
       'cost'                             => new sfValidatorSchemaFilter('text', new sfValidatorInteger(array('required' => false))),
+      'count_of_records'                 => new sfValidatorSchemaFilter('text', new sfValidatorInteger(array('required' => false))),
       'id'                               => new sfValidatorSchemaFilter('text', new sfValidatorInteger(array('required' => false))),
     ));
 
@@ -57,6 +59,7 @@ abstract class BaseArCachedGroupedCdrFormFilter extends BaseFormFilterPropel
       'income'                           => 'Number',
       'cost_saving'                      => 'Number',
       'cost'                             => 'Number',
+      'count_of_records'                 => 'Number',
       'id'                               => 'Number',
     );
   }
