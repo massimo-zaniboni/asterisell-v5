@@ -61,6 +61,12 @@ abstract class BaseArOrganizationUnit extends BaseObject  implements Persistent 
 	protected $internal_checksum4;
 
 	/**
+	 * The value for the internal_checksum5 field.
+	 * @var        string
+	 */
+	protected $internal_checksum5;
+
+	/**
 	 * The value for the export_code field.
 	 * @var        string
 	 */
@@ -288,6 +294,16 @@ abstract class BaseArOrganizationUnit extends BaseObject  implements Persistent 
 	}
 
 	/**
+	 * Get the [internal_checksum5] column value.
+	 * 
+	 * @return     string
+	 */
+	public function getInternalChecksum5()
+	{
+		return $this->internal_checksum5;
+	}
+
+	/**
 	 * Get the [export_code] column value.
 	 * 
 	 * @return     string
@@ -448,6 +464,26 @@ abstract class BaseArOrganizationUnit extends BaseObject  implements Persistent 
 	} // setInternalChecksum4()
 
 	/**
+	 * Set the value of [internal_checksum5] column.
+	 * 
+	 * @param      string $v new value
+	 * @return     ArOrganizationUnit The current object (for fluent API support)
+	 */
+	public function setInternalChecksum5($v)
+	{
+		if ($v !== null) {
+			$v = (string) $v;
+		}
+
+		if ($this->internal_checksum5 !== $v) {
+			$this->internal_checksum5 = $v;
+			$this->modifiedColumns[] = ArOrganizationUnitPeer::INTERNAL_CHECKSUM5;
+		}
+
+		return $this;
+	} // setInternalChecksum5()
+
+	/**
 	 * Set the value of [export_code] column.
 	 * 
 	 * @param      string $v new value
@@ -530,8 +566,9 @@ abstract class BaseArOrganizationUnit extends BaseObject  implements Persistent 
 			$this->internal_checksum2 = ($row[$startcol + 4] !== null) ? (string) $row[$startcol + 4] : null;
 			$this->internal_checksum3 = ($row[$startcol + 5] !== null) ? (string) $row[$startcol + 5] : null;
 			$this->internal_checksum4 = ($row[$startcol + 6] !== null) ? (string) $row[$startcol + 6] : null;
-			$this->export_code = ($row[$startcol + 7] !== null) ? (string) $row[$startcol + 7] : null;
-			$this->automatically_managed_from = ($row[$startcol + 8] !== null) ? (int) $row[$startcol + 8] : null;
+			$this->internal_checksum5 = ($row[$startcol + 7] !== null) ? (string) $row[$startcol + 7] : null;
+			$this->export_code = ($row[$startcol + 8] !== null) ? (string) $row[$startcol + 8] : null;
+			$this->automatically_managed_from = ($row[$startcol + 9] !== null) ? (int) $row[$startcol + 9] : null;
 			$this->resetModified();
 
 			$this->setNew(false);
@@ -541,7 +578,7 @@ abstract class BaseArOrganizationUnit extends BaseObject  implements Persistent 
 			}
 
 			// FIXME - using NUM_COLUMNS may be clearer.
-			return $startcol + 9; // 9 = ArOrganizationUnitPeer::NUM_COLUMNS - ArOrganizationUnitPeer::NUM_LAZY_LOAD_COLUMNS).
+			return $startcol + 10; // 10 = ArOrganizationUnitPeer::NUM_COLUMNS - ArOrganizationUnitPeer::NUM_LAZY_LOAD_COLUMNS).
 
 		} catch (Exception $e) {
 			throw new PropelException("Error populating ArOrganizationUnit object", $e);
@@ -1063,9 +1100,12 @@ abstract class BaseArOrganizationUnit extends BaseObject  implements Persistent 
 				return $this->getInternalChecksum4();
 				break;
 			case 7:
-				return $this->getExportCode();
+				return $this->getInternalChecksum5();
 				break;
 			case 8:
+				return $this->getExportCode();
+				break;
+			case 9:
 				return $this->getAutomaticallyManagedFrom();
 				break;
 			default:
@@ -1096,8 +1136,9 @@ abstract class BaseArOrganizationUnit extends BaseObject  implements Persistent 
 			$keys[4] => $this->getInternalChecksum2(),
 			$keys[5] => $this->getInternalChecksum3(),
 			$keys[6] => $this->getInternalChecksum4(),
-			$keys[7] => $this->getExportCode(),
-			$keys[8] => $this->getAutomaticallyManagedFrom(),
+			$keys[7] => $this->getInternalChecksum5(),
+			$keys[8] => $this->getExportCode(),
+			$keys[9] => $this->getAutomaticallyManagedFrom(),
 		);
 		return $result;
 	}
@@ -1151,9 +1192,12 @@ abstract class BaseArOrganizationUnit extends BaseObject  implements Persistent 
 				$this->setInternalChecksum4($value);
 				break;
 			case 7:
-				$this->setExportCode($value);
+				$this->setInternalChecksum5($value);
 				break;
 			case 8:
+				$this->setExportCode($value);
+				break;
+			case 9:
 				$this->setAutomaticallyManagedFrom($value);
 				break;
 		} // switch()
@@ -1187,8 +1231,9 @@ abstract class BaseArOrganizationUnit extends BaseObject  implements Persistent 
 		if (array_key_exists($keys[4], $arr)) $this->setInternalChecksum2($arr[$keys[4]]);
 		if (array_key_exists($keys[5], $arr)) $this->setInternalChecksum3($arr[$keys[5]]);
 		if (array_key_exists($keys[6], $arr)) $this->setInternalChecksum4($arr[$keys[6]]);
-		if (array_key_exists($keys[7], $arr)) $this->setExportCode($arr[$keys[7]]);
-		if (array_key_exists($keys[8], $arr)) $this->setAutomaticallyManagedFrom($arr[$keys[8]]);
+		if (array_key_exists($keys[7], $arr)) $this->setInternalChecksum5($arr[$keys[7]]);
+		if (array_key_exists($keys[8], $arr)) $this->setExportCode($arr[$keys[8]]);
+		if (array_key_exists($keys[9], $arr)) $this->setAutomaticallyManagedFrom($arr[$keys[9]]);
 	}
 
 	/**
@@ -1207,6 +1252,7 @@ abstract class BaseArOrganizationUnit extends BaseObject  implements Persistent 
 		if ($this->isColumnModified(ArOrganizationUnitPeer::INTERNAL_CHECKSUM2)) $criteria->add(ArOrganizationUnitPeer::INTERNAL_CHECKSUM2, $this->internal_checksum2);
 		if ($this->isColumnModified(ArOrganizationUnitPeer::INTERNAL_CHECKSUM3)) $criteria->add(ArOrganizationUnitPeer::INTERNAL_CHECKSUM3, $this->internal_checksum3);
 		if ($this->isColumnModified(ArOrganizationUnitPeer::INTERNAL_CHECKSUM4)) $criteria->add(ArOrganizationUnitPeer::INTERNAL_CHECKSUM4, $this->internal_checksum4);
+		if ($this->isColumnModified(ArOrganizationUnitPeer::INTERNAL_CHECKSUM5)) $criteria->add(ArOrganizationUnitPeer::INTERNAL_CHECKSUM5, $this->internal_checksum5);
 		if ($this->isColumnModified(ArOrganizationUnitPeer::EXPORT_CODE)) $criteria->add(ArOrganizationUnitPeer::EXPORT_CODE, $this->export_code);
 		if ($this->isColumnModified(ArOrganizationUnitPeer::AUTOMATICALLY_MANAGED_FROM)) $criteria->add(ArOrganizationUnitPeer::AUTOMATICALLY_MANAGED_FROM, $this->automatically_managed_from);
 
@@ -1274,6 +1320,8 @@ abstract class BaseArOrganizationUnit extends BaseObject  implements Persistent 
 		$copyObj->setInternalChecksum3($this->internal_checksum3);
 
 		$copyObj->setInternalChecksum4($this->internal_checksum4);
+
+		$copyObj->setInternalChecksum5($this->internal_checksum5);
 
 		$copyObj->setExportCode($this->export_code);
 

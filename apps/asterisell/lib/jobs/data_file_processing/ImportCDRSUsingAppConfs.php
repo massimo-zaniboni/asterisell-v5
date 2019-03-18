@@ -9,7 +9,7 @@ sfLoader::loadHelpers(array('I18N', 'Debug', 'Date', 'Asterisell'));
  * Import CDRS from remote databases, using the configurations specified on `ConnectionParams`
  * inside `asterisell_instances.py`.
  *
- * This job is the counterpart of `ImportDataFiles`, but it works on remote databases,
+ * This job is similar to `ImportDataFiles`, but it works on remote databases,
  * instead of local files.
  *
  * It process connections starting with prefix 'import-remote-cdrs-'.
@@ -39,6 +39,32 @@ sfLoader::loadHelpers(array('I18N', 'Debug', 'Date', 'Asterisell'));
  */
 class ImportCDRSUsingAppConfs extends FixedJobProcessor
 {
+
+    // --------------------
+    // Job params
+
+    /**
+     * @return bool true for creating missing CDR providers, false for signaling an error (mare safe).
+     */
+    public function createMissingCDRProviders()
+    {
+        return true;
+    }
+
+    /**
+     * @return string all the connection params specified in `asterisell_instances.py`,
+     * having this prefix will be used for importing data.
+     * Doing so one can import from multiple sources without adding explicit jobs,
+     * in the configuration, but only adding new connection params.
+     *
+     * The parameter 'dataSourceFormat' of the connection is used as import method name.
+     * The parameter `provider` of the connection is used as data-source-name.
+     * The parameter `timeFrameInMinutes` is used for postponing the execution.
+     */
+    public function getConnectionNamePrefix()
+    {
+        return "import-remote-cdrs-";
+    }
 
     // --------------------
     // Logical job params
@@ -136,21 +162,6 @@ class ImportCDRSUsingAppConfs extends FixedJobProcessor
         }
     }
 
-    /**
-     * @return string all the connection params specified in `asterisell_instances.py`,
-     * having this prefix will be used for importing data.
-     * Doing so one can import from multiple sources without adding explicit jobs,
-     * in the configuration, but only adding new connection params.
-     *
-     * The parameter 'dataSourceFormat' of the connection is used as import method name.
-     * The parameter `provider` of the connection is used as data-source-name.
-     * The parameter `timeFrameInMinutes` is used for postponing the execution.
-     */
-    public function getConnectionNamePrefix()
-    {
-        // DEV-NOTE: if you change this value, update also `asterisell_instances.py` documentation.
-        return "import-remote-cdrs-";
-    }
 
     // -------------------------
     // Job interface
@@ -213,12 +224,19 @@ class ImportCDRSUsingAppConfs extends FixedJobProcessor
                 $cdrProviderId = CustomCDRServices::getInstance()->getCdrProviderId($this->getCdrProvider());
 
                 if (is_null($cdrProviderId)) {
-                    $this->signalError(
-                        "cdr_provider - $jobDescription",
-                        "Missing CDR provider " . $this->getCdrProvider() . " for $jobDescription",
-                        "CDRS will be not imported.",
-                        "Define the missing CDR provider inside Asterisell Web UI or improve the configuration of $jobDescription inside \"asterisell_instances.py\"",
-                        true, ArProblemDomain::CONFIGURATIONS);
+                    if ($this->createMissingCDRProviders()) {
+                        $provider = new ArCdrProvider();
+                        $provider->setInternalName($this->getCdrProvider());
+                        $provider->save();
+                        $cdrProviderId = $provider->getId();
+                    } else {
+                        $this->signalError(
+                            "cdr_provider - $jobDescription",
+                            "Missing CDR provider " . $this->getCdrProvider() . " for $jobDescription",
+                            "CDRS will be not imported.",
+                            "Define the missing CDR provider inside Asterisell Web UI or improve the configuration of $jobDescription inside \"asterisell_instances.py\"",
+                            true, ArProblemDomain::CONFIGURATIONS);
+                    }
                 }
 
                 $logicalTypeId = CustomCDRServices::getInstance()->getLogicalTypeId($this->getLogicalType());

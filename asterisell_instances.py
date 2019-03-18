@@ -76,6 +76,15 @@ class DefaultHost(Host):
     IMPORTANT: use a proper value, otherwise the DBMS will be slower.
     """
 
+    inno_dbms_reserved_ram_in_mb = 50
+    """
+    If the host is used only for Asterisell, as usual it should be, then use a very low value,
+    because it is still needed frmo MySQL internal. With 0 there is a significative slow down of the DBMS.
+    So 50M is a good starting point.
+    In case of complex queries done from other applications on INNODB table, increase this value.
+    This cache is not shared with dbms_reserved_ram_in_mb used from TokuDB engine.
+    """
+
     generate_http_conf = True
     """
     True if nginx/hppt configurations will be created and managed by Asterisell management utility.
@@ -122,7 +131,7 @@ class DefaulHttpDomain(HttpDomain):
     server {
       listen 443 ssl http2;
       server_name www.example.net;
-  
+
       ssl on;
       ssl_certificate /etc/letsencrypt/live/www.example.net/fullchain.pem; # managed by Certbot
       ssl_certificate_key /etc/letsencrypt/live/www.example.net/privkey.pem; # managed by Certbot
@@ -875,3 +884,4 @@ all_instances = [ DemoInstance(),
                   RegressionTestInstance1(),
                   RegressionTestInstance2(),
                 ]
+

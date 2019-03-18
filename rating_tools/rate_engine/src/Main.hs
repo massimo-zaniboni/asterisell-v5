@@ -7,7 +7,6 @@ module Main (
     main
 ) where
 
-
 import Asterisell.Cdr
 import Asterisell.Error
 import Asterisell.RatePlan
@@ -613,10 +612,10 @@ mainRate = do
                             -> do putStrLn $ show err
                                   exitFailure)
               (case methodNameS of
-                 "rolf1_dynamic"
-                   -> rolf1_synchro localConnectInfo remoteConnectInfo organizationToIgnore currencyPrecision dataSourceName params
-                 "rolf1"
-                   -> rolf1_synchro localConnectInfo remoteConnectInfo Text.empty currencyPrecision dataSourceName params
+                 "itec1_dynamic"
+                   -> itec1_synchro localConnectInfo remoteConnectInfo organizationToIgnore currencyPrecision dataSourceName params
+                 "itec1-db"
+                   -> itec1_synchro localConnectInfo remoteConnectInfo Text.empty currencyPrecision dataSourceName params
                  _ -> do putStrLn $ "Unsupported method \"" ++ methodNameS ++ "\""
                          exitFailure)
 
@@ -643,7 +642,7 @@ mainRate = do
                                   exitFailure)
               (case formatNameS of
                  "telcordia-zaf"
-                   -> do _ <- rolf1_processTelcordia localConnectInfo fileName
+                   -> do _ <- itec1_processTelcordia localConnectInfo fileName
                          return ()
                  _ -> do putStrLn $ "Unsupported format \"" ++ formatNameS ++ "\""
                          exitFailure

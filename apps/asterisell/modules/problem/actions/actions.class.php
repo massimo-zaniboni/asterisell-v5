@@ -61,4 +61,10 @@ class problemActions extends autoproblemActions {
 
       $this->redirect('problem/list');
   }
+
+  public function executeExportToFile($request) {
+        // execute list operation and then invoke templates/exportToFileSuccess.php
+        //
+        return $this->executeList($request);
+  }
 }

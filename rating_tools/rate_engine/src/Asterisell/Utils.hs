@@ -101,6 +101,7 @@ module Asterisell.Utils (
   stream_map,
   stream_sequence,
   stream_forceMap,
+  stream_toOrderedStream,
   process_initCores,
   process_orderedChunks,
   process_orderedChunksUsingFun,
@@ -1156,7 +1157,7 @@ process_orderedChunksUsingFun processName inChan nrOfJobs procFun outChan propag
        Nothing -> do
          putMVar outJobChan Nothing
        Just v -> do
- 
+
          v' <- V.mapM procFun v
          orderedStream_put outJobChan $ Just v'
          processAll inJobChan outJobChan
@@ -1217,6 +1218,19 @@ stream_sequence seed0 generator = do
                         g stateR
       _
         -> return mv
+
+-- | Send all values and return the last value.
+stream_toOrderedStream :: NFData a => Bool -> S.InputStream (Chunk a) -> OrderedStream a -> Maybe a -> IO (Maybe a)
+stream_toOrderedStream propagateEOF inS outChan !maybeLast = do
+  mv <- S.read inS
+  case mv of
+    Nothing -> do
+      when propagateEOF (orderedStream_put outChan Nothing)
+      return maybeLast
+    Just v -> do
+      let v' = DeepSeq.force v
+      putMVar outChan (Just v')
+      stream_toOrderedStream propagateEOF inS outChan (Just $ V.last v')
 
 -- -----------------------
 -- Brackets

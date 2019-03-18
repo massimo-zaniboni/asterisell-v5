@@ -1,4 +1,4 @@
-# Bundl rates
+# Bundle rates
 
 Bundle-rates rate calls using a special rate, until certain conditions are respected. Then normal rates are applied.
 

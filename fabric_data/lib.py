@@ -144,6 +144,8 @@ class Host(object):
 
     dbms_reserved_ram_in_mb = 1000
 
+    inno_dbms_reserved_ram_in_mb = 50
+
     generate_http_conf = True
 
     date_timezone = 'Europe/Rome'
@@ -350,8 +352,9 @@ bind-address = 127.0.0.1
 
 # Set to a low value,
 # because Asterisell uses only TokeDB tables,
-# but not a too much low value, because otherwise there is too much CPU utilization
-innodb_buffer_pool_size = 50M
+# but not a too much low value, because otherwise there is too much disk/CPU utilization,
+# because some MySQL internals still needs some space for some operations. 
+innodb_buffer_pool_size = ${inno_dbms_ram}M
 
 # needed because MySQL can receive big BLOB files from the application,
 # in case of complex rate plans
@@ -368,7 +371,7 @@ secure_file_priv = '/var/tmp'
 # Disabling symbolic-links is recommended to prevent assorted security risks
 symbolic-links=0
 
-            """, dbms_ram=self.dbms_reserved_ram_in_mb)
+            """, dbms_ram=self.dbms_reserved_ram_in_mb, inno_dbms_ram=self.inno_dbms_reserved_ram_in_mb)
 
             # Gracefull reload is not permitted,
             # and a restart is not nice because pending transactions will be interrupted,
@@ -778,11 +781,6 @@ class Instance(object):
     custom_configure_jobs = []
     custom_upgrade_jobs = []
 
-    # Upgrade jobs that must be applied to all instances
-    default_upgrade_jobs = [
-      'Upgrade_2017_07_18'
-    ]
-
     contact_external_hosts = False
     import_extensions_from_ipbx_database = False
 
@@ -969,9 +967,7 @@ class Instance(object):
         return self.custom_configure_jobs
 
     def get_custom_upgrade_jobs(self):
-        r = list(self.default_upgrade_jobs)
-        r.extend(self.custom_upgrade_jobs)
-        return r
+        return self.custom_upgrade_jobs
 
     def get_custom_export_cdrs_jobs(self):
         return self.custom_export_cdrs_jobs
@@ -1291,8 +1287,9 @@ all:
       - BackupOrganizationInfo
       - ChangePassword                      # execute more times this, for having a more reactive upgrade
       $custom_export_cdrs_jobs
-      # Disabled backup jobs because there are many CDRS and data,
-      # and a dump can be costly. 
+      # MAYBE: ISP can manage backup of VMS using their tools, and TokuDB compressed tables are rather manageable
+      # Itec: disabled backup jobs because there are many CDRS and data,
+      # and a dump can be costly. It is better a programmed backup of the TokuDB compressed binary tables.
       # - BackupConfigurations
       # - BackupSourceCDRS
       # - BackupCDRS
@@ -1340,6 +1337,7 @@ all:
       - Upgrade_2017_03_06
       - Upgrade_2017_03_10
       - Upgrade_2017_03_16
+      - Upgrade_2017_07_18
       - Upgrade_2018_01_23
       - Upgrade_2018_02_14
       - Upgrade_2018_03_00

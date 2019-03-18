@@ -160,6 +160,7 @@ data DataInfo
       unit_internalChecksum2 :: !(Maybe BS.ByteString),
       unit_internalChecksum3 :: !(Maybe BS.ByteString),
       unit_internalChecksum4 :: !(Maybe BS.ByteString),
+      unit_internalChecksum5 :: !(Maybe BS.ByteString),
 
       structure_from :: !LocalTime,
       -- ^ from when the info replace the old info, on the same unit_id, and it became valid
@@ -294,6 +295,7 @@ extensions_load conn isDebugMode maybeOrganizationToIgnore = do
               |, ar_organization_unit.internal_checksum2
               |, ar_organization_unit.internal_checksum3
               |, ar_organization_unit.internal_checksum4
+              |, ar_organization_unit.internal_checksum5
               |, ar_organization_unit_type.id
               |, ar_organization_unit_type.name
               |, ar_organization_unit_type.short_code
@@ -399,6 +401,7 @@ addExtensionRecord
   , unitChecksum2
   , unitChecksum3
   , unitChecksum4
+  , unitChecksum5
   , typeId
   , typeName
   , typeShortCode
@@ -437,6 +440,7 @@ addExtensionRecord
                       unit_internalChecksum2 = fromMaybeDBValue fromDBByteString unitChecksum2,
                       unit_internalChecksum3 = fromMaybeDBValue fromDBByteString unitChecksum3,
                       unit_internalChecksum4 = fromMaybeDBValue fromDBByteString unitChecksum4,
+                      unit_internalChecksum5 = fromMaybeDBValue fromDBByteString unitChecksum5,
                       unitType_id = fromDBInt typeId,
                       unitType_name = fromMaybeDBValue fromDBText typeName,
                       unitType_shortCode = fromMaybeDBValue fromDBText typeShortCode,
@@ -1187,6 +1191,7 @@ organizationUnit_tfields = TFields "ar_organization_unit" $
     , TField "internal_checksum2" False True False
     , TField "internal_checksum3" False True False
     , TField "internal_checksum4" False True False
+    , TField "internal_checksum5" False True False
     , TField "export_code" False True False
     , TField "automatically_managed_from" False True False
     ]

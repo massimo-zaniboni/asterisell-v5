@@ -628,8 +628,10 @@ data LocaleConversion
 
 -- | Params identifying the file containing the source CDRs.
 --   They are used both during importing, and during exporting of CDRs.
---   Data retrieved from DB will saved using a standard CSV format,
---   while data retrieved from custom CSV files, will be saved line by line in its original format.
+--
+--   Data retrieved from DB will be saved in ar_source_cdr using a standard CSV format.
+--
+--   Data retrieved from custom CSV files, will be saved line by line in its original format.
 --   Doing so the same content can be exported and imported again, without loosing information,
 --   and it can plays the role of an archive.
 data SourceCDRParams
@@ -653,12 +655,19 @@ data SourceCDRParams
        | SourceCDRParamsDBTableWithAutoincrementId
            [String] -- ^ the fields to retrieve. The first field had to be the numeric autoincrement field.
            String   -- ^ the field to use as call-date. It assumes there is no efficient index on this field.
+           (Maybe String)
+           -- ^ Nothing for using a standard query.
+           --
+           --   Otherwise the custom query to use for retrieving data.
+           --   @require: this query must have a WHERE section.
+           --   @require: the name and order of fields are the same of the list of fields in the first parameter
 
  deriving (Generic, NFData, Show)
 
 sourceCDRParams_default :: SourceCDRParams
 sourceCDRParams_default
   = SourceCDRParamsCSVFile Nothing ',' False UseUTF8
+{-# INLINE sourceCDRParams_default #-}
 
 type FormatId = Int
 
@@ -670,7 +679,12 @@ data CDRFormatSpec
             SourceCDRParams
             -- ^ the format of the raw CDR
             (AType a)
-            -- ^ the native CDR format
+            -- ^ the native CDR format.
+            --   In case of `SourceCDRRParams` of type `SourceCDRParamsDBTableWithAutoincrementId`,
+            --   a SELECT with the fields in the specified order will be materialized
+            --   into a CSV format with the same order of fields.
+            --   So the corresponding `AType a` is usually an Haskell data type with
+            --   the fields in the same order, and of type `ExportMaybeNull Text.Text`.
 
 instance Show CDRFormatSpec where
     show s = "<CDRFormatSpec>"
@@ -721,7 +735,7 @@ convertToNativeCDR _ params content
                                      ("Parsing error. Unexpexted decode with " ++ show n ++ " records.")
                                      ("")
                                      ("")
-      SourceCDRParamsDBTableWithAutoincrementId fields callDateField
+      SourceCDRParamsDBTableWithAutoincrementId fields callDateField _
         -> case CSV.decode CSV.NoHeader (LBS.fromChunks [content]) of
              Left !err
                -> Left $ createError

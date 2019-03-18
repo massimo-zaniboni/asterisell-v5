@@ -11,8 +11,18 @@ sfLoader::loadHelpers(array('I18N', 'Debug', 'Date', 'Asterisell'));
  * Retrieve the all/majority of params from YAML connection params.
  * Retrieve the list of customer providers from the connection params.
  */
-class ImportCustomersDataAskingToRatingEngine extends FixedJobProcessor
+class ImportCustomersDataAskingToRatingEngine extends AdminJobProcessor
 {
+
+    // -------------------------
+    // AdminJobProcessor support
+
+    public function isCDRTableModified() {
+        return false;
+    }
+
+    // --------------------------
+    // Specific functions
 
     /**
      * @return string all the connection params specified in `asterisell_instances.py`,
@@ -89,7 +99,7 @@ class ImportCustomersDataAskingToRatingEngine extends FixedJobProcessor
 
             $cmd = RateEngineService::getToolExecutable()
                 . ' --customers-import ' . $params['dataSourceFormat']
-                . ' --import ' . RateEngineService::writeParams($engineParams)
+                . ' --params ' . RateEngineService::writeParams($engineParams)
                 . ' --data-source-name ' . $params['provider']
                 . ' --organization-to-ignore "' . sfConfig::get('app_organization_to_ignore') . '" '
                 . ' --currency-precision ' . $currencyPrecision

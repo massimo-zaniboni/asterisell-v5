@@ -156,26 +156,6 @@ rateGarbageKey :: RatingParams -> BS.ByteString
 rateGarbageKey env = "rating-process-cdrs"
 {-# INLINE rateGarbageKey #-}
 
--- | Number of CDRs to process in each phase: parse, rate, write to DB.
---   A bigger chunk reduces the number of DB round-trips, because more CDRs are sent to the DB,
---   and maximize the CPU cache usage.
---   A bigger chunk optimizes also the CPU cache usage, because the same work is done on a chunk of CDRS,
---   instead of changing for each CDR the working context. So in each phase the results are forced to be
---   under DeepSeq, and fully evaluated.
-param_chunkSize :: Int
-param_chunkSize = 512
-{-# INLINE param_chunkSize #-}
-
--- | The number of source CDRs to fetch from the DB, before splitting the rating event.
---   Up to date the Haskell MySQL driver does not support the forward-only cursor mode,
---   and it stores all the CDRS of the rating query in RAM.
---   So the query is splitted (efficiently) in smaller queries, and they are rated separately.
---   NOTE: 30K CDRs requires approximately 100M - 200M of RAM (according the number of rates to load)
---   NOTE: the cost of splitting the query is rather neglible.
-param_chunkSize2 :: Int
-param_chunkSize2 = 1024 * 30
-{-# INLINE param_chunkSize2 #-}
-
 data RunLevel = RunLevel {
                   runLevel_type :: RunLevelT
                 , runLevel_cores :: Int -- ^ 0 for using all the cores
@@ -1535,7 +1515,6 @@ rateEngine_openDBAndUpdateCachedGroupedCDRS dbConf
   = do
        dbState <- db_init dbConf Nothing 4
        let writeConn = fromRight (error "ERR 522666") (dbps_conn dbState)
-       db_openTransaction writeConn
        let q1 = "SELECT MIN(calldate), MAX(calldate) FROM ar_cdr"
        (_, inS1) <- DB.query_ writeConn  q1
        dates <- S.toList inS1

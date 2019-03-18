@@ -74,6 +74,8 @@ module Asterisell.DB (
   db_loadDataFromNamedPipe,
   CurrencyPrecisionDigits,
   DBState(..),
+  param_chunkSize,
+  param_chunkSize2
  ) where
 
 import Asterisell.Error
@@ -130,6 +132,28 @@ import Control.Monad
 import Text.Heredoc
 import qualified Data.Csv as CSV
 import System.Random
+
+-- ---------------------------------
+-- Params
+
+-- | The number of source CDRs to fetch from the DB, before splitting the rating event.
+--   Up to date the Haskell MySQL driver does not support the forward-only cursor mode,
+--   and it stores all the CDRS of the rating query in RAM.
+--   So the query is splitted (efficiently) in smaller queries, and they are rated separately.
+--   NOTE: the cost of splitting the query is rather neglible, so use low numbers.
+param_chunkSize2 :: Int
+param_chunkSize2 = 1024 * 5
+{-# INLINE param_chunkSize2 #-}
+
+-- | Number of CDRs to process in each phase: parse, rate, write to DB.
+--   A bigger chunk reduces the number of DB round-trips, because more CDRs are sent to the DB,
+--   and maximize the CPU cache usage.
+--   A bigger chunk optimizes also the CPU cache usage, because the same work is done on a chunk of CDRS,
+--   instead of changing for each CDR the working context. So in each phase the results are forced to be
+--   under DeepSeq, and fully evaluated.
+param_chunkSize :: Int
+param_chunkSize = 512
+{-# INLINE param_chunkSize #-}
 
 -- ---------------------------------------
 -- DB connections
@@ -883,8 +907,8 @@ data DBState
          , dbps_semaphore :: MVar ()
          }
 
+-- | Open a DB connection in write mode, with an already open transaction.
 db_init :: DBConf -> Maybe String -> CurrencyPrecisionDigits -> IO DBState
-
 db_init dbConf maybeFileName currencyPrecision = do
   conn <-
       case maybeFileName of

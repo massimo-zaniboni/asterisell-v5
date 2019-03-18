@@ -3,7 +3,6 @@
 -- SPDX-License-Identifier: GPL-3.0-or-later
 -- Copyright (C) 2009-2019 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
 
-
 -- | Import specific format for a Customer.
 --   The import guidelines are:
 --   * in external telephone number there are all info used for calculating the income of a call,
@@ -31,7 +30,7 @@ module Asterisell.CustomerSpecificImporters (
   , CSVFormat_digitelNNG__v1
   , CSVFormat_colt
   , CSVFormat_colt43
-  , CSVFormat_rolf1
+  , CSVFormat_itec1
   , const_digitelHeader
   , const_digitelNNGTimeBandPrefix
   , digitel_normalizeCalledNumber
@@ -82,41 +81,6 @@ import qualified System.IO.Streams.Combinators as S
 -- ---------------------------------------------------------
 -- Report Supported CDR Formats
 
--- | A common format with ";" as CSV separator.
-decodeAlternativeCSV :: SourceCDRParams
-decodeAlternativeCSV
-  = SourceCDRParamsCSVFile Nothing ';' False UseUTF8
-
--- | A common format with "," as CSV separator.
-decodeStandardCSV :: SourceCDRParams
-decodeStandardCSV = sourceCDRParams_default
-
--- | Associations between logical and physical formats of source/native CDRs, and the corresponding importing/parsing functions
---   converting them in CDR in standard format.
-getSupportedCDRSImporters :: LogicalTypeName -> FormatTypeName -> Maybe CDRFormatSpec
-getSupportedCDRSImporters k1 k2
-    =  HashMap.lookup (k1, k2) supportedSourceCDRImporters
-
-deriveFastLookupCDRImportes :: MySQLConn -> IO FastLookupCDRImporters
-deriveFastLookupCDRImportes conn = do
-  let q = [str|SELECT v.id, f.name, v.name
-              |FROM ar_physical_format AS v
-              |INNER JOIN ar_logical_source AS f
-              |ON v.ar_logical_source_id = f.id
-              |ORDER BY v.id
-              |]
-
-  (colDefs, inS) <- DB.query_ conn q
-  S.fold (\m r -> case r of
-                    [i, fName, vName]
-                      -> case getSupportedCDRSImporters (fromDBText fName) (fromDBText vName) of
-                           Nothing -> m
-                           Just s -> IntMap.insert (fromDBInt i) (s, fromDBText fName, fromDBText vName) m
-                    unexpected
-                      -> pError ("Error 11776 in application code. Unexpected result: " ++ show unexpected ++ ", with column defs " ++ show colDefs) 
-         ) IntMap.empty inS
-
-
 -- | The default CDRs parsers to use for importing CDRs.
 --   NOTE: the importers are specified in Cdr module.
 supportedSourceCDRImporters :: HashMap.HashMap (LogicalTypeName, FormatTypeName) CDRFormatSpec
@@ -158,12 +122,49 @@ supportedSourceCDRImporters
       , (("colt43","v1"), CDRFormatSpec decodeAlternativeCSV (AType::(AType CSVFormat_colt43)))
       , (("abilis-collector","v1"), CDRFormatSpec  decodeStandardCSV (AType::(AType CSVFormat_tsnet_abilis_collector_v1)))
       , (("abilis-db-collector","v1"), CDRFormatSpec table_abilisCollector (AType::(AType CSVFormat_tsnet_abilis_collector_v1)))
-      , (("rolf1","v1"), CDRFormatSpec (SourceCDRParamsCSVFile
-                                          (Just "id,sessionid,uniqueid,card_id,nasipaddress,starttime,stoptime,sessiontime,calledstation,sessionbill,id_tariffgroup,id_tariffplan,id_ratecard,id_trunk,sipiax,src,id_did,buycost,id_card_package_offer,real_sessiontime,dnid,terminatecauseid,destination")
+      , (("itec1","v1"), CDRFormatSpec (SourceCDRParamsCSVFile
+                                          (Just $ Text.pack $ List.intercalate "," itec1_dbFields)
                                           ','
                                           False
-                                          UseUTF8) (AType::(AType CSVFormat_rolf1)))
+                                          UseUTF8) (AType::(AType CSVFormat_itec1)))
+      , (("itec1-db","v1"), CDRFormatSpec (SourceCDRParamsDBTableWithAutoincrementId itec1_dbFields "starttime" (Just itec1_customQuery)) (AType::(AType CSVFormat_itec1)))
       ]
+
+-- | A common format with ";" as CSV separator.
+decodeAlternativeCSV :: SourceCDRParams
+decodeAlternativeCSV
+  = SourceCDRParamsCSVFile Nothing ';' False UseUTF8
+
+-- | A common format with "," as CSV separator.
+decodeStandardCSV :: SourceCDRParams
+decodeStandardCSV = sourceCDRParams_default
+{-# INLINE decodeStandardCSV #-}
+
+-- | Associations between logical and physical formats of source/native CDRs, and the corresponding importing/parsing functions
+--   converting them in CDR in standard format.
+getSupportedCDRSImporters :: LogicalTypeName -> FormatTypeName -> Maybe CDRFormatSpec
+getSupportedCDRSImporters k1 k2
+    =  HashMap.lookup (k1, k2) supportedSourceCDRImporters
+
+deriveFastLookupCDRImportes :: MySQLConn -> IO FastLookupCDRImporters
+deriveFastLookupCDRImportes conn = do
+  let q = [str|SELECT v.id, f.name, v.name
+              |FROM ar_physical_format AS v
+              |INNER JOIN ar_logical_source AS f
+              |ON v.ar_logical_source_id = f.id
+              |ORDER BY v.id
+              |]
+
+  (colDefs, inS) <- DB.query_ conn q
+  S.fold (\m r -> case r of
+                    [i, fName, vName]
+                      -> case getSupportedCDRSImporters (fromDBText fName) (fromDBText vName) of
+                           Nothing -> m
+                           Just s -> IntMap.insert (fromDBInt i) (s, fromDBText fName, fromDBText vName) m
+                    unexpected
+                      -> pError ("Error 11776 in application code. Unexpected result: " ++ show unexpected ++ ", with column defs " ++ show colDefs) 
+         ) IntMap.empty inS
+
 
 -- ---------------------------------------------------------
 -- Custom Formats
@@ -458,6 +459,7 @@ table_freeRadius
         "Acct_Session_Id"
       ]
     "h323_setup_time"
+    Nothing
 
 -- | FreeRadius format
 data CSVFormat_freeRadius__v1
@@ -865,7 +867,7 @@ table_asterisk
           "outbound_cnum",
           "outbound_cnam",
           "dst_cnam"
-        ] "calldate"
+        ] "calldate" Nothing
 
 -- | It is like `CSVFormat_asterisk__generic` but with an `id` field.
 data CSVFormat_asteriskDB
@@ -1511,6 +1513,7 @@ table_abilisCollector
         , "id"
         ]
         "call_start"
+        Nothing
 
 data CSVFormat_tsnet_abilis_collector_v1
   = CSVFormat_tsnet_abilis_collector_v1 { 
@@ -2486,77 +2489,116 @@ convert_CSVFormat_tsnet_abilis_collector_v1_toCDR1 precision provider cdr
               }
 
 -- ---------------------------------------------
--- Rolf1
+-- Itec1
 
--- | A format like
---
--- > 4493947	SIP/326XXXX-b01ad7f0	SERVER1-1366457084.2786	48		2013-04-20 13:24:53	2013-04-20 13:26:12	79	079235XXX	1.486	19	33	4373	6	0	hidden	(null)	1.26400	0	(null)		1	vodacom
---
-data CSVFormat_rolf1
-  = CSVFormat_rolf1 {
-        rolf1_call_id :: !(ExportMaybeNull Text.Text)
-      , rolf1_card_id :: !(ExportMaybeNull Text.Text)
-      , rolf1_starttime :: !(ExportMaybeNull Text.Text)
-      , rolf1_stoptime :: !(ExportMaybeNull Text.Text)
-      , rolf1_sessiontime :: !(ExportMaybeNull Text.Text)
-      , rolf1_calledstation :: !(ExportMaybeNull Text.Text)
-      , rolf1_sessionbill :: !(ExportMaybeNull Text.Text)
-      , rolf1_buycost :: !(ExportMaybeNull Text.Text)
-      , rolf1_src :: !(ExportMaybeNull Text.Text)
-      , rolf1_destination :: !(ExportMaybeNull Text.Text)
-      , rolf1_account :: !(ExportMaybeNull Text.Text)
-      , rolf1_trunkcode :: !(ExportMaybeNull Text.Text)
-      , rolf1_provider_name :: !(ExportMaybeNull Text.Text)
+-- | The Itec1 fields.
+--   @ensure same fields of `itec1_customQuery`
+--   @ensure same fields and orders of `CSVFormat_itec1`
+itec1_dbFields :: [String]
+itec1_dbFields =
+      [ "cc_call.id"
+      , "cc_call.sessionid"
+      , "cc_call.uniqueid"
+      , "cc_call.card_id"
+      , "cc_call.starttime"
+      , "cc_call.stoptime"
+      , "cc_call.sessiontime"
+      , "cc_call.calledstation"
+      , "cc_call.sessionbill"
+      , "cc_call.buycost"
+      , "cc_call.src"
+      , "cc_call.destination"
+      , "cc_card.account"
+      , "tp.trunkcode"
+      , "tp.provider_name"]
+
+itec1_customQuery :: String
+itec1_customQuery
+  = let fields = List.intercalate ", " itec1_dbFields
+        wherePart =
+          [str| FROM cc_call
+              | LEFT JOIN cc_card
+              | ON cc_call.card_id = cc_card.id
+              | LEFT JOIN (
+              |  SELECT cc_trunk.id_trunk AS id_trunk, cc_trunk.trunkcode AS trunkcode, cc_provider.provider_name AS provider_name
+              |  FROM cc_trunk
+              |  LEFT JOIN cc_provider
+              |  ON cc_trunk.id_provider = cc_provider.id
+              | ) AS tp ON cc_call.id_trunk = tp.id_trunk
+              | WHERE sessiontime > 0
+              |]
+          -- DEV-NOTE: use subquery otherwise the DBMS does not use the index on cc_call primary key,
+          -- and performs a very expensive sort.
+    in "SELECT " ++ fields ++ wherePart
+
+-- | Itec1 call format.
+--   @ensure the same fields of `itec1_customQuery` with the same order.
+data CSVFormat_itec1
+  = CSVFormat_itec1 {
+        itec1_call_id :: !(Text.Text)
+      , itec1_sessionid :: !(ExportMaybeNull Text.Text)
+      , itec1_uniqueid :: !(ExportMaybeNull Text.Text)
+      , itec1_card_id :: !(ExportMaybeNull Text.Text)
+      , itec1_starttime :: !(ExportMaybeNull Text.Text)
+      , itec1_stoptime :: !(ExportMaybeNull Text.Text)
+      , itec1_sessiontime :: !(ExportMaybeNull Text.Text)
+      , itec1_calledstation :: !(ExportMaybeNull Text.Text)
+      , itec1_sessionbill :: !(ExportMaybeNull Text.Text)
+      , itec1_buycost :: !(ExportMaybeNull Text.Text)
+      , itec1_src :: !(ExportMaybeNull Text.Text)
+      , itec1_destination :: !(ExportMaybeNull Text.Text)
+      , itec1_account :: !(ExportMaybeNull Text.Text)
+      , itec1_trunkcode :: !(ExportMaybeNull Text.Text)
+      , itec1_provider_name :: !(ExportMaybeNull Text.Text)
    } deriving(Show, Generic, NFData)
 
-instance CSV.FromRecord CSVFormat_rolf1
+instance CSV.FromRecord CSVFormat_itec1
 
-instance CSV.ToRecord CSVFormat_rolf1
+instance CSV.ToRecord CSVFormat_itec1
 
+instance CDRFormat CSVFormat_itec1 where
+  getCallDate record = itec1_convertCallDate (itec1_starttime record)
 
-instance CDRFormat CSVFormat_rolf1 where
-  getCallDate record = rolf1_convertCallDate (rolf1_starttime record)
+  toCDR precision provider record = itec1_toCDR record precision provider
 
-  toCDR precision provider record = rolf1_toCDR record precision provider
-
-rolf1_convertCallDate :: ExportMaybeNull Text.Text -> Either AsterisellError (Maybe LocalTime)
-rolf1_convertCallDate t1
+itec1_convertCallDate :: ExportMaybeNull Text.Text -> Either AsterisellError (Maybe LocalTime)
+itec1_convertCallDate t1
     = Just <$> importAndConvertNotNullValue t1 fromDateFormat1ToLocalTime "starttime" "call date"
 
-rolf1_toCDR :: CSVFormat_rolf1 -> CurrencyPrecisionDigits -> CDRProviderName -> Either AsterisellError [CDR]
-rolf1_toCDR record precision provider
+itec1_toCDR :: CSVFormat_itec1 -> CurrencyPrecisionDigits -> CDRProviderName -> Either AsterisellError [CDR]
+itec1_toCDR record precision provider
     = do callDate
-           <- rolf1_convertCallDate (rolf1_starttime record)
+           <- itec1_convertCallDate (itec1_starttime record)
 
          let direction
-               = case rolf1_trunkcode record of
+               = case itec1_trunkcode record of
                    ExportNull -> CDR_outgoing
                    Export v -> case v == "DID" of
                                  True -> CDR_incoming
                                  False -> CDR_outgoing
 
          let billsec
-               = case rolf1_sessiontime record of
+               = case itec1_sessiontime record of
                    ExportNull -> 0
                    Export v -> case fromTextToInt v of
                                  Nothing -> 0
                                  Just vv -> vv
 
-         let internalNumber = fromExport1 provider (\t -> Text.concat [t, "-ext"]) $ rolf1_account record
-         -- DEV-NOTE: mantain in synchro with `rolf1_synchro`
+         let internalNumber = fromExport1 provider (\t -> Text.concat [t, "-ext"]) $ itec1_account record
+         -- DEV-NOTE: mantain in synchro with `itec1_synchro`
 
          let externalNumberField
                = case direction of
-                   CDR_outgoing -> rolf1_calledstation
-                   CDR_incoming -> rolf1_src
-                   CDR_internal -> rolf1_src
-                   _ -> rolf1_calledstation
+                   CDR_outgoing -> itec1_calledstation
+                   CDR_incoming -> itec1_src
+                   CDR_internal -> itec1_src
+                   _ -> itec1_calledstation
 
          externalNumber
            <- importAndConvertNotNullValue (externalNumberField record) normalizeCalledNumber "calledstation" "called"
 
          let importedIncome
-               = case rolf1_sessionbill record of
+               = case itec1_sessionbill record of
                    ExportNull -> 0
                    Export v -> case fromTextToRational v of
                                  Nothing -> 0
@@ -2564,7 +2606,7 @@ rolf1_toCDR record precision provider
              -- NOTE: used for importing old calculated incomes
 
          let trunkCode
-               = case rolf1_trunkcode record of
+               = case itec1_trunkcode record of
                    ExportNull -> "UNKNOWN TRUNK"
                    Export v -> v
 

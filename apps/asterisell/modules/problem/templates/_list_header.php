@@ -11,6 +11,12 @@ echo "</form>";
 echo '</td>';
 
 echo '<td>';
+echo form_tag('problem/exportToFile');
+echo submit_tag(__('Export to File'));
+echo "</form>";
+echo '</td>';
+
+echo '<td>';
 echo form_tag('problem/seeJobQueue');
 echo submit_tag(__('See Job Log'));
 echo '</form>';

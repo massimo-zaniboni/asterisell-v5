@@ -3,7 +3,6 @@
 -- SPDX-License-Identifier: GPL-3.0-or-later
 -- Copyright (C) 2009-2019 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
 
-
 -- | Import organization info from external sources.
 --   These are usually customizations for specific customers.
 --   They are still released as shared source code, because:
@@ -17,7 +16,7 @@
 -- * do not generate too much rerating events
 --
 module Asterisell.CustomOrganizationInfoImporters (
-   rolf1_synchro
+   itec1_synchro
 ) where
 
 import Asterisell.DB
@@ -42,6 +41,7 @@ import Text.Heredoc
 import qualified Data.Map.Strict as Map
 import qualified Data.ByteString as BS
 import qualified Data.IntMap.Strict as IMap
+import qualified Data.IntSet as IntSet
 import Data.Char
 import qualified Data.ByteString.Lazy as LBS
 import qualified Data.ByteString.Builder as BS
@@ -63,7 +63,8 @@ import qualified System.IO.Streams as S
 import qualified System.IO.Streams.Text as S
 import qualified System.IO.Streams.Combinators as S
 import qualified System.IO.Streams.List as S
-
+import Data.Csv as CSV
+import qualified Data.Vector as V
 import Control.Exception.Assert.Sugar
 import Debug.Trace
 
@@ -74,7 +75,7 @@ import Control.Exception.Safe (catch, catchAny, onException, finally, handleAny,
                               , withException, displayException)
 
 -- -------------
--- Rolf1 project
+-- Itec1 project
 
 type ProcessedUnitIds = Set.Set UnitId
 
@@ -92,8 +93,8 @@ type TrustLevel = Int
 --   or a value in the IO.
 type ImportMonad = ExceptT (Maybe AsterisellError) IO
 
-rolf1_errorGarbageKey :: DataSourceName -> BS.ByteString
-rolf1_errorGarbageKey dsn = BS.concat ["org-synchro-", fromTextToByteString dsn]
+itec1_errorGarbageKey :: DataSourceName -> BS.ByteString
+itec1_errorGarbageKey dsn = BS.concat ["org-synchro-", fromTextToByteString dsn]
 
 -- | Import customers.
 --   Add customer problems in the error table, and not import the specified customer.
@@ -107,35 +108,31 @@ rolf1_errorGarbageKey dsn = BS.concat ["org-synchro-", fromTextToByteString dsn]
 --   Put in `unit_internalChecksum1` the checksum of fields needing a rewrite of the history.
 --   Put in `unit_internalChecksum2` the checksum of fields needing a simple update of current informations.
 --   Put in `unit_internalChecksum3` a BS.ByteString with the TrustLevel of the imported organization.
+--   Put in `unit_internalChecksum5` info about the source of the info (infoFromProvider or infoFromCRMContract)
 --
 --   The complete specification of the conversion is the code, but from an high-level point of view:
 --   * import users with login access if the fields ... are specified on the remote side
 --   * associate a partyTag according the fields ...
 --   * a party/customer can be defined in more than one external data sources, so try to use/prefer the data source with active info
 --   * remote table ``cc_tariffgroup`` contains info about price-categories
---   * remote table ``cc_card`` contains info about customers, according fields described in `rolf1_tfields``
---   * ignore `ZZZ999` accounts, because it is  test accounts, and they are specified in the initialization procedure
---   DEV-NOTE: if you change the logic of this code, update also the `CustomerSpecificImporters.rolf1_` related code.
+--   * remote table ``cc_card`` contains info about customers, according fields described in `itec1_tfields``
+--   * ignore `ZZZ*` accounts, because it is  test accounts, and they are specified in the initialization procedure
+--   * if a new customer has a LegacyRate on A2Billing, then apply the rate specified in the itec1_crmToContractRate file instead
+--   * if a new customer has a new rate, first apply (if exists) the itec1_crmToContractRate, and then the new rate in the current billing time frame
 --
---   DEV-NOTE: archived code (not used in production), but maintained because it is a tested example of
---   active synchronization of customers on external databases.
-rolf1_synchro
+--   DEV-NOTE: if you change the logic of this code, update also the `CustomerSpecificImporters.itec1_` related code.
+--
+itec1_synchro
     :: DBConf
     -> DB.ConnectInfo
     -> Text.Text -- ^ organization to ignore
     -> CurrencyPrecisionDigits
     -> DataSourceName
     -> CmdParams
-       -- ^ all params of type "SOME-PRICE-CATEGORY-NAME,add-provider-prefix"
-       --   instruct the importer for adding the provider prefix to the price-category
-       --   with the specified name. If there is no match, then the original name is maintained.
-       --   Adding the provider prefix, it is possible having custom price-categories, depending also
-       --   from the provider in which the customer is mainly defined.
-       --   TODO see if this is still necessary, now that I merged many price-categories, during importing phase.
     -> IO ()
-rolf1_synchro localDBConf remoteDBConf organizationToIgnore currencyInfo dataSourceName cparams = do
+itec1_synchro localDBConf remoteDBConf organizationToIgnore currencyInfo dataSourceName cparams = do
   withResource'
-    (do 
+    (do
         localConn <- db_openConnection localDBConf False
         db_openTransaction localConn
         remoteConn <- DB.connect remoteDBConf
@@ -143,8 +140,9 @@ rolf1_synchro localDBConf remoteDBConf organizationToIgnore currencyInfo dataSou
     )
     (\(localConn, remoteConn) -> do
 
+
           -- start with an empty transaction because a new one will be created for every import
-          db_garbagePastErrors localConn (rolf1_errorGarbageKey dataSourceName) Nothing Nothing
+          db_garbagePastErrors localConn (itec1_errorGarbageKey dataSourceName) Nothing Nothing
           db_commitTransaction localConn
 
           --
@@ -152,26 +150,46 @@ rolf1_synchro localDBConf remoteDBConf organizationToIgnore currencyInfo dataSou
           --
           -- DEV-NOTE: use DeepSeq for forcing the read of  the data, before writing the new data into the DB
 
+          remoteLegacyRates <- itec1_legacyRates "data_files/old-legacy-price-categories.csv"
+          crmToContractRate <- itec1_crmToContractRate "data_files/itec-contracts.csv"
+
           (_, !localUnitType) <- DeepSeq.force <$> unitType_load localConn False
           let !extensionUnitTypeId = DeepSeq.force $ unitType_defaultId localUnitType UnitType_extension
           !partyTagInfo <- DeepSeq.force <$> partyTagInfo_load localConn False
           !userRoleInfo <- DeepSeq.force <$> userRole_load localConn False
-          !fromRemoteToLocalRateId <- DeepSeq.force <$> synchroPriceCategories localConn remoteConn
+          (!fromRemoteToLocalRateId, !remoteLegacyRateIds) <- DeepSeq.force <$> synchroPriceCategories localConn remoteConn remoteLegacyRates
           !unbilledCallsFromDate <- defaultParams_unbilledCallsFrom localConn "02676"
 
           --
           -- Process all data on remote database
           --
 
-          remoteInfo <- liftIO $ tfields_results remoteConn (TFields "cc_card" rolf1_tfields) Nothing
+          (localRateCategories :: Map.Map RateCategoryCode RateCategoryId, _) <- rateCategories_load localConn False
+
+          remoteInfo <- liftIO $ tfields_results remoteConn (TFields "cc_card" itec1_tfields) Nothing
 
           parentIdForExtensionsToIgnore <- extensionToIgnoreId localConn organizationToIgnore
           partyTagInfoRef <- newIORef partyTagInfo
-          newExtensionsR <- newIORef (Set.empty)
-          newExtensionsToIgnoreR <- newIORef (Set.empty)
-          processedAccountsR <- newIORef (Set.empty)
+          newExtensionsR <- newIORef Set.empty
+          newExtensionsToIgnoreR <- newIORef Set.empty
+          processedAccountsR <- newIORef Set.empty
 
-          updateOrganizationsS <- S.makeOutputStream $ updateOrganizations localConn parentIdForExtensionsToIgnore userRoleInfo localUnitType fromRemoteToLocalRateId unbilledCallsFromDate partyTagInfoRef newExtensionsR newExtensionsToIgnoreR processedAccountsR
+          updateOrganizationsS <-
+              S.makeOutputStream $
+               updateOrganizations
+                 localConn
+                 parentIdForExtensionsToIgnore
+                 userRoleInfo
+                 localUnitType
+                 localRateCategories
+                 fromRemoteToLocalRateId
+                 remoteLegacyRateIds
+                 crmToContractRate
+                 unbilledCallsFromDate
+                 partyTagInfoRef
+                 newExtensionsR
+                 newExtensionsToIgnoreR
+                 processedAccountsR
 
           S.connect remoteInfo updateOrganizationsS
           -- start the importing processing, connecting the input stream (data) with the output stream (actions)
@@ -203,7 +221,7 @@ rolf1_synchro localDBConf remoteDBConf organizationToIgnore currencyInfo dataSou
                           ]
 
 
-                trecord_save localConn "ar_organization_unit_has_structure" recStructure Nothing
+                _ <- trecord_save localConn "ar_organization_unit_has_structure" recStructure Nothing
 
                 putStrLn $ "Added extension to ignore: " ++ Text.unpack newExtension
 
@@ -258,53 +276,58 @@ rolf1_synchro localDBConf remoteDBConf organizationToIgnore currencyInfo dataSou
       -- and https://git.asterisell.com/rolf/itec-voicegate/issues/4
 
   -- | Map all remote price categories to local one, creating them if they are missing.
-  synchroPriceCategories :: DB.MySQLConn -> DB.MySQLConn -> IO (IMap.IntMap Int)
-  synchroPriceCategories localConn remoteConn = do
+  --   Return also the RemoteLegacyPriceCategoryIds.
+  synchroPriceCategories :: DB.MySQLConn -> DB.MySQLConn -> Set.Set RateCategoryCode -> IO ((IMap.IntMap Int), IntSet.IntSet)
+  synchroPriceCategories localConn remoteConn remotePriceCategories = do
     !(rateCategories, _) <- rateCategories_load localConn False
     (_, remotePricesS) <- DB.query_ remoteConn "SELECT id, tariffgroupname FROM cc_tariffgroup"
-    S.foldM (synchroPriceCategory localConn rateCategories) IMap.empty remotePricesS
+    S.foldM (synchroPriceCategory localConn rateCategories remotePriceCategories) (IMap.empty, IntSet.empty) remotePricesS
 
   -- | Import a single price-category.
   synchroPriceCategory
       :: DB.MySQLConn
       -> Map.Map RateCategoryCode RateCategoryId
-         -- ^ from price-category code (its name, with maybe the provider added as prefix),
-         --   to the Id of the corresponding Asterisell `ar_rate_category` (price-category)
-      -> IMap.IntMap Int
-         -- ^ map the remote-id of the price-category, with its local id
+         -- ^ from local RateCategoryCode to the local RateCategoryId
+         --   These are the values before the synchro phase.
+      -> Set.Set RemoteRateCategoryCode
+         -- ^ remote legacy rate categories that are not used anymore on Asterisell side
+      -> ( IMap.IntMap Int -- ^ from RemotePriceCategoryId to LocalPriceCategoryId
+         , IntSet.IntSet  -- ^ the RemotedIds of LegacyPriceCategories
+         )
       -> [DB.MySQLValue]
          -- ^ a single record, with remote price-category-id, and the remote name
-      -> IO (IMap.IntMap Int)
-         -- ^ the new mapping extended wit the imported price-category, if it was new
-  synchroPriceCategory localConn rateCategories map1 [rrateId, rrateName] = do
-    let rateName = internalName_sanityze $ fromDBText rrateName
-    let rateNameWithProvider = internalName_sanityze $ Text.concat [dataSourceName, "-", rateName]
+      -> IO ( IMap.IntMap Int -- ^ from RemotePriceCategoryId to LocalPriceCategoryId, but only for new found mappings
+            , IntSet.IntSet   -- ^ the RemotedIds of LegacyPriceCategories
+            )
+  synchroPriceCategory localConn rateCategories remotePriceCategories (map1, set1) [rrateId, rrateName] = do
+    let remoteRateName = fromDBText rrateName
+    let rateName = internalName_sanityze remoteRateName
     let rateKey = fromTextToByteString rateName
-
-    let rateNameToUse
-            = case Map.lookup rateKey cparams of
-                Just "add-provider-prefix"
-                  -> rateNameWithProvider
-                _ -> rateName
-
     let remoteId = fromDBInt rrateId
 
-    case Map.lookup rateNameToUse rateCategories of
-      Just localRateId
-          -> return $ IMap.insert remoteId localRateId map1
-      Nothing
-          -> do let priceRec
-                      = trecord_setMany
-                          (trecord_empty)
-                          [("internal_name", toDBText rateNameToUse)
-                          ,("short_description", toDBText $ Text.concat ["Rate ", rateName, " on provider ", dataSourceName])
-                          ]
+    let !isLegacy = Set.member remoteRateName remotePriceCategories
+    let !set2 = if isLegacy then (IntSet.insert remoteId set1) else set1
 
-                localRateId <- trecord_save localConn "ar_rate_category" priceRec Nothing
+    map2 <-
+      case (isLegacy, Map.lookup rateName rateCategories) of
+        (_, Just localRateId) -> do
+          return $ IMap.insert remoteId localRateId map1
+        (True, Nothing) -> do
+          return map1
+          -- NOTE: do not create remote legacy PriceCategories because they will be substitute by explicit itec1_crmToContractRate
+        (False, Nothing) -> do
+          let priceRec
+                = trecord_setMany
+                    (trecord_empty)
+                    [("internal_name", toDBText rateName)
+                    ,("short_description", toDBText $ Text.concat ["Rate ", rateName])
+                    ]
 
-                putStrLn $ "Added new price-category: " ++ Text.unpack rateNameToUse
+          localRateId <- trecord_save localConn "ar_rate_category" priceRec Nothing
+          putStrLn $ "Added new price-category: " ++ Text.unpack rateName
+          return $ IMap.insert remoteId localRateId map1
 
-                return $ IMap.insert remoteId localRateId map1
+    return (map2, set2)
 
   -- | Create a minimal error, that will be completed by the framework.
   createWarning'
@@ -364,8 +387,11 @@ rolf1_synchro localDBConf remoteDBConf organizationToIgnore currencyInfo dataSou
 
         in addToTrustLevel activeCustomer 0
 
+  -- | Ignore all customers with tcard_trustLevel below this level,
+  --   assuming the customer is well defined in other parts.
   tcard_maxTrustLevel :: TrustLevel
   tcard_maxTrustLevel = 1
+  {-# INLINE tcard_maxTrustLevel #-}
 
   -- | Update organization info.
   --   An action called for every remote record (it is an S.Output stream).
@@ -375,8 +401,11 @@ rolf1_synchro localDBConf remoteDBConf organizationToIgnore currencyInfo dataSou
     -> UnitId -- ^ organization to ignore
     -> UserRoleIdFromInternalName
     -> UnitTypeFromInternalName
+    -> Map.Map RemoteRateCategoryCode RateCategoryId
     -> IMap.IntMap Int  -- ^ from remote to local rate id
-    -> LocalTime -- ^ official calldate
+    -> IntSet.IntSet -- ^ legacy RemotePriceCategoryId
+    -> Map.Map CRMCode RateCategoryCode -- ^ itec1_crmToContractRate
+    -> CallDate -- ^ official calldate
     -> IORef PartyTagInfo
     -> IORef (Set.Set ExtensionAsText) -- ^ new created extensions, that are not to ignore
     -> IORef (Set.Set ExtensionAsText) -- ^ new found extensions to ignore
@@ -384,9 +413,9 @@ rolf1_synchro localDBConf remoteDBConf organizationToIgnore currencyInfo dataSou
     -> Maybe TRecord
     -> IO ()
 
-  updateOrganizations localConn parentIdForExtensionsToIgnore userRoleInfo localUnitType fromRemoteToLocalRateId unbilledCallsFromDate partyTagInfoRef newExtensionsR newExtensionsToIgnoreR processedAccountsR maybeRemoteInfo = do
+  updateOrganizations localConn parentIdForExtensionsToIgnore userRoleInfo localUnitType localRateCategories fromRemoteToLocalRateId legacyRates crmToContractRate unbilledCallsFromDate partyTagInfoRef newExtensionsR newExtensionsToIgnoreR processedAccountsR maybeRemoteInfo = do
     db_openTransaction localConn
-    r <- runExceptT $ updateOrganizations1 localConn parentIdForExtensionsToIgnore userRoleInfo localUnitType fromRemoteToLocalRateId unbilledCallsFromDate partyTagInfoRef newExtensionsR newExtensionsToIgnoreR processedAccountsR maybeRemoteInfo
+    r <- runExceptT $ updateOrganizations1 localConn parentIdForExtensionsToIgnore userRoleInfo localUnitType localRateCategories fromRemoteToLocalRateId legacyRates crmToContractRate unbilledCallsFromDate partyTagInfoRef newExtensionsR newExtensionsToIgnoreR processedAccountsR maybeRemoteInfo
     case r of
       Left Nothing
         -> do db_rollBackTransaction localConn
@@ -398,14 +427,14 @@ rolf1_synchro localDBConf remoteDBConf organizationToIgnore currencyInfo dataSou
                         Just remoteInfo
                           -> err {
                                    asterisellError_key
-                                     = BS.concat [rolf1_errorGarbageKey dataSourceName, "-customer-", fromStringToByteString $ show $ fromDBInt $ trecord "id" remoteInfo]
+                                     = BS.concat [itec1_errorGarbageKey dataSourceName, "-customer-", fromStringToByteString $ show $ fromDBInt $ trecord "id" remoteInfo]
                                  , asterisellError_effect
                                      = "All the calls of this customer will be not rated correctly. Remote customer info: \n" ++ (fromByteStringToString $ trecord_show remoteInfo)
                                  }
                         Nothing
                           -> err {
                                    asterisellError_key
-                                      = BS.concat [rolf1_errorGarbageKey dataSourceName, "-missing-customers"]
+                                      = BS.concat [itec1_errorGarbageKey dataSourceName, "-missing-customers"]
                                  , asterisellError_effect
                                      = "Customers deleted from the remote database are not correctly disabled on the local Asterisell side, so there can be conflicts, and calls assigned to wrong customers."
                                  }
@@ -415,7 +444,7 @@ rolf1_synchro localDBConf remoteDBConf organizationToIgnore currencyInfo dataSou
                  dbErrors_insert
                    localConn
                    Nothing
-                   (err' { asterisellError_garbageKey = rolf1_errorGarbageKey dataSourceName })
+                   (err' { asterisellError_garbageKey = itec1_errorGarbageKey dataSourceName })
                    (Just (unbilledCallsFromDate, unbilledCallsFromDate))
                  db_commitTransaction localConn
                  return ()
@@ -429,11 +458,11 @@ rolf1_synchro localDBConf remoteDBConf organizationToIgnore currencyInfo dataSou
     -> UnitId -- ^ organization to ignore
     -> UserRoleIdFromInternalName
     -> UnitTypeFromInternalName
+    -> Map.Map RemoteRateCategoryCode RateCategoryId
     -> IMap.IntMap Int -- ^ map remote price-categories, with local price-categories
-    -> LocalTime
-    -- ^ the official call-date.
-    --   Changes to customers are added to the history only after invoices are sent,
-    --   otherwise they are fixes.
+    -> IntSet.IntSet -- ^ RemotePriceCategoryId
+    -> Map.Map CRMCode RateCategoryCode -- ^ itec1_crmToContractRate
+    -> CallDate -- ^ unbilledCallsFromDate
     -> IORef PartyTagInfo
     -> IORef (Set.Set ExtensionAsText)  -- ^ new inserted extensions, that are not to ignore
     -> IORef (Set.Set ExtensionAsText)  -- ^ new extensions to ignore
@@ -441,14 +470,16 @@ rolf1_synchro localDBConf remoteDBConf organizationToIgnore currencyInfo dataSou
     -> Maybe TRecord                    -- ^ Nothing when the last record is reached
     -> ImportMonad ()
 
-  updateOrganizations1 localConn _ userRoleInfo localUnitType fromRemoteToLocalRateId unbilledCallsFromDate partyTagInfoRef _ _ _ Nothing = return ()
+  updateOrganizations1 localConn _ userRoleInfo localUnitType _ fromRemoteToLocalRateId _ _ unbilledCallsFromDate partyTagInfoRef _ _ _ Nothing = return ()
 
-  updateOrganizations1 localConn parentIdForExtensionsToIgnore userRoleInfo localUnitType fromRemoteToLocalRateId unbilledCallsFromDate partyTagInfoRef newExtensionsR newExtensionsToIgnoreR processedAccountsR (Just remoteInfo) = do
+  updateOrganizations1 localConn parentIdForExtensionsToIgnore userRoleInfo localUnitType localRateCategories fromRemoteToLocalRateId remoteLegacyRateIds crmToContractRate unbilledCallsFromDate partyTagInfoRef newExtensionsR newExtensionsToIgnoreR processedAccountsR (Just remoteInfo0) = do
 
     --
-    -- Read all data, without writing.
+    -- Read all local (Asterisell) and remote (A2Billing) data, without writing.
     -- Return with a throw in case of errors or data to ignore.
     --
+
+    remoteInfo <- return remoteInfo0
 
     let trustLevel = tcard_trustLevel remoteInfo
 
@@ -458,9 +489,13 @@ rolf1_synchro localDBConf remoteDBConf organizationToIgnore currencyInfo dataSou
                     (throwError $ Just $ createError' "The customer has no CRM code." "Complete the info on the provider side.")
                return account'
 
+    -- Skip test account
+    when (Text.isPrefixOf "ZZZ" accountCode) (throwError Nothing)
+    -- MAYBE move this code in another position
+
     let internalName = accountCode
     let extensionInternalName = internalName <> "-ext"
-    let (_, _, addToHistoryChecksum, infoChecksum) = trecord_internalName dataSourceName remoteInfo
+    let (_, _, addToHistoryChecksum0, infoChecksum) = trecord_internalName dataSourceName remoteInfo
 
     let activeCustomer = toDBBool True
     -- up to date not active customer (according the field "activated") are simply ignored in `isCustomerToImport`
@@ -482,12 +517,6 @@ rolf1_synchro localDBConf remoteDBConf organizationToIgnore currencyInfo dataSou
         organizationUnitStruct_tfields
         (Just ( "extension_codes = ? AND ar_parent_organization_unit_id <> ? ORDER BY `from` DESC LIMIT 1"
               , [toDBText extensionInternalName, toDBInt64 parentIdForExtensionsToIgnore]))
-
-    --
-    -- Skip test account
-    --
-
-    when (accountCode == "ZZZ999") (throwError Nothing)
 
     --
     -- Interrupt processing if it is an extension to ignore.
@@ -538,8 +567,14 @@ rolf1_synchro localDBConf remoteDBConf organizationToIgnore currencyInfo dataSou
 
     liftIO $ modifyIORef' processedAccountsR (\s -> Set.insert accountCode s)
 
-    -- Next sections works assuming this structure of data
     --
+    -- Decide how to import data locally:
+    -- * new data,
+    -- * add to history,
+    -- * fix current history,
+    -- * not update info
+    --
+    -- The imported info is:
     -- * CRM unitId
     -- ** checksum codes
     -- ** data-source defining it, and trust level
@@ -564,25 +599,65 @@ rolf1_synchro localDBConf remoteDBConf organizationToIgnore currencyInfo dataSou
     -- Other info is immutable, or in-place modified.
     --
     -- In case the customer data had to be skip, a `throwError Nothing` is raised.
-    (  maybeUnitId :: Maybe UnitId -- ^ Nothing if new customer had to be created
-     , maybePartyId :: Maybe Int -- ^ Nothing if new party had to be created
-     , maybeStructureId :: Maybe UnitId -- ^ Nothing if new history has to be added (i.e. new customer, or change of data for a customer)
-     , structFromDate :: CallDate -- ^ add/update history info using this date of activation
-     , maybeExtensionUnitId :: Maybe UnitId -- ^ Nothing if it is a new customer
+
+    remotePriceCategoryId <-
+      case fromMaybeDBValue fromDBInt (trecord "tariff" remoteInfo) of
+        Just v -> return v 
+        Nothing ->
+          throwError $ Just $ createError' ("The customer with CRM code " ++ show accountCode ++ " has no price-category.") "Set the price-category of the customer"
+
+    let isRemoteLegacyRate = IntSet.member remotePriceCategoryId remoteLegacyRateIds
+
+    !maybeContractRate <-
+      case Map.lookup accountCode crmToContractRate of
+        Nothing -> return Nothing
+        Just remoteCategoryCode ->
+          case Map.lookup (internalName_sanityze remoteCategoryCode) localRateCategories of
+            Just i -> return $ Just (remoteCategoryCode, i)
+            Nothing ->
+              throwError $
+                Just $
+                  createError'
+                    ("The price-category " ++ show remoteCategoryCode ++ " specified in the Itec CRM to BY-CONTRACT PRICE-CATEGORY file was not created during initial installation.")
+                    ("Create the price-category manually, using as internal code " ++ (show $ internalName_sanityze remoteCategoryCode) ++ " or inform the assistance")
+
+    -- Complete this info or exit with ``throwError Noting``, ignoring it
+    (  maybeUnitId :: Maybe UnitId               -- ^ Nothing if new customer had to be created
+     , maybePartyId :: Maybe Int                 -- ^ Nothing if new party had to be created
+     , maybeStructureId :: Maybe UnitId          -- ^ Nothing if new history has to be added
+     , changeFromDate :: CallDate                -- ^ add/update history info using this date of activation
+     , maybeExtensionUnitId :: Maybe UnitId      -- ^ Nothing if it is a new customer
      , maybeExtensionStructureId :: Maybe UnitId -- ^ Nothing if it a new customer
      , maybeUserId :: Maybe UserId
-      -- ^ Nothing for creating a new login/password user in case there is login/password
-      --   Just userId for updating an existing login/password user
-     , addToHistory :: Bool
-      -- ^ True if there is new data to add to the history of the customer, or it is a new customer
-     , isNewCustomer :: Bool
-     -- ^ True if it is a newly created customer
-     )
-      <- case (maybeUnitRec, maybeExtensionStructRec) of
-           (Nothing, Nothing) -> do
-             liftIO $ modifyIORef' newExtensionsR (\s -> Set.insert extensionInternalName s)
-             return (Nothing, Nothing, Nothing, fromDBLocalTime $  trecord "creationdate" remoteInfo, Nothing, Nothing, Nothing, True, True)
+       -- ^ Nothing for creating a new login/password user in case there is login/password
+       --   Just userId for updating an existing login/password user
+     , addToHistory :: Bool                -- ^ True if there is new data to add to the history of the customer, or it is a new customer
+     , isNewCustomer :: Bool               -- ^ True if it is a newly created customer
+     , isNewInfoFromProvider :: Bool       -- ^ False if the new PriceCategory is retrieved from itec1_crmToContractRate 
+     , useFakeChecksum :: Bool) <-
 
+       case (maybeUnitRec, maybeExtensionStructRec) of
+           (Nothing, Nothing) -> do
+             -- in this case we have a new customer to import
+
+             liftIO $ modifyIORef' newExtensionsR (\s -> Set.insert extensionInternalName s)
+
+             let startWithCRMContract = isJust maybeContractRate
+             let atNextSchedulingPassUseTheA2BillingRate = not isRemoteLegacyRate
+
+             when (isRemoteLegacyRate && (isNothing maybeContractRate))
+                  (throwError $
+                     Just $
+                       createError'
+                         ("The CRM customer code " ++ show accountCode ++ " used in A2Billing server has a legacy-rate, but he has no entry in the Itec CRM to BY-CONTRACT PRICE-CATEGORY file. Asterisell can not assign the A2Billing rate because it is a not used anymore LEGACY-RATE, but it can not use the BY-CONTRACT rate because it is unspecified in the file.")
+                         ("Complete the Itec file and reinstall the application."))
+
+             return ( Nothing, Nothing, Nothing  -- create new data
+                    , fromDBLocalTime $  trecord "creationdate" remoteInfo   -- start with the date of activation of the customer
+                    , Nothing, Nothing, Nothing, True, True  -- add to history all
+                    , not startWithCRMContract   -- use the A2Billing info if there is no contract info
+                    , atNextSchedulingPassUseTheA2BillingRate -- use a fake checksum for forcing load of info from A2Billing server at next passage
+                    )
 
            (Just _, Nothing) ->
               pError "ERR 66753: unexpected error in the code. Contact the assistance."
@@ -591,6 +666,10 @@ rolf1_synchro localDBConf remoteDBConf organizationToIgnore currencyInfo dataSou
               pError "ERR 66754: unexpected error in the code. Contact the assistance."
 
            (Just unitRec, Just extensionStructRec) -> do
+
+             -- There were already imported info about this customer.
+             -- So it had to decide what to do.
+
              let unitId = trecord "id" unitRec
 
              let oldDataSourceName = fromDBText $ trecord "internal_checksum4" unitRec
@@ -600,6 +679,10 @@ rolf1_synchro localDBConf remoteDBConf organizationToIgnore currencyInfo dataSou
              let oldInfoChecksum = fromDBByteString $ trecord "internal_checksum2" unitRec
 
              let oldHistoryChecksum = fromDBByteString $ trecord "internal_checksum1" unitRec
+
+             let oldInfoFrom = fromMaybeDBByteStringToMaybeEmpty $ trecord "internal_checksum5" unitRec
+
+             let isOldInfoFromProvider = not (oldInfoFrom == infoFromCRMContract)
 
              when ((trustLevel == oldTrustLevel) && (oldDataSourceName /= dataSourceName))
                   (throwError
@@ -611,7 +694,7 @@ rolf1_synchro localDBConf remoteDBConf organizationToIgnore currencyInfo dataSou
              -- Skip processing if the data has not changed
              -- NOTE: up to date only tcard_maxTrustLevel are imported, so this code is never fired
              -- DEV-NOTE: probably this code is buggy, but it is under unit-testing, so if the maxTrustLevel condition is removed, at least unit tests will fail
-             when (trustLevel < oldTrustLevel || (trustLevel == oldTrustLevel && oldInfoChecksum == infoChecksum && oldHistoryChecksum == addToHistoryChecksum))
+             when (trustLevel < oldTrustLevel || (trustLevel == oldTrustLevel && oldInfoChecksum == infoChecksum && oldHistoryChecksum == addToHistoryChecksum0))
                   (throwError Nothing)
 
              structRec
@@ -621,21 +704,21 @@ rolf1_synchro localDBConf remoteDBConf organizationToIgnore currencyInfo dataSou
                              (Just ( "ar_organization_unit_id = ? ORDER BY `from` DESC LIMIT 1"
                                    , [unitId]))
 
-             let partyId' = trecord "ar_party_id" $ fromJust1 "ERR 1027" structRec
+             let partyId = trecord "ar_party_id" $ fromJust1 "ERR 1027" structRec
 
-             let extensionStructId' = fromDBInt $ trecord "id" extensionStructRec
+             let extensionStructId = fromDBInt $ trecord "id" extensionStructRec
 
-             let extensionUnitId' = fromDBInt $ trecord "ar_organization_unit_id" extensionStructRec
+             let extensionUnitId = fromDBInt $ trecord "ar_organization_unit_id" extensionStructRec
 
-             maybeUserRec' <- liftIO $
+             maybeUserRec <- liftIO $
                  tfields_result
                     localConn
                     user_tfields
                     ( Just ( "ar_organization_unit_id = ? AND is_root_admin = 0 ORDER BY id ASC LIMIT 1"
                            , [unitId]))
 
-             maybeUserId'
-                 <- case maybeUserRec' of
+             maybeUserId
+                 <- case maybeUserRec of
                       Just r -> case maybeUserLoginAndPassword of
                                   Nothing -> do
                                     -- Delete the user id because it has no user or password associated.
@@ -654,35 +737,75 @@ rolf1_synchro localDBConf remoteDBConf organizationToIgnore currencyInfo dataSou
 
              let structFromDate = fromDBLocalTime $ trecord "from" $ fromJust1 "ERR 1031" structRec
 
-             let (maybeStructureId', useDate', addToHistory')
-                    = case (oldHistoryChecksum == addToHistoryChecksum) of
-                        True -> (Just $ structId, structFromDate, False)
-                        False -> case (structFromDate >= unbilledCallsFromDate) of
-                                   True -> (Just $ structId, structFromDate, False)
-                                            -- NOTE: if the structure is changed in an unbilled time-frame, simply fix the history.
-                                   False -> (Nothing, unbilledCallsFromDate, True)
-                                            -- NOTE: if the structure is changed, preserve the old (already billed) info,
-                                            -- and add new info to the history.
+             let (maybeStructureId, changeFromDate) =
+                    case isRemoteLegacyRate of
+                      True -> (Just structId, structFromDate) -- do not switch to old legacy rate
+                      False ->
+                        case (oldHistoryChecksum == addToHistoryChecksum0) of
+                          True -> (Just structId, structFromDate) -- PriceCategory is not changed so in worst case update normal info
+                          False ->
+                            case (isOldInfoFromProvider && structFromDate >= unbilledCallsFromDate) of
+                              True -> (Just structId, structFromDate)
+                                       -- NOTE: if the structure is changed in an unbilled time-frame, simply fix the history.
+                              False -> (Nothing, unbilledCallsFromDate)
+                                       -- NOTE: if the structure is changed, preserve the old (already billed) info,
+                                       -- and add new info to the history.
 
              return ( Just $ fromDBInt $ unitId
-                    , Just $ fromDBInt $ partyId'
-                    , maybeStructureId'
-                    , useDate'
-                    , Just extensionUnitId'
-                    , Just extensionStructId'
-                    , maybeUserId'
-                    , pAssert "ERR 001" ((addToHistory' && isNothing maybeStructureId') || (not addToHistory' && isJust maybeStructureId')) addToHistory'
-                    , False
+                    , Just $ fromDBInt $ partyId
+                    , maybeStructureId
+                    , changeFromDate
+                    , Just extensionUnitId
+                    , Just extensionStructId
+                    , maybeUserId
+                    , isNothing maybeStructureId                   -- create a new Structure for adding info to the history
+                    , False                                        -- this is an already imported customer to maybe update
+                    , isRemoteLegacyRate && isOldInfoFromProvider  -- do not use A2Billing info if we have still an old legacy rate on it, and mantain contract rate
+                    , False                                        -- use real checksum code
                     )
+
+    -- NOTE: if code reach this point, then there is info to update/add,
+    -- otherwise ``throwError Nothing`` would be generated!
 
     --
     -- Write info
     --
     -- NOTE: the code process this only if there is change in data, otherwine a `throwError Nothing` is throwed in previous section
 
-    liftIO $ putStrLn $ "Update account: " ++ Text.unpack accountCode
+    when (isNewCustomer || addToHistory) (liftIO $ putStrLn $ "Update account: " ++ Text.unpack accountCode)
 
+    !localPriceCategoryId <-
+      case isNewInfoFromProvider of
+        False ->
+          -- infoFromCRMContract case
+          case maybeContractRate of
+            Just (remoteContractCode, i) -> return i
+            Nothing ->
+              throwError $
+                Just $
+                  createError'
+                    ("The CRM customer code " ++ show accountCode ++ " used in A2Billing server has a legacy-rate, but he has no entry in the Itec CRM to BY-CONTRACT PRICE-CATEGORY file. Asterisell can not assign the A2Billing rate because it is a not used anymore LEGACY-RATE, but it can not use the BY-CONTRACT rate because it is unspecified in the file.")
+                    ("Complete the Itec file and reinstall the application.")
+
+        True ->
+          -- infoFromProvider case
+          case IMap.lookup remotePriceCategoryId fromRemoteToLocalRateId of
+            Nothing ->
+              throwError $
+                Just $
+                  createError'
+                    ("The price category with A2Billing remote id " ++ show remotePriceCategoryId ++ " used for the customer with CRM code " ++ show accountCode ++ " seems a correct rate (no LEGACY-RATE) but it was not created on Asterisell.")
+                    ("This is an error in the application code. Contact the assistance.")
+            Just i -> return i 
+
+    let addToHistoryChecksum
+            = if useFakeChecksum
+              then (BS.append addToHistoryChecksum0 infoFromCRMContract)
+              else addToHistoryChecksum0
+
+    --
     -- Add `ar_organization_unit`
+    --
 
     -- DEV-NOTE I do not support (up to date) hierarchical organizations, according #15,
     -- so every account is directly billable.
@@ -720,6 +843,7 @@ rolf1_synchro localDBConf remoteDBConf organizationToIgnore currencyInfo dataSou
                        ,("internal_checksum1", toDBByteString addToHistoryChecksum)
                        ,("internal_checksum2", toDBByteString infoChecksum)
                        ,("internal_checksum3", toDBByteString $ fromStringToByteString $ show trustLevel)
+                       ,("internal_checksum5", toDBByteString (if isNewInfoFromProvider then infoFromProvider else infoFromCRMContract))
                        ,("automatically_managed_from", toDBInt64 1)
                        ]
 
@@ -765,62 +889,48 @@ rolf1_synchro localDBConf remoteDBConf organizationToIgnore currencyInfo dataSou
 
     let maybeTagName = trecord "debitorder" remoteInfo
     case fromMaybeDBValue fromDBText maybeTagName of
-              Nothing
-                -> return ()
-              Just tagName'
-                -> do let tagName = Text.toUpper tagName'
-                      partyTagInfo <- lift $ readIORef partyTagInfoRef
-                      tagId
-                        <- case Map.lookup tagName partyTagInfo of
-                             Just i -> return $ partyTag_id i
-                             Nothing -> do
-                               let recTag
-                                     = trecord_setMany
-                                         (trecord_empty)
-                                         [("internal_name", toDBText tagName)
-                                         ,("note_for_admin", toDBText "")
-                                         ,("name_for_customer", toDBText tagName)
-                                         ,("note_for_customer", toDBText "")
-                                         ]
+        Nothing
+          -> return ()
+        Just tagName'
+          -> do let tagName = Text.toUpper tagName'
+                partyTagInfo <- lift $ readIORef partyTagInfoRef
+                tagId
+                  <- case Map.lookup tagName partyTagInfo of
+                       Just i -> return $ partyTag_id i
+                       Nothing -> do
+                         let recTag
+                               = trecord_setMany
+                                   (trecord_empty)
+                                   [("internal_name", toDBText tagName)
+                                   ,("note_for_admin", toDBText "")
+                                   ,("name_for_customer", toDBText tagName)
+                                   ,("note_for_customer", toDBText "")
+                                   ]
 
-                               tagId' <- liftIO $ trecord_save localConn "ar_tag" recTag Nothing
-                               let partyTag = PartyTag {
-                                                partyTag_id = tagId'
-                                              , partyTag_internalName = tagName
-                                              , partyTag_name = tagName
-                                              }
+                         tagId' <- liftIO $ trecord_save localConn "ar_tag" recTag Nothing
+                         let partyTag = PartyTag {
+                                          partyTag_id = tagId'
+                                        , partyTag_internalName = tagName
+                                        , partyTag_name = tagName
+                                        }
 
-                               liftIO $ modifyIORef' partyTagInfoRef (\m -> Map.insert tagName partyTag partyTagInfo)
-                               return tagId'
+                         liftIO $ modifyIORef' partyTagInfoRef (\m -> Map.insert tagName partyTag partyTagInfo)
+                         return tagId'
 
-                      lift $ DB.execute localConn "DELETE FROM ar_party_has_tag WHERE ar_party_id = ?" [toDBInt64 partyId]
+                lift $ DB.execute localConn "DELETE FROM ar_party_has_tag WHERE ar_party_id = ?" [toDBInt64 partyId]
 
-                      let recPartyTag
-                                   = trecord_setMany
-                                       (trecord_empty)
-                                       [("ar_party_id", toDBInt64 partyId)
-                                       ,("ar_tag_id", toDBInt64 tagId)
-                                       ]
+                let recPartyTag
+                             = trecord_setMany
+                                 (trecord_empty)
+                                 [("ar_party_id", toDBInt64 partyId)
+                                 ,("ar_tag_id", toDBInt64 tagId)
+                                 ]
 
-                      lift $ trecord_save localConn "ar_party_has_tag" recPartyTag Nothing
+                lift $ trecord_save localConn "ar_party_has_tag" recPartyTag Nothing
 
-                      return ()
+                return ()
 
     -- Add `ar_organization_unit_has_structure`
-
-    let maybeRemoteRateId = fromMaybeDBValue fromDBInt $ trecord "tariff" remoteInfo
-
-    localRateId
-      <- case maybeRemoteRateId of
-           Nothing -> throwError $ Just $ createError' "There is a customer with missing price-category." "Set the price-category of the customer"
-           Just remoteRateId
-             -> case IMap.lookup remoteRateId fromRemoteToLocalRateId of
-                  Nothing -> throwError $
-                               Just $
-                                 createError'
-                                   ("The price category with remote id " ++ show remoteRateId ++ " has no local counterpart.")
-                                   ("Change the price-category of the customer, to an existing one, or define this new price-category on the Asterisell side.")
-                  Just i -> return i
 
     let recStructure
           = trecord_setMany
@@ -828,10 +938,10 @@ rolf1_synchro localDBConf remoteDBConf organizationToIgnore currencyInfo dataSou
               [("ar_organization_unit_id", toDBInt64 unitId)
               ,("ar_organization_unit_type_id", toDBInt64 $ unitType_defaultId localUnitType UnitType_customer)
               ,("ar_parent_organization_unit_id", toMaybeInt64 maybeParentBillableUnitId)
-              ,("from", toDBLocalTime structFromDate)
+              ,("from", toDBLocalTime changeFromDate)
               ,("exists", activeCustomer)
               ,("ar_party_id", toDBInt64 partyId)
-              ,("ar_rate_category_id", toDBInt64 localRateId)
+              ,("ar_rate_category_id", toDBInt64 localPriceCategoryId)
               ]
 
     structureId <- lift $ trecord_save localConn "ar_organization_unit_has_structure" recStructure maybeStructureId
@@ -874,23 +984,23 @@ rolf1_synchro localDBConf remoteDBConf organizationToIgnore currencyInfo dataSou
     -- Check if there is an user with the same login
 
     case maybeUserLoginAndPassword of
-            Nothing -> return ()
-            Just (userLogin, _) -> do
-              mr <- liftIO $ tfields_result
-                               localConn
-                               user_tfields
-                               ( Just ( "login = ? AND ar_organization_unit_id <> ? LIMIT 1"
-                                      , [toDBText userLogin, toDBInt64 unitId]))
-              case mr of
-                Nothing -> return ()
-                Just r ->
-                  throwError $ Just $
-                      createError'
-                        ("The user login " ++ Text.unpack userLogin
-                            ++ " is used from user with unitId " ++ (show unitId)
-                            ++ " and also for another user with unitId " ++ (show $ fromDBInt $ trecord "ar_organization_unit_id" r)
-                            ++ ", but it had to be unique.")
-                        "Find the repeated user login, and fix it."
+      Nothing -> return ()
+      Just (userLogin, _) -> do
+        mr <- liftIO $ tfields_result
+                         localConn
+                         user_tfields
+                         ( Just ( "login = ? AND ar_organization_unit_id <> ? LIMIT 1"
+                                , [toDBText userLogin, toDBInt64 unitId]))
+        case mr of
+          Nothing -> return ()
+          Just r ->
+            throwError $ Just $
+                createError'
+                  ("The user login " ++ Text.unpack userLogin
+                      ++ " is used from user with unitId " ++ (show unitId)
+                      ++ " and also for another user with unitId " ++ (show $ fromDBInt $ trecord "ar_organization_unit_id" r)
+                      ++ ", but it had to be unique.")
+                  "Find the repeated user login, and fix it."
 
     -- Update `ar_user`
     -- NOTE: the case of an `ar_user` to delete is managed before calling this code
@@ -925,13 +1035,19 @@ rolf1_synchro localDBConf remoteDBConf organizationToIgnore currencyInfo dataSou
   appendFields :: TRecord -> [BS.ByteString] -> BS.ByteString
   appendFields tr ns = BS.concat $ L.intersperse " " $ fromMaybeDBValues fromDBByteString $ L.map (\n -> trecord n tr) ns
 
+  infoFromProvider :: BS.ByteString
+  infoFromProvider = "provider"
+
+  infoFromCRMContract :: BS.ByteString
+  infoFromCRMContract = "CRM-CONTRACT"
+
 -- | The fields to import and analyze.
 --   DEV-NOTE: if more fields are imported, and they affect the history,
 --   then the hash can change, and a massive reimport and change of history can be done.
 --   In case a conversion passage should be done, for applying the new HASH code to the current
 --   fields.
-rolf1_tfields :: [TField]
-rolf1_tfields = [
+itec1_tfields :: [TField]
+itec1_tfields = [
     TField "id" True True False
   , TField "account" False True False
     -- ^ unique CRM code also without adding the prefix
@@ -1109,5 +1225,58 @@ rolf1_tfields = [
   ]
 
 -- | Import all data in static-way
-rolf1_stc_tfields :: [TField]
-rolf1_stc_tfields = L.map (\tf ->  tf { tfield_addToHistory = False }) rolf1_tfields
+itec1_stc_tfields :: [TField]
+itec1_stc_tfields = L.map (\tf ->  tf { tfield_addToHistory = False }) itec1_tfields
+{-# INLINE itec1_stc_tfields #-}
+
+type CRMCode = Text.Text
+
+data Itec1CRMToContractRate
+       = Itec1CRMToContractRate {
+           itec1CRM_nr :: !Text.Text
+         , itec1CRM_customerName :: !Text.Text
+         , itec1CRM_crm :: !CRMCode
+         , itec1CRM_contractCode :: !Text.Text
+         , itec1CRM_localPrice :: !Text.Text
+         , itec1CRM_nationalPrice :: !Text.Text
+         , itec1CRM_mobilePrice :: !Text.Text
+         , itec1CRM_priceCategory :: !Text.Text
+         }
+ deriving (Generic)
+
+instance CSV.FromRecord Itec1CRMToContractRate
+
+type RemoteRateCategoryCode = RateCategoryCode
+
+-- | Load an Itec configuration file mapping CRM customer codes to ContractRates
+itec1_crmToContractRate :: String -> IO (Map.Map CRMCode RemoteRateCategoryCode)
+itec1_crmToContractRate fileName = do
+  fileContent <- LBS.readFile fileName
+  let maybeError = CSV.decode HasHeader fileContent
+  case maybeError of
+    Left err -> throwIO $ AsterisellException $ "Error during parsing of " ++ fileName ++ " - " ++ err
+    Right ds -> do
+      return $
+        V.foldr
+          (\d m -> Map.insert
+                     (itec1CRM_crm d)
+                     (itec1CRM_priceCategory d)
+                     m
+          ) Map.empty ds
+
+data Itec1LegacyRate
+       = Itec1LegacyRate { itec1LR_remoteRateName :: !Text.Text }
+           deriving (Generic)
+
+instance CSV.FromRecord Itec1LegacyRate
+
+-- | Load list of legacy PriceCategories on A2Billing servers that are not any more used.
+--   They are replaced by itec1_crmToContractRate.
+itec1_legacyRates :: String -> IO (Set.Set RateCategoryCode)
+itec1_legacyRates fileName = do
+  fileContent <- LBS.readFile fileName
+  let maybeError = CSV.decode NoHeader fileContent
+  case maybeError of
+    Left err -> throwIO $ AsterisellException $ "Error during parsing of " ++ fileName ++ " - " ++ err
+    Right ds -> do
+      return $ V.foldr (\d s -> Set.insert (itec1LR_remoteRateName d) s) Set.empty ds

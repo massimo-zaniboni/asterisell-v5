@@ -593,6 +593,10 @@ propel:
     #
     # optionally used from automatic importing jobs
 
+    internal_checksum5: { type: varchar, size: 200, required: false }
+    #
+    # optionally used from automatic importing jobs
+
     export_code: { type: varchar, size: 200, required: false, unique: true, index: unique }
     # in case of extensions exported to resellers, this is the code used as extension/internal number
     # and that must be used from the reseller instance for matching the call.

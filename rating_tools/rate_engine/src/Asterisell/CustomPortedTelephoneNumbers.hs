@@ -11,7 +11,7 @@
 --   * the CDR rating engine use the ported telephone numbers table for converting to a ported telephone number
 --   * the CDR rating engine rate the telephone number
 module Asterisell.CustomPortedTelephoneNumbers (
-  rolf1_processTelcordia
+  itec1_processTelcordia
 ) where
 
 import Asterisell.DB
@@ -52,7 +52,7 @@ import qualified Xeno.SAX as XML
 
 -- ---------------------------------------
 -- Process Telcordia XML files
--- according the needs of Rolf1 project #9
+-- according the needs of itec1 project #9
 
 type OperatorDefs
        = [(BS.ByteString
@@ -72,7 +72,7 @@ zaf_telephoneNumberWithOperator
   -> BS.ByteString
 zaf_telephoneNumberWithOperator opCode tn = BS.append opCode tn
 
-data Rolf1XMLState
+data Itec1_XMLState
        = RXML_Ignore
        | RXML_Activated
        | RXML_IDNumber
@@ -83,7 +83,7 @@ data Rolf1XMLState
        | RXML_RangeTo
      deriving(Eq, Ord, Show)
 
-fromXMLTagToXMLState :: BS.ByteString -> IO Rolf1XMLState
+fromXMLTagToXMLState :: BS.ByteString -> IO Itec1_XMLState
 fromXMLTagToXMLState bs
   = let m = Map.fromList
               [("IDNumber", RXML_IDNumber)
@@ -106,33 +106,33 @@ fromXMLTagToXMLState bs
          Just r -> return r
          Nothing -> throwIO $ AsterisellException $ "Unexpected tag " ++ fromByteStringToString bs
 
-data Rolf1State
-       = Rolf1State {
+data Itec1State
+       = Itec1State {
            rs_insertStmtId :: DB.StmtID
          , rs_xml_activated :: Bool
          , rs_countInserts :: Int
          , rs_garbageKey :: BS.ByteString
-         , rs_xml_state :: Rolf1XMLState
+         , rs_xml_state :: Itec1_XMLState
          , rs_xml_portedFromDate :: LocalTime
          , rs_xml_src :: BS.ByteString
          , rs_xml_operator :: BS.ByteString
          , rs_xml_range_to :: BS.ByteString
                     }
 
-rolf1_processTelcordia
+itec1_processTelcordia
   :: DBConf
   -> String
   -- ^ file name to process
   -> IO Int
   -- ^ return the number of inserted ported telephone numbers
 
-rolf1_processTelcordia dbConf fileName = do
+itec1_processTelcordia dbConf fileName = do
    let state1
-         = Rolf1State {
+         = Itec1State {
              rs_insertStmtId = fromIntegral 0
            , rs_countInserts = fromIntegral 0
            , rs_garbageKey = BS.concat
-                               [ fromStringToByteString "rolf1_processTelcordia "
+                               [ fromStringToByteString "itec1_processTelcordia "
                                , fromStringToByteString fileName]
            , rs_xml_activated = False
            , rs_xml_portedFromDate = fromJust $ fromMySQLDateTimeAsTextToLocalTime "2000-01-01 00:00:00"
@@ -177,7 +177,7 @@ rolf1_processTelcordia dbConf fileName = do
 
  where
 
-   openTagP :: DB.MySQLConn -> IORef Rolf1State -> BS.ByteString -> IO ()
+   openTagP :: DB.MySQLConn -> IORef Itec1State -> BS.ByteString -> IO ()
    openTagP conn sr tagName
       = do ts <- fromXMLTagToXMLState tagName
            modifyIORef' sr (\s -> s { rs_xml_state = ts })
@@ -185,13 +185,13 @@ rolf1_processTelcordia dbConf fileName = do
            -- NOTE activated has no text associated, so we process explicitely here.
            return ()
 
-   tagAttrP :: DB.MySQLConn -> IORef Rolf1State -> BS.ByteString -> BS.ByteString -> IO ()
+   tagAttrP :: DB.MySQLConn -> IORef Itec1State -> BS.ByteString -> BS.ByteString -> IO ()
    tagAttrP conn sr attrName attrValue = return ()
 
-   closeTagAttrP :: DB.MySQLConn -> IORef Rolf1State -> BS.ByteString -> IO ()
+   closeTagAttrP :: DB.MySQLConn -> IORef Itec1State -> BS.ByteString -> IO ()
    closeTagAttrP conn sr tagName = return ()
 
-   textP :: DB.MySQLConn -> IORef Rolf1State -> BS.ByteString -> IO ()
+   textP :: DB.MySQLConn -> IORef Itec1State -> BS.ByteString -> IO ()
    textP conn sr bs = do
      s <- readIORef sr
      when (rs_xml_activated s &&  (not $ isEmptyXMLContent bs)) $ do
@@ -273,10 +273,10 @@ rolf1_processTelcordia dbConf fileName = do
                             let ns :: [BS.ByteString] = L.map fromLazyToStrictByteString $ L.map BSC.toByteString [n1 .. n2]
                             mapM_ (saveExportedTelephoneNumber conn sr) ns
 
-   closeTagP :: DB.MySQLConn -> IORef Rolf1State -> BS.ByteString -> IO ()
+   closeTagP :: DB.MySQLConn -> IORef Itec1State -> BS.ByteString -> IO ()
    closeTagP conn sr tagName = return ()
 
-   cdataP :: DB.MySQLConn -> IORef Rolf1State -> BS.ByteString -> IO ()
+   cdataP :: DB.MySQLConn -> IORef Itec1State -> BS.ByteString -> IO ()
    cdataP conn sr bs = return ()
 
    fromBSToInteger :: BS.ByteString -> IO Integer
@@ -286,7 +286,7 @@ rolf1_processTelcordia dbConf fileName = do
        Just n -> return n
        Nothing -> throwIO $ AsterisellException $ "Error parsing number: " ++ fromByteStringToString bs
 
-   saveExportedTelephoneNumber :: DB.MySQLConn -> IORef Rolf1State -> BS.ByteString -> IO ()
+   saveExportedTelephoneNumber :: DB.MySQLConn -> IORef Itec1State -> BS.ByteString -> IO ()
    saveExportedTelephoneNumber conn sr tn = do
      s <- readIORef sr
      _ <- DB.executeStmt

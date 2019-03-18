@@ -97,7 +97,7 @@ var whTitleList = [
 /*20*/ "Configuring multiple price-categories",
 /*21*/ "CSV rate plan example",
 /*22*/ "Rate specification language",
-/*23*/ "Bundl rates",
+/*23*/ "Bundle rates",
 /*24*/ "Change of rates",
 /*25*/ "Custom jobs",
 /*26*/ "User interface localization",

@@ -43,6 +43,7 @@ class ArOrganizationUnitTableMap extends TableMap {
 		$this->addColumn('INTERNAL_CHECKSUM2', 'InternalChecksum2', 'VARCHAR', false, 200, null);
 		$this->addColumn('INTERNAL_CHECKSUM3', 'InternalChecksum3', 'VARCHAR', false, 200, null);
 		$this->addColumn('INTERNAL_CHECKSUM4', 'InternalChecksum4', 'VARCHAR', false, 200, null);
+		$this->addColumn('INTERNAL_CHECKSUM5', 'InternalChecksum5', 'VARCHAR', false, 200, null);
 		$this->addColumn('EXPORT_CODE', 'ExportCode', 'VARCHAR', false, 200, null);
 		$this->addColumn('AUTOMATICALLY_MANAGED_FROM', 'AutomaticallyManagedFrom', 'INTEGER', true, null, 0);
 		// validators

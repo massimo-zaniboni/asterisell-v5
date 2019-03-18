@@ -386,6 +386,7 @@ CREATE TABLE `ar_organization_unit`
 	`internal_checksum2` VARCHAR(200),
 	`internal_checksum3` VARCHAR(200),
 	`internal_checksum4` VARCHAR(200),
+	`internal_checksum5` VARCHAR(200),
 	`export_code` VARCHAR(200),
 	`automatically_managed_from` INTEGER default 0 NOT NULL,
 	PRIMARY KEY (`id`),

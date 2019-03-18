@@ -40,6 +40,7 @@ import Control.Exception.Safe (catch, catchAny, onException, finally, handleAny,
 
 import Control.Exception.Base (ErrorCall(..))
 import System.IO.Streams as S
+import System.IO.Streams.Vector as SV
 import qualified Data.Vector as V
 import Control.DeepSeq as DeepSeq
 import Control.Concurrent.MVar
@@ -49,18 +50,8 @@ import qualified Data.Csv as CSV
 import Control.Concurrent.Async
 import System.IO
 import Data.Either
-
--- ---------------------------------
--- Params
-
--- | The number of source CDRs to fetch from the DB, before splitting the rating event.
---   Up to date the Haskell MySQL driver does not support the forward-only cursor mode,
---   and it stores all the CDRS of the rating query in RAM.
---   So the query is splitted (efficiently) in smaller queries, and they are rated separately.
---   NOTE: the cost of splitting the query is rather neglible, so use low numbers.
-param_chunkSize2 :: Int
-param_chunkSize2 = 1024 * 5
-{-# INLINE param_chunkSize2 #-}
+import Data.Traversable
+import Data.Maybe
 
 -- -------------------------------------------
 -- Common data types
@@ -75,6 +66,8 @@ type SourceDataSummaryInfo
     , Int
       -- ^ lines with errors
     )
+
+type RemoteCDRId = Int
 
 {-# INLINE newMaxMinCallDate #-}
 newMaxMinCallDate :: LocalTime -> Maybe (LocalTime, LocalTime) -> Maybe (LocalTime, LocalTime)
@@ -130,36 +123,47 @@ rateEngine_importDataFile
       (\_ -> S.withFileAsInput
                inputFile
                (\fileContentStream -> do
-                   rawCDRS <- (allLines params fileContentStream) >>= (maybeRemoveHeader params) >>= (utf8Lines params)
+                   rawCDRS <-
+                       (allLines params fileContentStream)
+                         >>= (maybeRemoveHeader params)
+                         >>= (utf8Lines params)
+                         >>= (S.map (\l -> (0, l)))
+                         >>= SV.chunkVector param_chunkSize
 
-                   case maybeDebugFileName of
-                     Nothing -> do
-                       rateEngine_importIntoDB
-                         providerName
-                         providerId
-                         logicalTypeName
-                         logicalTypeId
-                         formatTypeName
-                         formatTypeId
-                         fromCallDate
-                         isStatusFile
-                         maybeStatusTimeFrame
-                         dbConf
-                         precision
-                         rawCDRS
-                         (\ conn -> void $ DB.execute conn  "REPLACE INTO ar_local_file_to_delete(name) VALUES(?)" [toDBText $ Text.pack inputFile])
-                     Just debugFileName -> do
-                       rateEngine_debugCDRParsing
-                         providerName
-                         providerId
-                         logicalTypeName
-                         logicalTypeId
-                         formatTypeName
-                         formatTypeId
-                         dbConf
-                         precision
-                         rawCDRS
-                         debugFileName
+                   rawCDRSChan <- newEmptyMVar
+
+                   writeJob <- async $
+                     case maybeDebugFileName of
+                       Nothing -> do
+                         rateEngine_importIntoDB
+                           providerName
+                           providerId
+                           logicalTypeName
+                           logicalTypeId
+                           formatTypeName
+                           formatTypeId
+                           fromCallDate
+                           isStatusFile
+                           maybeStatusTimeFrame
+                           dbConf
+                           precision
+                           rawCDRSChan
+                           (\ conn -> void $ DB.execute conn  "REPLACE INTO ar_local_file_to_delete(name) VALUES(?)" [toDBText $ Text.pack inputFile])
+                       Just debugFileName -> do
+                         rateEngine_debugCDRParsing
+                           providerName
+                           providerId
+                           logicalTypeName
+                           logicalTypeId
+                           formatTypeName
+                           formatTypeId
+                           dbConf
+                           precision
+                           rawCDRSChan
+                           debugFileName
+
+                   _ <- stream_toOrderedStream True rawCDRS rawCDRSChan Nothing
+                   wait writeJob
                ))
 
       (\_ _ -> return ())
@@ -171,7 +175,7 @@ rateEngine_importDataFile
        = case params of
            SourceCDRParamsCSVFile _ _ _ UseUTF8
              -> return stream1
-           SourceCDRParamsDBTableWithAutoincrementId _ _
+           SourceCDRParamsDBTableWithAutoincrementId _ _ _
              -> return stream1
            _   -> throwIO $ ErrorCallWithLocation ("The data format " ++ show params ++ " is not supported. Contact the assistance. ") ""
 
@@ -206,17 +210,17 @@ rateEngine_importDataFile
 --   in case of MyISAM tables.
 --   The code is transaction safe because a transaction is open on the destination
 --   local database, and the job will be repeated in case of problems.
+--   The reader does not need transactions because the source DB table is assumed append-only
+--   and the ID is auto-increment.
 --
 --   ID is a good field to use because there is for sure an index on it,
 --   and it is likely that the call-date is more or less ordered about it.
---   MySQL guarantees also that each new added CDR will have an increasing ID,
---   also in case of concurrent transactions.
 --
---   This job tries also to work using small chunks of CDRS, for non imposing long locks
---   on the tables, in case the remote DBMS does not support transactions in a robust way.
+--   Relatively small chunks of CDRS are used because Haskell MySQL driver does not support
+--   streaming, but only complete query materialization.
 --
 rateEngine_importFromMySQLDB
-  :: DB.ConnectInfo
+  :: DB.ConnectInfo  -- ^ remote source DB
   -> CDRProviderName
   -> Int
   -> Text.Text
@@ -224,9 +228,8 @@ rateEngine_importFromMySQLDB
   -> Text.Text
   -> Int
   -> String
-  -> CallDate
-  -- ^ import only CDRS >= this date
-  -> DBConf
+  -> CallDate  -- ^ import only CDRS >= this date
+  -> DBConf    -- ^ local destination DB
   -> IO SourceDataSummaryInfo
 
 rateEngine_importFromMySQLDB
@@ -248,10 +251,26 @@ rateEngine_importFromMySQLDB
            Just r
              -> return r
 
-    (fields, fieldIdName)
+    (fields, fieldIdName, loadQuery)
       <- case params of
-           SourceCDRParamsDBTableWithAutoincrementId fields _
-             -> return (fields, head fields)
+           SourceCDRParamsDBTableWithAutoincrementId fields _ Nothing -> do
+             let fieldId = head fields
+             let loadQuery1 =
+                   "SELECT "
+                       ++ (L.concat $ L.intersperse ", " fields)
+                       ++ " FROM " ++ remoteTableName
+                       ++ " WHERE " ++ fieldId ++ " > ? AND " ++ fieldId ++ " <= ? "
+                       ++ " ORDER BY " ++ fieldId
+                       ++ " LIMIT ?"
+             return (fields, fieldId, loadQuery1)
+
+           SourceCDRParamsDBTableWithAutoincrementId fields _ (Just loadQuer1) -> do
+             let fieldId = head fields
+             let loadQuery2 =
+                   loadQuer1 ++ " AND " ++ fieldId ++ " > ? AND " ++ fieldId ++ " <= ? "
+                     ++ " ORDER BY " ++ fieldId ++ " LIMIT ?"
+             return (fields, fieldId, loadQuery2)
+
            _ -> throwIO $ AsterisellException ("The format " ++ (Text.unpack logicalTypeName) ++ ", and version " ++ (Text.unpack formatTypeName) ++ " is not associated to a remote database format.")
 
     conn <- db_openConnection dbConf False
@@ -269,27 +288,37 @@ rateEngine_importFromMySQLDB
     withResource'
       (DB.connect remoteDBConf)
       (\remoteConn -> do
-          let inQ1 = "SELECT "
-                       ++ (L.concat $ L.intersperse ", " fields)
-                       ++ " FROM " ++ remoteTableName
-                       ++ " WHERE " ++ fieldIdName ++ " > ? "
-                       ++ " ORDER BY " ++ fieldIdName
-                       ++ " LIMIT ?"
 
-          getCDRSStmt <- DB.prepareStmt remoteConn (DB.Query $ LBS.fromStrict $ fromStringToByteString inQ1)
+          -- Find the last remote fieldIdName.
+          -- NOTE: use this value as limit, so we are sure that also if new remote CDRS are added,
+          -- the retrieving process will terminate. New added CDRS will be retrieved in next execution
+          -- pass of the rating process.
+          DB.execute_ remoteConn "SET autocommit = 0"
+          DB.execute_ remoteConn "SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED"
+          let remoteQ0 =
+                "SELECT " ++ fieldIdName ++ " FROM " ++ remoteTableName ++ " ORDER BY " ++ fieldIdName ++ " DESC LIMIT 1"
+          (_, remoteS0) <- DB.query_ remoteConn (DB.Query $ LBS.fromStrict $ fromStringToByteString remoteQ0)
+          remoteRS0 <- S.toList remoteS0
+          let lastRemoteId
+                = case remoteRS0 of
+                    [] -> 0
+                    [[DB.MySQLNull]] -> 0
+                    [[v]] -> fromDBInt v
+                    _ -> pError "ERR 5204: unexpeted result"
 
-          mLastId <- newMVar lastSavedId
-          mRecords <- newEmptyMVar
-          mRawCDR <- newEmptyMVar
+          -- Prepare query for retrieving remote source CDRS
+          DB.execute_ remoteConn "SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED"
+          -- NOTE: the remoteDB is only append-only so this poses no problem, and we are sure there will be no lock
+          -- on remote-tables
 
-          job1 <- async $ getRecords remoteConn getCDRSStmt param_chunkSize2 mLastId mRecords
-          -- NOTE: use a distinct thread so it can be idle waiting MySQL remote answers
+          readStmt <- DB.prepareStmt remoteConn (DB.Query $ LBS.fromStrict $ fromStringToByteString loadQuery)
 
-          job2 <- async $ getRawCDRS mRecords mRawCDR
+          outChan <- newEmptyMVar
+          job1 <- async $ readAllRawCDRS remoteConn readStmt outChan lastRemoteId lastSavedId  
 
-          sRawCDRS <- S.makeInputStream $ takeMVar mRawCDR
-
-          r <- rateEngine_importIntoDB
+          job2 <-
+            async $
+              rateEngine_importIntoDB
                  providerName
                  providerId
                  logicalTypeName
@@ -301,52 +330,34 @@ rateEngine_importFromMySQLDB
                  Nothing
                  dbConf
                  4
-                 sRawCDRS
-                 (\ conn -> do lastId <- takeMVar mLastId
-                               _ <- DB.execute conn  "UPDATE ar_cdr_provider SET last_imported_id = ? WHERE id = ?" [toDBInt64 lastId, toDBInt64 providerId]
-                               return ())
-
+                 outChan
+                 (\ conn -> do 
+                      _ <- DB.execute conn  "UPDATE ar_cdr_provider SET last_imported_id = ? WHERE id = ?" [toDBInt64 lastRemoteId, toDBInt64 providerId]
+                      return ())
 
           _ <- wait job1
-          _ <- wait job2
-          return r)
+          wait job2)
       (\_ remoteConn -> DB.close remoteConn)
       (createImportError)
 
   where
 
-   getRecords remoteConn getCDRSStmt chunkSize mLastId mRecords = do
-       lastId <- takeMVar mLastId
-       (_, recordsS) <- DB.queryStmt remoteConn getCDRSStmt [toDBInt64 lastId, toDBInt64 chunkSize]
-       !records <- S.toList recordsS
-       putMVar mRecords (Just records)
+   readAllRawCDRS remoteConn readStmt outChan  maxRemoteId lastRemoteId = do
+       (_, stream1) <- DB.queryStmt remoteConn readStmt [toDBInt64 lastRemoteId, toDBInt64 maxRemoteId, toDBInt64 $ param_chunkSize2]
 
-       let lastId' = case L.null records of
-                       True -> lastId
-                       False -> fromDBInt $ L.head $ L.last records
-       putMVar mLastId lastId'
-
-       -- NOTE: use a condition on chunkSize, because if we test the empty result
-       -- there can be few but constant CDRS to process, and the loop will never terminate.
-       -- In this case we leave the remaining few CDRS to the next passage of the cron-job.
-       case L.length records < chunkSize of
-         True -> do putMVar mRecords Nothing
-                    return ()
-         False -> getRecords remoteConn getCDRSStmt chunkSize mLastId mRecords
-
-   getRawCDRS mRecords mRawCDR = do
-       maybeRecord <- takeMVar mRecords
-       case maybeRecord of
+       stream2 <- S.map toRawSourceCDR stream1 >>= SV.chunkVector param_chunkSize
+       maybeLastChunk <- stream_toOrderedStream False stream2 outChan Nothing
+       case maybeLastChunk of
          Nothing -> do
-           putMVar mRawCDR Nothing
-           return ()
-         Just records -> do
-           M.mapM_ (\r -> putMVar mRawCDR $ Just $ toRawSourceCDR r) records
-           getRawCDRS mRecords mRawCDR
+           orderedStream_put outChan Nothing
+           return lastRemoteId
+         Just lastChunk -> do
+           let !lastRemoteId' = fst lastChunk 
+           readAllRawCDRS remoteConn readStmt outChan maxRemoteId lastRemoteId'
 
-   -- | Convert to a CSV record, removing the last "\n" character
-   toRawSourceCDR :: [DB.MySQLValue] -> RawSourceCDR
-   toRawSourceCDR cdr1 = BS.init $ LBS.toStrict $ CSV.encodeWith opts [cdr1]
+   -- | Convert to a CSV record, removing the last "\n" character.
+   toRawSourceCDR :: [DB.MySQLValue] -> (RemoteCDRId, RawSourceCDR)
+   toRawSourceCDR cdr1 = (fromDBInt $ L.head cdr1,  BS.init $ LBS.toStrict $ CSV.encodeWith opts [cdr1])
    {-# INLINE toRawSourceCDR #-}
 
    !opts = CSV.defaultEncodeOptions {
@@ -373,21 +384,18 @@ rateEngine_importFromMySQLDB
 --
 rateEngine_importIntoDB
   :: CDRProviderName
-  -> Int
-  -> Text.Text
-  -> Int
-  -> Text.Text
-  -> Int
-  -> CallDate
-  -- ^ import CDRS >= of this date
-  -> Bool
-  -> Maybe (LocalTime, LocalTime)
-  -> DBConf
+  -> Int             -- ^ ProviderId
+  -> Text.Text       -- ^ LogicalTypeName
+  -> Int             -- ^ LogicalTypeId
+  -> Text.Text       -- ^ FormatTypeName
+  -> Int             -- ^ FormatTypeId
+  -> CallDate        -- ^ import CDRS >= of this date
+  -> Bool            -- ^ is status file
+  -> Maybe (CallDate, CallDate) -- ^ the Status TimeFrame in case
+  -> DBConf          -- ^ the DB were writing
   -> CurrencyPrecisionDigits
-  -> InputStream RawSourceCDR
-  -- ^ the CDRs in source/raw format
-  -> (DB.MySQLConn -> IO ())
-  -- ^ an action for annotating successfully imports
+  -> OrderedStream (RemoteCDRId, RawSourceCDR) -- ^ the input CDRS
+  -> (DB.MySQLConn -> IO ())    -- ^ an action for annotating successfully imports
   -> IO SourceDataSummaryInfo
 
 rateEngine_importIntoDB
@@ -402,7 +410,7 @@ rateEngine_importIntoDB
   maybeStatusTimeFrame
   dbConf
   precision
-  inStream1
+  inChan
   commitAction = do
 
    nrOfRatingJobs <- process_initCores 0
@@ -420,7 +428,6 @@ rateEngine_importIntoDB
     (db_init dbConf Nothing precision)
     (\dbState -> do
        let conn = fromRight (error "err 2553") $ dbps_conn dbState
-       db_openTransaction conn
 
        when isStatusFile (db_deleteFromArSource conn formatTypeId providerId maybeStatusTimeFrame)
 
@@ -429,7 +436,7 @@ rateEngine_importIntoDB
        let summaryInfo0 = (Nothing, 0, 0)
        -- NOTE: use an MVar instead of an IORef, because I had space-leak problems
 
-       (rawCDRSChan, writeToDBProcess)
+       (outChan, writeToDBJobs)
          <- db_loadDataFromNamedPipe
               dbState
               pipeName
@@ -438,17 +445,16 @@ rateEngine_importIntoDB
               sourceCDR_toMySQLCSV
 
        (_, summaryInfo@(maybeTimeFrame, correctLines, linesWithErrors)) <- do
-         let parseCallDate rawCDR
+         let parseCallDate (_, rawCDR)
                = case (parseTypedRawSourceCDRToCallDate theType sourceCDRParams 4 providerName rawCDR) of
                    Left err -> Just $ (rawCDR, Left err)
                    Right Nothing -> Nothing
                    Right (Just callDate) -> if callDate >= fromDate then Just $ (rawCDR, Right callDate) else Nothing
 
-         inStream2 <- (S.map parseCallDate inStream1) >>= stream_toJust
-         !r <- S.foldM (\ (!s) (!cdr) -> sendToDB rawCDRSChan s cdr) (callDate0, summaryInfo0) inStream2
+         processJob <- async $ process parseCallDate outChan (callDate0, summaryInfo0)
 
-         putMVar rawCDRSChan Nothing
-         V.mapM_ wait writeToDBProcess
+         r <- wait processJob
+         V.mapM_ wait writeToDBJobs
          return $ DeepSeq.force r
 
        _ <- takeMVar $ dbps_semaphore dbState
@@ -464,7 +470,7 @@ rateEngine_importIntoDB
                        Nothing -> do return ()
                        Just (rateFromCallDate, _) -> db_updateRatingTimeFrame conn rateFromCallDate
 
-       putMVar (dbps_semaphore dbState) ()                                                     
+       putMVar (dbps_semaphore dbState) ()
 
        commitAction conn
 
@@ -480,36 +486,43 @@ rateEngine_importIntoDB
 
  where
 
-   sendToDB
-     :: OrderedStream DBSourceCDR
-     -- ^ where sending CDRS
-     -> (LocalTime, SourceDataSummaryInfo)
-     -> (RawSourceCDR, Either AsterisellError LocalTime)
-     -> IO (LocalTime, SourceDataSummaryInfo)
+   process parseCallDate outChan state1 = do
+     maybeRawCDRS <- takeMVar inChan
+     case maybeRawCDRS of
+       Just rawCDRS -> do
+         let (!state2, !sourceCDRS) =
+                 mapAccumL toSourceCDR state1 $
+                   V.map fromJust $
+                     V.filter isJust $
+                       V.map parseCallDate rawCDRS
 
-   sendToDB outChan (!lastCallDate, (!maybeMaxMinCallDate, !correctLines, !linesWithErrors)) (!rawCDR, !maybeLocalTime)
-     = let (lastCallDate', summaryInfo')
-             = case maybeLocalTime of
-                 Left err
-                   -> (lastCallDate, (maybeMaxMinCallDate, correctLines, linesWithErrors + 1))
-                      -- NOTE: in case of error update only the count of lines with errors,
-                      -- and use a "current date".
-                      -- In this way the error will be reported in details when the user try to rate recent calls.
-                      -- This is an hack but 99% of the times it is the correct thing to do.
-                 Right callDate
-                   -> (callDate, (newMaxMinCallDate callDate maybeMaxMinCallDate, correctLines + 1, linesWithErrors))
+         orderedStream_put outChan (Just sourceCDRS)
+         process parseCallDate outChan state2
+       Nothing -> do
+         orderedStream_put outChan Nothing 
+         return state1
 
-           cdr' = DBSourceCDR lastCallDate' providerId logicalTypeId formatTypeId rawCDR
+   toSourceCDR :: (CallDate, SourceDataSummaryInfo) -> (RawSourceCDR, Either AsterisellError CallDate) -> ((CallDate, SourceDataSummaryInfo), DBSourceCDR)
+   toSourceCDR state1@(!lastCallDate, (!maybeMaxMinCallDate, !correctLines, !linesWithErrors)) (!rawCDR, maybeError)
+     = let (!callDate, !state2) =
+             DeepSeq.force $ 
+               case maybeError of
+                 Left err ->
+                   (lastCallDate, (maybeMaxMinCallDate, correctLines, linesWithErrors + 1))
+                         -- NOTE: in case of error update only the count of lines with errors,
+                         -- and use a "current date".
+                         -- In this way the error will be reported in details when the user try to rate recent calls.
+                         -- This is an hack but 99% of the times it is the correct thing to do.
+                 Right parsedCallDate ->
+                   (parsedCallDate, (newMaxMinCallDate parsedCallDate maybeMaxMinCallDate, correctLines + 1, linesWithErrors))
 
-       in do
-             putMVar outChan $ DeepSeq.force (Just (V.singleton cdr'))
-             return $ DeepSeq.force (lastCallDate', summaryInfo')
+       in ((callDate, state2), DBSourceCDR callDate providerId logicalTypeId formatTypeId rawCDR)
 
    createImportError e
      = SomeException $ AsterisellException $ "There is a critical error during the importing from provider " ++ (Text.unpack providerName) ++ ", format " ++  (Text.unpack logicalTypeName) ++ "__" ++  (Text.unpack formatTypeName) ++ ". " ++ (displayException e) ++ ".\nAll data from the provider or with the same format will be not rated.\nThis is probably an error in the application configuration. Contact the assistance."
 
 -- ---------------------------------------
--- Debug 
+-- Debug
 
 -- | Parse CDRS and print debug informations.
 --
@@ -522,7 +535,7 @@ rateEngine_debugCDRParsing
   -> Int
   -> DBConf
   -> CurrencyPrecisionDigits
-  -> InputStream RawSourceCDR
+  -> OrderedStream (RemoteCDRId, RawSourceCDR)
   -- ^ the CDRs in source/raw format
   -> FilePath
   -> IO SourceDataSummaryInfo
@@ -536,7 +549,7 @@ rateEngine_debugCDRParsing
   formatTypeId
   dbConf
   precision
-  inStream1
+  inChan
   debugFileName = do
 
    nrOfRatingJobs <- process_initCores 0
@@ -552,11 +565,10 @@ rateEngine_debugCDRParsing
    let callDate0 = zonedTimeToLocalTime nowLocalTime1
    -- NOTE: use an MVar instead of an IORef, because I had space-leak problems
 
-   let parseCDR rawCDR = (rawCDR, parseTypedRawSourceCDR theType sourceCDRParams precision providerName rawCDR)
+   let parseCDR (_, rawCDR) = (rawCDR, parseTypedRawSourceCDR theType sourceCDRParams precision providerName rawCDR)
 
    withFile debugFileName WriteMode $ \outH -> do
-     inStream2 <- (S.map parseCDR inStream1) 
-     (_, r@(timeFrame, correctLines, linesWithErrors)) <- S.foldM (\ (!s) (!cdr) -> processCDR outH s cdr) (callDate0, (Nothing, 0, 0)) inStream2
+     (_, r@(timeFrame, correctLines, linesWithErrors)) <- processCDRS outH parseCDR (callDate0, (Nothing, 0, 0))
 
      hPutStrLn outH $ "\nTime frame: " ++ show timeFrame
      hPutStrLn outH $ "Total correctly parsed lines: " ++ show correctLines ++ ", total lines with errors: " ++ show linesWithErrors
@@ -564,6 +576,15 @@ rateEngine_debugCDRParsing
      return r
 
  where
+
+   processCDRS outH parseCDR state1 = do
+     mcdrs <- readMVar inChan
+     case mcdrs of
+       Just cdrs -> do
+         state2 <- V.foldM (processCDR outH) state1 $ V.map parseCDR cdrs
+         processCDRS outH parseCDR state2
+       Nothing -> do
+         return state1
 
    processCDR
      :: Handle
@@ -632,7 +653,7 @@ rateEngine_exportDataFile
         -- SourceCDRParamsCSVFile _ _ _ locale
         --  -> throwIO $ AsterisellException $ "(err 573) The code can not manage character locale conversions " ++ show locale
         -- NOTE: code disabled because up to date only UseUTF8 is implemented
-        SourceCDRParamsDBTableWithAutoincrementId _ _
+        SourceCDRParamsDBTableWithAutoincrementId _ _ _
           -> return ()
 
       withResource'
@@ -659,7 +680,7 @@ rateEngine_exportDataFile
                SourceCDRParamsCSVFile Nothing _ _ UseUTF8
                  -> do return ()
 
-               SourceCDRParamsDBTableWithAutoincrementId _ _
+               SourceCDRParamsDBTableWithAutoincrementId _ _ _
                  -> do return ()
 
              processAllSplits readConn stmtId outS param_chunkSize2 0)
