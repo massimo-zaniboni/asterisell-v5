@@ -1342,6 +1342,7 @@ all:
       - Upgrade_2018_02_14
       - Upgrade_2018_03_00
       - Upgrade_2019_02_16
+      - Upgrade_2019_03_10
       $custom_upgrade_jobs
 
   organization_to_ignore: $organization_to_ignore
