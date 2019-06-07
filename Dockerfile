@@ -66,6 +66,18 @@ RUN yum install -y git openssl-devel fabric
 
 RUN pip install fabricate
 
+# --------------------------------------------------------------
+# Tools needed from some customers for generating customizations
+
+RUN yum install -y bsdtar java-1.8.0-openjdk-devel && \
+    cd /opt && \
+    wget https://bintray.com/artifact/download/groovy/maven/apache-groovy-binary-2.5.6.zip && \
+    mkdir -p /opt/groovy && cd groovy && bsdtar --strip-components=1 -xvf /opt/apache-groovy-binary-2.5.6.zip && \
+    chmod -R ugo+rwx /opt/groovy && cd .. && \
+    wget https://services.gradle.org/distributions/gradle-5.4.1-bin.zip && \
+    mkdir -p /opt/gradle && cd gradle && bsdtar --strip-components=1 -xvf /opt/gradle-5.4.1-bin.zip && \
+    chmod -R ugo+rwx /opt/gradle
+
 # -----------------------------------------
 # Haskell compilation tools
 
@@ -95,7 +107,10 @@ RUN cd /home/user && mkdir -p .ssh && cd .ssh && ssh-keygen -b 4096  -t rsa -C "
 
 RUN touch /home/user/i_am_a_docker_container_for_asterisell_management
 
-RUN echo "PATH=/local/bin:/home/user/.local/bin:/home/user/.cabal/bin:\$PATH" >> /home/user/.bashrc && echo "export PATH" >> /home/user/.bashrc
+RUN echo "PATH=/local/bin:/home/user/.local/bin:/home/user/.cabal/bin:/opt/gradle/bin:/opt/groovy/bin:\$PATH" >> /home/user/.bashrc && \
+    echo "export PATH" >> /home/user/.bashrc && \
+    echo "export GRADLE_HOME=/opt/gradle" >> /home/user/.bashrc && \
+    echo "export GROOVY_HOME=/opt/groovy" >> /home/user/.bashrc
 
 # Use the native FS (but inside a private volume in /var directory),
 # because in case of Stack updates, it is a lot faster respect container FS.

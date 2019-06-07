@@ -45,8 +45,9 @@ MENUITEMS = (('Archives', '/archives.html'),
              ('Categories', '/categories.html'),
              ('Tags', '/tags.html'),)
 
-LINKS = (('Admin Demo', 'https://demo.asterisell.com/admin'),
-         ('Customer Demo', 'https://demo.asterisell.com'),
+LINKS = (
+         # ('Admin Demo', 'https://demo.asterisell.com/admin'),
+         # ('Customer Demo', 'https://demo.asterisell.com'),
          ('Documentation', '/manual/manual.html'),
          ('News','/'))
 

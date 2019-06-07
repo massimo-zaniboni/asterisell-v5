@@ -154,6 +154,8 @@ class Host(object):
     NOTE: all the instances on the same server must be on the same date_timezone.
     """
 
+    other_nginx_services = ""
+
     firewall_rules = 1
 
     def execute_install_task_post(self, is_initial_install):
@@ -1619,12 +1621,17 @@ all:
                   + " already exists on the remote installation host. "
                   + " Delete it, before installing a new instance of Asterisell with the same name.")
 
+    def execute_install_task_before(self):
+        """Called before the standard code of installation."""
+        pass
+
     def execute_install_task_post(self):
         """Called after the standard code of installation."""
         pass
 
     def execute_install_task(self, on_same_host, on_same_domain):
         self.execute_install_task_pre_check()
+        self.execute_install_task_before()
 
         self.execute_upgrade_task(on_same_host, on_same_domain, True, True, True, True)
         with cd(self.get_admin_deploy_directory()):
@@ -1879,6 +1886,7 @@ http {
     fastcgi_connect_timeout 1200s;
     fastcgi_send_timeout 1200s;
     fastcgi_read_timeout 1200s;
+
         """
 
         if not self.httpd_web_access_password == '':
@@ -1889,6 +1897,8 @@ http {
                     + ':'
                     + self.get_web_server_unix_user()
                     + ' ' + f)
+
+        conf = conf + self.host.other_nginx_services + "\n"
 
         # Group by domains
         domains = {}

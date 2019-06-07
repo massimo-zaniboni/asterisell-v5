@@ -16,14 +16,16 @@ For normal installation it suffices to change the provided objects.
 
 from __future__ import with_statement
 from fabric.api import run, cd
+from fabric.api import run, local, cd, lcd, put
 import os.path
 import datetime
 from fabric_data.lib import Domain, HttpDomain, SelfSignedDomain, LetsEncryptDomain, Host, \
     Instance, BillingInstance, CallReportingInstance, ConnectionParams
 
 # -------------------------------
-# Template configurations
-
+# Default instances
+#
+# In case of simple configurations, simply adapt `Default` settings, instead of creating new ones.
 
 class DefaultHost(Host):
     """An host containing one or more Asterisell instances.
@@ -48,7 +50,7 @@ class DefaultHost(Host):
     NOTE: all the instances on the same server must be on the same date_timezone.
     """
 
-    ssh_addr = 'www.example.net'
+    ssh_addr = 'change-me'
     """ The server address to use for its management.
     """
 
@@ -98,6 +100,13 @@ class DefaultHost(Host):
     - 1 for opening only HTTP, HTTPS, SSH ports
     - 2 for closing all the ports, except SSH port
       The instance can be accessed using SSH and port forwarding.
+    """
+
+    other_nginx_services = ''
+    """
+    Other nginx settings for services/websites to activate on the same host, in the case (but not suggested)
+    there is not only Asterisell on the same server.
+    NOTE: if you use `$something` use instead `$$something` because it is a Python template.
     """
 
     def execute_install_task_post(self, is_initial_install):

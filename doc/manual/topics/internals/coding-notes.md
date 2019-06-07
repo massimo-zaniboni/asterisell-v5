@@ -26,7 +26,7 @@ instances. TODO complete this
 Customize ``Dockerfile``, then tart the management tool with
 
 ```
-./fab.sh --upgrade
+./fab.sh --update
 ```
 
 for updating the image with only the last changes, and starting a new container.

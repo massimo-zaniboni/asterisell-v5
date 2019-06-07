@@ -162,7 +162,7 @@ deriveFastLookupCDRImportes conn = do
                            Nothing -> m
                            Just s -> IntMap.insert (fromDBInt i) (s, fromDBText fName, fromDBText vName) m
                     unexpected
-                      -> pError ("Error 11776 in application code. Unexpected result: " ++ show unexpected ++ ", with column defs " ++ show colDefs) 
+                      -> pError ("Error 11776 in application code. Unexpected result: " ++ show unexpected ++ ", with column defs " ++ show colDefs)
          ) IntMap.empty inS
 
 
@@ -355,7 +355,7 @@ instance Show CSVFormat_twt_nng__v1 where
 
      showLine (h, v) = h ++ ": " ++ (Text.unpack $ v cdr) ++ "\n"
 
-instance CSV.FromRecord CSVFormat_twt_nng__v1 
+instance CSV.FromRecord CSVFormat_twt_nng__v1
 
 instance CSV.ToRecord CSVFormat_twt_nng__v1
 
@@ -481,7 +481,7 @@ data CSVFormat_freeRadius__v1
       ,freeRadius__v1_Acct_Session_Id :: !(ExportMaybeNull Text.Text)
   } deriving(Show, Generic, NFData)
 
-instance CSV.FromRecord CSVFormat_freeRadius__v1 
+instance CSV.FromRecord CSVFormat_freeRadius__v1
 
 instance CSV.ToRecord CSVFormat_freeRadius__v1
 
@@ -708,7 +708,7 @@ data CSVFormat_gamma_ItemRental__v1
    , gammaIR__v1_quantity :: !Text.Text
   } deriving(Show, Generic, NFData)
 
-instance CSV.FromRecord CSVFormat_gamma_ItemRental__v1 
+instance CSV.FromRecord CSVFormat_gamma_ItemRental__v1
 
 instance CSV.ToRecord CSVFormat_gamma_ItemRental__v1
 
@@ -901,22 +901,22 @@ instance CSV.ToRecord CSVFormat_asteriskDB
 asteriskDB_toAsteriskGeneric :: CSVFormat_asteriskDB -> CSVFormat_asterisk__generic
 asteriskDB_toAsteriskGeneric s
   = CSVFormat_asterisk__generic {
-      asterisk__generic_calldate = asteriskDB_calldate s, 
-      asterisk__generic_clid = asteriskDB_clid s, 
-      asterisk__generic_src = asteriskDB_src s, 
-      asterisk__generic_dst = asteriskDB_dst s, 
-      asterisk__generic_dcontext = asteriskDB_dcontext s, 
-      asterisk__generic_channel = asteriskDB_channel s, 
-      asterisk__generic_dstchannel = asteriskDB_dstchannel s, 
-      asterisk__generic_lastapp = asteriskDB_lastapp s, 
-      asterisk__generic_lastdata = asteriskDB_lastdata s, 
-      asterisk__generic_duration = asteriskDB_duration s, 
-      asterisk__generic_billsec = asteriskDB_billsec s, 
-      asterisk__generic_disposition = asteriskDB_disposition s, 
-      asterisk__generic_amaflags = asteriskDB_amaflags s, 
-      asterisk__generic_accountcode = asteriskDB_accountcode s, 
-      asterisk__generic_uniqueid = asteriskDB_uniqueid s, 
-      asterisk__generic_userfield = asteriskDB_userfield s, 
+      asterisk__generic_calldate = asteriskDB_calldate s,
+      asterisk__generic_clid = asteriskDB_clid s,
+      asterisk__generic_src = asteriskDB_src s,
+      asterisk__generic_dst = asteriskDB_dst s,
+      asterisk__generic_dcontext = asteriskDB_dcontext s,
+      asterisk__generic_channel = asteriskDB_channel s,
+      asterisk__generic_dstchannel = asteriskDB_dstchannel s,
+      asterisk__generic_lastapp = asteriskDB_lastapp s,
+      asterisk__generic_lastdata = asteriskDB_lastdata s,
+      asterisk__generic_duration = asteriskDB_duration s,
+      asterisk__generic_billsec = asteriskDB_billsec s,
+      asterisk__generic_disposition = asteriskDB_disposition s,
+      asterisk__generic_amaflags = asteriskDB_amaflags s,
+      asterisk__generic_accountcode = asteriskDB_accountcode s,
+      asterisk__generic_uniqueid = asteriskDB_uniqueid s,
+      asterisk__generic_userfield = asteriskDB_userfield s,
       asterisk__generic_did = asteriskDB_did s
     }
 
@@ -949,7 +949,7 @@ data CSVFormat_asterisk__generic
     }
  deriving (Generic, NFData)
 
-instance CSV.FromRecord CSVFormat_asterisk__generic 
+instance CSV.FromRecord CSVFormat_asterisk__generic
 
 instance CSV.ToRecord CSVFormat_asterisk__generic
 
@@ -1045,7 +1045,7 @@ data CSVFormat_plain1
       plain1__id :: !(ExportMaybeNull Text.Text)
    } deriving(Show, Generic, NFData)
 
-instance CSV.FromRecord CSVFormat_plain1 
+instance CSV.FromRecord CSVFormat_plain1
 
 instance CSV.ToRecord CSVFormat_plain1
 
@@ -1130,7 +1130,7 @@ instance CSV.FromRecord CSVFormat_digitel where
               0 -> return $ CSVFormat_digitel ExportNull (Export "ignore") ExportNull ExportNull ExportNull ExportNull ExportNull
               l -> fail $ "There are " ++ show l ++ " columns instead of the expected " ++ (show 7)
 
-instance CSV.ToRecord CSVFormat_digitel 
+instance CSV.ToRecord CSVFormat_digitel
 
 instance CDRFormat CSVFormat_digitel where
   getCallDate record = digitel_convertCallDate (digitel__calldate record)
@@ -1516,7 +1516,7 @@ table_abilisCollector
         Nothing
 
 data CSVFormat_tsnet_abilis_collector_v1
-  = CSVFormat_tsnet_abilis_collector_v1 { 
+  = CSVFormat_tsnet_abilis_collector_v1 {
             tsnet_abilis_collector_v1__id:: !Text.Text
           , tsnet_abilis_collector_v1__unique_check:: !(ExportMaybeNull Text.Text)
           , tsnet_abilis_collector_v1__collector:: !(ExportMaybeNull Text.Text)
@@ -2628,8 +2628,9 @@ itec1_toCDR record precision provider
    removeAll00 n
      = case Text.isPrefixOf "00" n of
          True -> removeAll00 (Text.drop 2 n)
+                 -- NOTE: there can be "0000", so remove recursively the "00"
          False -> n
-   
+
    normalizeCalledNumber :: Text.Text -> Maybe Text.Text
    normalizeCalledNumber n1
      = let n2 = Text.strip n1
@@ -2639,7 +2640,7 @@ itec1_toCDR record precision provider
        in  case Text.isPrefixOf "+" n3 of
                   True -> Just $ Text.drop 1 n3
                   False -> case Text.isPrefixOf "00" n3 of
-                             True  -> Just $ removeAll00 n3 
+                             True  -> Just $ removeAll00 n3
                              False -> case Text.isPrefixOf "0" n3 of
                                         True -> Just $ Text.append "27" $ Text.drop 1 n3
                                         False -> Just $ Text.append "27" n3

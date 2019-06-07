@@ -16,6 +16,7 @@ tmp/*
 .idea/*
 *.pyc
 .stack-work
+**/build/classes/
 scripts/rate_engine/dist/*
 apps/asterisell/modules/customer_call_report/
 apps/asterisell/modules/admin_call_report/

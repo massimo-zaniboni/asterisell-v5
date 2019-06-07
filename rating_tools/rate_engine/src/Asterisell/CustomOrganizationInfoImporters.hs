@@ -140,7 +140,6 @@ itec1_synchro localDBConf remoteDBConf organizationToIgnore currencyInfo dataSou
     )
     (\(localConn, remoteConn) -> do
 
-
           -- start with an empty transaction because a new one will be created for every import
           db_garbagePastErrors localConn (itec1_errorGarbageKey dataSourceName) Nothing Nothing
           db_commitTransaction localConn
@@ -157,7 +156,8 @@ itec1_synchro localDBConf remoteDBConf organizationToIgnore currencyInfo dataSou
           let !extensionUnitTypeId = DeepSeq.force $ unitType_defaultId localUnitType UnitType_extension
           !partyTagInfo <- DeepSeq.force <$> partyTagInfo_load localConn False
           !userRoleInfo <- DeepSeq.force <$> userRole_load localConn False
-          (!fromRemoteToLocalRateId, !remoteLegacyRateIds) <- DeepSeq.force <$> synchroPriceCategories localConn remoteConn remoteLegacyRates
+          (!fromRemoteToLocalRateId, !remoteLegacyRateIds, !maybeTestAccountRateId) <-
+              DeepSeq.force <$> synchroPriceCategories localConn remoteConn remoteLegacyRates
           !unbilledCallsFromDate <- defaultParams_unbilledCallsFrom localConn "02676"
 
           --
@@ -185,6 +185,7 @@ itec1_synchro localDBConf remoteDBConf organizationToIgnore currencyInfo dataSou
                  fromRemoteToLocalRateId
                  remoteLegacyRateIds
                  crmToContractRate
+                 maybeTestAccountRateId
                  unbilledCallsFromDate
                  partyTagInfoRef
                  newExtensionsR
@@ -277,11 +278,22 @@ itec1_synchro localDBConf remoteDBConf organizationToIgnore currencyInfo dataSou
 
   -- | Map all remote price categories to local one, creating them if they are missing.
   --   Return also the RemoteLegacyPriceCategoryIds.
-  synchroPriceCategories :: DB.MySQLConn -> DB.MySQLConn -> Set.Set RateCategoryCode -> IO ((IMap.IntMap Int), IntSet.IntSet)
+  synchroPriceCategories
+      :: DB.MySQLConn
+      -> DB.MySQLConn
+      -> Set.Set RateCategoryCode
+      -> IO ( IMap.IntMap Int
+              -- ^ from local RateCategoryCode to the local RateCategoryId
+             , IntSet.IntSet
+               -- ^ remote legacy rate categories that are not used anymore on Asterisell side
+             , Maybe Int
+               -- ^ the ID of the local price-category "ignored" associated to 0 rating customers
+             )
   synchroPriceCategories localConn remoteConn remotePriceCategories = do
     !(rateCategories, _) <- rateCategories_load localConn False
     (_, remotePricesS) <- DB.query_ remoteConn "SELECT id, tariffgroupname FROM cc_tariffgroup"
-    S.foldM (synchroPriceCategory localConn rateCategories remotePriceCategories) (IMap.empty, IntSet.empty) remotePricesS
+    (r1, r2) <- S.foldM (synchroPriceCategory localConn rateCategories remotePriceCategories) (IMap.empty, IntSet.empty) remotePricesS
+    return (r1, r2, Map.lookup "ignored" rateCategories)
 
   -- | Import a single price-category.
   synchroPriceCategory
@@ -374,7 +386,12 @@ itec1_synchro localDBConf remoteDBConf organizationToIgnore currencyInfo dataSou
   --   It is necessary doing this, because customers can be defined on more than one remote server,
   --   managing their calls, but only one of them contains the accurate billing information
   --   (customer name, accounts, price-categories and so on).
-  --   After changes in requirements, we have now only one trust-level, so this code is overkill, but I mantain it.
+  --
+  --   NOTE: I will import only active = true and status = 1 customers according #143,
+  --   but MAYBE I need also to import disactivated customers in case there are
+  --   CDRS of the past to rate. So now this logic (import best customer) is
+  --   virtually disactivated, but in future I can use it again.
+  --
   tcard_trustLevel :: TRecord -> TrustLevel
   tcard_trustLevel trec
       = let activeCustomer = fromDBBool $ trecord "activated" trec
@@ -385,7 +402,7 @@ itec1_synchro localDBConf remoteDBConf organizationToIgnore currencyInfo dataSou
             addToTrustLevel True tl = tl + 1
             addToTrustLevel False tl = tl
 
-        in addToTrustLevel activeCustomer 0
+        in if activeCustomer && customerStatus == 1 then 2 else 0 
 
   -- | Ignore all customers with tcard_trustLevel below this level,
   --   assuming the customer is well defined in other parts.
@@ -405,6 +422,7 @@ itec1_synchro localDBConf remoteDBConf organizationToIgnore currencyInfo dataSou
     -> IMap.IntMap Int  -- ^ from remote to local rate id
     -> IntSet.IntSet -- ^ legacy RemotePriceCategoryId
     -> Map.Map CRMCode RateCategoryCode -- ^ itec1_crmToContractRate
+    -> Maybe Int -- ^ the local "ignored" rate
     -> CallDate -- ^ official calldate
     -> IORef PartyTagInfo
     -> IORef (Set.Set ExtensionAsText) -- ^ new created extensions, that are not to ignore
@@ -413,9 +431,9 @@ itec1_synchro localDBConf remoteDBConf organizationToIgnore currencyInfo dataSou
     -> Maybe TRecord
     -> IO ()
 
-  updateOrganizations localConn parentIdForExtensionsToIgnore userRoleInfo localUnitType localRateCategories fromRemoteToLocalRateId legacyRates crmToContractRate unbilledCallsFromDate partyTagInfoRef newExtensionsR newExtensionsToIgnoreR processedAccountsR maybeRemoteInfo = do
+  updateOrganizations localConn parentIdForExtensionsToIgnore userRoleInfo localUnitType localRateCategories fromRemoteToLocalRateId legacyRates crmToContractRate maybeTestAccountRateId unbilledCallsFromDate partyTagInfoRef newExtensionsR newExtensionsToIgnoreR processedAccountsR maybeRemoteInfo = do
     db_openTransaction localConn
-    r <- runExceptT $ updateOrganizations1 localConn parentIdForExtensionsToIgnore userRoleInfo localUnitType localRateCategories fromRemoteToLocalRateId legacyRates crmToContractRate unbilledCallsFromDate partyTagInfoRef newExtensionsR newExtensionsToIgnoreR processedAccountsR maybeRemoteInfo
+    r <- runExceptT $ updateOrganizations1 localConn parentIdForExtensionsToIgnore userRoleInfo localUnitType localRateCategories fromRemoteToLocalRateId legacyRates crmToContractRate maybeTestAccountRateId unbilledCallsFromDate partyTagInfoRef newExtensionsR newExtensionsToIgnoreR processedAccountsR maybeRemoteInfo
     case r of
       Left Nothing
         -> do db_rollBackTransaction localConn
@@ -462,6 +480,7 @@ itec1_synchro localDBConf remoteDBConf organizationToIgnore currencyInfo dataSou
     -> IMap.IntMap Int -- ^ map remote price-categories, with local price-categories
     -> IntSet.IntSet -- ^ RemotePriceCategoryId
     -> Map.Map CRMCode RateCategoryCode -- ^ itec1_crmToContractRate
+    -> Maybe Int -- ^ the "ignored" rateID
     -> CallDate -- ^ unbilledCallsFromDate
     -> IORef PartyTagInfo
     -> IORef (Set.Set ExtensionAsText)  -- ^ new inserted extensions, that are not to ignore
@@ -470,9 +489,9 @@ itec1_synchro localDBConf remoteDBConf organizationToIgnore currencyInfo dataSou
     -> Maybe TRecord                    -- ^ Nothing when the last record is reached
     -> ImportMonad ()
 
-  updateOrganizations1 localConn _ userRoleInfo localUnitType _ fromRemoteToLocalRateId _ _ unbilledCallsFromDate partyTagInfoRef _ _ _ Nothing = return ()
+  updateOrganizations1 localConn _ userRoleInfo localUnitType _ fromRemoteToLocalRateId _ _ _ unbilledCallsFromDate partyTagInfoRef _ _ _ Nothing = return ()
 
-  updateOrganizations1 localConn parentIdForExtensionsToIgnore userRoleInfo localUnitType localRateCategories fromRemoteToLocalRateId remoteLegacyRateIds crmToContractRate unbilledCallsFromDate partyTagInfoRef newExtensionsR newExtensionsToIgnoreR processedAccountsR (Just remoteInfo0) = do
+  updateOrganizations1 localConn parentIdForExtensionsToIgnore userRoleInfo localUnitType localRateCategories fromRemoteToLocalRateId remoteLegacyRateIds crmToContractRate maybeTestAccountRateId unbilledCallsFromDate partyTagInfoRef newExtensionsR newExtensionsToIgnoreR processedAccountsR (Just remoteInfo0) = do
 
     --
     -- Read all local (Asterisell) and remote (A2Billing) data, without writing.
@@ -600,13 +619,19 @@ itec1_synchro localDBConf remoteDBConf organizationToIgnore currencyInfo dataSou
     --
     -- In case the customer data had to be skip, a `throwError Nothing` is raised.
 
+    let importButRateAt0 =
+          case fromMaybeDBValue fromDBText $ trecord "debitorder" remoteInfo of
+            Nothing -> False
+            Just s -> (Text.map toUpper s) == "TES"
+
     remotePriceCategoryId <-
       case fromMaybeDBValue fromDBInt (trecord "tariff" remoteInfo) of
         Just v -> return v 
         Nothing ->
           throwError $ Just $ createError' ("The customer with CRM code " ++ show accountCode ++ " has no price-category.") "Set the price-category of the customer"
 
-    let isRemoteLegacyRate = IntSet.member remotePriceCategoryId remoteLegacyRateIds
+    let isRemoteLegacyRate =
+          (not importButRateAt0) && (IntSet.member remotePriceCategoryId remoteLegacyRateIds)
 
     !maybeContractRate <-
       case Map.lookup accountCode crmToContractRate of
@@ -789,14 +814,27 @@ itec1_synchro localDBConf remoteDBConf organizationToIgnore currencyInfo dataSou
 
         True ->
           -- infoFromProvider case
-          case IMap.lookup remotePriceCategoryId fromRemoteToLocalRateId of
-            Nothing ->
-              throwError $
-                Just $
-                  createError'
-                    ("The price category with A2Billing remote id " ++ show remotePriceCategoryId ++ " used for the customer with CRM code " ++ show accountCode ++ " seems a correct rate (no LEGACY-RATE) but it was not created on Asterisell.")
-                    ("This is an error in the application code. Contact the assistance.")
-            Just i -> return i 
+          case importButRateAt0 of
+            True ->
+                -- use a "ignored" price-category for rating all calls to 0
+               case maybeTestAccountRateId of
+                 Just i -> return i
+                 Nothing ->
+                   throwError $
+                     Just $
+                       createError'
+                         ("The CRM customer code " ++ show accountCode ++ " used in A2Billing server is a TES customer, and so it is imported but with cost and income rate set to 0, in particular \"ignored\" price-category. But this special rate is not defined.")
+                         ("This is an error in the code. Contact the assistance.")
+
+            False -> 
+              case IMap.lookup remotePriceCategoryId fromRemoteToLocalRateId of
+                Nothing ->
+                  throwError $
+                    Just $
+                      createError'
+                        ("The price category with A2Billing remote id " ++ show remotePriceCategoryId ++ " used for the customer with CRM code " ++ show accountCode ++ " seems a correct rate (no LEGACY-RATE) but it was not created on Asterisell.")
+                        ("This is an error in the application code. Contact the assistance.")
+                Just i -> return i 
 
     let addToHistoryChecksum
             = if useFakeChecksum
@@ -1189,7 +1227,7 @@ itec1_tfields = [
   , TField "dovalue" False False False
    -- ^ ignore
   , TField "debitorder" False True False
-   -- ^ only customer tagged as "Ivoice" has to be exported to the external billing system
+   -- ^ the type of the customer (e.g. TES, IVOICE, etc..)
   , TField "restriction" False False False
    -- ^ ignore
   , TField "id_seria" False False False

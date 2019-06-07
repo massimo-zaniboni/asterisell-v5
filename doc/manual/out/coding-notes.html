@@ -49,7 +49,7 @@
                <td style="text-align: left;vertical-align: top;"><a class="navigation-link" href="manual.html" title="First page: Asterisell Manual"><img alt="First page" class="navigation-icon" height="16" src="res/first.png" width="16" /></a></td>
                <td style="text-align: left;vertical-align: top;"><a class="navigation-link" href="cdrs-data-files.html" title="Previous page: CDRS data files"><img alt="Previous page" class="navigation-icon" height="16" src="res/previous.png" width="16" /></a></td>
                <td style="width: 25%;text-align: left;vertical-align: top;"><span class="page-navigation-previous">CDRS data files</span></td>
-               <td style="width: 40%;text-align: center;vertical-align: top;"><span class="page-navigation-current">Code development</span> <span class="page-navigation-page">(71 / 72)</span></td>
+               <td style="width: 40%;text-align: center;vertical-align: top;"><span class="page-navigation-current">Code development</span> <span class="page-navigation-page">(70 / 71)</span></td>
                <td style="width: 25%;text-align: right;vertical-align: top;"><span class="page-navigation-next">About</span></td>
                <td style="text-align: right;vertical-align: top;"><a class="navigation-link" href="about.html" title="Next page: About"><img alt="Next page" class="navigation-icon" height="16" src="res/next.png" width="16" /></a></td>
                <td style="text-align: right;vertical-align: top;"><a class="navigation-link" href="about.html" title="Last page: About"><img alt="Last page" class="navigation-icon" height="16" src="res/last.png" width="16" /></a></td>
@@ -62,7 +62,7 @@
             source code.
          </p>
          <div class="body">
-            <section class="section" id="Code_development__I_kjqg0_">
+            <section class="section" id="Code_development__I_evrxjq_">
                <h3 class="section-title">How changing the database schema</h3>
                <div class="p">Change the file <code class="codeph">config/schema.yml</code>.
                </div><pre class="pre">./fab.sh
@@ -76,10 +76,10 @@ cd /asterisell/scripts
                   complete this
                </div>
             </section>
-            <section class="section" id="Code_development__I_4bmona_">
+            <section class="section" id="Code_development__I_dflkb0_">
                <h3 class="section-title">How changing the content of the management container</h3>
                <div class="p">Customize <code class="codeph">Dockerfile</code>, then tart the management tool with
-               </div><pre class="pre">./fab.sh --upgrade
+               </div><pre class="pre">./fab.sh --update
 </pre><div class="p">for updating the image with only the last changes, and starting a new container.</div>
                <div class="p">Use</div><pre class="pre">./fab.sh --rebuild
 </pre><div class="p">for recreating the image, from scratch, rexecuting all commands inside Dockerfile.
@@ -90,7 +90,7 @@ cd /asterisell/scripts
 docker image prune
 </pre><div class="p">for removing data not anymore used.</div>
             </section>
-            <section class="section" id="Code_development__I_9yi0ho_">
+            <section class="section" id="Code_development__I_nlm6do_">
                <h3 class="section-title">How generating UI web modules</h3><pre class="pre">./fab.sh
 
 php symfony propel:generate-admin asterisell ArReportScheduler --module=report_scheduling
@@ -176,7 +176,7 @@ php symfony propel:generate-admin asterisell ArReportScheduler --module=report_s
           title: Extension Codes (alias telephone numbers associated to an Extension)
           display: [ar_extension, code]
 </pre></section>
-            <section class="section" id="Code_development__I_x0hbou_">
+            <section class="section" id="Code_development__I_rsatm9_">
                <h3 class="section-title">How profiling and solve speace leaks of the Haskell Rating Engine</h3>
                <ul class="ul">
                   <li class="li">Enable <code class="codeph">debug_mode</code> in the instance params.
@@ -196,14 +196,14 @@ php symfony propel:generate-admin asterisell ArReportScheduler --module=report_s
                <div class="p">It is possible executing only specific parts of the rating engine using the <code class="codeph">--run-level</code> options. See the source code of the rating engine for more info.
                </div>
             </section>
-            <section class="section" id="Code_development__I_s8ds29_">
+            <section class="section" id="Code_development__I_gxug7x_">
                <h3 class="section-title">Adding LOG message</h3>
                <div class="p">Inside an action</div><pre class="pre">    $this-&gt;logMessage('help me!', 'info');
 </pre><div class="p">Outside an action</div><pre class="pre">    sfContext::getInstance()-&gt;getLogger()-&gt;info($message);
     sfContext::getInstance()-&gt;getLogger()-&gt;err($message);
 </pre><div class="p">Inside a template if the error must be viewed on the web toolbar</div><pre class="pre">    echo log_message(...);
 </pre></section>
-            <section class="section" id="Code_development__I_n37zpi_">
+            <section class="section" id="Code_development__I_ya9z7l_">
                <h3 class="section-title">Asterisell jobs</h3>
                <div class="p">Jobs are read from <code class="codeph">apps/asterisell/config/app.yml</code> file, that is generated from <code class="codeph">fabric_data/lib.py</code> management tool, according the content of <code class="codeph">asterisell_instances.py</code> file.
                </div>
@@ -219,7 +219,7 @@ php symfony propel:generate-admin asterisell ArReportScheduler --module=report_s
                <td style="text-align: left;vertical-align: top;"><a class="navigation-link" href="manual.html" title="First page: Asterisell Manual"><img alt="First page" class="navigation-icon" height="16" src="res/first.png" width="16" /></a></td>
                <td style="text-align: left;vertical-align: top;"><a class="navigation-link" href="cdrs-data-files.html" title="Previous page: CDRS data files"><img alt="Previous page" class="navigation-icon" height="16" src="res/previous.png" width="16" /></a></td>
                <td style="width: 25%;text-align: left;vertical-align: top;"><span class="page-navigation-previous">CDRS data files</span></td>
-               <td style="width: 40%;text-align: center;vertical-align: top;"><span class="page-navigation-current">Code development</span> <span class="page-navigation-page">(71 / 72)</span></td>
+               <td style="width: 40%;text-align: center;vertical-align: top;"><span class="page-navigation-current">Code development</span> <span class="page-navigation-page">(70 / 71)</span></td>
                <td style="width: 25%;text-align: right;vertical-align: top;"><span class="page-navigation-next">About</span></td>
                <td style="text-align: right;vertical-align: top;"><a class="navigation-link" href="about.html" title="Next page: About"><img alt="Next page" class="navigation-icon" height="16" src="res/next.png" width="16" /></a></td>
                <td style="text-align: right;vertical-align: top;"><a class="navigation-link" href="about.html" title="Last page: About"><img alt="Last page" class="navigation-icon" height="16" src="res/last.png" width="16" /></a></td>

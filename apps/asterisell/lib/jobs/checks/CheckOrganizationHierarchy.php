@@ -6,7 +6,7 @@
 sfLoader::loadHelpers(array('I18N', 'Debug', 'Date', 'Asterisell'));
 
 /**
- * Check for problems in the logica] hierarchy.
+ * Check for problems in the logical hierarchy.
  *
  * Some problems that are difficult to check with queries, are returned from the methods of OrganizationUnitInfo.
  */

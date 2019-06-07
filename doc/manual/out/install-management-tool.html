@@ -1,8 +1,7 @@
 <!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml">
    <head><meta charset="UTF-8" />
-      <title>Install Management Tool</title><link href="res/webhelp.css" rel="stylesheet" type="text/css" /><meta content="Set your normal user as a Docker administrator user:" name="description" />
-      <meta content="XMLmind DITA Converter 3.3.1" name="generator" />
+      <title>Install Management Tool</title><link href="res/webhelp.css" rel="stylesheet" type="text/css" /><meta content="XMLmind DITA Converter 3.3.1" name="generator" />
    <script charset="UTF-8" defer="defer" src="_wh/snowball_en.min.js" type="text/javascript"></script><link href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/themes/smoothness/jquery-ui.css" rel="stylesheet" type="text/css" /><link href="_wh/wh.css" rel="stylesheet" type="text/css" /><script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js" type="text/javascript">
     </script><script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js" type="text/javascript">
     </script><script charset="UTF-8" src="_wh/wh.min.js" type="text/javascript">
@@ -47,9 +46,9 @@
          <table class="page-navigation-layout" style="width: 100%;">
             <tr>
                <td style="text-align: left;vertical-align: top;"><a class="navigation-link" href="manual.html" title="First page: Asterisell Manual"><img alt="First page" class="navigation-icon" height="16" src="res/first.png" width="16" /></a></td>
-               <td style="text-align: left;vertical-align: top;"><a class="navigation-link" href="repository.html" title="Previous page: Download Asterisell"><img alt="Previous page" class="navigation-icon" height="16" src="res/previous.png" width="16" /></a></td>
-               <td style="width: 25%;text-align: left;vertical-align: top;"><span class="page-navigation-previous">Download Asterisell</span></td>
-               <td style="width: 40%;text-align: center;vertical-align: top;"><span class="page-navigation-current">Install Management Tool</span> <span class="page-navigation-page">(6 / 72)</span></td>
+               <td style="text-align: left;vertical-align: top;"><a class="navigation-link" href="install-docker.html" title="Previous page: Installing Docker"><img alt="Previous page" class="navigation-icon" height="16" src="res/previous.png" width="16" /></a></td>
+               <td style="width: 25%;text-align: left;vertical-align: top;"><span class="page-navigation-previous">Installing Docker</span></td>
+               <td style="width: 40%;text-align: center;vertical-align: top;"><span class="page-navigation-current">Install Management Tool</span> <span class="page-navigation-page">(5 / 71)</span></td>
                <td style="width: 25%;text-align: right;vertical-align: top;"><span class="page-navigation-next">Configure instances</span></td>
                <td style="text-align: right;vertical-align: top;"><a class="navigation-link" href="configure.html" title="Next page: Configure instances"><img alt="Next page" class="navigation-icon" height="16" src="res/next.png" width="16" /></a></td>
                <td style="text-align: right;vertical-align: top;"><a class="navigation-link" href="about.html" title="Last page: About"><img alt="Last page" class="navigation-icon" height="16" src="res/last.png" width="16" /></a></td>
@@ -58,22 +57,61 @@
       </header>
       <section class="topic" id="Install_Management_Tool">
          <h2 class="section2-title">Install Management Tool</h2>
-         <p class="shortdesc">Set your normal user as a Docker administrator user:</p>
-         <div class="body"><pre class="pre">  groupadd docker
-  usermod -aG docker `whoami`
-</pre><div class="p">Install the container using</div><pre class="pre">./fab.sh
+         <div class="body">
+            <section class="section" id="Install_Management_Tool__I_ilgz58_">
+               <h3 class="section-title">Administration user</h3>
+               <div class="p">Asterisell must be managed by a non-root user. Use your normal user, or as root create
+                  an user named <code class="codeph">asterisell</code></div><pre class="pre">useradd asterisell
+</pre><div class="p">This user must be a Docker administrator user. Supposing its name is <code class="codeph">asterisell</code></div><pre class="pre">groupadd docker
+usermod -aG docker asterisell
+service docker restart
+</pre></section>
+            <section class="section" id="Install_Management_Tool__I_nzeist_">
+               <h3 class="section-title">Download Asterisell</h3>
+               <div class="p">Use the Asterisell administration user and download Asterisell using <code class="codeph">git</code>.
+               </div><pre class="pre">su asterisell
+cd
+git clone --depth 1 https://github.com/massimo-zaniboni/asterisell-v5
+mv asterisell-v5 asterisell-admin
+</pre><div class="p">Asterisell uses Git <a class="xref" href="http://en.wikipedia.org/wiki/Git\_(software)">http://en.wikipedia.org/wiki/Git\_(software)</a> also for upgrading, because:
+               </div>
+               <ul class="ul">
+                  <li class="li">only the incremental changes are transferred</li>
+                  <li class="li">private customizations and configurations can be merged with default application upgrades,
+                     using common Git techniques
+                  </li>
+               </ul>
+            </section>
+            <section class="section" id="Install_Management_Tool__I_9murc2_">
+               <h3 class="section-title">Install Docker container for Asterisell admin</h3>
+               <div class="p">Asterisell is administered using a Docker container configured with all Asterisell
+                  development and administration tools. Its installation will require some time because
+                  a lot of packages will be loaded. It requires usually more RAM than the host where
+                  Asterisell will run, because it will compile Haskell code.
+               </div>
+               <div class="p">Install the container using</div><pre class="pre">cd asterisell-admin
+./fab.sh
 </pre><div class="p">It will create an <code class="codeph">asterisell</code> container according the content of <code class="codeph">Dockerfile</code>.
-            </div>
-            <div class="p">The operation will require some time, because a lot of packages will be loaded.</div>
+               </div>
+               <div class="p">At the end of the command you will be in the Asterisell admin shell. Use:</div>
+               <ul class="ul">
+                  <li class="li"><code class="codeph">fab help</code> for seeing if it is all ok
+                  </li>
+                  <li class="li"><code class="codeph">exit</code> for exiting
+                  </li>
+                  <li class="li"><code class="codeph">./fab.sh</code> for entering again
+                  </li>
+               </ul>
+            </section>
          </div>
       </section>
       <footer class="page-navigation-footer">
          <table class="page-navigation-layout" style="width: 100%;">
             <tr>
                <td style="text-align: left;vertical-align: top;"><a class="navigation-link" href="manual.html" title="First page: Asterisell Manual"><img alt="First page" class="navigation-icon" height="16" src="res/first.png" width="16" /></a></td>
-               <td style="text-align: left;vertical-align: top;"><a class="navigation-link" href="repository.html" title="Previous page: Download Asterisell"><img alt="Previous page" class="navigation-icon" height="16" src="res/previous.png" width="16" /></a></td>
-               <td style="width: 25%;text-align: left;vertical-align: top;"><span class="page-navigation-previous">Download Asterisell</span></td>
-               <td style="width: 40%;text-align: center;vertical-align: top;"><span class="page-navigation-current">Install Management Tool</span> <span class="page-navigation-page">(6 / 72)</span></td>
+               <td style="text-align: left;vertical-align: top;"><a class="navigation-link" href="install-docker.html" title="Previous page: Installing Docker"><img alt="Previous page" class="navigation-icon" height="16" src="res/previous.png" width="16" /></a></td>
+               <td style="width: 25%;text-align: left;vertical-align: top;"><span class="page-navigation-previous">Installing Docker</span></td>
+               <td style="width: 40%;text-align: center;vertical-align: top;"><span class="page-navigation-current">Install Management Tool</span> <span class="page-navigation-page">(5 / 71)</span></td>
                <td style="width: 25%;text-align: right;vertical-align: top;"><span class="page-navigation-next">Configure instances</span></td>
                <td style="text-align: right;vertical-align: top;"><a class="navigation-link" href="configure.html" title="Next page: Configure instances"><img alt="Next page" class="navigation-icon" height="16" src="res/next.png" width="16" /></a></td>
                <td style="text-align: right;vertical-align: top;"><a class="navigation-link" href="about.html" title="Last page: About"><img alt="Last page" class="navigation-icon" height="16" src="res/last.png" width="16" /></a></td>

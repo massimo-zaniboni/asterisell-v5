@@ -1,6 +1,6 @@
 # Configure instances
 
-Edit the file ``asterisell_instances.py``. In particular the host and domain where installing a first DEMO instance of Asterisell.
+Edit the file ``asterisell_instances.py`` (also inside the Docker container). In particular the host and domain where installing a first DEMO instance of Asterisell.
 
 Settings can be improved later, so initially start with good-enough settings.
 

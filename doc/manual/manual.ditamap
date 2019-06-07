@@ -28,7 +28,6 @@
     <topicref href="topics/installation/system-overview.md" format="mdita" />
     <topicref href="topics/installation/system-requirements.md" format="mdita" />
     <topicref href="topics/installation/install-docker.md" format="mdita" />
-    <topicref href="topics/installation/repository.md" format="mdita" />
     <topicref href="topics/installation/install-management-tool.md" format="mdita" />
     <topicref href="topics/installation/configure.md" format="mdita" />
     <topicref href="topics/installation/ssh-keys.md" format="mdita" />

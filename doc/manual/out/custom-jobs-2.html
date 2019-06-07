@@ -49,7 +49,7 @@
                <td style="text-align: left;vertical-align: top;"><a class="navigation-link" href="manual.html" title="First page: Asterisell Manual"><img alt="First page" class="navigation-icon" height="16" src="res/first.png" width="16" /></a></td>
                <td style="text-align: left;vertical-align: top;"><a class="navigation-link" href="rates.html" title="Previous page: Rates"><img alt="Previous page" class="navigation-icon" height="16" src="res/previous.png" width="16" /></a></td>
                <td style="width: 25%;text-align: left;vertical-align: top;"><span class="page-navigation-previous">Rates</span></td>
-               <td style="width: 40%;text-align: center;vertical-align: top;"><span class="page-navigation-current">Custom jobs</span> <span class="page-navigation-page">(65 / 72)</span></td>
+               <td style="width: 40%;text-align: center;vertical-align: top;"><span class="page-navigation-current">Custom jobs</span> <span class="page-navigation-page">(64 / 71)</span></td>
                <td style="width: 25%;text-align: right;vertical-align: top;"><span class="page-navigation-next">Configuring WebDAV</span></td>
                <td style="text-align: right;vertical-align: top;"><a class="navigation-link" href="webdav-configurations.html" title="Next page: Configuring WebDAV"><img alt="Next page" class="navigation-icon" height="16" src="res/next.png" width="16" /></a></td>
                <td style="text-align: right;vertical-align: top;"><a class="navigation-link" href="about.html" title="Last page: About"><img alt="Last page" class="navigation-icon" height="16" src="res/last.png" width="16" /></a></td>
@@ -61,7 +61,7 @@
          <p class="shortdesc">Add <a class="xref" href="manual-6.html#Customized_file">Customized file</a> with custom jobs  to the <a class="xref" href="manual-6.html#Instances_configuration_file">Instances configuration file</a> of the provider and reseller instance.
          </p>
          <div class="body">
-            <section class="section" id="Custom_jobs-2__I_qbol1c_">
+            <section class="section" id="Custom_jobs-2__I_l3ufja_">
                <h3 class="section-title">Export CDRS</h3>
                <div class="p">On the configuration of the provider, add a <a class="xref" href="manual-6.html#Customized_file">Customized file</a> PHP class like <code class="codeph">customizations/ExportTo&lt;your_reseller&gt;.php</code>, and define abstract/missing methods (here <code class="codeph">Minitel</code> is an example of reseller name).
                </div><pre class="pre">    class ExportToMiniTel extends ExportCDRSToReseller
@@ -105,12 +105,12 @@
 </pre><div class="p">Add the CDR exporting job to the list of jobs, for exporting the CDRs. Usually it
                   is a line like this in <a class="xref" href="manual-6.html#Instances_configuration_file">Instances configuration file</a></div><pre class="pre">    custom_export_cdrs_jobs = [ 'ExportToMiniTel' ]
 </pre></section>
-            <section class="section" id="Custom_jobs-2__I_tb3odf_">
+            <section class="section" id="Custom_jobs-2__I_hvi746_">
                <h3 class="section-title">Exporting service CDRS</h3>
                <div class="p">For exporting <a class="xref" href="manual-6.html#Service_CDR">Service CDR</a> create an exporting job like for normal CDRS, but using a subclass of <code class="codeph">ExportServiceCDRSToReseler</code>.
                </div>
             </section>
-            <section class="section" id="Custom_jobs-2__I_fwtzw0_">
+            <section class="section" id="Custom_jobs-2__I_fc1b21_">
                <h3 class="section-title">Importing</h3>
                <div class="p">TODO continue</div>
             </section>
@@ -122,7 +122,7 @@
                <td style="text-align: left;vertical-align: top;"><a class="navigation-link" href="manual.html" title="First page: Asterisell Manual"><img alt="First page" class="navigation-icon" height="16" src="res/first.png" width="16" /></a></td>
                <td style="text-align: left;vertical-align: top;"><a class="navigation-link" href="rates.html" title="Previous page: Rates"><img alt="Previous page" class="navigation-icon" height="16" src="res/previous.png" width="16" /></a></td>
                <td style="width: 25%;text-align: left;vertical-align: top;"><span class="page-navigation-previous">Rates</span></td>
-               <td style="width: 40%;text-align: center;vertical-align: top;"><span class="page-navigation-current">Custom jobs</span> <span class="page-navigation-page">(65 / 72)</span></td>
+               <td style="width: 40%;text-align: center;vertical-align: top;"><span class="page-navigation-current">Custom jobs</span> <span class="page-navigation-page">(64 / 71)</span></td>
                <td style="width: 25%;text-align: right;vertical-align: top;"><span class="page-navigation-next">Configuring WebDAV</span></td>
                <td style="text-align: right;vertical-align: top;"><a class="navigation-link" href="webdav-configurations.html" title="Next page: Configuring WebDAV"><img alt="Next page" class="navigation-icon" height="16" src="res/next.png" width="16" /></a></td>
                <td style="text-align: right;vertical-align: top;"><a class="navigation-link" href="about.html" title="Last page: About"><img alt="Last page" class="navigation-icon" height="16" src="res/last.png" width="16" /></a></td>

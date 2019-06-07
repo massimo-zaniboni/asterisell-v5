@@ -34,6 +34,8 @@ fab authorize_ssh_access:asterisell/demo
 # for enabling the SSH access 
 # on the host "asterisell", where will be instaled
 # "demo" instance.
+# The first time it will requires password for 'user', but it is the 'root' password of the remote server.
+# Then the ssh certificate of the Docker container will used.
 ```
 
 These actions must be performed also if the management server is the same of the instance server.

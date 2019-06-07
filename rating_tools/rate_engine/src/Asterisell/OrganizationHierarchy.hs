@@ -336,13 +336,16 @@ extensions_load conn isDebugMode maybeOrganizationToIgnore = do
 -- | The UnitId of the extension to ignore.
 --   Create one if it does not exist.
 extensionToIgnoreId :: DB.MySQLConn -> ExtensionAsText ->  IO UnitId
-extensionToIgnoreId conn extensionToIgnore = do
+extensionToIgnoreId conn extensionToIgnore1 = do
   mi <- isThereYetOrganizationToIgnore
   case mi of
     Just i -> return i
     Nothing -> createOrganizationToIgnore
 
  where
+
+  extensionToIgnore =
+    if (T.null extensionToIgnore1) then "Ignored accounts" else extensionToIgnore1
 
   isThereYetOrganizationToIgnore = do 
      (_, inS) <- DB.query conn "SELECT id FROM ar_organization_unit WHERE internal_name = ?" [toDBText extensionToIgnore]
