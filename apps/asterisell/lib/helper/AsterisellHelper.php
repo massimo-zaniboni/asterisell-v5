@@ -257,7 +257,7 @@ function fromUnixTimestampToSymfonyStrDate($d)
 
 
 /**
- * @param string time in MySQL format "hh:mm:ss"
+ * @param string $d time in MySQL format "hh:mm:ss"
  * @return string a date formatted according current Symfony locale/culture setting
  */
 function fromMySQLTimeToSymfonyStrTime($d)
@@ -821,7 +821,6 @@ function csv_numeric_field($val, $isFirst = false)
         $r = $fieldSep;
     }
 
-    $val2 = "";
     if ($decimalSep === '.') {
         $val2 = $val;
     } else {
@@ -932,7 +931,7 @@ function encode_csv_value($dataElement, $delimeter = ',', $enclosure = '"')
 }
 
 /**
- * @param $valueS a decimal value, using the locale decimal separator
+ * @param string $valueS a decimal value, using the locale decimal separator
  * @return string a number with "." as decimal separator
  */
 function from_local_decimal_to_php_decimal($valueS)
@@ -1150,7 +1149,7 @@ function from_db_decimal_to_invoice_decimal($value)
 
 /**
  * @param string $value a number like "123456" where the last digits are decimal parts.
- * @return string number in the same format, but rounded according invoice
+ * @return int number in the same format, but rounded according invoice
  * required decimals.
  */
 function round_db_decimal_according_invoice_decimal($value)
@@ -1269,7 +1268,7 @@ function from_db_decimal_to_pdf_txt_decimal($value)
 function convertToDbMoney($moneyStr)
 {
     $sourcePrecision = get_decimal_places_for_currency();
-    return number_format($moneyStr, $sourcePrecision, '', '');
+    return intval(number_format($moneyStr, $sourcePrecision, '', ''));
 }
 
 /**
@@ -1343,16 +1342,16 @@ function bcRound($x)
 /**
  * @param  int $totIncome a number in db_decimal format
  * @param  float $vatPerc the vat perc in PHP decimal format
- * @return mixed[] list($totalVat, $totalWithVat) in db_decimal format, with the precision needed for invoices
+ * @return int[] list($totalVat, $totalWithVat) in db_decimal format, with the precision needed for invoices
  */
 function invoice_amount_with_vat($totIncome, $vatPerc)
 {
     $totIncome = round_db_decimal_according_invoice_decimal($totIncome);
-    $totalVat1 = bcmul($totIncome, $vatPerc, 0);
+    $totalVat1 = bcmul(strval($totIncome), strval($vatPerc), 0);
     $totalVat = round_db_decimal_according_invoice_decimal(bcdiv($totalVat1, 100, 0));
-    $totalWithVat = round_db_decimal_according_invoice_decimal(bcadd($totIncome, $totalVat, 0));
+    $totalWithVat = round_db_decimal_according_invoice_decimal(bcadd(strval($totIncome), $totalVat, 0));
 
-    return array($totalVat, $totalWithVat);
+    return array(intval($totalVat), intval($totalWithVat));
 }
 
 /**
@@ -1824,6 +1823,7 @@ function getConnectionParams($connectionName, $returnExtendedInfo = false, $asPr
             return null;
         }
     }
+    return null;
 }
 
 /**
@@ -1930,8 +1930,9 @@ function printValue($v, $format)
        return format_from_db_decimal_to_call_report_currency($v);
     } else if ($format == 2) {
       return format_minute($v);
+    } else {
+        return $v;
     }
-
 }
 
 /**
@@ -2168,40 +2169,6 @@ function startWith01DayAnd00Timestamp($time)
     $yy = date('Y', $time);
 
     return strtotime("$yy-$mm-01 00:00:00");
-}
-
-/**
- * @param string $telephoneNumber in the format required from expandTelephoneNumber
- * @param string $description
- * @return array list($addedPrefix, $exactDigits)
- * @throws ArProblemException
- */
-function addSpecialTelephoneNumberToTelephonePrefixTable($telephoneNumber, $description)
-{
-
-    list($internalPrefix, $exactDigits) = expandTelephoneNumber($telephoneNumber);
-
-    $internalPrefix = RateCalls::SPECIAL_TELEPHONE_NUMBER_PREFIX . $internalPrefix;
-
-    if (!is_null($exactDigits)) {
-        $exactDigits += strlen(RateCalls::SPECIAL_TELEPHONE_NUMBER_PREFIX);
-    }
-
-    // Add/update telephone operators to the shared telephone prefix table.
-    $arOperator = ArTelephonePrefixPeer::retrieveByPrefix($internalPrefix);
-    if (is_null($arOperator)) {
-        $arOperator = new ArTelephonePrefix();
-    }
-
-    $arOperator->setPrefix($internalPrefix);
-    $arOperator->setName('');
-    $arOperator->setGeographicLocation($description);
-    $arOperator->setOperatorType(mytr("Special Telephone Number"));
-    $arOperator->setMatchOnlyNumbersWithNDigits($exactDigits);
-    $arOperator->setNeverMaskNumber(true);
-    $arOperator->save();
-
-    return array($internalPrefix, $exactDigits);
 }
 
 /**
@@ -2455,7 +2422,7 @@ function get_ordered_timeprefix_with_unique_id()
  *   The corresponding translation must be prefixed by "__" in the i18n file.
  * @param string $str
  * @param bool $forCustomer true for converting the language to customer language
- * @return stringd
+ * @return string
  */
 function mytr($str, $forCustomer = true)
 {

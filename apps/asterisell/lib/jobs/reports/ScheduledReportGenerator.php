@@ -179,7 +179,6 @@ class ScheduledReportGenerator
         /**
          * @var PropelPDO $conn
          */
-        $count = 0;
         $conn = Propel::getConnection();
         $conn->beginTransaction();
         try {
@@ -418,8 +417,6 @@ class ScheduledReportGenerator
             if ($this->getArReportScheduler()->getIsYearlyLegalNumeration()) {
                 if (date('Y', $lastLegalDate) < date('Y', $legalDate)) {
                     // when there is a change of date, start with a new enumeration
-
-                    $lastLegalDate = $legalDate;
                     $lastLegalNr = 0;
                 }
             }
@@ -515,7 +512,7 @@ class ScheduledReportGenerator
 
                     $usersWithRoles = OrganizationUnitInfo::getInstance()->getDirectUsersWithRoles($organizationId);
                     $isThereResponsible = false;
-                    foreach ($usersWithRoles as $userId => $roles) {
+                    foreach ($usersWithRoles as $roles) {
                         foreach ($roles as $role) {
                             if ($role == $responsibleRoleId) {
                                 $isThereResponsible = true;

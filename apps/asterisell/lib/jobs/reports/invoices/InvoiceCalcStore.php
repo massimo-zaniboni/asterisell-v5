@@ -208,7 +208,7 @@ class InvoiceCalcStore extends ReportCalcStore
 
         // Stop here if there is no scheduler, and so postponed invoices must be not taken in account
         if (is_null($schedulerId)) {
-            return;
+            return $fromDate;
         }
 
         //
