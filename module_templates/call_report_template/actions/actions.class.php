@@ -1120,7 +1120,7 @@ public function executeUserActs($request) {
 
         if ($this->getRequestParameter('resetCallsCost')) {
           $this->initInfo();
-          FixedJobProcessor::rerateCalls(VariableFrame::$fromDate, VariableFrame::$toDate);
+          FixedJobProcessor::rerateCalls(VariableFrame::$fromDate);
           return $this->redirect("$moduleName/list");
         } else if ($this->getRequestParameter('resetRecentCallsCost')) {
           FixedJobProcessor::rerateCallsFromOfficialCalldate(false);
