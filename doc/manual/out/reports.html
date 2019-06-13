@@ -68,7 +68,7 @@
                scenario. In order to simplify the configuration process, Asterisell configure some
                reports during initial installation, hoping they can be used as a starting-point.
             </div>
-            <section class="section" id="Reports__I_fwl2zh_">
+            <section class="section" id="Reports__I_6sxf1h_">
                <h3 class="section-title">Scheduled reports</h3>
                <div class="p">The report workflow is usually this:</div>
                <ul class="ul">
@@ -88,7 +88,7 @@
                   </li>
                </ul>
             </section>
-            <section class="section" id="Reports__I_j6vzhu_">
+            <section class="section" id="Reports__I_dm6l3s_">
                <h3 class="section-title">Billing reports</h3>
                <div class="p">Billing reports (i.e. legal reports) are important, because they are also used for
                   determining the official call date: the calls before this call date are never automatically
@@ -96,24 +96,31 @@
                   billed to customers.
                </div>
                <div class="p">In case of changes of rating params, only unbilled calls will be automatically rerated.</div>
-               <div class="p">When a billing report is confirmed, the official call date is advanced automatically.</div>
+               <div class="p">At least one billing/legal report must be configured, because it is used for advancing
+                  the official call date. When a billing report is confirmed, the official call date
+                  is advanced automatically.
+               </div>
                <div class="p">Note that a billing report can be also simply an analysis of calls to send to the
                   administrator, and it is not obliged to be a set of invoices.
                </div>
             </section>
-            <section class="section" id="Reports__I_h5i4mp_">
+            <section class="section" id="Reports__I_8cw2h8_">
                <h3 class="section-title">Sending of reports</h3>
                <div class="p">Reports can be sent to proper billable users. If an user has no associated email,
                   the application will warn the administrator. When the email is specified, the reports
                   will be sent automatically.
                </div>
             </section>
-            <section class="section" id="Reports__I_itwl93_">
+            <section class="section" id="Reports__I_qsno5c_">
                <h3 class="section-title">Adding new reports</h3>
                <div class="p">You can define new type of reports adding source code under <code class="codeph">apps/asterisell/lib/jobs/reports</code>, then add them into the Fabric variable <code class="codeph">custom_reports</code>, so they can be selected for scheduling and then generated.
                </div>
             </section>
          </div>
+         <nav class="related-links">
+            <h3 class="related-links-title">Related information</h3>
+            <p class="link">‣ <a href="reports-2.html#Reports-2" title="Each run of a report scheduler, generate a report-set, that is a set of related reports. The administrator can administer Report Set, applying common operations on the whole set.">Reports</a></p>
+         </nav>
       </section>
       <footer class="page-navigation-footer">
          <table class="page-navigation-layout" style="width: 100%;">

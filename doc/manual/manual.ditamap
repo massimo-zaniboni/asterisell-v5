@@ -23,6 +23,8 @@
   <keydef keys="jobs-processor" href="topics/reference/job-processor.md" format="mdita"/>
   <keydef keys="importing-of-cdrs" href="topics/configuration/importing-of-cdrs.md" format="mdita" />
   <keydef keys="custom-jobs" href="topics/configuration/custom-jobs.md" format="mdita" />
+  <keydef keys="reports1" href="topics/configuration/reports.md" format="mdita" />
+  <keydef keys="reports2" href="topics/web-ui/reports.md" format="mdita" />
 
   <topichead navtitle="Getting started" locktitle="yes">
     <topicref href="topics/installation/system-overview.md" format="mdita" />
@@ -168,7 +170,15 @@
         <topicref keyref="custom-jobs"/>
       </relcell>
     </relrow>
-   </reltable>
+    <relrow>
+      <relcell>
+        <topicref keyref="reports1"/>
+      </relcell>
+      <relcell>
+        <topicref keyref="reports2"/>
+      </relcell>
+    </relrow>
+    </reltable>
 
 </map>
 

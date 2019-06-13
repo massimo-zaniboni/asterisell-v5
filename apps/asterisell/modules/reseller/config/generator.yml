@@ -5,7 +5,7 @@ generator:
     theme:            default
 
     fields:
-      internal_name: { name: "Internal Code", help: "A unique distinct internal code, for identifying the reseller during exporting of info. It can be used also in file names, so it should not contain spaces and special characters. Read the manual for more details." }
+      internal_name: { name: "Internal Code", help: "A unique distinct internal code, for identifying the reseller during exporting of info. It can be used also in file names, so it must not contain spaces and special characters. Read the manual for more details." }
       name: { name: "Name", help: "Name of the reseller." }
       note: { name: "Note", help: "Notes about the reseller." }
 

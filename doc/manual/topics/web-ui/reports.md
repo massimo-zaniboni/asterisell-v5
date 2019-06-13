@@ -57,11 +57,28 @@ Legal documents use consecutive numbers, according the last generated legal docu
 
 If there are not legal documents in the system, the first used number is 1, and not the number on the document template.
 
-For specifying an initial legal number different from 1, or for starting the generation of documents with a new non consecutive legal number, you had to:
+## Invoices numbering
+
+Scheduled invoices are numbered by consecutive numbers automatically generated starting from the next number of the last report with the same legal prefix, that can be also empty.
+
+Multiple and distinct sequences of numbers can be enabled using different legal prefix.
+
+The prefix is configured on the report template.
+
+## Set initial/new invoice number
+
+If the enumeration has a prefix like "2019-" where "2019" is the current year, then it suffices using a new prefix in the report template,
+because the prefix is new, no report with it will be found and the first number of the sequence will be automatically 1.
+
+For specifying an initial legal number different from 1, or for starting the generation of documents with a new non consecutive legal number,
+you had to:
 
   * create a fake legal document of type "Placeholder for Invoice Numeration"
   * set the "Billing Document" flag
   * set the legal number with the previous number you want to use on new (real) generated legal documents
+  * set the legal prefix of the sequence you want to set
   * set the "legal date" equals to the date of new invoices to generate, so it will be used as last reference number
   * leave blank all other params (also the reference date), because they are not used (the document is a "fake")
   * save
+  * next generation of scheduled reports will consider this number as the last of sequence
+

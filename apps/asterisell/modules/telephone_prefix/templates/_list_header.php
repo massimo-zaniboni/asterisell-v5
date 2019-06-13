@@ -10,7 +10,7 @@ echo '<p>Example of CSV file format:</p>
 "93", "Afghanistan", "Fixed Line", ""
 </pre>
 
-<p>The CSV should not contain any header line. The implicit header line is:</p>
+<p>The CSV must not contain any header line. The implicit header line is:</p>
 <pre>"Telephone Prefix","Geographic Location","Connection Type","Operator Name"</pre>
 <p>All prefixes are considered with an implicit terminal "*", joining the rest of the telephone number.</p>
 ';

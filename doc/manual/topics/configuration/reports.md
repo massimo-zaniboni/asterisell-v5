@@ -27,7 +27,9 @@ params, because they are considered as already billed to customers.
 
 In case of changes of rating params, only unbilled calls will be automatically rerated.
 
-When a billing report is confirmed, the official call date is advanced automatically.
+At least one billing/legal report must be configured, because it is used for advancing
+the official call date. When a billing report is confirmed, the official call date
+is advanced automatically.
 
 Note that a billing report can be also simply an analysis of calls to send to the administrator, and it is not obliged to be a set of invoices.
 

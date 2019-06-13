@@ -29,7 +29,7 @@ generator:
 
       vat:                  { name: VAT, help: VAT registration number }
 
-      vat_tax_perc_as_php_decimal: { name: VAT %, type: input_tag, help: "The VAT % to apply on invoices. Example: '15.0' Note: The vlue should be entered without the '%' symbol and '.' should be used as a decimal separator." }
+      vat_tax_perc_as_php_decimal: { name: VAT %, type: input_tag, help: "The VAT % to apply on invoices. Example: '15.0' Note: The value must be entered without the '%' symbol and '.' must be used as a decimal separator." }
 
       legal_address:        { name: Address }
 

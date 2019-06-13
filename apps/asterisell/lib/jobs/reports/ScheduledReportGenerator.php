@@ -397,11 +397,13 @@ class ScheduledReportGenerator
             // NOTE: first order by date, because at change of year it must start with minor numbers
             $stm = $conn->prepare('
             SELECT legal_date, legal_consecutive_nr
-            FROM ar_report
-            WHERE legal_date IS NOT NULL
+            FROM   ar_report
+            WHERE  legal_date IS NOT NULL
+            AND    legal_nr_prefix = ?
             ORDER BY legal_date DESC, legal_consecutive_nr DESC
             LIMIT 1');
-            $stm->execute(array());
+            $legalNrPrefix = $templateReport->getLegalNrPrefix();
+            $stm->execute(array($legalNrPrefix));
 
             $rs = $stm->fetch(PDO::FETCH_NUM);
             if ($rs !== false) {

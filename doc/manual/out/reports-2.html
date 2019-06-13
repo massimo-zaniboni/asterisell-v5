@@ -70,7 +70,7 @@
             <div class="p">Every error in sending a report by email (when configured) is signaled from the application,
                until the problem is fixed.
             </div>
-            <section class="section" id="Reports-2__I_2yzcvw_">
+            <section class="section" id="Reports-2__I_r04ydf_">
                <h3 class="section-title">Report definition</h3>
                <ul class="ul">
                   <li class="li">create a report template,</li>
@@ -83,7 +83,7 @@
                   </li>
                </ul>
             </section>
-            <section class="section" id="Reports-2__I_mk8awn_">
+            <section class="section" id="Reports-2__I_l266ug_">
                <h3 class="section-title">Permissions and notifications</h3>
                <div class="p">The administrator can view all reports.</div>
                <div class="p">Users can view only reports for which they have the right permissions.</div>
@@ -103,7 +103,7 @@
                   to new users, and not visible to users with different permissions.
                </div>
             </section>
-            <section class="section" id="Reports-2__I_e7rgar_">
+            <section class="section" id="Reports-2__I_jv5wq8_">
                <h3 class="section-title">Organization hierarchy and report generation</h3>
                <div class="p">Reports can be generated also for every parts of a complex organization hierarchy.</div>
                <div class="p">This feature is overkill for the case of simple customers, and it has more sense in
@@ -117,7 +117,7 @@
                   U. In any case a report on B, can contain info on B/C and B/C/D.
                </div>
             </section>
-            <section class="section" id="Reports-2__I_3zxbsh_">
+            <section class="section" id="Reports-2__I_r4b5lm_">
                <h3 class="section-title">Report time-frame</h3>
                <div class="p">Reports can be generated on all the calls of a year/month/custom time-frame.</div>
                <div class="p">The first date of generation of a report, influences all next run of a report.</div>
@@ -129,11 +129,28 @@
                </div>
                <div class="p">After the first run of a report scheduler, next reports will be generated automatically.</div>
             </section>
-            <section class="section" id="Reports-2__I_u5orxm_">
+            <section class="section" id="Reports-2__I_mqh6xb_">
                <h3 class="section-title">Legal documents and consecutive numbers</h3>
                <div class="p">Legal documents use consecutive numbers, according the last generated legal document.</div>
                <div class="p">If there are not legal documents in the system, the first used number is 1, and not
                   the number on the document template.
+               </div>
+            </section>
+            <section class="section" id="Reports-2__I_z3gv05_">
+               <h3 class="section-title">Invoices numbering</h3>
+               <div class="p">Scheduled invoices are numbered by consecutive numbers automatically generated starting
+                  from the next number of the last report with the same legal prefix, that can be also
+                  empty.
+               </div>
+               <div class="p">Multiple and distinct sequences of numbers can be enabled using different legal prefix.</div>
+               <div class="p">The prefix is configured on the report template.</div>
+            </section>
+            <section class="section" id="Reports-2__I_dnwsxt_">
+               <h3 class="section-title">Set initial/new invoice number</h3>
+               <div class="p">If the enumeration has a prefix like “2019-” where “2019” is the current year, then
+                  it suffices using a new prefix in the report template, because the prefix is new,
+                  no report with it will be found and the first number of the sequence will be automatically
+                  1.
                </div>
                <div class="p">For specifying an initial legal number different from 1, or for starting the generation
                   of documents with a new non consecutive legal number, you had to:
@@ -144,6 +161,7 @@
                   <li class="li">set the legal number with the previous number you want to use on new (real) generated
                      legal documents
                   </li>
+                  <li class="li">set the legal prefix of the sequence you want to set</li>
                   <li class="li">set the “legal date” equals to the date of new invoices to generate, so it will be
                      used as last reference number
                   </li>
@@ -151,9 +169,14 @@
                      (the document is a “fake”)
                   </li>
                   <li class="li">save</li>
+                  <li class="li">next generation of scheduled reports will consider this number as the last of sequence</li>
                </ul>
             </section>
          </div>
+         <nav class="related-links">
+            <h3 class="related-links-title">Related information</h3>
+            <p class="link">‣ <a href="reports.html#Reports" title="Reports are documents of various physical formats (PDF, CSV and so on), to send to customers, or accountants or administrators, and containing invoices or analysis of calls.">Reports</a></p>
+         </nav>
       </section>
       <footer class="page-navigation-footer">
          <table class="page-navigation-layout" style="width: 100%;">

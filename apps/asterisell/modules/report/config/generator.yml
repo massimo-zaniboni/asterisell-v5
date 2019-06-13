@@ -37,7 +37,7 @@ generator:
         param_show_connection_type: { name: "Show connection type", help: "If the report support it, show inforamtion about the connection type, e.g., Mobile, Fixed line. " }
         param_show_cost_saving: { name: "Show cost savings", help: "Show cost saving." }
         param_expand_to_level: { name: "Expand until level", help: " 0 for expanding all the sub organizations, 1 for showing only the info of the starting organization, 2 for expanding only the direct sub organizations, 3 for expanding the sub organizations of direct sub organization, and so on..." }
-        param_is_legal: { name: "Billing Document", help: "True for invoices, and other legal documents, that must be sent also to the official email address of the billing party. Use True also in case of call reports, if they must be sent to the official email address of the billed party, otherwise they will be sent only to the (few) subscribed web accounts. At least one legal/official report should be configured, because it is used for advancing the official call date, and it is used for deciding which calls can be rerated, in case there are changes in rate params." }
+        param_is_legal: { name: "Billing Document", help: "True for invoices, and other legal documents, that must be sent also to the official email address of the billing party. Use True also in case of call reports, if they must be sent to the official email address of the billed party, otherwise they will be sent only to the (few) subscribed web accounts. At least one legal/official report must be configured, because it is used for advancing the official call date, and it is used for deciding which calls can be rerated, in case there are changes in rate params." }
         produced_report_additional_description: { name: "Description", help: "It will be compiled from the system, after report genaration. ", type: textarea_tag, params: disabled=true size=80x5 }
         is_template: { name: "Used as template", help: "True for using as template for scheduled reports. The report must be generated in any case, in order to complete the calculated fields. Template reports are not visible to users, because they are used only as template for generating other scheduled reports."}
 
@@ -61,7 +61,7 @@ generator:
         report_attachment_file_name_add_report_date: { name: "Attachment name with date", help: "True for appending to file name of the attachment, also the starting date of the report, in YYYY-MM-DD format. " }
 
         legal_consecutive_nr: { name: "Legal nr.", help: "In case of legal/fiscal document (for example invoices), it is the consecutive unique number. See the notes on the footer, about how consecutive numbers are set. " }
-        legal_nr_prefix: { name: "Legal nr. prefix", help: "In case of legal/fiscal document (for example invoices), it is the optianl prefix to use before the consecutive unique number. " }
+        legal_nr_prefix: { name: "Legal nr. prefix", help: "In case of legal/fiscal document (for example invoices), it is the optianl prefix to use before the consecutive unique number. Every prefix has its unique sequence of numbers following it. So different enumerations of legal documents can be produced." }
         legal_date: { name: "Legal date", help: "In case of legal/fiscal document (for example invoices), it is the document date. " }
 
     list:
