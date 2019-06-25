@@ -1992,8 +1992,7 @@ http {
         fastcgi_param  REQUEST_URI        $$$$request_uri;
         fastcgi_param  DOCUMENT_URI       $$$$document_uri;
         fastcgi_param  DOCUMENT_ROOT      $$$$document_root;
-        fastcgi_param HTTPS               "on";
-        fastcgi_param HTTP_SCHEME         "https";
+        fastcgi_param  HTTPS              $$$$https;
 
         fastcgi_param  SERVER_PROTOCOL    $$$$server_protocol;
         fastcgi_param  GATEWAY_INTERFACE  CGI/1.1;
@@ -2065,8 +2064,7 @@ http {
         fastcgi_param  REQUEST_URI        $$$$request_uri;
         fastcgi_param  DOCUMENT_URI       $$$$document_uri;
         fastcgi_param  DOCUMENT_ROOT      $$$$document_root;
-        fastcgi_param HTTPS               "on";
-        fastcgi_param HTTP_SCHEME         "https";
+        fastcgi_param  HTTPS              $$$$https;
 
         fastcgi_param  SERVER_PROTOCOL    $$$$server_protocol;
         fastcgi_param  GATEWAY_INTERFACE  CGI/1.1;
