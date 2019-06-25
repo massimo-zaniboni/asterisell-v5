@@ -453,6 +453,8 @@ class Domain(object):
 
     fully_qualified_domain_name = 'www.example.net'
 
+    port = 80
+
     def create_ssl_certificate(self):
         """Create the certificate for the instance."""
         pass
@@ -477,6 +479,8 @@ class Domain(object):
 
 class HttpDomain(Domain):
 
+    port = 80
+
     def get_file_name_check_for_certificate_creation(self):
         """A name of file to use for testing the creation of the certificate."""
         return os.path.join('/', 'var', 'opt', 'asterisell', 'httpdomain__' + self.fully_qualified_domain_name + '.chk')
@@ -491,7 +495,7 @@ class HttpDomain(Domain):
 
         t = Template("""
     server {
-      listen 80;
+      listen ${port};
       server_name ${fqdn};
 
       # max upload size
@@ -502,10 +506,14 @@ class HttpDomain(Domain):
     }
                      """)
 
-        return t.substitute(fqdn=self.fully_qualified_domain_name, php_fpm_conf=php_fpm_conf)
+        return t.substitute(fqdn=self.fully_qualified_domain_name,
+                            php_fpm_conf=php_fpm_conf,
+                            port=self.port)
 
 
 class SelfSignedDomain(Domain):
+
+    port = 443
 
     def get_file_name_check_for_certificate_creation(self):
         """A name of file to use for testing the creation of the certificate."""
@@ -532,7 +540,7 @@ class SelfSignedDomain(Domain):
     }
 
     server {
-      listen 443 ssl http2;
+      listen ${port} ssl http2;
       server_name ${fqdn};
 
       ssl_certificate /etc/ssl/certs/${fqdn}.pem;
@@ -548,10 +556,14 @@ class SelfSignedDomain(Domain):
     }
                      """)
 
-        return t.substitute(fqdn=self.fully_qualified_domain_name, php_fpm_conf=php_fpm_conf)
+        return t.substitute(fqdn=self.fully_qualified_domain_name,
+                            php_fpm_conf=php_fpm_conf,
+                            port=self.port)
 
 
 class LetsEncryptDomain(Domain):
+
+    port = 443
 
     def get_file_name_check_for_certificate_creation(self):
         """A name of file to use for testing the creation of the certificate."""
@@ -626,7 +638,7 @@ class LetsEncryptDomain(Domain):
             t = Template("""
     # Redirect example.net to www.example.net
     server {
-      listen 443 ssl http2;
+      listen ${port} ssl http2;
       server_name $name;
 
       ssl_certificate /etc/letsencrypt/live/$name/fullchain.pem;
@@ -661,7 +673,7 @@ class LetsEncryptDomain(Domain):
     $maybe_redirect
 
     server {
-      listen 443 ssl http2;
+      listen ${port} ssl http2;
       server_name $name;
 
       ssl_certificate /etc/letsencrypt/live/$name/fullchain.pem;
@@ -679,7 +691,8 @@ class LetsEncryptDomain(Domain):
         return t.substitute(name=name,
                             www_name=www_name,
                             maybe_redirect=maybe_redirect,
-                            php_fpm_conf=php_fpm_conf)
+                            php_fpm_conf=php_fpm_conf,
+                            port=self.port)
 
 # ------------------------------------------
 
@@ -2177,7 +2190,7 @@ http {
         if is_admin:
             p = p + '/admin'
 
-        return 'https://' + self.domain.fully_qualified_domain_name + p
+        return 'https://' + self.domain.fully_qualified_domain_name + ':' + str(self.domain.port) + p
 
 
     #
