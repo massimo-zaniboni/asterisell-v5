@@ -61,7 +61,7 @@
          <p class="shortdesc">Every source of CDRS is configured as a distinct <a class="xref" href="cdrs-provider.html#CDRs_provider">CDRs provider</a> inside the Web UI in <code class="codeph">Params-&gt;CDRs Providers</code>.
          </p>
          <div class="body">
-            <section class="section" id="Importing_of_CDRS__I_2ja3j5_">
+            <section class="section" id="Importing_of_CDRS__I_wkj7b_">
                <h3 class="section-title">Import from CSV files</h3>
                <div class="p">CDRS are imported from <a class="xref" href="cdrs-provider.html#CDRs_provider">CDRs provider</a> defining custom jobs. Some of them are defined in <a class="xref" href="manual-6.html#Instances_configuration_file">Instances configuration file</a>. You can create custom PHP class inside <code class="codeph">cutomizations</code> directory, inheriting from some template job defined in <code class="codeph">apps/asterisell/lib/jobs/data_file_processing</code> directory and subdirectories, and then completing missing (abstract) parameters.
                </div>
@@ -70,7 +70,7 @@
                <div class="p">The supported data formats are listed near the beginning of <code class="codeph">rating_tools/rate_engine/src/Asterisell/CustomerSpecificImporters.hs</code>, in the function <code class="codeph">supportedSourceCDRImporters</code>.
                </div>
             </section>
-            <section class="section" id="Importing_of_CDRS__I_9t6n8e_">
+            <section class="section" id="Importing_of_CDRS__I_68twir_">
                <h3 class="section-title">Importing CDRS from an external collector</h3>
                <div class="p">Add inside <code class="codeph">asterisell_instances.py</code> something like
                </div><pre class="pre">class DefaultInstance(BillingInstance):
@@ -131,6 +131,7 @@
          <nav class="related-links">
             <h3 class="related-links-title">Related information</h3>
             <p class="link">‣ <a href="custom-jobs.html#Custom_jobs" title="Custom jobs usually are PHP files inside customizations directory. See .">Custom jobs</a></p>
+            <p class="link">‣ <a href="cdrs-data-files.html#CDRS_data_files" title="At each execution of the the CDRS data files files inside the container directory /var/www/instance-name/admin/data_files/messages/input are imported inside the TokuDB compressed table ar_source_cdr.">CDRS data files</a></p>
          </nav>
       </section>
       <footer class="page-navigation-footer">

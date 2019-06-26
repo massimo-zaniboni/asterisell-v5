@@ -60,13 +60,13 @@
          <h2 class="section2-title">Enable SSH access</h2>
          <p class="shortdesc">Instances are managed using Python Fabric tool, and they are accessed using SSH.</p>
          <div class="body">
-            <section class="section" id="Enable_SSH_access__I_442lf1_">
+            <section class="section" id="Enable_SSH_access__I_ar8ckc_">
                <h3 class="section-title">On the instance (remote) server</h3>
                <div class="p">Install the SSH server on the <a class="xref" href="manual-6.html#Asterisell_host">Asterisell host</a></div><pre class="pre">yum install openssh-server
 </pre><div class="p">Enable SSH root login, because the <a class="xref" href="manual-6.html#Instances_configuration_tool">Instances configuration tool</a> need it. Set in <code class="codeph">/etc/ssh/sshd_config</code></div><pre class="pre">PermitRootLogin yes
 </pre><div class="p">and restart the SSH server</div><pre class="pre">systemctl restart sshd
 </pre></section>
-            <section class="section" id="Enable_SSH_access__I_45f1j2_">
+            <section class="section" id="Enable_SSH_access__I_2z51ky_">
                <h3 class="section-title">On the management server</h3>
                <div class="p">The <a class="xref" href="manual-6.html#Instances_configuration_tool">Instances configuration tool</a> create a <code class="codeph">/home/user/.ssh/id_rsa.pub</code> and <code class="codeph">/home/user/.ssh/id_rsa</code> public/private key pair, installed only inside the Docker container used for administering
                   other Asterisell instances. Enable root access for these keys executing in the <a class="xref" href="manual-6.html#Instances_configuration_tool">Instances configuration tool</a> directory
@@ -83,7 +83,7 @@ fab authorize_ssh_access:asterisell/demo
                   server.
                </div>
             </section>
-            <section class="section" id="Enable_SSH_access__I_7gxj5h_">
+            <section class="section" id="Enable_SSH_access__I_x6mjas_">
                <h3 class="section-title">Restrict SSH root access</h3>
                <div class="p">If you want restrict direct root login access only to <a class="xref" href="manual-6.html#Instances_configuration_tool">Instances configuration tool</a>, set in <code class="codeph">/etc/ssh/sshd_config</code> of the <a class="xref" href="manual-6.html#Asterisell_host">Asterisell host</a></div><pre class="pre">PermitRootLogin without-password
 PubkeyAuthentication yes

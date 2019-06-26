@@ -178,7 +178,14 @@
         <topicref keyref="reports2"/>
       </relcell>
     </relrow>
+    <relrow>
+      <relcell>
+          <topicref href="topics/configuration/importing-of-cdrs.md"/>
+       </relcell>
+      <relcell>
+          <topicref href="topics/internals/cdrs-data-files.md"/>
+       </relcell>
+    </relrow>
     </reltable>
-
 </map>
 

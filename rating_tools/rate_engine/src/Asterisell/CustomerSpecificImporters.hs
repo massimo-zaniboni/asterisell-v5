@@ -25,6 +25,7 @@ module Asterisell.CustomerSpecificImporters (
   , CSVFormat_gamma__v1
   , CSVFormat_gamma_ItemRental__v1
   , CSVFormat_asterisk__generic
+  , CSVFormat_asterisk2
   , CSVFormat_plain1
   , CSVFormat_digitel
   , CSVFormat_digitelNNG__v1
@@ -96,6 +97,7 @@ supportedSourceCDRImporters
       , (("free-radius","v1"), CDRFormatSpec decodeStandardCSV (AType::(AType CSVFormat_freeRadius__v1)))
       , (("free-radius-db","v1"), CDRFormatSpec table_freeRadius (AType::(AType CSVFormat_freeRadius__v1)))
       , (("asterisk","generic"), CDRFormatSpec decodeStandardCSV (AType::(AType CSVFormat_asterisk__generic)))
+      , (("asterisk","2"), CDRFormatSpec decodeStandardCSV (AType::(AType CSVFormat_asterisk2)))
       , (("asterisk-db","generic"), CDRFormatSpec table_asterisk (AType::(AType CSVFormat_asteriskDB)))
       , (("plain","1"), CDRFormatSpec (SourceCDRParamsCSVFile
                                          (Just $ "cdrdate;callernumber;callednumber;callername;calledname;duration;uniqueid")
@@ -836,9 +838,6 @@ convert_CSVFormat_gamma_ItemRental__v1__toCDR precision provider record = do
 --
 -- NOTE: there can be many different versions of Asterisk format, so number with different versions,
 -- and reuse whenever possible the code.
--- NOTE: use different versions also according the logical meaning of each field, so the version number identifies
--- also the CDR import logic.
--- NOTE: the verson number is a symbolic-code with the project name
 
 table_asterisk :: SourceCDRParams
 table_asterisk
@@ -926,6 +925,9 @@ instance CDRFormat CSVFormat_asteriskDB where
   toCDR precision provider s = toCDR precision provider (asteriskDB_toAsteriskGeneric s)
 
 -- | Generic Asterisk format, used as base for custom importers.
+--   Accepts only CDRS with DISPOSITION == "ANSWERED" and DSTCHANNEL not empty.
+--   CDRS without DSTCHANNEL will be ignored!!!
+--
 data CSVFormat_asterisk__generic
   = CSVFormat_asterisk__generic {
       -- these are standard fields
@@ -989,11 +991,7 @@ asterisk__generic_toCDR :: CSVFormat_asterisk__generic -> CurrencyPrecisionDigit
 asterisk__generic_toCDR record precision provider
     = do callDate <- importAndConvertNotNullValue (asterisk__generic_calldate record) fromMySQLDateTimeAsTextToLocalTime "calldate" "call date"
          case (isEmptyOrNull $ asterisk__generic_dstchannel record)
-              || (not $ (asterisk__generic_disposition record == Export "ANSWERED"))
-              || (not $ (asterisk__generic_amaflags record == Export "3"    -- default
-                         || asterisk__generic_amaflags record == Export "2" -- bill, documentation
-                        )
-                 ) of
+              || (not $ (asterisk__generic_disposition record == Export "ANSWERED")) of
            True
              -> -- the CDR can be ignored
                 return $ (cdr_empty callDate precision) {
@@ -1010,6 +1008,63 @@ asterisk__generic_toCDR record precision provider
                                 }
                    -- return a semi-classified CDR. The other more specific versions will use a better classification method.
 
+
+-- | A variant of `CSVFormat_asterisk__generic`.
+data CSVFormat_asterisk2
+  = CSVFormat_asterisk2 {
+      asterisk2_clid :: !(ExportMaybeNull Text.Text),
+      asterisk2_src :: !(ExportMaybeNull Text.Text),
+      asterisk2_dst :: !(ExportMaybeNull Text.Text),
+      asterisk2_dcontext :: !(ExportMaybeNull Text.Text),
+      asterisk2_channel :: !(ExportMaybeNull Text.Text),
+      asterisk2_dstchannel :: !(ExportMaybeNull Text.Text),
+      asterisk2_lastapp :: !(ExportMaybeNull Text.Text),
+      asterisk2_lastdata :: !(ExportMaybeNull Text.Text),
+      asterisk2_ringCallDate :: !(ExportMaybeNull Text.Text),
+      asterisk2_calldate :: !(ExportMaybeNull Text.Text),
+      asterisk2_endCallDate :: !(ExportMaybeNull Text.Text),
+      asterisk2_duration :: !(ExportMaybeNull Text.Text),
+      asterisk2_billsec :: !(ExportMaybeNull Text.Text),
+      asterisk2_disposition :: !(ExportMaybeNull Text.Text),
+      asterisk2_amaflags :: !(ExportMaybeNull Text.Text),
+      asterisk2_accountcode :: !(ExportMaybeNull Text.Text),
+      asterisk2_uniqueid :: !(ExportMaybeNull Text.Text),
+      asterisk2_userfield :: !(ExportMaybeNull Text.Text),
+      asterisk2_sequence :: !(ExportMaybeNull Text.Text),
+      asterisk2_billsecFloat :: !(ExportMaybeNull Text.Text)
+    }
+ deriving (Generic, NFData, Show)
+
+instance CSV.FromRecord CSVFormat_asterisk2
+
+instance CSV.ToRecord CSVFormat_asterisk2
+
+asterisk2_toAsteriskGeneric :: CSVFormat_asterisk2 -> CSVFormat_asterisk__generic
+asterisk2_toAsteriskGeneric s
+  = CSVFormat_asterisk__generic {
+      asterisk__generic_calldate = asterisk2_calldate s,
+      asterisk__generic_clid = asterisk2_clid s,
+      asterisk__generic_src = asterisk2_src s,
+      asterisk__generic_dst = asterisk2_dst s,
+      asterisk__generic_dcontext = asterisk2_dcontext s,
+      asterisk__generic_channel = asterisk2_channel s,
+      asterisk__generic_dstchannel = asterisk2_dstchannel s,
+      asterisk__generic_lastapp = asterisk2_lastapp s,
+      asterisk__generic_lastdata = asterisk2_lastdata s,
+      asterisk__generic_duration = asterisk2_duration s,
+      asterisk__generic_billsec = asterisk2_billsec s,
+      asterisk__generic_disposition = asterisk2_disposition s,
+      asterisk__generic_amaflags = asterisk2_amaflags s,
+      asterisk__generic_accountcode = asterisk2_accountcode s,
+      asterisk__generic_uniqueid = asterisk2_uniqueid s,
+      asterisk__generic_userfield = asterisk2_userfield s,
+      asterisk__generic_did = ExportNull
+    }
+
+instance CDRFormat CSVFormat_asterisk2 where
+  getCallDate s = getCallDate $ asterisk2_toAsteriskGeneric s
+
+  toCDR precision provider s = toCDR precision provider (asterisk2_toAsteriskGeneric s)
 
 
 --
