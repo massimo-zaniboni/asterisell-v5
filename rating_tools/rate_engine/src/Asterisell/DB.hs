@@ -825,6 +825,8 @@ namedPipe_create pipeName = do
 --   and it will be automatically inserted.
 db_loadDataFromNamedPipe
   :: DBState
+  -> Bool
+  -- ^ True for starting with a new debug-file, in case debug option is enabled on DBState
   -> BS.ByteString
   -- ^ named-pipe name to use as input
   -> BS.ByteString
@@ -844,7 +846,7 @@ db_loadDataFromNamedPipe
         -- @require until this process does not terminate, no other DB actions can be called
         )
 
-db_loadDataFromNamedPipe dbState pipeName tableName columns f = do
+db_loadDataFromNamedPipe dbState useNewDebugFile pipeName tableName columns f = do
   _ <- takeMVar $ dbps_semaphore dbState
 
   inChan <- newEmptyMVar
@@ -861,7 +863,7 @@ db_loadDataFromNamedPipe dbState pipeName tableName columns f = do
     case dbps_conn dbState of
       Left outFileName -> do
         -- NOTE: simulate an external process reading from the pipe and writing to disk, like in case of MySQL process.
-        Process.callCommand $ "cat " ++ (fromByteStringToString pipeName) ++ " > " ++ outFileName
+        Process.callCommand $ "cat " ++ (fromByteStringToString pipeName) ++ (if useNewDebugFile then " > " else " >> ") ++ outFileName
       Right conn -> do
         let q = B.byteString "LOAD DATA INFILE ? INTO TABLE "
                      <>  B.byteString tableName

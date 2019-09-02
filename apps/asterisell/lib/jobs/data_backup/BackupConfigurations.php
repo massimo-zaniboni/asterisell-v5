@@ -53,6 +53,8 @@ class BackupConfigurations extends DailyBackupJob
         , 'ar_temp_problem' // regenerated
         , 'ar_daily_status_change' // regenerated
         , 'ar_cached_organization_info' // regenerated
+        , 'ar_wholesale_number_transaction_to_update' // regenerated
+        , 'ar_wholesale_number_transaction' // regenerated
         );
     }
 

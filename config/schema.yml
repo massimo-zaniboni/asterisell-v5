@@ -237,7 +237,7 @@ propel:
     #
     # when the customer was advised 
 
-    is_active: { type: boolean, index: true, required: true, default: 1 }
+    is_active: { type: boolean, index: true, required: true, default: true }
     #
     # TRUE if it is an active customer/vendor.
 
@@ -2135,3 +2135,123 @@ propel:
    # 0 if there is no error.
 
    count_of_calls: { type: bigint, required: true }
+
+  ar_wholesale_carrier:
+  # usually it is the telephone operator owning a wholesale number.
+
+    id:
+
+    internal_name: { type: varchar, size: 255, required: false, unique: true, index: unique }
+
+    note: varchar(1024)
+
+  ar_wholesale_number:
+  # numbers used for wholesale inbound calls
+
+    id:
+
+    telephone_number: { type: varchar, size: 255, required: true }
+    # the telephone number to use
+
+    from_date: { type: timestamp, index: true, required: true }
+    # apply from this date.
+    # All changes in the same date are implicitely under the same change transaction.
+
+    exists: { type: boolean, required: true, default: true }
+    # false if the number does not exist anymore
+
+    extension_codes: { type: varchar, size: 5024 }
+    # Extension codes associated to the number, and that must be recognized in the CDRS.
+    # The format to use is the same of other extension_codes, so "123XX,457*"
+    # NULL if the codes must be completed by Asterisell using some custom job.
+
+    use_default_extension_codes: { type: boolean, index: true }
+    # NULL if the extension_codes must be assigned,
+    # True if the extension_codes are assigned by the default job,
+    # False if the extension_codes are explicitely assigned.
+    # NOTE: they are under an index because the codes with NULL value must be
+    # quickly processed.
+
+    ar_reseller_id:
+    # NULL in case the number is free again
+
+    ar_wholesale_carrier_id:
+
+    income_price: { type: bigint, required: true, default: 0 }
+
+    cost_price: { type: bigint, required: true, default: 0 }
+
+    csv_comment: { type: varchar, size: 255 }
+    # compiled from built-in procedures
+    # the type of change of this entry
+
+    csv_last_date: { type: timestamp, index: true }
+    # compiled from built-in procedures
+    # This entry substitute the previous value on the same telephone number at this date.
+    # The same `from_date` in case it is a new entry.
+
+    csv_to_delete: { type: boolean, required: true, default: 0 }
+    # used during importing of CDRS from code for replacing CDRS in the same calldate
+
+    csv_is_current: { type: boolean, required: true, default: 0 }
+    # false if this record represent history,
+    # true if this information is used for processing CDRS.
+    # This field is updated by TRIGGERS/procedures
+
+    _indexes:
+
+      p1_wholesale_number: [ telephone_number, from_date ]
+      # allow fast processing of code calculating `csv_last_date`
+
+      p2_wholesale_number: [ csv_last_date, ar_reseller_id, ar_wholesale_carrier_id, telephone_number ]
+      # allow fast processing of CSV exporting in a sensible way
+
+      p3_wholesale_number: [ from_date, ar_reseller_id, ar_wholesale_carrier_id, telephone_number ]
+      # allow fast processing of CSV exporting in a sensible way
+
+  ar_wholesale_number_transaction:
+  # NOTE: the content is mantained updated using triggers defined in InitWithDefaultMySQLStoredProcedures.
+
+    from_date: { type: timestamp, required: true, primaryKey: true }
+    # group all changes on the same date
+
+    count_numbers: integer
+
+    count_resellers: integer
+    # how many distinct resellers are involved
+
+    count_carriers: integer
+    # how many distinct carriers are involved
+
+    reseller_codes: { type: varchar, size: 8048 }
+    # with a trick put here the ID of distinct reseller codes,
+    # because this info must be used during filters.
+    # Use `#` for the NULL/free reseller
+
+  ar_wholesale_number_imported_date_proc:
+    # A service table used for importing CSV and replacing with new data the imported dates
+
+    from_date: { type: timestamp, required: true, primaryKey: true }
+    # group all changes on the same date
+
+  ar_wholesale_number_transaction_to_update:
+    # The date on which there are changes on wholesale_numbers
+    # NOTE: the content is mantained updated using triggers defined in InitWithDefaultMySQLStoredProcedures.
+
+    from_date: { type: timestamp, required: true, primaryKey: true }
+    # group all changes on the same date
+
+  ar_wholesale_update_proc:
+    # Support table for procedural code.
+
+    foreign_id: {type: integer, primaryKey: true}
+    csv_comment: { type: varchar, size: 255 }
+    csv_last_date: { type: timestamp }
+    csv_is_current: { type: boolean, required: true }
+
+  ar_wholesale_replace_proc:
+    # Support table for procedural code.
+
+    from_date: {type: timestamp, required: true, primaryKey: true}
+    ar_reseller_id:
+

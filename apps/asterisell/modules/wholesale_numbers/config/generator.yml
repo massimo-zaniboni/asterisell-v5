@@ -1,0 +1,39 @@
+generator:
+  class: sfPropelAdminGenerator
+  param:
+    model_class:           ArWholesaleNumber
+    theme:                 default
+
+    fields:
+      telephone_number: { name: "Telephone number" }
+      from_date: { name: "From", help: "This setting became active from this calldate." }
+      exists: { name: "Is enabled", help: "False if the number is not anymore existing." }
+      extension_codes: { name: "Extension codes", help: "The codes used in imported CDRS. NULL values will be completed by a default/custom procedure." }
+      ar_wholesale_carrier_id: { name: "Carrier", help: "Carrier/telephone operator." }
+      ar_wholesale_carrier: { name: "Carrier", help: "Carrier/telephone operator." }
+      ar_reseller_id: { name: "Reseller", help: "The reseller routing the terminal destination, using the specified number." }
+      ar_reseller: { name: "Reseller", help: "The reseller routing the terminal destination, using the specified number." }
+      my_income_price: { name: "Income" }
+      my_cost_price: { name: "Cost" }
+      income_price: { name: "Income" }
+      cost_price: { name: "Cost" }
+
+    list:
+      title: Wholesale Numbers
+      max_per_page: 100
+      display: [=telephone_number, ar_wholesale_carrier, from_date, exists, ar_reseller, _my_cost_price, _my_income_price, extension_codes]
+      filters: [telephone_number, from_date, exists, ar_wholesale_carrier_id, ar_reseller_id, extension_codes]
+
+    edit:
+      title: Wholesale Number
+      fields:
+        select_wholesale_carrier: { name: "Carrier", help: "Carrier/telephone operator." }
+        select_reseller: { name: "Reseller", help: "The reseller routing the terminal destination, using the specified number." }
+        my_cost_editor: { name: "Cost" }
+        my_income_editor: { name: "Income" }
+
+      display:
+        Number: [telephone_number, _select_wholesale_carrier, _select_reseller]
+        Activation: [exists, from_date]
+        Prices: [_my_cost_editor, _my_income_editor]
+        CDR codes: [extension_codes]

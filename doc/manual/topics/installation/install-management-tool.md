@@ -5,7 +5,7 @@
 Asterisell must be managed by a non-root user. Use your normal user, or as root create an user named ``asterisell``
 
 ```
-useradd asterisell
+useradd -m asterisell
 ```
 
 This user must be a Docker administrator user. Supposing its name is ``asterisell``
@@ -22,6 +22,9 @@ Use the Asterisell administration user and download Asterisell using ``git``.
 
 ```
 su asterisell
+
+# NOTE: if the prompt is not the usual prompt, call explicitely `bash`
+
 cd
 git clone --depth 1 https://github.com/massimo-zaniboni/asterisell-v5
 mv asterisell-v5 asterisell-admin

@@ -449,11 +449,69 @@ You can login using these user / password accounts:<ul>
             $ss->setArOrganizationUnit(ArOrganizationUnitPeer::retrieveByInternalName('A.'));
             $ss->save();
 
+            //
+            // Wholesale numbers
+            //
+
+            $r = new ArReseller();
+            $r->setInternalName('CHP');
+            $r->setName('Cheap caller');
+            $r->save();
+            $reseller1 = $r;
+
+            $r = new ArReseller();
+            $r->setInternalName('BUS');
+            $r->setName('Business for life');
+            $r->save();
+            $reseller2 = $r;
+
+            $r = new ArWholesaleCarrier();
+            $r->setInternalName('EUTELEPHONE');
+            $r->save();
+            $carrier1 = $r;
+
+            $r = new ArWholesaleCarrier();
+            $r->setInternalName('TELCOM-IT');
+            $r->save();
+            $carrier2 = $r;
+
+            $wholePrefix = '39123456';
+            for ($i = 10; $i < 100; $i++) {
+                $n = $wholePrefix . "$i";
+
+                $reseller = null;
+                if ($i % 3 == 0) {
+                    $reseller = $reseller1;
+                }
+                if ($i % 3 == 1) {
+                    $reseller = $reseller2;
+                }
+
+                $carrier = null;
+                if ($i % 2 == 0) {
+                    $carrier = $carrier1;
+                }
+                if ($i % 2 == 1) {
+                    $carrier = $carrier2;
+                }
+
+                $d = strtotime('+' . ($i % 4) . ' months', self::getGlobalStartingDateForCDRProcessinng());
+
+                $p = 10000;
+                $r = new ArWholesaleNumber();
+                $r->setTelephoneNumber($n);
+                $r->setFromDate(fromUnixTimestampToMySQLTimestamp($d));
+                $r->setExists(true);
+                $r->setArReseller($reseller);
+                $r->setArWholesaleCarrier($carrier);
+                $r->setIncomePrice($p * 1.5);
+                $r->setCostPrice($p);
+                $r->save();
+            }
 
             //
             // Rates
             //
-
 
             $rate = new ArRate();
             $rate->setFromTime($startingDate);

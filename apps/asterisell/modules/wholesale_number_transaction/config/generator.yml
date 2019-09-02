@@ -1,0 +1,29 @@
+generator:
+  class: sfPropelAdminGenerator
+  param:
+    model_class:           ArWholesaleNumberTransaction
+    theme:                 default
+
+    fields:
+      from_date: { name: "At date", help: "Telephone numbers are changed from the specified date." }
+      my_from_date: { name: "At date", help: "Telephone numbers are assigned from this date." }
+      count_numbers: { name: "Assigned numbers", help: "How many distinct telephone numbers are assigned." }
+      count_carriers: { name: "Involved carriers", help: "How many distinct carriers are used." }
+      count_resellers: { name: "Involved resellers", help: "How many distinct resellers are used." }
+      filter_on_reseller: { name: "Reseller", help: "Telephone numbers assigned to the reseller." }
+      filter_on_date: { name: "Before", help: "Telephone numbers assigned before the specified date." }
+      show_actions: {name: "Download CSV file",,help: "Download a CSV file that can be further modified and imported again for fixing data." }
+
+    list:
+      title: Wholesale telephone numbers assignations
+      actions: []
+      display: [_my_from_date, count_numbers, count_carriers, count_resellers, _show_actions]
+      filters: [_filter_on_reseller, _filter_on_date]
+      sort: [from_date, desc]
+
+    edit:
+      title: Wholesale telephone numbers assignation
+      actions:
+        _list: ~
+        _save: ~
+      display: []

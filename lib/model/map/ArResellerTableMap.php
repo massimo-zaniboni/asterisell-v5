@@ -50,6 +50,8 @@ class ArResellerTableMap extends TableMap {
 	{
     $this->addRelation('ArParty', 'ArParty', RelationMap::ONE_TO_MANY, array('id' => 'ar_reseller_id', ), null, null);
     $this->addRelation('ArRateSharedWithReseller', 'ArRateSharedWithReseller', RelationMap::ONE_TO_MANY, array('id' => 'ar_reseller_id', ), null, null);
+    $this->addRelation('ArWholesaleNumber', 'ArWholesaleNumber', RelationMap::ONE_TO_MANY, array('id' => 'ar_reseller_id', ), null, null);
+    $this->addRelation('ArWholesaleReplaceProc', 'ArWholesaleReplaceProc', RelationMap::ONE_TO_MANY, array('id' => 'ar_reseller_id', ), null, null);
 	} // buildRelations()
 
 	/**

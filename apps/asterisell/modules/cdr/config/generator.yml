@@ -9,7 +9,6 @@ generator:
 
       filters: [calldate, id]
 
-
       actions: []
 
     edit:

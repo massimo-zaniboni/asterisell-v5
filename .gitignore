@@ -48,3 +48,6 @@ doc/website/output/
 customizations/import-of-legacy-rates/results/
 update-netcup.sh
 tsnet-update-all.sh
+itecdev-update.sh
+netcup-update.sh
+tunnel-update.sh

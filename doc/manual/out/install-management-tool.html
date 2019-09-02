@@ -61,7 +61,7 @@
             <section class="section" id="Install_Management_Tool__I_3u0xzm_">
                <h3 class="section-title">Administration user</h3>
                <div class="p">Asterisell must be managed by a non-root user. Use your normal user, or as root create
-                  an user named <code class="codeph">asterisell</code></div><pre class="pre">useradd asterisell
+                  an user named <code class="codeph">asterisell</code></div><pre class="pre">useradd -m asterisell
 </pre><div class="p">This user must be a Docker administrator user. Supposing its name is <code class="codeph">asterisell</code></div><pre class="pre">groupadd docker
 usermod -aG docker asterisell
 service docker restart
@@ -70,6 +70,9 @@ service docker restart
                <h3 class="section-title">Download Asterisell</h3>
                <div class="p">Use the Asterisell administration user and download Asterisell using <code class="codeph">git</code>.
                </div><pre class="pre">su asterisell
+
+# NOTE: if the prompt is not the usual prompt, call explicitely `bash`
+
 cd
 git clone --depth 1 https://github.com/massimo-zaniboni/asterisell-v5
 mv asterisell-v5 asterisell-admin

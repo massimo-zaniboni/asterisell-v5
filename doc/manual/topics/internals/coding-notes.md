@@ -16,6 +16,8 @@ cd /asterisell/scripts
 
 The new SQL model will be generated inside `data/sql/lib.model.schema.sql`.
 
+Update `InitWithDefaultMySQLStoredProcedures` in case the table content modification implies a CDR rerating.
+
 Test the application.
 
 Add upgrade jobs extending the database also in already production
@@ -141,6 +143,10 @@ Use code like this:
           title: Extension Codes (alias telephone numbers associated to an Extension)
           display: [ar_extension, code]
 ```
+
+### Learned lessons
+
+The primaryKey are hidden in forms so the ``makedb.sh`` script must be patched for changing the form annotations in case there are tables with no ``id`` but other primaryKey fields.
 
 ## How profiling and solve speace leaks of the Haskell Rating Engine
 

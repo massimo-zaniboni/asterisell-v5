@@ -62,7 +62,7 @@
             source code.
          </p>
          <div class="body">
-            <section class="section" id="Code_development__I_etwfz4_">
+            <section class="section" id="Code_development__I_r3pvtn_">
                <h3 class="section-title">How changing the database schema</h3>
                <div class="p">Change the file <code class="codeph">config/schema.yml</code>.
                </div><pre class="pre">./fab.sh
@@ -71,12 +71,14 @@ cd /asterisell/scripts
 ./makedb.sh
 </pre><div class="p">The new SQL model will be generated inside <code class="codeph">data/sql/lib.model.schema.sql</code>.
                </div>
+               <div class="p">Update <code class="codeph">InitWithDefaultMySQLStoredProcedures</code> in case the table content modification implies a CDR rerating.
+               </div>
                <div class="p">Test the application.</div>
                <div class="p">Add upgrade jobs extending the database also in already production instances. TODO
                   complete this
                </div>
             </section>
-            <section class="section" id="Code_development__I_9q6tl3_">
+            <section class="section" id="Code_development__I_f5amjk_">
                <h3 class="section-title">How changing the content of the management container</h3>
                <div class="p">Customize <code class="codeph">Dockerfile</code>, then tart the management tool with
                </div><pre class="pre">./fab.sh --update
@@ -90,7 +92,7 @@ cd /asterisell/scripts
 docker image prune
 </pre><div class="p">for removing data not anymore used.</div>
             </section>
-            <section class="section" id="Code_development__I_munfjc_">
+            <section class="section" id="Code_development__I_zi8t6s_">
                <h3 class="section-title">How generating UI web modules</h3><pre class="pre">./fab.sh
 
 php symfony propel:generate-admin asterisell ArReportScheduler --module=report_scheduling
@@ -175,8 +177,12 @@ php symfony propel:generate-admin asterisell ArReportScheduler --module=report_s
         edit:
           title: Extension Codes (alias telephone numbers associated to an Extension)
           display: [ar_extension, code]
-</pre></section>
-            <section class="section" id="Code_development__I_zi8t6s_">
+</pre><div class="div role-h3">Learned lessons</div>
+               <div class="p">The primaryKey are hidden in forms so the <code class="codeph">makedb.sh</code> script must be patched for changing the form annotations in case there are tables
+                  with no <code class="codeph">id</code> but other primaryKey fields.
+               </div>
+            </section>
+            <section class="section" id="Code_development__I_eng0nk_">
                <h3 class="section-title">How profiling and solve speace leaks of the Haskell Rating Engine</h3>
                <ul class="ul">
                   <li class="li">Enable <code class="codeph">debug_mode</code> in the instance params.
@@ -196,14 +202,14 @@ php symfony propel:generate-admin asterisell ArReportScheduler --module=report_s
                <div class="p">It is possible executing only specific parts of the rating engine using the <code class="codeph">--run-level</code> options. See the source code of the rating engine for more info.
                </div>
             </section>
-            <section class="section" id="Code_development__I_d2ctv6_">
+            <section class="section" id="Code_development__I_d2f3dx_">
                <h3 class="section-title">Adding LOG message</h3>
                <div class="p">Inside an action</div><pre class="pre">    $this-&gt;logMessage('help me!', 'info');
 </pre><div class="p">Outside an action</div><pre class="pre">    sfContext::getInstance()-&gt;getLogger()-&gt;info($message);
     sfContext::getInstance()-&gt;getLogger()-&gt;err($message);
 </pre><div class="p">Inside a template if the error must be viewed on the web toolbar</div><pre class="pre">    echo log_message(...);
 </pre></section>
-            <section class="section" id="Code_development__I_uppx5x_">
+            <section class="section" id="Code_development__I_oo9to1_">
                <h3 class="section-title">Asterisell jobs</h3>
                <div class="p">Jobs are read from <code class="codeph">apps/asterisell/config/app.yml</code> file, that is generated from <code class="codeph">fabric_data/lib.py</code> management tool, according the content of <code class="codeph">asterisell_instances.py</code> file.
                </div>

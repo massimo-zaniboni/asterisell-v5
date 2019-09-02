@@ -1011,7 +1011,7 @@ function format_from_db_decimal_to_call_report_currency($value)
  */
 function from_db_decimal_to_php_decimal($value)
 {
-    if (is_null($value)) {
+    if (isEmptyOrNull($value)) {
         return "0";
     }
 

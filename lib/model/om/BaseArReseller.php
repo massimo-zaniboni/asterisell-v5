@@ -63,6 +63,26 @@ abstract class BaseArReseller extends BaseObject  implements Persistent {
 	private $lastArRateSharedWithResellerCriteria = null;
 
 	/**
+	 * @var        array ArWholesaleNumber[] Collection to store aggregation of ArWholesaleNumber objects.
+	 */
+	protected $collArWholesaleNumbers;
+
+	/**
+	 * @var        Criteria The criteria used to select the current contents of collArWholesaleNumbers.
+	 */
+	private $lastArWholesaleNumberCriteria = null;
+
+	/**
+	 * @var        array ArWholesaleReplaceProc[] Collection to store aggregation of ArWholesaleReplaceProc objects.
+	 */
+	protected $collArWholesaleReplaceProcs;
+
+	/**
+	 * @var        Criteria The criteria used to select the current contents of collArWholesaleReplaceProcs.
+	 */
+	private $lastArWholesaleReplaceProcCriteria = null;
+
+	/**
 	 * Flag to prevent endless save loop, if this object is referenced
 	 * by another object which falls in this transaction.
 	 * @var        boolean
@@ -313,6 +333,12 @@ abstract class BaseArReseller extends BaseObject  implements Persistent {
 			$this->collArRateSharedWithResellers = null;
 			$this->lastArRateSharedWithResellerCriteria = null;
 
+			$this->collArWholesaleNumbers = null;
+			$this->lastArWholesaleNumberCriteria = null;
+
+			$this->collArWholesaleReplaceProcs = null;
+			$this->lastArWholesaleReplaceProcCriteria = null;
+
 		} // if (deep)
 	}
 
@@ -459,6 +485,22 @@ abstract class BaseArReseller extends BaseObject  implements Persistent {
 				}
 			}
 
+			if ($this->collArWholesaleNumbers !== null) {
+				foreach ($this->collArWholesaleNumbers as $referrerFK) {
+					if (!$referrerFK->isDeleted()) {
+						$affectedRows += $referrerFK->save($con);
+					}
+				}
+			}
+
+			if ($this->collArWholesaleReplaceProcs !== null) {
+				foreach ($this->collArWholesaleReplaceProcs as $referrerFK) {
+					if (!$referrerFK->isDeleted()) {
+						$affectedRows += $referrerFK->save($con);
+					}
+				}
+			}
+
 			$this->alreadyInSave = false;
 
 		}
@@ -540,6 +582,22 @@ abstract class BaseArReseller extends BaseObject  implements Persistent {
 
 				if ($this->collArRateSharedWithResellers !== null) {
 					foreach ($this->collArRateSharedWithResellers as $referrerFK) {
+						if (!$referrerFK->validate($columns)) {
+							$failureMap = array_merge($failureMap, $referrerFK->getValidationFailures());
+						}
+					}
+				}
+
+				if ($this->collArWholesaleNumbers !== null) {
+					foreach ($this->collArWholesaleNumbers as $referrerFK) {
+						if (!$referrerFK->validate($columns)) {
+							$failureMap = array_merge($failureMap, $referrerFK->getValidationFailures());
+						}
+					}
+				}
+
+				if ($this->collArWholesaleReplaceProcs !== null) {
+					foreach ($this->collArWholesaleReplaceProcs as $referrerFK) {
 						if (!$referrerFK->validate($columns)) {
 							$failureMap = array_merge($failureMap, $referrerFK->getValidationFailures());
 						}
@@ -777,6 +835,18 @@ abstract class BaseArReseller extends BaseObject  implements Persistent {
 			foreach ($this->getArRateSharedWithResellers() as $relObj) {
 				if ($relObj !== $this) {  // ensure that we don't try to copy a reference to ourselves
 					$copyObj->addArRateSharedWithReseller($relObj->copy($deepCopy));
+				}
+			}
+
+			foreach ($this->getArWholesaleNumbers() as $relObj) {
+				if ($relObj !== $this) {  // ensure that we don't try to copy a reference to ourselves
+					$copyObj->addArWholesaleNumber($relObj->copy($deepCopy));
+				}
+			}
+
+			foreach ($this->getArWholesaleReplaceProcs() as $relObj) {
+				if ($relObj !== $this) {  // ensure that we don't try to copy a reference to ourselves
+					$copyObj->addArWholesaleReplaceProc($relObj->copy($deepCopy));
 				}
 			}
 
@@ -1183,6 +1253,361 @@ abstract class BaseArReseller extends BaseObject  implements Persistent {
 	}
 
 	/**
+	 * Clears out the collArWholesaleNumbers collection (array).
+	 *
+	 * This does not modify the database; however, it will remove any associated objects, causing
+	 * them to be refetched by subsequent calls to accessor method.
+	 *
+	 * @return     void
+	 * @see        addArWholesaleNumbers()
+	 */
+	public function clearArWholesaleNumbers()
+	{
+		$this->collArWholesaleNumbers = null; // important to set this to NULL since that means it is uninitialized
+	}
+
+	/**
+	 * Initializes the collArWholesaleNumbers collection (array).
+	 *
+	 * By default this just sets the collArWholesaleNumbers collection to an empty array (like clearcollArWholesaleNumbers());
+	 * however, you may wish to override this method in your stub class to provide setting appropriate
+	 * to your application -- for example, setting the initial array to the values stored in database.
+	 *
+	 * @return     void
+	 */
+	public function initArWholesaleNumbers()
+	{
+		$this->collArWholesaleNumbers = array();
+	}
+
+	/**
+	 * Gets an array of ArWholesaleNumber objects which contain a foreign key that references this object.
+	 *
+	 * If this collection has already been initialized with an identical Criteria, it returns the collection.
+	 * Otherwise if this ArReseller has previously been saved, it will retrieve
+	 * related ArWholesaleNumbers from storage. If this ArReseller is new, it will return
+	 * an empty collection or the current collection, the criteria is ignored on a new object.
+	 *
+	 * @param      PropelPDO $con
+	 * @param      Criteria $criteria
+	 * @return     array ArWholesaleNumber[]
+	 * @throws     PropelException
+	 */
+	public function getArWholesaleNumbers($criteria = null, PropelPDO $con = null)
+	{
+		if ($criteria === null) {
+			$criteria = new Criteria(ArResellerPeer::DATABASE_NAME);
+		}
+		elseif ($criteria instanceof Criteria)
+		{
+			$criteria = clone $criteria;
+		}
+
+		if ($this->collArWholesaleNumbers === null) {
+			if ($this->isNew()) {
+			   $this->collArWholesaleNumbers = array();
+			} else {
+
+				$criteria->add(ArWholesaleNumberPeer::AR_RESELLER_ID, $this->id);
+
+				ArWholesaleNumberPeer::addSelectColumns($criteria);
+				$this->collArWholesaleNumbers = ArWholesaleNumberPeer::doSelect($criteria, $con);
+			}
+		} else {
+			// criteria has no effect for a new object
+			if (!$this->isNew()) {
+				// the following code is to determine if a new query is
+				// called for.  If the criteria is the same as the last
+				// one, just return the collection.
+
+
+				$criteria->add(ArWholesaleNumberPeer::AR_RESELLER_ID, $this->id);
+
+				ArWholesaleNumberPeer::addSelectColumns($criteria);
+				if (!isset($this->lastArWholesaleNumberCriteria) || !$this->lastArWholesaleNumberCriteria->equals($criteria)) {
+					$this->collArWholesaleNumbers = ArWholesaleNumberPeer::doSelect($criteria, $con);
+				}
+			}
+		}
+		$this->lastArWholesaleNumberCriteria = $criteria;
+		return $this->collArWholesaleNumbers;
+	}
+
+	/**
+	 * Returns the number of related ArWholesaleNumber objects.
+	 *
+	 * @param      Criteria $criteria
+	 * @param      boolean $distinct
+	 * @param      PropelPDO $con
+	 * @return     int Count of related ArWholesaleNumber objects.
+	 * @throws     PropelException
+	 */
+	public function countArWholesaleNumbers(Criteria $criteria = null, $distinct = false, PropelPDO $con = null)
+	{
+		if ($criteria === null) {
+			$criteria = new Criteria(ArResellerPeer::DATABASE_NAME);
+		} else {
+			$criteria = clone $criteria;
+		}
+
+		if ($distinct) {
+			$criteria->setDistinct();
+		}
+
+		$count = null;
+
+		if ($this->collArWholesaleNumbers === null) {
+			if ($this->isNew()) {
+				$count = 0;
+			} else {
+
+				$criteria->add(ArWholesaleNumberPeer::AR_RESELLER_ID, $this->id);
+
+				$count = ArWholesaleNumberPeer::doCount($criteria, false, $con);
+			}
+		} else {
+			// criteria has no effect for a new object
+			if (!$this->isNew()) {
+				// the following code is to determine if a new query is
+				// called for.  If the criteria is the same as the last
+				// one, just return count of the collection.
+
+
+				$criteria->add(ArWholesaleNumberPeer::AR_RESELLER_ID, $this->id);
+
+				if (!isset($this->lastArWholesaleNumberCriteria) || !$this->lastArWholesaleNumberCriteria->equals($criteria)) {
+					$count = ArWholesaleNumberPeer::doCount($criteria, false, $con);
+				} else {
+					$count = count($this->collArWholesaleNumbers);
+				}
+			} else {
+				$count = count($this->collArWholesaleNumbers);
+			}
+		}
+		return $count;
+	}
+
+	/**
+	 * Method called to associate a ArWholesaleNumber object to this object
+	 * through the ArWholesaleNumber foreign key attribute.
+	 *
+	 * @param      ArWholesaleNumber $l ArWholesaleNumber
+	 * @return     void
+	 * @throws     PropelException
+	 */
+	public function addArWholesaleNumber(ArWholesaleNumber $l)
+	{
+		if ($this->collArWholesaleNumbers === null) {
+			$this->initArWholesaleNumbers();
+		}
+		if (!in_array($l, $this->collArWholesaleNumbers, true)) { // only add it if the **same** object is not already associated
+			array_push($this->collArWholesaleNumbers, $l);
+			$l->setArReseller($this);
+		}
+	}
+
+
+	/**
+	 * If this collection has already been initialized with
+	 * an identical criteria, it returns the collection.
+	 * Otherwise if this ArReseller is new, it will return
+	 * an empty collection; or if this ArReseller has previously
+	 * been saved, it will retrieve related ArWholesaleNumbers from storage.
+	 *
+	 * This method is protected by default in order to keep the public
+	 * api reasonable.  You can provide public methods for those you
+	 * actually need in ArReseller.
+	 */
+	public function getArWholesaleNumbersJoinArWholesaleCarrier($criteria = null, $con = null, $join_behavior = Criteria::LEFT_JOIN)
+	{
+		if ($criteria === null) {
+			$criteria = new Criteria(ArResellerPeer::DATABASE_NAME);
+		}
+		elseif ($criteria instanceof Criteria)
+		{
+			$criteria = clone $criteria;
+		}
+
+		if ($this->collArWholesaleNumbers === null) {
+			if ($this->isNew()) {
+				$this->collArWholesaleNumbers = array();
+			} else {
+
+				$criteria->add(ArWholesaleNumberPeer::AR_RESELLER_ID, $this->id);
+
+				$this->collArWholesaleNumbers = ArWholesaleNumberPeer::doSelectJoinArWholesaleCarrier($criteria, $con, $join_behavior);
+			}
+		} else {
+			// the following code is to determine if a new query is
+			// called for.  If the criteria is the same as the last
+			// one, just return the collection.
+
+			$criteria->add(ArWholesaleNumberPeer::AR_RESELLER_ID, $this->id);
+
+			if (!isset($this->lastArWholesaleNumberCriteria) || !$this->lastArWholesaleNumberCriteria->equals($criteria)) {
+				$this->collArWholesaleNumbers = ArWholesaleNumberPeer::doSelectJoinArWholesaleCarrier($criteria, $con, $join_behavior);
+			}
+		}
+		$this->lastArWholesaleNumberCriteria = $criteria;
+
+		return $this->collArWholesaleNumbers;
+	}
+
+	/**
+	 * Clears out the collArWholesaleReplaceProcs collection (array).
+	 *
+	 * This does not modify the database; however, it will remove any associated objects, causing
+	 * them to be refetched by subsequent calls to accessor method.
+	 *
+	 * @return     void
+	 * @see        addArWholesaleReplaceProcs()
+	 */
+	public function clearArWholesaleReplaceProcs()
+	{
+		$this->collArWholesaleReplaceProcs = null; // important to set this to NULL since that means it is uninitialized
+	}
+
+	/**
+	 * Initializes the collArWholesaleReplaceProcs collection (array).
+	 *
+	 * By default this just sets the collArWholesaleReplaceProcs collection to an empty array (like clearcollArWholesaleReplaceProcs());
+	 * however, you may wish to override this method in your stub class to provide setting appropriate
+	 * to your application -- for example, setting the initial array to the values stored in database.
+	 *
+	 * @return     void
+	 */
+	public function initArWholesaleReplaceProcs()
+	{
+		$this->collArWholesaleReplaceProcs = array();
+	}
+
+	/**
+	 * Gets an array of ArWholesaleReplaceProc objects which contain a foreign key that references this object.
+	 *
+	 * If this collection has already been initialized with an identical Criteria, it returns the collection.
+	 * Otherwise if this ArReseller has previously been saved, it will retrieve
+	 * related ArWholesaleReplaceProcs from storage. If this ArReseller is new, it will return
+	 * an empty collection or the current collection, the criteria is ignored on a new object.
+	 *
+	 * @param      PropelPDO $con
+	 * @param      Criteria $criteria
+	 * @return     array ArWholesaleReplaceProc[]
+	 * @throws     PropelException
+	 */
+	public function getArWholesaleReplaceProcs($criteria = null, PropelPDO $con = null)
+	{
+		if ($criteria === null) {
+			$criteria = new Criteria(ArResellerPeer::DATABASE_NAME);
+		}
+		elseif ($criteria instanceof Criteria)
+		{
+			$criteria = clone $criteria;
+		}
+
+		if ($this->collArWholesaleReplaceProcs === null) {
+			if ($this->isNew()) {
+			   $this->collArWholesaleReplaceProcs = array();
+			} else {
+
+				$criteria->add(ArWholesaleReplaceProcPeer::AR_RESELLER_ID, $this->id);
+
+				ArWholesaleReplaceProcPeer::addSelectColumns($criteria);
+				$this->collArWholesaleReplaceProcs = ArWholesaleReplaceProcPeer::doSelect($criteria, $con);
+			}
+		} else {
+			// criteria has no effect for a new object
+			if (!$this->isNew()) {
+				// the following code is to determine if a new query is
+				// called for.  If the criteria is the same as the last
+				// one, just return the collection.
+
+
+				$criteria->add(ArWholesaleReplaceProcPeer::AR_RESELLER_ID, $this->id);
+
+				ArWholesaleReplaceProcPeer::addSelectColumns($criteria);
+				if (!isset($this->lastArWholesaleReplaceProcCriteria) || !$this->lastArWholesaleReplaceProcCriteria->equals($criteria)) {
+					$this->collArWholesaleReplaceProcs = ArWholesaleReplaceProcPeer::doSelect($criteria, $con);
+				}
+			}
+		}
+		$this->lastArWholesaleReplaceProcCriteria = $criteria;
+		return $this->collArWholesaleReplaceProcs;
+	}
+
+	/**
+	 * Returns the number of related ArWholesaleReplaceProc objects.
+	 *
+	 * @param      Criteria $criteria
+	 * @param      boolean $distinct
+	 * @param      PropelPDO $con
+	 * @return     int Count of related ArWholesaleReplaceProc objects.
+	 * @throws     PropelException
+	 */
+	public function countArWholesaleReplaceProcs(Criteria $criteria = null, $distinct = false, PropelPDO $con = null)
+	{
+		if ($criteria === null) {
+			$criteria = new Criteria(ArResellerPeer::DATABASE_NAME);
+		} else {
+			$criteria = clone $criteria;
+		}
+
+		if ($distinct) {
+			$criteria->setDistinct();
+		}
+
+		$count = null;
+
+		if ($this->collArWholesaleReplaceProcs === null) {
+			if ($this->isNew()) {
+				$count = 0;
+			} else {
+
+				$criteria->add(ArWholesaleReplaceProcPeer::AR_RESELLER_ID, $this->id);
+
+				$count = ArWholesaleReplaceProcPeer::doCount($criteria, false, $con);
+			}
+		} else {
+			// criteria has no effect for a new object
+			if (!$this->isNew()) {
+				// the following code is to determine if a new query is
+				// called for.  If the criteria is the same as the last
+				// one, just return count of the collection.
+
+
+				$criteria->add(ArWholesaleReplaceProcPeer::AR_RESELLER_ID, $this->id);
+
+				if (!isset($this->lastArWholesaleReplaceProcCriteria) || !$this->lastArWholesaleReplaceProcCriteria->equals($criteria)) {
+					$count = ArWholesaleReplaceProcPeer::doCount($criteria, false, $con);
+				} else {
+					$count = count($this->collArWholesaleReplaceProcs);
+				}
+			} else {
+				$count = count($this->collArWholesaleReplaceProcs);
+			}
+		}
+		return $count;
+	}
+
+	/**
+	 * Method called to associate a ArWholesaleReplaceProc object to this object
+	 * through the ArWholesaleReplaceProc foreign key attribute.
+	 *
+	 * @param      ArWholesaleReplaceProc $l ArWholesaleReplaceProc
+	 * @return     void
+	 * @throws     PropelException
+	 */
+	public function addArWholesaleReplaceProc(ArWholesaleReplaceProc $l)
+	{
+		if ($this->collArWholesaleReplaceProcs === null) {
+			$this->initArWholesaleReplaceProcs();
+		}
+		if (!in_array($l, $this->collArWholesaleReplaceProcs, true)) { // only add it if the **same** object is not already associated
+			array_push($this->collArWholesaleReplaceProcs, $l);
+			$l->setArReseller($this);
+		}
+	}
+
+	/**
 	 * Resets all collections of referencing foreign keys.
 	 *
 	 * This method is a user-space workaround for PHP's inability to garbage collect objects
@@ -1204,10 +1629,22 @@ abstract class BaseArReseller extends BaseObject  implements Persistent {
 					$o->clearAllReferences($deep);
 				}
 			}
+			if ($this->collArWholesaleNumbers) {
+				foreach ((array) $this->collArWholesaleNumbers as $o) {
+					$o->clearAllReferences($deep);
+				}
+			}
+			if ($this->collArWholesaleReplaceProcs) {
+				foreach ((array) $this->collArWholesaleReplaceProcs as $o) {
+					$o->clearAllReferences($deep);
+				}
+			}
 		} // if ($deep)
 
 		$this->collArPartys = null;
 		$this->collArRateSharedWithResellers = null;
+		$this->collArWholesaleNumbers = null;
+		$this->collArWholesaleReplaceProcs = null;
 	}
 
 } // BaseArReseller

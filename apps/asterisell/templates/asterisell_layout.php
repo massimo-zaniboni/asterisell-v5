@@ -22,6 +22,9 @@ function toManualPage($moduleName, $base) {
         'organization_full_view' => 'root_organizations',
         'service_price_list' => 'service_price_list',
         'service_sale' => 'service_sale',
+        'wholesale_carrier' => 'wholesale_numbers',
+        'wholesale_numbers' => 'wholesale_numbers',
+        'wholesale_number_transaction' => 'wholesale_numbers',
         'tag' => 'tag'
     );
     if (array_key_exists($moduleName, $arr)) {
@@ -122,17 +125,28 @@ function toManualPage($moduleName, $base) {
 
         echo '<li><a href="" target="_self" >' . __('Entities') . '</a>' . "\n";
         echo '<ul>' . "\n";
-        echo '<li>' . link_to(__('Customers'), 'root_organizations/list') . '</li>' . "\n";
+        echo '<li>' . link_to(__('Resellers'), 'reseller/index') . '</li>' . "\n";
+         echo '<li>' . link_to(__('Customers'), 'root_organizations/list') . '</li>' . "\n";
         echo '<li>' . link_to(__('Parties'), 'party/list') . '</li>' . "\n";
         echo '<li>' . link_to(__('Party TAGS'), 'tag/list') . '</li>' . "\n";
         echo '<li>' . link_to(__('Backup'), 'backup_of_organizations/list') . '</li>' . "\n";
         echo '<li>' . link_to(__('Web Accounts'), 'user/list') . '</li>' . "\n";
-        echo '<li>' . link_to(__('Resellers'), 'reseller/index') . '</li>' . "\n";
         echo '<li>' . link_to(__('Complete Info'), 'get_extension_list/exportToCsv') . '</li>' . "\n";
         // TODO temporary disabled
         //  echo '<li>' . link_to(__('Show Documents to Customers'), 'document/list') . '</li>'. "\n";
         echo '</ul>' . "\n";
         echo '</li>' . "\n";
+
+        /* NOTE: feature not 100% implemented
+        echo '<li><a href="" target="_self" >' . __('Wholesale') . '</a>' . "\n";
+        echo '<ul>' . "\n";
+        echo '<li>' . link_to(__('Resellers'), 'reseller/index') . '</li>' . "\n";
+        echo '<li>' . link_to(__('Carriers'), 'wholesale_carrier/index') . '</li>' . "\n";
+        echo '<li>' . link_to(__('Numbers Assignations'), 'wholesale_number_transaction/index') . '</li>' . "\n";
+        echo '<li>' . link_to(__('Numbers Details'), 'wholesale_numbers/index') . '</li>' . "\n";
+        echo '</ul>' . "\n";
+        echo '</li>' . "\n";
+        */
 
         echo '<li><a href="" target="_self" >' . __('Services') . '</a>' . "\n";
         echo '<ul>' . "\n";

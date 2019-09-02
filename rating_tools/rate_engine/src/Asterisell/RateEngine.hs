@@ -294,7 +294,7 @@ rateEngine_rateProcess runLevelR env nrOfJobs maybeToCallDate = do
 
               -- NOTE: execute for first, for being sure to acquire DB connection ownership
               (loadToDBChan, writeToDBJobs) <-
-                db_loadDataFromNamedPipe dbState (fromStringToByteString pipeName) "ar_cdr" cdr_mysqlCSVLoadCmd cdr_toMySQLCSV
+                db_loadDataFromNamedPipe dbState True (fromStringToByteString pipeName) "ar_cdr" cdr_mysqlCSVLoadCmd cdr_toMySQLCSV
 
               parsingJob <-
                 process_parseSourceCDRS rawCDRSConn env maybeToCallDate parsedCDRSChan
@@ -351,7 +351,7 @@ rateEngine_rateProcess runLevelR env nrOfJobs maybeToCallDate = do
               -- Generate pure services, taking note of the day in which they are generated.
 
               (loadToDBChan', writeToDBJobs') <-
-                db_loadDataFromNamedPipe dbState (fromStringToByteString pipeName) "ar_cdr" cdr_mysqlCSVLoadCmd cdr_toMySQLCSV
+                db_loadDataFromNamedPipe dbState False (fromStringToByteString pipeName) "ar_cdr" cdr_mysqlCSVLoadCmd cdr_toMySQLCSV
 
               (totCDRS1, daysToRegroup) <- do
                 case service_generate env (params_fromDate env) maxCallDate of
@@ -1191,6 +1191,7 @@ groupedErrors_toMySQLCSV ((k1, k2, k3), value) =
         toMySQLCSV_int value
 
 -- | Fake process.
+--   Filter CDR to ignore.
 process_fakeCachedGroupedCDRS
   :: OrderedStream ParsedCDR1
   -- ^ the input channel
@@ -1210,7 +1211,7 @@ process_fakeCachedGroupedCDRS inChan outChan = async $ mainJob 0
          orderedStream_put outChan Nothing
          return countCDRS1
        Just cdrs -> do
-         orderedStream_put outChan $ (Just $ V.map parsedCDR1_toCDR cdrs)
+         orderedStream_put outChan $ (Just $ V.filter (\c -> cdr_direction c /= CDR_ignored) $ V.map parsedCDR1_toCDR cdrs)
          let !countCDRS2 = countCDRS1 + V.length cdrs
 
          mainJob countCDRS2
@@ -1223,6 +1224,7 @@ process_fakeCachedGroupedCDRS inChan outChan = async $ mainJob 0
 --   @ensure collect daily sums, summing all organizations toghether
 --   @ensure collect daily sums of CDRS with errors
 --   @ensure the calculated values except first and last day of rating time frame are the same of `rateEngine_updadetCachedGroupedCDRS`
+--   @ensure do not send CDRS to ignore to the DB
 process_cachedGroupedCDRS
   :: RatingParams
   -> DBState
@@ -1301,7 +1303,7 @@ process_cachedGroupedCDRS env dbState cdrsSuggestedSize errorsSuggestedSize inCh
          return countCDRS
 
        Just cdrs -> do
-         orderedStream_put outChan (Just $ V.map parsedCDR1_toCDR cdrs)
+         orderedStream_put outChan (Just $ V.filter (\c -> cdr_direction c /= CDR_ignored) $  V.map parsedCDR1_toCDR cdrs)
 
          (newWrittenCallDate, newGroupedCDRS, newGroupedErrors)
            <- M.foldM (processCDR dbName outCDRSH outErrorsH) (writtenCallDate, lastGroupedCDRS, lastGroupedErrors) cdrs

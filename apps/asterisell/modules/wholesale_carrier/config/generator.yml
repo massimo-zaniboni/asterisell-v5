@@ -1,0 +1,27 @@
+generator:
+  class: sfPropelAdminGenerator
+  param:
+    model_class:           ArWholesaleCarrier
+    theme:                 admin
+    non_verbose_templates: true
+    with_show:             false
+    singular:              ArWholesaleCarrier
+    plural:                ArWholesaleCarriers
+    route_prefix:          ar_wholesale_carrier
+    with_propel_route:     1
+    actions_base_class:    sfActions
+
+    fields:
+      internal_name: { name: "Code name", help: "A unique distinct short name for identifying the carrier/telephone operator." }
+      note: { name: "Note", help: "Notes about the carrier." }
+
+    list:
+      title: Wholesale Carriers
+      display: [=internal_name, note]
+      filters: [internal_name]
+      sort: [internal_name, asc]
+
+    edit:
+      title: Wholesale Carrier
+      display: [internal_name, note]
+

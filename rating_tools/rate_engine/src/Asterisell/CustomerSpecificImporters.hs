@@ -80,6 +80,16 @@ import Control.DeepSeq
 import qualified System.IO.Streams.Combinators as S
 
 -- ---------------------------------------------------------
+-- Utils
+
+maybeFallBackValue :: ExportMaybeNull Text.Text -> ExportMaybeNull Text.Text -> ExportMaybeNull Text.Text
+maybeFallBackValue r fallBack =
+    case isEmptyOrNull r of
+      True -> fallBack
+      False -> r
+{-# INLINE maybeFallBackValue #-}
+
+-- ---------------------------------------------------------
 -- Report Supported CDR Formats
 
 -- | The default CDRs parsers to use for importing CDRs.
@@ -1010,6 +1020,7 @@ asterisk__generic_toCDR record precision provider
 
 
 -- | A variant of `CSVFormat_asterisk__generic`.
+--   See importing code for more details.
 data CSVFormat_asterisk2
   = CSVFormat_asterisk2 {
       asterisk2_clid :: !(ExportMaybeNull Text.Text),
@@ -1039,33 +1050,54 @@ instance CSV.FromRecord CSVFormat_asterisk2
 
 instance CSV.ToRecord CSVFormat_asterisk2
 
-asterisk2_toAsteriskGeneric :: CSVFormat_asterisk2 -> CSVFormat_asterisk__generic
-asterisk2_toAsteriskGeneric s
-  = CSVFormat_asterisk__generic {
-      asterisk__generic_calldate = asterisk2_calldate s,
-      asterisk__generic_clid = asterisk2_clid s,
-      asterisk__generic_src = asterisk2_src s,
-      asterisk__generic_dst = asterisk2_dst s,
-      asterisk__generic_dcontext = asterisk2_dcontext s,
-      asterisk__generic_channel = asterisk2_channel s,
-      asterisk__generic_dstchannel = asterisk2_dstchannel s,
-      asterisk__generic_lastapp = asterisk2_lastapp s,
-      asterisk__generic_lastdata = asterisk2_lastdata s,
-      asterisk__generic_duration = asterisk2_duration s,
-      asterisk__generic_billsec = asterisk2_billsec s,
-      asterisk__generic_disposition = asterisk2_disposition s,
-      asterisk__generic_amaflags = asterisk2_amaflags s,
-      asterisk__generic_accountcode = asterisk2_accountcode s,
-      asterisk__generic_uniqueid = asterisk2_uniqueid s,
-      asterisk__generic_userfield = asterisk2_userfield s,
-      asterisk__generic_did = ExportNull
-    }
+asterisk2_realCallDate :: CSVFormat_asterisk2 -> ExportMaybeNull Text.Text
+asterisk2_realCallDate cdr 
+  = maybeFallBackValue (asterisk2_calldate cdr) (asterisk2_ringCallDate cdr)
+{-# INLINE asterisk2_realCallDate #-}
 
 instance CDRFormat CSVFormat_asterisk2 where
-  getCallDate s = getCallDate $ asterisk2_toAsteriskGeneric s
+  getCallDate record
+    = do d <- importAndConvertNotNullValue (asterisk2_realCallDate record) fromMySQLDateTimeAsTextToLocalTime "calldate" "call date"
 
-  toCDR precision provider s = toCDR precision provider (asterisk2_toAsteriskGeneric s)
+         return $ Just d
 
+  toCDR precision provider record
+    = do cdr <- asterisk2_toCDR record precision provider
+         return [cdr]
+
+asterisk2_toCDR :: CSVFormat_asterisk2 -> CurrencyPrecisionDigits -> CDRProviderName -> Either AsterisellError CDR
+asterisk2_toCDR record precision provider
+    = do callDate <- importAndConvertNotNullValue (asterisk2_realCallDate record) fromMySQLDateTimeAsTextToLocalTime "calldate" "call date"
+         case (not $ (asterisk2_disposition record == Export "ANSWERED")) of
+           True
+             -> -- the CDR can be ignored
+                return $ (cdr_empty callDate precision) {
+                                cdr_countOfCalls = 1
+                              , cdr_direction = CDR_ignored
+                              , cdr_errorDirection = CDR_none
+                              }
+           False
+             -> do duration <- importAndConvertNotNullValue (asterisk2_duration record) fromTextToInt  "duration" "duration"
+                   billsec <- importAndConvertNotNullValue (asterisk2_billsec record) fromTextToInt  "billsec" "billsec"
+                   callerNumber <- Text.strip <$> importNotNullText (asterisk2_dst record) "dst" "caller number"
+                   calledNumber1
+                       <- Text.strip <$> importNotNullText (asterisk2_src record) "src" "called number"
+
+                   let calledNumber =
+                         case Text.isPrefixOf "+" calledNumber1 of
+                           True -> Text.drop 1 calledNumber1
+                           False -> calledNumber1 
+
+                   let channel = maybeFallBackValue (asterisk2_dstchannel record) (asterisk2_dcontext record)
+
+                   let cdr =  cdr_empty callDate precision
+                   return $ cdr { cdr_duration = Just duration
+                                , cdr_billsec = Just billsec
+                                , cdr_direction = CDR_outgoing
+                                , cdr_channel = toMaybe channel
+                                , cdr_externalTelephoneNumber = calledNumber
+                                , cdr_internalTelephoneNumber = callerNumber
+                                }
 
 --
 -- Plain Formats

@@ -67,7 +67,8 @@ RUN yum install -y git openssl-devel fabric
 RUN pip install fabricate
 
 # --------------------------------------------------------------
-# Tools needed from some customers for generating customizations
+# Groovy and Java
+# Needed from some customers for generating customizations.
 
 RUN yum install -y bsdtar java-1.8.0-openjdk-devel && \
     cd /opt && \

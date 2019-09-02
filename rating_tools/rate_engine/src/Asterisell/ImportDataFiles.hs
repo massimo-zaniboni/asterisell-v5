@@ -439,6 +439,7 @@ rateEngine_importIntoDB
        (outChan, writeToDBJobs)
          <- db_loadDataFromNamedPipe
               dbState
+              True
               pipeName
               "ar_source_cdr"
               sourceCDR_mysqlCSVLoadCmd

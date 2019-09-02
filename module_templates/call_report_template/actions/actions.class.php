@@ -536,8 +536,11 @@ protected function addAllFiltersAndGroupsButNoTimeFrame($isHeader, & $c, & $para
 
             <?php if ($generateForAdmin) { ?>
               if (is_null($organizationId)) {
+                // try to apply an implicit filter, in case there is only one organization
                 $organizationId = OrganizationUnitInfo::getInstance()->getUniqueRootOrganizationIdIfExists();
-              } else {
+              }
+
+              if (!is_null($organizationId)) {
                 VariableFrame::$filterOnOrganization = true;
               }
         <?php } else { ?>

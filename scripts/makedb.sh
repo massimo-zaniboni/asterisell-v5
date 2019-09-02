@@ -23,6 +23,12 @@ if [ "$BASE" = "scripts" ]; then
   # Add character set and collation, because it is not generated from Propel
   sed -i -e 's/Engine=InnoDB/ENGINE=TokuDB ROW_FORMAT=TOKUDB_SNAPPY, DEFAULT CHARACTER SET = utf8mb4, DEFAULT COLLATE = utf8mb4_bin/g' data/sql/lib.model.schema.sql
 
+  # Fix forms of tables having a primaryKey different from `id`
+  # NOTE: the work-around is not sufficient
+  sed -i -e "s/'telephone_number'[ ]*=> new sfWidgetFormInputHidden/'telephone_number' => new sfWidgetFormInputText/g" lib/form/base/BaseArWholesaleNumberForm.class.php
+  sed -i -e "s/'from_date'[ ]*=> new sfWidgetFormInputHidden/'from_date' => new sfWidgetFormDateTime/g" lib/form/base/BaseArWholesaleNumberForm.class.php
+ 
+
 else
   echo "Execute inside scripts directory."
 fi

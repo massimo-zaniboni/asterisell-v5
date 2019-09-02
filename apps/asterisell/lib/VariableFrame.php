@@ -193,8 +193,27 @@ class VariableFrame
      */
     public static $filterDescription;
 
+    /**
+     * Some modules need directly the query.
+     * The params are in $listParams
+     * @var string
+     */
+    public static $wholeQuery;
 
+    /**
+     * @var string
+     */
+    public static $wholesaleEffect;
 
+    /**
+     * @var int the type of CSV file to give
+     */
+    public static $wholesaleStatus;
+
+    /**
+     * @var int the time used as filter
+     */
+    public static $wholeFromDate;
 
 }
 

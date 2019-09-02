@@ -455,6 +455,10 @@ class Domain(object):
 
     port = 80
 
+    def protocol(self):
+        """https or http"""
+        pass
+
     def create_ssl_certificate(self):
         """Create the certificate for the instance."""
         pass
@@ -480,6 +484,9 @@ class Domain(object):
 class HttpDomain(Domain):
 
     port = 80
+
+    def protocol(self):
+        return "http"
 
     def get_file_name_check_for_certificate_creation(self):
         """A name of file to use for testing the creation of the certificate."""
@@ -514,6 +521,9 @@ class HttpDomain(Domain):
 class SelfSignedDomain(Domain):
 
     port = 443
+
+    def protocol(self):
+        return "https"
 
     def get_file_name_check_for_certificate_creation(self):
         """A name of file to use for testing the creation of the certificate."""
@@ -564,6 +574,9 @@ class SelfSignedDomain(Domain):
 class LetsEncryptDomain(Domain):
 
     port = 443
+
+    def protocol(self):
+        return "https"
 
     def get_file_name_check_for_certificate_creation(self):
         """A name of file to use for testing the creation of the certificate."""
@@ -651,7 +664,7 @@ class LetsEncryptDomain(Domain):
       }
     }
             """)
-            maybe_name = t.substitute(name=name, www_name=www_name)
+            maybe_name = t.substitute(name=name, www_name=www_name,port=self.port)
 
         t = Template("""
     server {
@@ -784,6 +797,10 @@ class Instance(object):
     # that you don't want specify, but only discover in CDRs,
     # and at the same time the customers want reports with calls grouped
     # by specific extensions.
+
+    expand_wholesale_numbers_job = 'ExpandWholesaleNumbersDefaultJob'
+    # process NULL fields in ar_wholesalenumber.extension_codes converting them to proper extension.
+    # It can be customized in case there is a default procedure for extending them.
 
     import_cdrs_jobs = []
     # jobs executed for retrieving CDRs to rate.
@@ -1277,6 +1294,8 @@ all:
     always_scheduled_jobs:
       - RecalculateReportSets
       - ChangePassword
+      - $expand_wholesale_numbers_job
+      - UpdateWholesaleNumberStats
       $import_cdrs_jobs
       - ImportCustomersDataAskingToRatingEngine  # process all params with prefix "import-remote-customers-"
       - ImportCDRSUsingAppConfs                  # process all params with prefix "import-remote-cdrs-"
@@ -1358,6 +1377,7 @@ all:
       - Upgrade_2018_03_00
       - Upgrade_2019_02_16
       - Upgrade_2019_03_10
+      - Upgrade_2019_07_24
       $custom_upgrade_jobs
 
   organization_to_ignore: $organization_to_ignore
@@ -1600,6 +1620,7 @@ all:
             custom_export_cdrs_jobs=self.yaml_list_of_str_values('      - ', self.get_custom_export_cdrs_jobs()),
             expand_extensions_job=self.yaml_string(self.expand_extensions_job),
             instance_url_path=self.yaml_string(self.url_path),
+            expand_wholesale_numbers_job=self.expand_wholesale_numbers_job,
         )
 
     def show_call_direction_bool_str(self):
@@ -2188,8 +2209,7 @@ http {
         if is_admin:
             p = p + '/admin'
 
-        return 'https://' + self.domain.fully_qualified_domain_name + ':' + str(self.domain.port) + p
-
+        return self.domain.protocol() + '://' + self.domain.fully_qualified_domain_name + ':' + str(self.domain.port) + p
 
     #
     # Manage passwords

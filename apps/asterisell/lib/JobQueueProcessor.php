@@ -375,7 +375,7 @@ class JobQueueProcessor
      */
     public static function checkIfThereIsPendingUpgradeJobs()
     {
-        list($jobs1, $jobs2) = self::upgradeApplicationWithOptions(false, true, false, false);
+        list($jobs1, $jobs2) = self::upgradeApplicationWithOptions(false, true, false, false, null);
         if ($jobs1 > 0) {
             return true;
         } else {
@@ -436,11 +436,9 @@ class JobQueueProcessor
                         $canBeApplied = true;
                     }
 
-                    $isPostPoned = false;
                     if ($canBeApplied) {
                         if ((!is_null($isDBUpgrade)) && ($job->isDBUpgradeJob() !== $isDBUpgrade)) {
                             $canBeApplied = false;
-                            $isPostPoned = true;
                         }
                     }
 
@@ -469,7 +467,7 @@ class JobQueueProcessor
                         echo "\n\n" . $msg;
                     }
 
-                    if ($storeCommands && (!$isPostPoned)) {
+                    if ($storeCommands && $canBeApplied) {
                         self::markUpgradeCommand($key, $msg);
                     }
 
