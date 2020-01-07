@@ -2,13 +2,7 @@
 
 ## Getting started
 
-Configurations are on ``asterisell_instances.py``.
-
-For installing a CentOS 7 Docker container, with all Asterisell compilation and development tools:
-
-  ./fab.sh
-
-For more info read the manual at ``doc/manual/out/manual.html`` or on <https://www.asterisell.com>
+Read the manual at ``doc/manual/out/manual.html`` or on <https://www.asterisell.com>
 
 ## License
 

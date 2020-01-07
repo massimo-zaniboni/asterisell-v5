@@ -54,6 +54,10 @@ DESCRIPTION
 OPTIONS
     CMD
 
+      init
+          init the manamegent tool server with packages required
+          for installing and compiling Asterisell
+
       authorize_ssh_access
           load the `~/.ssh/id_rsa.pub` key of the management tool on the instance,
           for enabling password-less SSH login.
@@ -125,6 +129,100 @@ For inspecting the instance:
 
 @task
 @runs_once
+def init():
+
+    # Common and DEV packages
+
+    local("""sudo yum -y install epel-release ; \
+             sudo yum install -y http://rpms.remirepo.net/enterprise/remi-release-7.rpm ; \
+             sudo yum update -y && \
+             sudo yum -y groupinstall Base && \
+             sudo yum -y groupinstall "Development Tools" && \
+             sudo yum -y install \
+                   yum-utils bash git awk sqlite sqlite-devel rsync \
+                   python3 python3-pip \
+                   wget curl libbsd-devel zlib-devel make perl gcc \
+                   which glib2 glib2-devel openssl-devel git \
+                   java-1.8.0-openjdk \
+                   cmake libbsd-devel gmp gmp-devel \
+                   cmake Judy Judy-devel \
+                   glib2 glib2-devel clips clips-devel clips-libs \
+                   gnupg libffi xz tar \
+                   vim && \
+             sudo pip-3 install --upgrade pip-cli pip-manager
+          """)
+
+    # PHP
+    # Install v5.6 for serving Asterisell instances
+
+    local("""sudo yum-config-manager --enable remi-php56 && \
+             sudo yum install -y \
+                   httpd-tools php php-mysqlnd php-pdo \
+                   php-cli php-common php-opcache php-bcmath \
+                   php-xml php-mbstring php-gd php-fpm \
+                   mingw32-iconv gmp lftp
+          """)
+
+    # Install v5.4 only for some off-line Symfony management task used during DEV/installation
+    local("""sudo yum install -y \
+                   php54 php54-php-common php54-php-mysql \
+                   php54-php-mbstring php54-php-mcrypt php54-php-xml php54-php-cli php54-php-pdo \
+                   php54-php-xml php54-php-bcmath php54-php-mysqlnd 
+          """)
+
+    # Call flow merging tool (rarely used)
+
+    local("""sudo yum install -y \
+             wget curl cmake libbsd-devel gmp-devel gmp zlib-devel \
+             make perl gcc which cmake Judy Judy-devel openssh-server \
+             glib2 glib2-devel clips clips-devel clips-libs \
+             openssl-devel git
+          """)
+
+    # Documentation generation tools
+
+    local("""sudo -- bash -c 'cd /opt && rm -r -f ditac* ; \
+          wget  https://downloads.asterisell.com/ditac-3_3_1-plus-fop.zip && \
+          unzip ditac-3_3_1-plus-fop.zip && \
+          mv ditac-3_3_1 ditac && \
+          chmod -R ugo+rwx /opt/ditac ; \
+          pip-3 install pelican Markdown typogrify'
+          """)
+
+    # Fabricate build tool
+
+    local("sudo pip-3 install fabricate")
+
+    # Groovy and Java
+    # Needed from some customers for generating customizations.
+    # MAYBE local("""yum install -y bsdtar java-1.8.0-openjdk-devel && \
+    #         cd /opt && \
+    #         wget https://bintray.com/artifact/download/groovy/maven/apache-groovy-binary-2.5.6.zip && \
+    #         mkdir -p /opt/groovy && cd groovy && bsdtar --strip-components=1 -xvf /opt/apache-groovy-binary-2.5.6.zip && \
+    #         chmod -R ugo+rwx /opt/groovy && cd .. && \
+    #         wget https://services.gradle.org/distributions/gradle-5.4.1-bin.zip && \
+    #         mkdir -p /opt/gradle && cd gradle && bsdtar --strip-components=1 -xvf /opt/gradle-5.4.1-bin.zip && \
+    #         chmod -R ugo+rwx /opt/gradle
+    # RUN echo "PATH=/local/bin:/home/user/.local/bin:/home/user/.cabal/bin:/opt/gradle/bin:/opt/groovy/bin:\$PATH" >> /home/user/.bashrc && \
+    # echo "export PATH" >> /home/user/.bashrc && \
+    # echo "export GRADLE_HOME=/opt/gradle" >> /home/user/.bashrc && \
+    # echo "export GROOVY_HOME=/opt/groovy" >> /home/user/.bashrc
+
+    # Haskell compilation tools
+
+    local("sudo -- bash -c 'curl -sSL https://s3.amazonaws.com/download.fpcomplete.com/centos/7/fpco.repo | tee /etc/yum.repos.d/fpco.repo'")
+    local("sudo yum -y install stack")
+    local("""echo export PATH=\"/local/bin:~/.local/bin:~/.cabal/bin:$PATH\" >> ~/.bashrc
+          """)
+    local("source ~/.bashrc && stack upgrade")  # force reload of .bashrc 
+
+    print("")
+    print("")
+    print("It is better logout and login again for being sure that changes to the shell environment became active!")
+
+
+@task
+@runs_once
 def upgrade_app(instance):
     manage_instance('upgrade_app', instance)
 
@@ -191,8 +289,16 @@ def connect(instance):
 
 @task
 @runs_once
-def authorize_ssh_access(instance):
-    manage_instance('authorize_ssh_access', instance)
+def authorize_ssh_access(instance_code):
+    (instance, on_same_host, on_same_domain) = get_working_instances(instance_code)
+    if instance is None:
+        print "\n"
+        print "Unknown instance " + instance_code
+        sys.exit(1)
+
+    host = instance.host
+    remote_host = host.ssh_user + '@' + host.ssh_addr
+    local('ssh-copy-id -p ' + host.ssh_port + ' -i ~/.ssh/id_rsa.pub ' + remote_host)
 
 
 @task
@@ -200,12 +306,12 @@ def authorize_ssh_access(instance):
 def update_website():
     # DITA manual
 
-    with lcd('/asterisell/doc/manual'):
+    with lcd('doc/manual'):
         local('./build.sh')
 
     # Website
 
-    with lcd('/asterisell/doc/website'):
+    with lcd('doc/website'):
         local('./build.sh')
 
 
@@ -243,13 +349,6 @@ def manage_instance(action, instance_code, passw = ''):
 
     execute_at_least_one_action = False
 
-    try:
-        local('test -e /home/user/i_am_a_docker_container_for_asterisell_management')
-    except:
-        print "\n"
-        print("fab must be executed inside the Docker management container.\nUse ./fab.sh for creating the container.")
-        sys.exit(1)
-
     (instance, on_same_host, on_same_domain) = get_working_instances(instance_code)
     if instance is None:
         print "\n"
@@ -278,8 +377,6 @@ NOTE: in case of first installation on an HOST, a reboot is suggested, in order 
             instance.execute_upgrade_task(on_same_host, on_same_domain, True)
         elif action == 'connect':
             instance.execute_connect_task()
-        elif action == 'authorize_ssh_access':
-            instance.authorize_ssh_access()
         elif action == 'stop':
             run(phpast + 'cron disable')
         elif action == 'start':

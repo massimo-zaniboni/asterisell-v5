@@ -5,8 +5,6 @@ Instances are managed by [instances-configuration-tool].
 ## Creation
 
 ```
-./fab.sh
-
 fab authorize_ssh_access:asterisell/billing
 fab install:asterisell/billing
 fab connect:asterisell/billing

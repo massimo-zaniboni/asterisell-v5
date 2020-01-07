@@ -1,8 +1,9 @@
 # Key concepts
 
-The Asterisell git repository is cloned inside an host supporting Docker.
+Asterisell instances are installed and managed using the [instances-configuration-tool]:
 
-The code is customized and upgraded using the usual Git workflow.
+* instances can reside on the same host or other external hosts
+* instances are installed and upgraded automatically using Fabric devops tool
 
-Asterisell instances are installed and managed using the [instances-configuration-tool], 
-that is installed in a Docker container. It will contain also all development tools.
+Asterisell code is downloaded and customized using Git. 
+

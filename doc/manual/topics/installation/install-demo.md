@@ -1,10 +1,6 @@
 # Install the demo instance
 
-
 ```
-./fab.sh
-# for entering in the instance management tool
-
 fab help
 # for showing commands and available instances
 

@@ -29,7 +29,6 @@
   <topichead navtitle="Getting started" locktitle="yes">
     <topicref href="topics/installation/system-overview.md" format="mdita" />
     <topicref href="topics/installation/system-requirements.md" format="mdita" />
-    <topicref href="topics/installation/install-docker.md" format="mdita" />
     <topicref href="topics/installation/install-management-tool.md" format="mdita" />
     <topicref href="topics/installation/configure.md" format="mdita" />
     <topicref href="topics/installation/ssh-keys.md" format="mdita" />
@@ -70,6 +69,7 @@
     <topicref href="topics/recipes/problems-on-reports.md" format="mdita" />
     <topicref href="topics/recipes/restore-previous-versions-of-data.md" format="mdita" />
     <topicref href="topics/configuration/emergency-email.md" format="mdita" />
+    <topicref href="topics/recipes/lxd-installation.md" />
    </topichead>
 
    <topichead navtitle="Web UI forms" locktitle="yes">
@@ -185,6 +185,14 @@
        </relcell>
       <relcell>
           <topicref href="topics/internals/cdrs-data-files.md"/>
+       </relcell>
+    </relrow>
+    <relrow>
+      <relcell>
+          <topicref href="topics/installation/system-requirements.md"/>
+       </relcell>
+      <relcell>
+          <topicref href="topics/recipes/lxd-installation.md"/>
        </relcell>
     </relrow>
     </reltable>

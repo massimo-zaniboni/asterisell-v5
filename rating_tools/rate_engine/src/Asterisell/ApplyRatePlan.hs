@@ -1785,13 +1785,14 @@ ratePlan_loadRatingParams p0 =
       put p'
 
       p <- get
-      (bundleStartAtCallDate, previousBundleStartAtCallDate)
+      (bundleStartAtCallDate, previousBundleStartAtCallDate, bundleEndAtCallDate)
         <- case env_getRate p (mainRatePlanRef IncomeRate) (params_fromDate p) of
              Nothing
                -> liftIO $ throwIO $ AsterisellException $ "The \"main-income-rate\" is missing at date " ++ (show $ fromLocalTimeToMySQLDateTime $ params_fromDate p)
 
              Just (ratePlan, _)
                -> let t0 = mainRatePlan_getBundleRateStartCallDate ratePlan (params_fromDate p)
+                      t0End = mainRatePlan_getBundleRateEndCallDate ratePlan t0
 
                       -- subtract 1 second
                       tz = minutesToTimeZone 0
@@ -1800,7 +1801,7 @@ ratePlan_loadRatingParams p0 =
 
                       t3 = mainRatePlan_getBundleRateStartCallDate ratePlan t2
 
-                  in  return (t0, t3)
+                  in  return (t0, t3, t0End)
 
       --
       -- Check if the Main Rate Plan is well formed.
@@ -1808,9 +1809,12 @@ ratePlan_loadRatingParams p0 =
 
       let checkP1 = ratingParams_empty $ p0 { iparams_fromDate = bundleStartAtCallDate }
       checkP2 <- liftIO $ calcStableTimeFrame conn checkP1
-      when (isJust $ params_isShorterSafeTimeFrame checkP2)
-           (throwIO $ AsterisellException
-                      ("The CDRs must be rated from date " ++  show (fromLocalTimeToMySQLDateTime bundleStartAtCallDate) ++ " (taking in consideration the start of the bundle time-frame), but in this time-frame there are changes in the main income or cost rate plan (note: not the individual referenced CSV rates that can change, but the main rate plan), and Asterisell can not determine which rate plan to use for calculating bundles. Specify a common rate plan in the specified time-frame, that takes in consideration both old customers with the old rating plan, and new customers with different rating categories and different rating plans. At the end of the bigger bundle time-frame, you can load a completely different rating plan, that can ignore old types of rating plans, but until they can be virtually active, you must include them in rating plan of the bundle time-frame."))
+      case params_isShorterSafeTimeFrame checkP2 of
+        Nothing -> return ()
+        Just rateUntilNextRatePlan ->
+          when (bundleEndAtCallDate > rateUntilNextRatePlan)
+               (throwIO $ AsterisellException
+                          ("The CDRs must be rated from date " ++  show (fromLocalTimeToMySQLDateTime bundleStartAtCallDate) ++ " (taking in consideration the start of the bundle time-frame), but in this time-frame there are changes in the main income or cost rate plan (note: not the individual referenced CSV rates that can change, but the main rate plan), and Asterisell can not determine which rate plan to use for calculating open bundles."))
 
       --
       -- Load main rate plans

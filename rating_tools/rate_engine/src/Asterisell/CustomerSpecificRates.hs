@@ -110,7 +110,7 @@ parser_ratePlan rateParser env rateContent
                      ) "" rateContentT
            in case pr of
                 Right prr -> Right prr
-                Left err -> Left $ P.parseErrorPretty err 
+                Left err -> Left $ P.errorBundlePretty err 
 
 -- | Parse a line of a CSV file, and return the text to use as input for the matching-fun,
  --  and the calc params to use in case the CDR match this text.

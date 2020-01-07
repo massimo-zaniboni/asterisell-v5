@@ -68,8 +68,8 @@ abstract class BaseArReportFormFilter extends BaseFormFilterPropel
       'tax'                                         => new sfWidgetFormFilterInput(array('with_empty' => false)),
       'applied_vat'                                 => new sfWidgetFormFilterInput(array('with_empty' => false)),
       'total_with_tax'                              => new sfWidgetFormFilterInput(array('with_empty' => false)),
-      'ar_report_also_for_list'                     => new sfWidgetFormPropelChoice(array('model' => 'ArRole', 'add_empty' => true)),
       'ar_user_can_view_report_list'                => new sfWidgetFormPropelChoice(array('model' => 'ArUser', 'add_empty' => true)),
+      'ar_report_also_for_list'                     => new sfWidgetFormPropelChoice(array('model' => 'ArRole', 'add_empty' => true)),
     ));
 
     $this->setValidators(array(
@@ -129,8 +129,8 @@ abstract class BaseArReportFormFilter extends BaseFormFilterPropel
       'tax'                                         => new sfValidatorSchemaFilter('text', new sfValidatorInteger(array('required' => false))),
       'applied_vat'                                 => new sfValidatorSchemaFilter('text', new sfValidatorInteger(array('required' => false))),
       'total_with_tax'                              => new sfValidatorSchemaFilter('text', new sfValidatorInteger(array('required' => false))),
-      'ar_report_also_for_list'                     => new sfValidatorPropelChoice(array('model' => 'ArRole', 'required' => false)),
       'ar_user_can_view_report_list'                => new sfValidatorPropelChoice(array('model' => 'ArUser', 'required' => false)),
+      'ar_report_also_for_list'                     => new sfValidatorPropelChoice(array('model' => 'ArRole', 'required' => false)),
     ));
 
     $this->widgetSchema->setNameFormat('ar_report_filters[%s]');
@@ -138,31 +138,6 @@ abstract class BaseArReportFormFilter extends BaseFormFilterPropel
     $this->errorSchema = new sfValidatorErrorSchema($this->validatorSchema);
 
     parent::setup();
-  }
-
-  public function addArReportAlsoForListColumnCriteria(Criteria $criteria, $field, $values)
-  {
-    if (!is_array($values))
-    {
-      $values = array($values);
-    }
-
-    if (!count($values))
-    {
-      return;
-    }
-
-    $criteria->addJoin(ArReportAlsoForPeer::AR_REPORT_ID, ArReportPeer::ID);
-
-    $value = array_pop($values);
-    $criterion = $criteria->getNewCriterion(ArReportAlsoForPeer::AR_ROLE_ID, $value);
-
-    foreach ($values as $value)
-    {
-      $criterion->addOr($criteria->getNewCriterion(ArReportAlsoForPeer::AR_ROLE_ID, $value));
-    }
-
-    $criteria->add($criterion);
   }
 
   public function addArUserCanViewReportListColumnCriteria(Criteria $criteria, $field, $values)
@@ -185,6 +160,31 @@ abstract class BaseArReportFormFilter extends BaseFormFilterPropel
     foreach ($values as $value)
     {
       $criterion->addOr($criteria->getNewCriterion(ArUserCanViewReportPeer::AR_USER_ID, $value));
+    }
+
+    $criteria->add($criterion);
+  }
+
+  public function addArReportAlsoForListColumnCriteria(Criteria $criteria, $field, $values)
+  {
+    if (!is_array($values))
+    {
+      $values = array($values);
+    }
+
+    if (!count($values))
+    {
+      return;
+    }
+
+    $criteria->addJoin(ArReportAlsoForPeer::AR_REPORT_ID, ArReportPeer::ID);
+
+    $value = array_pop($values);
+    $criterion = $criteria->getNewCriterion(ArReportAlsoForPeer::AR_ROLE_ID, $value);
+
+    foreach ($values as $value)
+    {
+      $criterion->addOr($criteria->getNewCriterion(ArReportAlsoForPeer::AR_ROLE_ID, $value));
     }
 
     $criteria->add($criterion);
@@ -255,8 +255,8 @@ abstract class BaseArReportFormFilter extends BaseFormFilterPropel
       'tax'                                         => 'Number',
       'applied_vat'                                 => 'Number',
       'total_with_tax'                              => 'Number',
-      'ar_report_also_for_list'                     => 'ManyKey',
       'ar_user_can_view_report_list'                => 'ManyKey',
+      'ar_report_also_for_list'                     => 'ManyKey',
     );
   }
 }

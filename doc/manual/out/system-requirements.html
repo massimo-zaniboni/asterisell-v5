@@ -49,8 +49,8 @@
                <td style="text-align: left;vertical-align: top;"><a class="navigation-link" href="system-overview.html" title="Previous page: Key concepts"><img alt="Previous page" class="navigation-icon" height="16" src="res/previous.png" width="16" /></a></td>
                <td style="width: 25%;text-align: left;vertical-align: top;"><span class="page-navigation-previous">Key concepts</span></td>
                <td style="width: 40%;text-align: center;vertical-align: top;"><span class="page-navigation-current">Requirements</span> <span class="page-navigation-page">(3 / 71)</span></td>
-               <td style="width: 25%;text-align: right;vertical-align: top;"><span class="page-navigation-next">Installing Docker</span></td>
-               <td style="text-align: right;vertical-align: top;"><a class="navigation-link" href="install-docker.html" title="Next page: Installing Docker"><img alt="Next page" class="navigation-icon" height="16" src="res/next.png" width="16" /></a></td>
+               <td style="width: 25%;text-align: right;vertical-align: top;"><span class="page-navigation-next">Install Management Tool</span></td>
+               <td style="text-align: right;vertical-align: top;"><a class="navigation-link" href="install-management-tool.html" title="Next page: Install Management Tool"><img alt="Next page" class="navigation-icon" height="16" src="res/next.png" width="16" /></a></td>
                <td style="text-align: right;vertical-align: top;"><a class="navigation-link" href="about.html" title="Last page: About"><img alt="Last page" class="navigation-icon" height="16" src="res/last.png" width="16" /></a></td>
             </tr>
          </table>
@@ -58,7 +58,7 @@
       <section class="topic" id="Requirements">
          <h2 class="section2-title">Requirements</h2>
          <div class="body">
-            <section class="section" id="Requirements__I_ffztrr_">
+            <section class="section" id="Requirements__I_34ppns_">
                <h3 class="section-title">Asterisell instance</h3>
                <ul class="ul">
                   <li class="li">Linux CentOS 7 x86_64</li>
@@ -74,8 +74,8 @@
                   </li>
                   <li class="li">it is not important a distinct <code class="codeph">/home</code> partition, because all data is saved on <code class="codeph">/var</code> partition
                   </li>
-                  <li class="li">it had to be (more or less) dedicated to Asterisell, because many operating-system
-                     configurations will be overwritten by <a class="xref" href="manual-6.html#Instances_configuration_tool">Instances configuration tool</a></li>
+                  <li class="li">it must be completely dedicated to Asterisell, because many operating-system configurations
+                     will be overwritten by <a class="xref" href="manual-6.html#Instances_configuration_tool">Instances configuration tool</a></li>
                </ul>
                <div class="p">Some benchmarks to use as reference</div>
                <ul class="ul">
@@ -84,23 +84,23 @@
                   <li class="li">2600 CDRS/s on host with slow HDD</li>
                </ul>
             </section>
-            <section class="section" id="Requirements__I_x6g0fu_">
+            <section class="section" id="Requirements__I_n2egad_">
                <h3 class="section-title">Management utility instance</h3>
                <ul class="ul">
-                  <li class="li">any x86-64 Linux distro supporting Docker</li>
+                  <li class="li">Linux CentOS x86_64</li>
                   <li class="li">3GB of RAM, required during the compilation of the Haskell rating engine</li>
                   <li class="li">an SSH connection to <a class="xref" href="manual-6.html#Asterisell_host">Asterisell host</a> running the <a class="xref" href="manual-6.html#Asterisell_instance">Asterisell instance</a></li>
                </ul>
                <div class="p">In case you install the <a class="xref" href="manual-6.html#Instances_configuration_tool">Instances configuration tool</a> on the same host containing <a class="xref" href="manual-6.html#Asterisell_instance">Asterisell instance</a>, do not allocate too much RAM to the DBMS, because during compilation/upgrading of
                   the application 2-3GB will be used. At the end of the upgrade, the free RAM will be
                   used from Linux for buffering the files with TokuDB engine, so it will be not wasted.
+                  You can enable also swap disk space, because code compilation is an one-time operation
+                  done only during application upgrade.
                </div>
             </section>
-            <section class="section" id="Requirements__I_34ppns_">
+            <section class="section" id="Requirements__I_17188j_">
                <h3 class="section-title">Why using a distinct host for Asterisell management tool?</h3>
-               <div class="p">For normal users make sense to use the same host for managing and running Asterisell
-                  instances.
-               </div>
+               <div class="p">Normal users use the same host for managing and running Asterisell instances.</div>
                <div class="p">It makes sense using different hosts in case:</div>
                <ul class="ul">
                   <li class="li">you are managing a lot of Asterisell hosts/instances</li>
@@ -113,6 +113,10 @@
                </ul>
             </section>
          </div>
+         <nav class="related-links">
+            <h3 class="related-links-title">Related information</h3>
+            <p class="link">‣ <a href="lxd-installation.html#Installing_inside_an_LXD_LXC_container" title="Unbuntu in particular, but many other distro, supports LXD ad LXC containers. One can create a CentOS 7 container where installing the . In this way it can install Asterisell on top of another VM without wasting too much resources.">Installing inside an LXD/LXC container</a></p>
+         </nav>
       </section>
       <footer class="page-navigation-footer">
          <table class="page-navigation-layout" style="width: 100%;">
@@ -121,8 +125,8 @@
                <td style="text-align: left;vertical-align: top;"><a class="navigation-link" href="system-overview.html" title="Previous page: Key concepts"><img alt="Previous page" class="navigation-icon" height="16" src="res/previous.png" width="16" /></a></td>
                <td style="width: 25%;text-align: left;vertical-align: top;"><span class="page-navigation-previous">Key concepts</span></td>
                <td style="width: 40%;text-align: center;vertical-align: top;"><span class="page-navigation-current">Requirements</span> <span class="page-navigation-page">(3 / 71)</span></td>
-               <td style="width: 25%;text-align: right;vertical-align: top;"><span class="page-navigation-next">Installing Docker</span></td>
-               <td style="text-align: right;vertical-align: top;"><a class="navigation-link" href="install-docker.html" title="Next page: Installing Docker"><img alt="Next page" class="navigation-icon" height="16" src="res/next.png" width="16" /></a></td>
+               <td style="width: 25%;text-align: right;vertical-align: top;"><span class="page-navigation-next">Install Management Tool</span></td>
+               <td style="text-align: right;vertical-align: top;"><a class="navigation-link" href="install-management-tool.html" title="Next page: Install Management Tool"><img alt="Next page" class="navigation-icon" height="16" src="res/next.png" width="16" /></a></td>
                <td style="text-align: right;vertical-align: top;"><a class="navigation-link" href="about.html" title="Last page: About"><img alt="Last page" class="navigation-icon" height="16" src="res/last.png" width="16" /></a></td>
             </tr>
          </table>

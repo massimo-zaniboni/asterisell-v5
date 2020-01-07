@@ -46,8 +46,10 @@ customizations/import-of-legacy-rates/auto/
 fabric_data/venv/
 doc/website/output/
 customizations/import-of-legacy-rates/results/
-update-netcup.sh
+customizations/private-data
+fupdate-netcup.sh
 tsnet-update-all.sh
 itecdev-update.sh
 netcup-update.sh
 tunnel-update.sh
+/nbproject/private/

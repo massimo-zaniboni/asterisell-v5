@@ -187,7 +187,7 @@ An example of rate specification:
         $r->setOrderName('TWT-70');
         $r->setShortDescription("CSV file, in TWT format.");
         $r->setDetailedDescription('Something like: <pre>' . htmlentities('
-Destinations,Code,Peak,Off peak,Effective,Route Type,Comment
+Destinations,Code,Cost by minute,ignored (off-peak cost by minute),ignored (effective activation date),ignored (route type),ignored (comment)
 Afghanistan,93,0.1230,0.1230,05/06/2014,-,==
 Afghanistan Mobile,937,0.1391,0.1391,05/06/2014,-,==
         ') . '</pre>');
@@ -197,7 +197,7 @@ Afghanistan Mobile,937,0.1391,0.1391,05/06/2014,-,==
         $r->setOrderName('TWT-71');
         $r->setShortDescription("CSV file, in TWT format, with italian cost format");
         $r->setDetailedDescription('Something like: <pre>' . htmlentities('
-Destinations;Code;Peak;Off peak,Effective;Route Type;Comment
+Destinations;Code;Cost by minute;ignored (off-peak cost by minute);ignored (effective activation date);ignored (route type);ignored (comment)
 Afghanistan;93;0,1230;0,1230;05/06/2014;-;==
 Afghanistan Mobile;937;0,1391;0,1391;05/06/2014;-;==
         ') . '</pre>');
@@ -293,7 +293,8 @@ Prefix,Description,Rate
 113,"Soccorso Pubblica Emergenza",0,0,0,0
 114,"Emergenza Infanzia",0,0,0,0
 115,"Vigili del Fuoco",0,0,0,0
-        ') . '</pre>');
+        ') . '</pre>
+<p>Peak and off-peak code are recognized only if custome CDR importer are configured. Consult assistance or the source-code in case.</p>');
         $r->save();
 
         $r = $this->createRateFormat(self::REFERENCE_CSV_ECN);

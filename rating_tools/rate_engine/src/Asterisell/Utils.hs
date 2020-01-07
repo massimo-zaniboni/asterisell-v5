@@ -551,17 +551,17 @@ fromGammaCallDateAndTimeStampToLocalTime ddmmyyyy hhmmss
 
   parseDDMMYYYY
     = do dd <- parse_UnsignedInt
-         P.anyChar
+         P.anySingle
          mm <- parse_UnsignedInt
-         P.anyChar
+         P.anySingle
          yyyy <- parse_UnsignedInt
          return (yyyy, mm, dd)
 
   parseHHMMSS
     = do hh <- parse_UnsignedInt
-         anyChar
+         P.anySingle
          mm <- parse_UnsignedInt
-         anyChar
+         P.anySingle
          ss <- parse_UnsignedInt
          return (hh, mm, ss)
 
@@ -1408,6 +1408,6 @@ tt_parseTests
           parserResult
             = case runParser completeParser "" s of
                 Right r -> Right r
-                Left err -> Left $ P.parseErrorPretty err
+                Left err -> Left $ P.errorBundlePretty err
 
       in HUnit.TestCase $ HUnit.assertEqual n parserResult (Right v)

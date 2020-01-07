@@ -21,6 +21,10 @@ module Asterisell.CustomerSpecificImporters (
   , deriveFastLookupCDRImportes
   , CSVFormat_twt_cps__v1
   , CSVFormat_twt_nng__v1
+  , CSVFormat_twt_voip__vAntelma
+  , CSVFormat_twt_nng__vAntelma
+  , CSVFormat_twt_cps__vAntelma
+  , CSVFormat_twt_wlr__vAntelma
   , CSVFormat_freeRadius__v1
   , CSVFormat_gamma__v1
   , CSVFormat_gamma_ItemRental__v1
@@ -104,6 +108,12 @@ supportedSourceCDRImporters
       , (("asterisell-provider-services", "v1"), CDRFormatSpec decodeStandardCSV (AType::(AType CSVFormat_asterisell_provider_services__v1)))
       , (("twt-cps","v1"), CDRFormatSpec decodeAlternativeCSV (AType::(AType CSVFormat_twt_cps__v1)))
       , (("twt-nng","v1"), CDRFormatSpec decodeAlternativeCSV (AType::(AType CSVFormat_twt_nng__v1)))
+
+      , (("twt-wlr","vAntelma"), CDRFormatSpec decodeAlternativeCSV (AType::(AType (CSVFormat_twt_wlr__vAntelma))))
+      , (("twt-voip","vAntelma"), CDRFormatSpec decodeAlternativeCSV (AType::(AType (CSVFormat_twt_voip__vAntelma))))
+      , (("twt-nng","vAntelma"), CDRFormatSpec decodeAlternativeCSV (AType::(AType (CSVFormat_twt_nng__vAntelma))))
+      , (("twt-cps","vAntelma"), CDRFormatSpec decodeAlternativeCSV (AType::(AType (CSVFormat_twt_cps__vAntelma))))
+
       , (("free-radius","v1"), CDRFormatSpec decodeStandardCSV (AType::(AType CSVFormat_freeRadius__v1)))
       , (("free-radius-db","v1"), CDRFormatSpec table_freeRadius (AType::(AType CSVFormat_freeRadius__v1)))
       , (("asterisk","generic"), CDRFormatSpec decodeStandardCSV (AType::(AType CSVFormat_asterisk__generic)))
@@ -200,6 +210,9 @@ data CSVFormat_twt_cps__v1
           , twt_cps__v1__10 :: !Text.Text
           , twt_cps__v1__12 :: !Text.Text
           , twt_cps__v1__11_portedPrefix :: !Text.Text
+            -- ^ the real operator associated to the number
+            --   (number portabiity) to replace during billing
+            --   with the originalPrefix
   }
  deriving (Generic, NFData)
 
@@ -231,7 +244,6 @@ instance CSV.FromRecord CSVFormat_twt_cps__v1
 
 instance CSV.ToRecord CSVFormat_twt_cps__v1
 
-
 instance CDRFormat CSVFormat_twt_cps__v1 where
 
   getCallDate cdr
@@ -249,10 +261,10 @@ instance CDRFormat CSVFormat_twt_cps__v1 where
            Just v
              -> Right $ Just v
 
-  toCDR precision provider record = convert_CSVFormat_twt_cps__v1__toCDR precision provider record
+  toCDR precision provider record = convert_CSVFormat_twt_cps__v1__toCDR True precision provider record
 
-convert_CSVFormat_twt_cps__v1__toCDR :: CurrencyPrecisionDigits -> CDRProviderName -> CSVFormat_twt_cps__v1 -> Either AsterisellError [CDR]
-convert_CSVFormat_twt_cps__v1__toCDR precision provider record = do
+convert_CSVFormat_twt_cps__v1__toCDR :: Bool -> CurrencyPrecisionDigits -> CDRProviderName -> CSVFormat_twt_cps__v1 -> Either AsterisellError [CDR]
+convert_CSVFormat_twt_cps__v1__toCDR remove00 precision provider record = do
   let callDateS = Text.unpack $ twt_cps__v1__2_callDate record
   let maybeCallDate = fromDateFormat1ToLocalTime (twt_cps__v1__2_callDate record)
   when (isNothing maybeCallDate)
@@ -286,7 +298,7 @@ convert_CSVFormat_twt_cps__v1__toCDR precision provider record = do
              )
 
   let calledNr1 = twt_cps__v1__4_calledNr record
-  let calledNr = case Text.isPrefixOf "00" calledNr1 of
+  let calledNr = case remove00 && Text.isPrefixOf "00" calledNr1 of
                    True -> Text.drop 2 calledNr1
                    False -> calledNr1
 
@@ -328,13 +340,13 @@ data CSVFormat_twt_nng__v1
           , twt_nng__v1__callDate :: !Text.Text  -- 2 2014/11/12 17.14.28;
           , twt_nng__v1__calledNr :: !Text.Text  -- 3 800035427;
           , twt_nng__v1__caller :: !Text.Text  -- 4 0598750172;
-          , twt_nng__v1__5 :: !Text.Text -- 5 ? 0039800035427;
-          , twt_nng__v1__6 :: !Text.Text  -- 6 ? 39800;
+          , twt_nng__v1__srcCaller :: !Text.Text -- 5 ? 0039800035427;
+          , twt_nng__v1__srcCallerCalledPrefix :: !Text.Text  -- 6 ? 39800;
           , twt_nng__v1__7 :: !Text.Text -- 7 ? Italy NS Servizi TollFree;
           , twt_nng__v1__duration :: !Text.Text -- 8 121;
           , twt_nng__v1__9 :: !Text.Text        -- 9 ? 0,0000;
           , twt_nng__v1__cost :: !Text.Text  -- 10 0,0242;
-          , twt_nng__v1__11 :: !Text.Text -- 11 ? 3900603;
+          , twt_nng__v1__srcCallerDstPrefix :: !Text.Text -- 11 ? 3900603;
           , twt_nng__v1__operator :: !Text.Text -- 12 Italy OLO Wind urbano;
           , twt_nng__v1__13 :: !Text.Text  -- 13 39800;
           , twt_nng__v1__14 :: !Text.Text -- 14 ? Italy NS
@@ -349,13 +361,13 @@ instance Show CSVFormat_twt_nng__v1 where
         ,("field 3", twt_nng__v1__callDate)
         ,("called nr", twt_nng__v1__calledNr)
         ,("caller", twt_nng__v1__caller)
-        ,("field 6", twt_nng__v1__5)
-        ,("field 7", twt_nng__v1__6)
+        ,("src caller", twt_nng__v1__srcCaller)
+        ,("src caller called prefix", twt_nng__v1__srcCallerCalledPrefix)
         ,("field 8", twt_nng__v1__7)
         ,("duration", twt_nng__v1__duration)
         ,("field 10", twt_nng__v1__9)
         ,("cost", twt_nng__v1__cost)
-        ,("field 12", twt_nng__v1__11)
+        ,("src caller dst prefix", twt_nng__v1__srcCallerDstPrefix)
         ,("operator", twt_nng__v1__operator)
         ,("field 14", twt_nng__v1__13)
         ,("field 15",twt_nng__v1__14)
@@ -445,6 +457,139 @@ convert_CSVFormat_twt_nng__v1__toCDR precision provider record = do
               , cdr_expectedCost = maybeCost
               , cdr_channel = Just provider
               }]
+
+-- | Convert an NNG CDR using another approach respect ``convert_CSVFormat_twt_nng__v1__toCDR`` method.
+--   See the source code for more details.
+convert_CSVFormat_twt_nng__v1__toCDR_v2 :: Bool -> CurrencyPrecisionDigits -> CDRProviderName -> CSVFormat_twt_nng__v1 -> Either AsterisellError [CDR]
+convert_CSVFormat_twt_nng__v1__toCDR_v2 remove00 precision provider record = do
+  let asCPS =
+        CSVFormat_twt_cps__v1 {
+            twt_cps__v1__0 = twt_nng__v1__0 record
+          , twt_cps__v1__1 =  twt_nng__v1__1 record
+          , twt_cps__v1__2_callDate =  twt_nng__v1__callDate record
+          , twt_cps__v1__3_caller =  twt_nng__v1__calledNr record
+          -- ^ the called NNG acts like the originator in case of NNG 
+          , twt_cps__v1__4_calledNr =  twt_nng__v1__srcCaller record
+          -- ^ the calling acts like the destination in case of NNG
+          , twt_cps__v1__5_originalPrefix =  twt_nng__v1__srcCallerCalledPrefix record
+          , twt_cps__v1__6_operator =  twt_nng__v1__operator record
+          , twt_cps__v1__7_duration =  twt_nng__v1__duration record
+          , twt_cps__v1__8_cost =  twt_nng__v1__cost record
+          , twt_cps__v1__9 =  twt_nng__v1__9 record
+          , twt_cps__v1__10 =  ""
+          , twt_cps__v1__12 =  ""
+          , twt_cps__v1__11_portedPrefix =  twt_nng__v1__srcCallerDstPrefix record
+            -- ^ the real operator associated to the number
+            --   (number portabiity) to replace during billing
+            --   with the originalPrefix
+          }
+
+  convert_CSVFormat_twt_cps__v1__toCDR remove00 precision provider asCPS
+
+-- --------------------------------------------------
+-- Support TWT Antelma
+
+newtype CSVFormat_twt_voip__vAntelma = CSVFormat_twt_voip__vAntelma CSVFormat_twt_cps__v1
+ deriving (Generic, NFData)
+
+newtype CSVFormat_twt_cps__vAntelma = CSVFormat_twt_cps__vAntelma CSVFormat_twt_cps__v1
+ deriving (Generic, NFData)
+
+newtype CSVFormat_twt_nng__vAntelma = CSVFormat_twt_nng__vAntelma CSVFormat_twt_nng__v1
+ deriving (Generic, NFData)
+
+newtype CSVFormat_twt_wlr__vAntelma = CSVFormat_twt_wlr__vAntelma CSVFormat_twt_cps__v1
+ deriving (Generic, NFData)
+
+instance Show CSVFormat_twt_voip__vAntelma where
+  show (CSVFormat_twt_voip__vAntelma v) = show v
+
+instance Show CSVFormat_twt_cps__vAntelma where
+  show (CSVFormat_twt_cps__vAntelma v) = show v
+
+instance Show CSVFormat_twt_nng__vAntelma where
+  show (CSVFormat_twt_nng__vAntelma v) = show v
+
+instance Show CSVFormat_twt_wlr__vAntelma where
+  show (CSVFormat_twt_wlr__vAntelma v) = show v
+
+instance CSV.FromRecord CSVFormat_twt_voip__vAntelma where
+     parseRecord v = CSVFormat_twt_voip__vAntelma <$> parseRecord v
+
+instance CSV.FromRecord CSVFormat_twt_cps__vAntelma where
+     parseRecord v = CSVFormat_twt_cps__vAntelma <$> parseRecord v
+
+instance CSV.FromRecord CSVFormat_twt_nng__vAntelma where
+     parseRecord v = CSVFormat_twt_nng__vAntelma <$> parseRecord v
+
+instance CSV.FromRecord CSVFormat_twt_wlr__vAntelma where
+     parseRecord v = CSVFormat_twt_wlr__vAntelma <$> parseRecord v
+
+instance CSV.ToRecord CSVFormat_twt_voip__vAntelma where
+    toRecord (CSVFormat_twt_voip__vAntelma v) = toRecord v
+
+instance CSV.ToRecord CSVFormat_twt_cps__vAntelma where
+    toRecord (CSVFormat_twt_cps__vAntelma v) = toRecord v
+
+instance CSV.ToRecord CSVFormat_twt_wlr__vAntelma where
+    toRecord (CSVFormat_twt_wlr__vAntelma v) = toRecord v
+
+instance CSV.ToRecord CSVFormat_twt_nng__vAntelma where
+    toRecord (CSVFormat_twt_nng__vAntelma v) = toRecord v
+
+instance CDRFormat CSVFormat_twt_voip__vAntelma where
+  getCallDate (CSVFormat_twt_voip__vAntelma v) = getCallDate v
+  toCDR precision provider (CSVFormat_twt_voip__vAntelma record) = fromCPSToAntelmaCDR "VoIP" False precision provider record
+
+instance CDRFormat CSVFormat_twt_cps__vAntelma where
+  getCallDate (CSVFormat_twt_cps__vAntelma v) = getCallDate v
+  toCDR precision provider (CSVFormat_twt_cps__vAntelma record) = fromCPSToAntelmaCDR "CPS" False precision provider record
+    
+instance CDRFormat CSVFormat_twt_nng__vAntelma where
+  getCallDate (CSVFormat_twt_nng__vAntelma v) = getCallDate v
+  toCDR precision provider (CSVFormat_twt_nng__vAntelma record) = fromNNGToAntelmaCDR "NNG" True precision provider record
+
+instance CDRFormat CSVFormat_twt_wlr__vAntelma where
+  getCallDate (CSVFormat_twt_wlr__vAntelma v) = getCallDate v
+  toCDR precision provider (CSVFormat_twt_wlr__vAntelma record) = fromCPSToAntelmaCDR "WLR" False precision provider record
+
+fromCPSToAntelmaCDR :: Text.Text -> Bool -> CurrencyPrecisionDigits -> CDRProviderName -> CSVFormat_twt_cps__v1 -> Either AsterisellError [CDR]
+fromCPSToAntelmaCDR dstChannel addDstChannelToAccount precision provider record = do
+    cdrs <- convert_CSVFormat_twt_cps__v1__toCDR True precision provider record
+    return $
+      List.map
+        (\cdr1 ->
+            let prefix1 =
+                  case (Text.strip $ twt_cps__v1__9 record) == "1" of
+                    True -> "urbana-"
+                    False -> ""
+            in cdr1 { cdr_channel = Just $ Text.concat [dstChannel, "-", provider]
+                    , cdr_externalTelephoneNumberWithAppliedPortability
+                        = Just $ Text.append prefix1 (fromJust1 "0753" $ cdr_externalTelephoneNumberWithAppliedPortability cdr1)
+                    , cdr_internalTelephoneNumber =
+                        if addDstChannelToAccount
+                        then (Text.concat [dstChannel, "-", cdr_internalTelephoneNumber cdr1])
+                        else (cdr_internalTelephoneNumber cdr1)
+                    }) cdrs
+
+fromNNGToAntelmaCDR :: Text.Text -> Bool -> CurrencyPrecisionDigits -> CDRProviderName -> CSVFormat_twt_nng__v1 -> Either AsterisellError [CDR]
+fromNNGToAntelmaCDR dstChannel addDstChannelToAccount precision provider record = do
+    cdrs <- convert_CSVFormat_twt_nng__v1__toCDR_v2 True precision provider record
+    return $
+      List.map
+        (\cdr1 ->
+            let prefix1 =
+                  case (Text.strip $ twt_nng__v1__9 record) == "1" of
+                    True -> "urbana-"
+                    False -> ""
+            in cdr1 { cdr_channel = Just $ Text.concat [dstChannel, "-", provider]
+                    , cdr_externalTelephoneNumberWithAppliedPortability
+                        = Just $ Text.append prefix1 (fromJust1 "0753" $ cdr_externalTelephoneNumberWithAppliedPortability cdr1)
+                    , cdr_internalTelephoneNumber =
+                        if addDstChannelToAccount
+                        then (Text.concat [dstChannel, "-", cdr_internalTelephoneNumber cdr1])
+                        else (cdr_internalTelephoneNumber cdr1)
+                     }) cdrs
 
 -- --------------------------------------------------
 -- Support Free Radius according notes on #1446

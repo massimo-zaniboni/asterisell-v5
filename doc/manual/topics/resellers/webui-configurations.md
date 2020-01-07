@@ -21,8 +21,6 @@ For each [extension] set the ``export-code`` field. It will be the [extension] c
 It is possible to execute this action also in batch mode, executing 
 
 ```
-./fab.sh
-
 fab connect:HOST/INSTANCE
 php asterisell.php data complete-reseller-export-code
 ```

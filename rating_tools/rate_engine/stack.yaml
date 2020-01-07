@@ -3,4 +3,5 @@ packages:
 - .
 extra-deps:
 - ./bytestring-trie-0.3.0.4
-resolver: lts-12.26
+- quicklz-1.5.0.11@sha256:4db281a4f7809e550753919352148ae174bc5ad5154dc84461f3b1497dd11fac,2165
+resolver: lts-14.16

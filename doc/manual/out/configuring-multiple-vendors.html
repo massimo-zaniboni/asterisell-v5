@@ -49,7 +49,7 @@
                <td style="text-align: left;vertical-align: top;"><a class="navigation-link" href="manual.html" title="First page: Asterisell Manual"><img alt="First page" class="navigation-icon" height="16" src="res/first.png" width="16" /></a></td>
                <td style="text-align: left;vertical-align: top;"><a class="navigation-link" href="main-rate-plans.html" title="Previous page: Main rate plans"><img alt="Previous page" class="navigation-icon" height="16" src="res/previous.png" width="16" /></a></td>
                <td style="width: 25%;text-align: left;vertical-align: top;"><span class="page-navigation-previous">Main rate plans</span></td>
-               <td style="width: 40%;text-align: center;vertical-align: top;"><span class="page-navigation-current">Configuring multiple vendors</span> <span class="page-navigation-page">(19 / 71)</span></td>
+               <td style="width: 40%;text-align: center;vertical-align: top;"><span class="page-navigation-current">Configuring multiple vendors</span> <span class="page-navigation-page">(18 / 71)</span></td>
                <td style="width: 25%;text-align: right;vertical-align: top;"><span class="page-navigation-next">Configuring multiple price-categories</span></td>
                <td style="text-align: right;vertical-align: top;"><a class="navigation-link" href="configuring-multiple-price-categories.html" title="Next page: Configuring multiple price-categories"><img alt="Next page" class="navigation-icon" height="16" src="res/next.png" width="16" /></a></td>
                <td style="text-align: right;vertical-align: top;"><a class="navigation-link" href="about.html" title="Last page: About"><img alt="Last page" class="navigation-icon" height="16" src="res/last.png" width="16" /></a></td>
@@ -68,7 +68,9 @@
                <li class="li"><code class="codeph">Rates -&gt; Channels</code> for recognizing the <a class="xref" href="manual-6.html#Vendor">Vendor</a> and <a class="xref" href="communication-channel-type.html#Communication_channel_type">Communication channel type</a> according the <a class="xref" href="communication-channel.html#Communication_channel">Communication channel</a> of the <a class="xref" href="manual-6.html#CDR">CDR</a></li>
             </ul>
             <div class="p">In case there are overlapping <a class="xref" href="communication-channel.html#Communication_channel">Communication channel</a>, a custom importing jobs had to be defined, in order to generate channels with a
-               unique prefix.
+               unique prefix. Many standard importers put in the channel also the CDR provider-name:
+               so this name can be used for associating in the channel-domain web-form the correct
+               vendor.
             </div>
             <div class="p">Then in the rate plan you specify how to rate the CDRs according different vendors:</div><pre class="pre">    rate {
       id: outgoing
@@ -102,7 +104,7 @@
                <td style="text-align: left;vertical-align: top;"><a class="navigation-link" href="manual.html" title="First page: Asterisell Manual"><img alt="First page" class="navigation-icon" height="16" src="res/first.png" width="16" /></a></td>
                <td style="text-align: left;vertical-align: top;"><a class="navigation-link" href="main-rate-plans.html" title="Previous page: Main rate plans"><img alt="Previous page" class="navigation-icon" height="16" src="res/previous.png" width="16" /></a></td>
                <td style="width: 25%;text-align: left;vertical-align: top;"><span class="page-navigation-previous">Main rate plans</span></td>
-               <td style="width: 40%;text-align: center;vertical-align: top;"><span class="page-navigation-current">Configuring multiple vendors</span> <span class="page-navigation-page">(19 / 71)</span></td>
+               <td style="width: 40%;text-align: center;vertical-align: top;"><span class="page-navigation-current">Configuring multiple vendors</span> <span class="page-navigation-page">(18 / 71)</span></td>
                <td style="width: 25%;text-align: right;vertical-align: top;"><span class="page-navigation-next">Configuring multiple price-categories</span></td>
                <td style="text-align: right;vertical-align: top;"><a class="navigation-link" href="configuring-multiple-price-categories.html" title="Next page: Configuring multiple price-categories"><img alt="Next page" class="navigation-icon" height="16" src="res/next.png" width="16" /></a></td>
                <td style="text-align: right;vertical-align: top;"><a class="navigation-link" href="about.html" title="Last page: About"><img alt="Last page" class="navigation-icon" height="16" src="res/last.png" width="16" /></a></td>

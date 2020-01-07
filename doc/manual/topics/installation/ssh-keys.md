@@ -24,21 +24,13 @@ systemctl restart sshd
 
 ## On the management server
 
-The [instances-configuration-tool] create a ``/home/user/.ssh/id_rsa.pub`` and ``/home/user/.ssh/id_rsa`` public/private key pair, installed only inside the Docker container used for administering other Asterisell instances. Enable root access for these keys executing in the [instances-configuration-tool] directory
-
 ```
-./fab.sh
-# for entering in the administration shell inside the Docker container
-
 fab authorize_ssh_access:asterisell/demo
-# for enabling the SSH access 
-# on the host "asterisell", where will be instaled
-# "demo" instance.
-# The first time it will requires password for 'user', but it is the 'root' password of the remote server.
-# Then the ssh certificate of the Docker container will used.
+# for enabling automatic SSH root access using ~/.ssh/id_rsa.pub key 
 ```
 
-These actions must be performed also if the management server is the same of the instance server.
+These actions must be performed also if the management server is the same of the instance server,
+because also local instances will be accessed using ``ssh``.
 
 ## Restrict SSH root access
 

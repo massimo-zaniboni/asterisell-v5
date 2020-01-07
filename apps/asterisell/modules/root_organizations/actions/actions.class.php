@@ -73,7 +73,8 @@ class root_organizationsActions extends autoRoot_organizationsActions
     {
         $c->addJoin(ArOrganizationUnitHasStructurePeer::AR_ORGANIZATION_UNIT_ID, ArOrganizationUnitPeer::ID, Criteria::INNER_JOIN);
         $c->addJoin(ArOrganizationUnitHasStructurePeer::AR_PARTY_ID, ArPartyPeer::ID, Criteria::INNER_JOIN);
-
+        $c->addJoin(ArOrganizationUnitHasStructurePeer::ID, "ar_root_customer_view.ar_organization_unit_has_structure_id", Criteria::INNER_JOIN);
+        
         if (isset($this->filters['filter_on_party_name']) && !isEmptyOrNull($this->filters['filter_on_party_name'])) {
             $s = $this->filters['filter_on_party_name'];
             $s = str_replace('*', '%', $s);
@@ -81,7 +82,6 @@ class root_organizationsActions extends autoRoot_organizationsActions
             $cc->setIgnoreCase(true);
             $c->add($cc);
         }
-
 
         // search for a structure with a null parent, now, in the past or in the future.
         // In this way an user can select all the root organizations of future and past.

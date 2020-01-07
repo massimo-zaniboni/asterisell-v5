@@ -9,7 +9,7 @@
   - for optimal performances ``/var`` directory with Ext4, XFS file-system or other DBMS friendly file-system
   - for optimal performances an SSD disk, but it works rather good also on a traditional HDD disk, thanks to TokuDB engine
   - it is not important a distinct ``/home`` partition, because all data is saved on ``/var`` partition
-  - it had to be (more or less) dedicated to Asterisell, because many operating-system configurations will be overwritten by [instances-configuration-tool]
+  - it must be completely dedicated to Asterisell, because many operating-system configurations will be overwritten by [instances-configuration-tool]
 
 Some benchmarks to use as reference
 
@@ -19,7 +19,7 @@ Some benchmarks to use as reference
 
 ## Management utility instance
 
-  - any x86-64 Linux distro supporting Docker
+  - Linux CentOS x86_64
   - 3GB of RAM, required during the compilation of the Haskell rating engine
   - an SSH connection to [asterisell-host] running the [asterisell-instance]
   
@@ -27,10 +27,12 @@ In case you install the [instances-configuration-tool] on the same host containi
 do not allocate too much RAM to the DBMS, because during compilation/upgrading of the application 
 2-3GB will be used. At the end of the upgrade, the free RAM will be used from Linux 
 for buffering the files with TokuDB engine, so it will be not wasted.
+You can enable also swap disk space, because code compilation is an one-time operation
+done only during application upgrade.
 
 ## Why using a distinct host for Asterisell management tool?
 
-For normal users make sense to use the same host for managing and running Asterisell instances.
+Normal users use the same host for managing and running Asterisell instances.
 
 It makes sense using different hosts in case:
 

@@ -48,6 +48,7 @@ import qualified Test.HUnit as HUnit
 import qualified Data.Text as Text
 import GHC.Generics
 import Control.DeepSeq
+import Debug.Trace
 
 -- | An extension code where:
 --     * "X" stays for the any-char,
@@ -63,7 +64,7 @@ type Extension = BS.ByteString
 type ExtensionAsText = Text.Text
 
 -- | True if the extension match is not an exact match,
---   but it is matching a generic extension specification.
+--   but it is matching a generic extension specification, like "123*" or "123XXX".
 type IsExtensionalMatch = Bool
 
 -- | The prefix and the generic "X" suffix len, 0 for no other part, or Nothing for "*"
@@ -86,12 +87,12 @@ extension_toExtensionCode e1
                         in (BS.take ((BS.length e1) - suffixLen) e1, Just suffixLen)
                    else (e1, Just 0)
 
--- | Store numbers like: "123", "123XX", "123*"
---   but not like "12X1", "123X*", "12*3"
+-- | Store telephone numbers with optional ending generic part like: 123XX", "123*".
 type Trie a
        = Trie.Trie
            (IntMap.IntMap a
-           -- ^ the values associated to the "X" parts, with some exact length
+           -- ^ the values associated to the "X" parts of the specified exact length.
+           --   0 for numbers not ending with "X" and "*".
            , Maybe a
            -- ^ the value associated to the "*" part, with variable length,
            -- having less priority of the exact len part
@@ -105,34 +106,36 @@ type CharMatchStrenght = Int
 -- | Used for matching a telephone number with the best matching entry,
 --   or for matching an extension with an organization.
 --   String with exact len, and exact characters are preferred to strings with "*" parts.
+--   In case of possible matches "21*, 2XX", "213" match "21*" because it is the longest prefix.
 trie_match :: Trie a -> BS.ByteString -> Maybe (CharMatchStrenght, IsExtensionalMatch, a)
 trie_match trie initialTarget
-    = match True initialTarget
+    =  case (L.map fromJust $ L.filter isJust $ L.map evalMatch $ Trie.matches trie initialTarget) of
+         [] -> Nothing
+         vs ->
+           let (prefixLen, suffixLen, v) = maximumBy compareMatch vs
+           in  Just (prefixLen + suffixLen, prefixLen /= initialTargetLen, v)
  where
 
-  match canUseExactMatch target
-    = case Trie.match trie target of
-        Nothing
-          -> Nothing
-        Just (prefix, (exactLenMap, genericLenValue), targetSuffix)
-          -> let 
-                 genericMatchResult
-                   = case genericLenValue of
-                       Just v
-                         -> Just $ (BS.length prefix, True, v)
-                       Nothing
-                         -> match False (BS.init prefix)
-                            -- NOTE: "35678" is not matched by "356X" but from "35*", so try a shorter version 
+  initialTargetLen = BS.length initialTarget
 
-                 targetSuffixLen = BS.length targetSuffix
+  compareMatch (prefixLen1, suffixLen1, _) (prefixLen2, suffixLen2, _) = compare (prefixLen1, suffixLen1) (prefixLen2, suffixLen2)
 
-             in case canUseExactMatch of
-                  True
-                    -> case IntMap.lookup targetSuffixLen exactLenMap of
-                         Just v  -> Just $ (BS.length prefix + targetSuffixLen, targetSuffixLen /= 0, v)
-                         Nothing -> genericMatchResult
-                  False
-                    -> genericMatchResult
+  evalMatch
+    :: (ByteString, (IntMap.IntMap a, Maybe a), ByteString)
+    -> Maybe ( Int   -- ^ the perfectly matched prefix len
+             , Int   -- ^ the unmatched prefix len, matched by "X" but not by "*"
+             , a     -- ^ the associated value
+             )
+
+  evalMatch (prefix, (exactLenMap, maybeGenericLenValue), unmatchedSuffix)
+    = let unmatchedSuffixLen = BS.length unmatchedSuffix
+          prefixLen = BS.length prefix
+      in  case IntMap.lookup unmatchedSuffixLen exactLenMap of
+            Just v  -> Just (prefixLen, unmatchedSuffixLen, v)
+            Nothing ->
+              case maybeGenericLenValue of
+                Just v -> Just (prefixLen, 0, v)
+                Nothing -> Nothing
 
 -- | Exact lookup of the associated value.
 trie_lookup :: Trie a -> ExtensionCode -> Maybe a
@@ -229,23 +232,30 @@ tt_trie_test
   = tests
  where
 
-  trie1 = trie_insertExtensions
-            trie_empty
-            [("123", 1),
-             ("1234*", 2),
-             ("1234", 3),
-             ("125X", 3),
-             ("456*", 6),
-             ("556*", 7),
-             ("5*", 8),
-             ("6*", 9),
-             ("617*", 10),
-             ("623X", 11),
-             ("623XA", 12),
-             ("1X*1", 43),
-             ("812", 81),
-             ("81X", 82)
-            ]
+  trie1 = 
+            trie_insertExtensions
+              trie_empty
+              [("123", 1),
+               ("1234*", 2),
+               ("1234", 3),
+               ("125X", 3),
+               ("456*", 6),
+               ("556*", 7),
+               ("5*", 8),
+               ("6*", 9),
+               ("617*", 10),
+               ("623X", 11),
+               ("623XA", 12),
+               ("1X*1", 43),
+               ("812", 81),
+               ("81X", 82),
+               ("03225415", 100),
+               ("032254151", 101),
+               ("03225415XX", 102),
+               ("2", 201),
+               ("21*", 202),
+               ("2XX", 203)
+               ]
 
   name1 = "trie_match"
 
@@ -265,7 +275,7 @@ tt_trie_test
                 "code 3"
                 ("123", Just 2)
                 (extension_toExtensionCode "123XX"))
-          ,HUnit.TestCase
+           ,HUnit.TestCase
              (HUnit.assertEqual
                 "code 4"
                 ("123", Nothing)
@@ -387,55 +397,55 @@ tt_trie_test
                       )
          
           ,HUnit.TestCase (HUnit.assertEqual
-                         "backtrack"
-                         (Just (3, True, 10))
+                         "backtrack 1"
+                         (Just (3, False, 10))
                          (trie_match trie1 "617")
                       )
 
           ,HUnit.TestCase (HUnit.assertEqual
-                         "backtrack"
+                         "backtrack 2"
                          (Just (3, True, 10))
                          (trie_match trie1 "6171")
                       )
 
           ,HUnit.TestCase (HUnit.assertEqual
-                         "backtrack"
+                         "backtrack 3"
                          (Just (4, True, 11))
                          (trie_match trie1 "6231")
                       )
 
           ,HUnit.TestCase (HUnit.assertEqual
-                         "backtrack with fail"
+                         "backtrack with fail 1"
                          (Just (1, True, 9))
                          (trie_match trie1 "623")
                       )
 
           ,HUnit.TestCase (HUnit.assertEqual
-                         "backtrack with fail"
+                         "backtrack with fail 2"
                          (Just (1, True, 9))
                          (trie_match trie1 "62344")
                       )
 
           ,HUnit.TestCase (HUnit.assertEqual
-                         "backtrack with fail"
+                         "backtrack with fail 3"
                          (Just (1, True, 9))
                          (trie_match trie1 "618")
                       )
 
           ,HUnit.TestCase (HUnit.assertEqual
-                         "backtrack with fail"
+                         "backtrack with fail 4"
                          (Just (1, True, 9))
                          (trie_match trie1 "619")
                       )
 
           ,HUnit.TestCase (HUnit.assertEqual
-                         "backtrack with fail"
+                         "backtrack with fail 5"
                          (Just (1, True, 9))
                          (trie_match trie1 "6753")
                       )
 
          ,HUnit.TestCase (HUnit.assertEqual
-                         "backtrack with fail"
+                         "backtrack with fail 6"
                          (Just (1, True, 9))
                          (trie_match trie1 "62")
                       )
@@ -499,10 +509,48 @@ tt_trie_test
                          (Just (5, False, 12))
                          (trie_match trie1 "623XA")
                        )
-
        ,HUnit.TestCase (HUnit.assertEqual
                          "priority 6"
                          (Just (4, True, 11))
                          (trie_match trie1 "6231")
                        )
-          ]
+
+       ,HUnit.TestCase (HUnit.assertEqual
+                         "ant 1"
+                         (Just (8, False, 100))
+                         (trie_match trie1 "03225415"))
+       ,HUnit.TestCase (HUnit.assertEqual
+                         "ant 2"
+                         (Just (9, False, 101))
+                         (trie_match trie1 "032254151"))
+       ,HUnit.TestCase (HUnit.assertEqual
+                         "ant 3"
+                         (Just (10, True, 102))
+                         (trie_match trie1 "0322541566"))
+       ,HUnit.TestCase (HUnit.assertEqual
+                         "ant 4"
+                         (Just (10, True, 102))
+                         (trie_match trie1 "0322541513"))
+       ,HUnit.TestCase (HUnit.assertEqual
+                         "ant 5"
+                         (Just (10, True, 102))
+                         (trie_match trie1 "0322541510"))
+
+       ,HUnit.TestCase (HUnit.assertEqual
+                         "ant 6"
+                         (Just (2, True, 202))
+                         (trie_match trie1 "213"))
+       ,HUnit.TestCase (HUnit.assertEqual
+                         "ant 7"
+                         (Just (3, True, 203))
+                         (trie_match trie1 "223"))
+       ,HUnit.TestCase (HUnit.assertEqual
+                         "ant 8"
+                         (Just (1, False, 201))
+                         (trie_match trie1 "2"))
+       ,HUnit.TestCase (HUnit.assertEqual
+                         "ant 9"
+                         Nothing
+                         (trie_match trie1 "03225415100"))
+       ]
+

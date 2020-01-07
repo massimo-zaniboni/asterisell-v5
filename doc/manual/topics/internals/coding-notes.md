@@ -8,8 +8,6 @@ application source code.
 Change the file `config/schema.yml`.
 
 ```
-./fab.sh
-
 cd /asterisell/scripts
 ./makedb.sh
 ```
@@ -23,40 +21,10 @@ Test the application.
 Add upgrade jobs extending the database also in already production
 instances. TODO complete this
 
-## How changing the content of the management container
-
-Customize ``Dockerfile``, then tart the management tool with
-
-```
-./fab.sh --update
-```
-
-for updating the image with only the last changes, and starting a new container.
-
-Use 
-
-```
-./fab.sh --rebuild
-```
-
-for recreating the image, from scratch, rexecuting all commands inside Dockerfile.
-Very slow, but useful for very old images, in case new/fresh packages had to be loaded instead.
-
-After many operations of image recreation consider to execute
-
-```
-docker volume prune
-docker image prune
-```
-
-for removing data not anymore used.
-
 ## How generating UI web modules
 
 ```
-./fab.sh
-
-php symfony propel:generate-admin asterisell ArReportScheduler --module=report_scheduling
+php54 symfony propel:generate-admin asterisell ArReportScheduler --module=report_scheduling
 ```
 
 if you add a new class, update also init database scripts, and deletion related.

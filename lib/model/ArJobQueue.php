@@ -59,6 +59,18 @@ class ArJobQueue extends BaseArJobQueue
         $this->save(ArProblemException::getLogConnection());
     }
 
+    public function setDescription($v)
+    {
+        $maxLen = 800;
+        if ((!is_null($v)) && strlen($v) > $maxLen) {
+            $v2 = substr($v, 0, $maxLen) . " [... truncated ...]";
+        } else {
+            $v2 = $v;
+        }
+
+        return parent::setDescription($v2);
+    }
+
     /**
      * @return JobData|null an unserialized JobData, null if it does not exists or it is in a bad format.
      */

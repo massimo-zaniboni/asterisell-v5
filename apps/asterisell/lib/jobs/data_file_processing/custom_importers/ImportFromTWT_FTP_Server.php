@@ -12,13 +12,19 @@ sfLoader::loadHelpers(array('I18N', 'Debug', 'Date', 'Asterisell'));
  * The connection params are named "twt-ftp-account-<getTWTAccount>".
  * The CDR provider is "twt-ftp-account-<getTWTAccount>".
  */
-abstract class ImportFromTWT_FTP_Server extends ImportCSVFilesFromFTPServer
-{
+abstract class ImportFromTWT_FTP_Server extends ImportCSVFilesFromFTPServer {
 
-    //
+    // ----------------------------------------------------------    
     // Methods to customize in subclasses.
     // Make sure to respect the requirements in method headers.
     //
+
+    /**
+     * @return boolean true for processing NNG files
+     */
+    public function isNNG() {
+        return false;
+    }
 
     abstract public function getLogicalType();
 
@@ -49,8 +55,7 @@ abstract class ImportFromTWT_FTP_Server extends ImportCSVFilesFromFTPServer
     // Specific Implementation.
     //
 
-    public function fileArchiveName($sourceFileName)
-    {
+    public function fileArchiveName($sourceFileName) {
         return $sourceFileName;
     }
 
@@ -74,25 +79,37 @@ abstract class ImportFromTWT_FTP_Server extends ImportCSVFilesFromFTPServer
      */
     public function getRemoteDirectory() {
         if (isEmptyOrNull($this->getOwnerAccount())) {
-          return $this->getTWTAccount();
+            return $this->getTWTAccount();
         } else {
             return normalizeFileNamePath($this->getOwnerAccount() . '/' . $this->getTWTAccount());
         }
     }
 
-    public function canAcceptFileName($n)
-    {
-        $account = str_pad($this->getTWTAccount(), 10, '0', STR_PAD_LEFT);
+    public function canAcceptFileName($n) {
+        if ($this->isNNG()) {
+            $account = str_pad($this->getTWTAccount(), 7, '0', STR_PAD_LEFT);
 
-        // NOTE: the digits are the date in YYYYMMDD format, "N" for a new data, and a progressive number.
-        // "X" is used in case of additional data
-        // NOTE: do not use status files, because the timeframe of the file name is not the same of the CDRs inside it, and it can be error prone.
-        $reg = '/^' . $account . "(\\d)+[NX](\\d)+[.]zip/i";
-        if (preg_match($reg, $n)) {
-            return ImportDataFiles::createInputDataFileName(null, $this->getCdrProvider(), $this->getLogicalType(), $this->getPhysicalType());
+            // NOTE: the digits are the date in YYYYMMDD format, "N" for a new data, and a progressive number.
+            // "X" is used for additional data, not included in the first send.
+            $reg = '/^NNG' . $account . "\\d\\d\\d\\d\\d\\d\\d\\d[NX]\\d\\d\\d[.]zip/i";
+            if (preg_match($reg, $n)) {
+                return ImportDataFiles::createInputDataFileName(null, $this->getCdrProvider(), $this->getLogicalType(), $this->getPhysicalType());
+            }
+
+            return $this->thereCanBeOtherFilesToIgnore();
+        } else {
+            $account = str_pad($this->getTWTAccount(), 10, '0', STR_PAD_LEFT);
+
+            // NOTE: the digits are the date in YYYYMMDD format, "N" for a new data, and a progressive number.
+            // "X" is used in case of additional data
+            // NOTE: do not use status files, because the timeframe of the file name is not the same of the CDRs inside it, and it can be error prone.
+            $reg = '/^' . $account . "(\\d)+[NX](\\d)+[.]zip/i";
+            if (preg_match($reg, $n)) {
+                return ImportDataFiles::createInputDataFileName(null, $this->getCdrProvider(), $this->getLogicalType(), $this->getPhysicalType());
+            }
+
+            return $this->thereCanBeOtherFilesToIgnore();
         }
-
-        return $this->thereCanBeOtherFilesToIgnore();
     }
 
     /**
@@ -102,9 +119,9 @@ abstract class ImportFromTWT_FTP_Server extends ImportCSVFilesFromFTPServer
      * @param string $destFileName
      * @return bool true if the content of the file was changed, false if $sourceFile must be used
      */
-    public function normalizeFileContent($remoteFileName, $sourceFileName, $destFileName)
-    {
+    public function normalizeFileContent($remoteFileName, $sourceFileName, $destFileName) {
         $this->unzipFileWithOnlyOneFile($remoteFileName, $sourceFileName, $destFileName);
         return true;
     }
+
 }

@@ -134,6 +134,22 @@ SQL;
         $sqlCode .= <<<SQL
 
 /**
+ * Show only last active root customer info
+ */
+DROP TABLE IF EXISTS ar_root_customer_view $$
+CREATE OR REPLACE VIEW ar_root_customer_view
+AS SELECT sss.id AS ar_organization_unit_has_structure_id
+FROM ar_organization_unit_has_structure  AS sss
+INNER JOIN (
+    SELECT ar_organization_unit_id, MAX(`from`) AS from_date
+    FROM ar_organization_unit_has_structure
+    WHERE ar_parent_organization_unit_id IS NULL
+    GROUP BY ar_organization_unit_id) AS ss
+ON  sss.ar_organization_unit_id = ss.ar_organization_unit_id
+AND sss.`from` = ss.from_date
+$$
+   
+/**
  * Get the ported telephone number, or NULL if it does not exists, of a source telephone number.
  */
 DROP FUNCTION IF EXISTS get_ported_telephone_number$$

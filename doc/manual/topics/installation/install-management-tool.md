@@ -1,30 +1,34 @@
 # Install Management Tool
 
-## Administration user
+## Install initial packages
 
-Asterisell must be managed by a non-root user. Use your normal user, or as root create an user named ``asterisell``
-
-```
-useradd -m asterisell
-```
-
-This user must be a Docker administrator user. Supposing its name is ``asterisell``
+Asterisell is managed using Git and Fabricate DevOps tool.
 
 ```
-groupadd docker
-usermod -aG docker asterisell
-service docker restart
+yum install -y epel-release
+yum update -y
+yum groupinstall -y development 
+yum install -y sudo git openssl-devel fabric
+```
+
+## Create administration user
+
+Asterisell must be managed by a non-root user. Here we will create ``asterisell`` user, but every other user is fine.
+
+```
+useradd -m -G wheel asterisell
+
+# Associate a key to the user 
+# WARNING: only in case it is not alread done
+su asterisell
+ssh-keygen -t rsa -b 4096 -C "some-email@example.net"
 ```
 
 ## Download Asterisell 
 
-Use the Asterisell administration user and download Asterisell using ``git``.
+Using the ``asterisell`` user download Asterisell using ``git``.
 
 ```
-su asterisell
-
-# NOTE: if the prompt is not the usual prompt, call explicitely `bash`
-
 cd
 git clone --depth 1 https://github.com/massimo-zaniboni/asterisell-v5
 mv asterisell-v5 asterisell-admin
@@ -36,21 +40,19 @@ Asterisell uses Git <http://en.wikipedia.org/wiki/Git\_(software)> also for upgr
   - private customizations and configurations can be merged with default
     application upgrades, using common Git techniques
 
-## Install Docker container for Asterisell admin
+## Install needed packages using Fabricate DevOps tool
 
-Asterisell is administered using a Docker container configured with all Asterisell development and administration tools. Its installation will require some time because a lot of packages will be loaded. It requires usually more RAM than the host where Asterisell will run, because it will compile Haskell code.
-
-Install the container using
+Fabricate tool will install all needed packages and a complete Haskell compilation environment, for compiling the rating engine.
+This will requires a lot of time the first time.
 
 ```
 cd asterisell-admin
-./fab.sh
+
+# for a list of available commands
+fab help
+
+# for initializating the management server with the required packages
+fab init 
 ```
 
-It will create an ``asterisell`` container according the content of ``Dockerfile``.
 
-At the end of the command you will be in the Asterisell admin shell. Use:
-
-  - ``fab help`` for seeing if it is all ok
-  - ``exit`` for exiting
-  - ``./fab.sh`` for entering again

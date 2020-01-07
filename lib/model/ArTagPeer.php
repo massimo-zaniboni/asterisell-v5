@@ -16,4 +16,17 @@ require 'lib/model/om/BaseArTagPeer.php';
  */
 class ArTagPeer extends BaseArTagPeer {
 
+    /**
+     * @static
+     * @param string $internalName
+     * @return ArTag|null
+     */
+    public static function retrieveByInternalName($internalName)
+    {
+        $criteria = new Criteria();
+        $criteria->add(ArTagPeer::INTERNAL_NAME, $internalName);
+
+        return ArTagPeer::doSelectOne($criteria);
+    }
+
 } // ArTagPeer

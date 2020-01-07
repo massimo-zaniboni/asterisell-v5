@@ -3,9 +3,6 @@
 You can connect with 
 
 ```
-./fab.sh
-# for entering the management tool
-
 fab connect:asterisell/demo
 # for SSH login into "asterisell" host
 ```

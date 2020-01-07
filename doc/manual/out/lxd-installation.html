@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+   <head><meta charset="UTF-8" />
+      <title>Installing inside an LXD/LXC container</title><link href="res/webhelp.css" rel="stylesheet" type="text/css" /><meta content="Unbuntu in particular, but many other distro, supports LXD ad LXC containers. One can create a CentOS 7 container where installing the Instances configuration tool. In this way it can install Asterisell on top of another VM without wasting too much resources." name="description" />
+      <meta content="XMLmind DITA Converter 3.3.1" name="generator" />
+   <script charset="UTF-8" defer="defer" src="_wh/snowball_en.min.js" type="text/javascript"></script><link href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/themes/smoothness/jquery-ui.css" rel="stylesheet" type="text/css" /><link href="_wh/wh.css" rel="stylesheet" type="text/css" /><script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js" type="text/javascript">
+    </script><script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js" type="text/javascript">
+    </script><script charset="UTF-8" src="_wh/wh.min.js" type="text/javascript">
+    </script><script charset="UTF-8" defer="defer" src="_wh/search.js" type="text/javascript">
+    </script></head>
+   
+<body>
+    
+
+    <div id="wh-body">
+      <div id="wh-navigation">
+        <ul id="wh-tabs">
+          <li id="wh-toc-tab"><a href="#wh-toc-pane"><span>Contents</span></a></li>
+          
+          <li id="wh-search-tab"><a href="#wh-search-pane"><span>Search</span></a></li>
+        </ul>
+        <div id="wh-toc-pane">
+          <div id="wh-toc-form">
+            <span id="wh-toc-control"><a href="#">Collapse 
+            All</a><a href="#">Expand All</a></span>
+            <button id="wh-toc-previous">Previous</button>
+            <button id="wh-toc-next">Next</button>
+            <button id="wh-toc-print">Print</button>
+          </div>
+          <script charset="UTF-8" src="_wh/toc.js" type="text/javascript">
+          </script>
+        </div>
+        
+        <div id="wh-search-pane">
+          <div id="wh-search-form">
+            <input id="wh-search-field" type="text" /><button id="wh-search-button">Search</button><span id="wh-highlight-group"><input checked="checked" id="wh-highlight-toggle" type="checkbox" /><label for="wh-highlight-toggle" id="wh-highlight-icon"><span class="ui-icon ui-icon-flag"></span></label></span>
+          </div>
+          <div id="wh-search-results">
+          </div>
+        </div>
+      </div>
+      <div id="wh-separator">
+      </div>
+      <div id="wh-content">
+      
+      <header class="page-navigation-header">
+         <table class="page-navigation-layout" style="width: 100%;">
+            <tr>
+               <td style="text-align: left;vertical-align: top;"><a class="navigation-link" href="manual.html" title="First page: Asterisell Manual"><img alt="First page" class="navigation-icon" height="16" src="res/first.png" width="16" /></a></td>
+               <td style="text-align: left;vertical-align: top;"><a class="navigation-link" href="__emergency-email-2.html" title="Previous page: Emergency email"><img alt="Previous page" class="navigation-icon" height="16" src="res/previous.png" width="16" /></a></td>
+               <td style="width: 25%;text-align: left;vertical-align: top;"><span class="page-navigation-previous">Emergency email</span></td>
+               <td style="width: 40%;text-align: center;vertical-align: top;"><span class="page-navigation-current">Installing inside an LXD/LXC container</span> <span class="page-navigation-page">(40 / 71)</span></td>
+               <td style="width: 25%;text-align: right;vertical-align: top;"><span class="page-navigation-next">Web UI forms</span></td>
+               <td style="text-align: right;vertical-align: top;"><a class="navigation-link" href="manual-4.html" title="Next page: Web UI forms"><img alt="Next page" class="navigation-icon" height="16" src="res/next.png" width="16" /></a></td>
+               <td style="text-align: right;vertical-align: top;"><a class="navigation-link" href="about.html" title="Last page: About"><img alt="Last page" class="navigation-icon" height="16" src="res/last.png" width="16" /></a></td>
+            </tr>
+         </table>
+      </header>
+      <section class="topic" id="Installing_inside_an_LXD_LXC_container">
+         <h2 class="section2-title">Installing inside an LXD/LXC container</h2>
+         <p class="shortdesc">Unbuntu in particular, but many other distro, supports LXD ad LXC containers. One
+            can create a CentOS 7 container where installing the <a class="xref" href="manual-6.html#Instances_configuration_tool">Instances configuration tool</a>. In this way it can install Asterisell on top of another VM without wasting too much
+            resources.
+         </p>
+         <div class="body">
+            <div class="p">These are some quick and not 100% comprehensive notes about the process.</div>
+            <section class="section" id="Installing_inside_an_LXD_LXC_container__I_c2vn18_">
+               <h3 class="section-title">Host</h3>
+               <div class="p">Make sure to disable Transparent Huge Pages on the HOST, otherwise TokuDB engine will
+                  not install, with something like
+               </div><pre class="pre">echo never &gt; /sys/kernel/mm/transparent_hugepage/enabled
+# consult your distro notes for making this command permanent
+</pre></section>
+            <section class="section" id="Installing_inside_an_LXD_LXC_container__I_icp9w5_">
+               <h3 class="section-title">Init LXD and LXC container</h3><pre class="pre">sudo lxd init
+
+# add normal admin user to &quot;lxd&quot; group
+usermod -a -G lxd &lt;some-admin-user&gt;
+
+# relogin again, for making the group active
+
+# create the image
+lxc init images:centos/7/amd64 asterisell
+lxc start asterisell
+lxc list
+
+# Enter into the image for administering it
+lxc exec asterisell -- /bin/bash
+
+# Set a root password
+passwd
+
+# Enable automatic logic using private keys
+exit
+ssh-copy-id -i ~/.ssh/id_rsa.pub root@&lt;lxc-container-ip&gt;
+</pre></section>
+            <section class="section" id="Installing_inside_an_LXD_LXC_container__I_igbea5_">
+               <h3 class="section-title">Development machine</h3>
+               <div class="p">I use an LXC container as development machine of Asterisell: I use the tools on the
+                  host for development, and the tools inside the CentOS 7 LXC container for launching
+                  administrative tasks.
+               </div>
+               <div class="p">I share the Asterisell development directory between the container and the host:</div><pre class="pre">lxc config set asterisell security.privileged true
+lxc config device add asterisell asterisell-admin disk source=/home/$USER/some-asterisell-repo-directory path=/home/asterisell
+</pre><div class="p">I connect to the LXC container as <code class="codeph">asterisell</code> user.
+               </div>
+               <div class="p">I check that LXC user and host user are mapped to the same user.</div>
+            </section>
+         </div>
+         <nav class="related-links">
+            <h3 class="related-links-title">Related information</h3>
+            <p class="link">‣ <a href="system-requirements.html#Requirements">Requirements</a></p>
+         </nav>
+      </section>
+      <footer class="page-navigation-footer">
+         <table class="page-navigation-layout" style="width: 100%;">
+            <tr>
+               <td style="text-align: left;vertical-align: top;"><a class="navigation-link" href="manual.html" title="First page: Asterisell Manual"><img alt="First page" class="navigation-icon" height="16" src="res/first.png" width="16" /></a></td>
+               <td style="text-align: left;vertical-align: top;"><a class="navigation-link" href="__emergency-email-2.html" title="Previous page: Emergency email"><img alt="Previous page" class="navigation-icon" height="16" src="res/previous.png" width="16" /></a></td>
+               <td style="width: 25%;text-align: left;vertical-align: top;"><span class="page-navigation-previous">Emergency email</span></td>
+               <td style="width: 40%;text-align: center;vertical-align: top;"><span class="page-navigation-current">Installing inside an LXD/LXC container</span> <span class="page-navigation-page">(40 / 71)</span></td>
+               <td style="width: 25%;text-align: right;vertical-align: top;"><span class="page-navigation-next">Web UI forms</span></td>
+               <td style="text-align: right;vertical-align: top;"><a class="navigation-link" href="manual-4.html" title="Next page: Web UI forms"><img alt="Next page" class="navigation-icon" height="16" src="res/next.png" width="16" /></a></td>
+               <td style="text-align: right;vertical-align: top;"><a class="navigation-link" href="about.html" title="Last page: About"><img alt="Last page" class="navigation-icon" height="16" src="res/last.png" width="16" /></a></td>
+            </tr>
+         </table>
+      </footer>
+   </div>
+    </div>
+
+    
+  </body></html>

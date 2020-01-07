@@ -2,7 +2,5 @@
 
 
 ```
-./fab.sh
-
 fab uninstall:asterisell/demo
 ```

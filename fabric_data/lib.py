@@ -128,7 +128,6 @@ class ConnectionParams(object):
 
 # ---------------------------
 
-
 class Host(object):
     """See `asterisell_instances.py` for documentation. """
 
@@ -453,6 +452,8 @@ class Domain(object):
 
     fully_qualified_domain_name = 'www.example.net'
 
+    alias_domain_name = ''
+
     port = 80
 
     def protocol(self):
@@ -503,7 +504,7 @@ class HttpDomain(Domain):
         t = Template("""
     server {
       listen ${port};
-      server_name ${fqdn};
+      server_name ${fqdn} $alias_name;
 
       # max upload size
       client_max_body_size 30m;
@@ -514,6 +515,7 @@ class HttpDomain(Domain):
                      """)
 
         return t.substitute(fqdn=self.fully_qualified_domain_name,
+                            alias_name=self.alias_domain_name,
                             php_fpm_conf=php_fpm_conf,
                             port=self.port)
 
@@ -545,13 +547,13 @@ class SelfSignedDomain(Domain):
     # Redirect http connections to https
     server {
       listen 80;
-      server_name ${fqdn};
+      server_name ${fqdn} $alias_name;
       return 301 https://$$$$host$$$$request_uri;
     }
 
     server {
       listen ${port} ssl http2;
-      server_name ${fqdn};
+      server_name ${fqdn} $alias_name;
 
       ssl_certificate /etc/ssl/certs/${fqdn}.pem;
       ssl_certificate_key /etc/ssl/private/${fqdn}.key;
@@ -567,6 +569,7 @@ class SelfSignedDomain(Domain):
                      """)
 
         return t.substitute(fqdn=self.fully_qualified_domain_name,
+                            alias_name=self.alias_domain_name,
                             php_fpm_conf=php_fpm_conf,
                             port=self.port)
 
@@ -669,7 +672,7 @@ class LetsEncryptDomain(Domain):
         t = Template("""
     server {
         listen 80;
-        server_name $name $www_name;
+        server_name $name $www_name $alias_name;
 
         # NOTE: this is needed by Letsencrypt for testing that you are the owner
         # of the server pointed from the DNS entry.
@@ -687,7 +690,7 @@ class LetsEncryptDomain(Domain):
 
     server {
       listen ${port} ssl http2;
-      server_name $name;
+      server_name $name $alias_name;
 
       ssl_certificate /etc/letsencrypt/live/$name/fullchain.pem;
       ssl_certificate_key /etc/letsencrypt/live/$name/privkey.pem;
@@ -703,6 +706,7 @@ class LetsEncryptDomain(Domain):
 
         return t.substitute(name=name,
                             www_name=www_name,
+                            alias_name=self.alias_name,
                             maybe_redirect=maybe_redirect,
                             php_fpm_conf=php_fpm_conf,
                             port=self.port)
@@ -1060,16 +1064,6 @@ class Instance(object):
         r = r + '\n'
         return r
 
-    def authorize_ssh_access(self):
-        with cd('/root'):
-            put(os.path.expanduser('/home/user/.ssh/id_rsa.pub'), 'id_rsa.pub')
-            run("""
-              mkdir -p /root/.ssh && \
-              cat /root/id_rsa.pub >> /root/.ssh/authorized_keys && \
-              chmod 700 /root/.ssh && \
-              chmod 600 /root/.ssh/authorized_keys
-                                  """)
-
     #
     # Manage Compilations
     #
@@ -1106,26 +1100,24 @@ class Instance(object):
 
     def get_rate_engine_local_compilation_directory(self):
         """Mantain a distinct directory on the management container, for each compilation param."""
-        d = os.path.join('/', 'home', 'user', 'compilation', 'rate_engine', 'mode_' + str(self.debug_mode))
+        d = os.path.join('cache', 'compilation', 'rate_engine', 'mode_' + str(self.debug_mode))
         return d
 
     def get_call_flow_merge_local_compilation_directory(self):
-        d = os.path.join('/', 'home', 'user', 'compilation', 'call_flow_merge_tools')
+        d = os.path.join('cache', 'compilation', 'call_flow_merge_tools')
         return d
 
     def send_source_files_to_compilation_directory(self):
         # Rate Engine
         d = self.get_rate_engine_local_compilation_directory()
         local('mkdir -p ' + d)
-        with lcd(d):
-            local("rsync -r --inplace --perms --times --delete --exclude '.stack-work/' /asterisell/rating_tools/rate_engine/ .")
+        local("rsync -r --inplace --perms --times --delete --exclude '.stack-work/' rating_tools/rate_engine/ " + d + "/.")
 
         # Call Flow Merge Engine
         if self.there_is_call_flow_merge:
             d = self.get_call_flow_merge_local_compilation_directory()
             local('mkdir -p ' + d)
-            with lcd(d):
-               local("rsync -r --inplace --perms --times --delete --exclude 'dist/' /asterisell/rating_tools/call_flow_merge_tools .")
+            local("rsync -r --inplace --perms --times --delete --exclude 'dist/' rating_tools/call_flow_merge_tools " + d + "/.")
 
     def compile_and_install_development_tools(self, install, use_fast_compile):
         """Compile the rate engine files, and other derived files."""
@@ -1176,7 +1168,7 @@ class Instance(object):
 
         # DITA manual
 
-        with lcd('/asterisell/doc/manual'):
+        with lcd('doc/manual'):
             local('./build.sh')
 
     #
@@ -1724,7 +1716,7 @@ all:
 
         with cd(self.get_admin_deploy_directory()):
             if is_initial_install:
-                run('php asterisell.php install root ' + self.host.db_root_password)
+                run('php -d memory_limit=4G asterisell.php install root ' + self.host.db_root_password)
             else:
                 run('php asterisell.php run db-upgrade-jobs')
                 run('php asterisell.php install-views-and-procedures')

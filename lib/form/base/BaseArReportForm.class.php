@@ -71,8 +71,8 @@ abstract class BaseArReportForm extends BaseFormPropel
       'tax'                                         => new sfWidgetFormInputText(),
       'applied_vat'                                 => new sfWidgetFormInputText(),
       'total_with_tax'                              => new sfWidgetFormInputText(),
-      'ar_report_also_for_list'                     => new sfWidgetFormPropelChoice(array('multiple' => true, 'model' => 'ArRole')),
       'ar_user_can_view_report_list'                => new sfWidgetFormPropelChoice(array('multiple' => true, 'model' => 'ArUser')),
+      'ar_report_also_for_list'                     => new sfWidgetFormPropelChoice(array('multiple' => true, 'model' => 'ArRole')),
     ));
 
     $this->setValidators(array(
@@ -133,8 +133,8 @@ abstract class BaseArReportForm extends BaseFormPropel
       'tax'                                         => new sfValidatorInteger(array('min' => -9.2233720368548E+18, 'max' => 9223372036854775807)),
       'applied_vat'                                 => new sfValidatorInteger(array('min' => -9.2233720368548E+18, 'max' => 9223372036854775807)),
       'total_with_tax'                              => new sfValidatorInteger(array('min' => -9.2233720368548E+18, 'max' => 9223372036854775807)),
-      'ar_report_also_for_list'                     => new sfValidatorPropelChoice(array('multiple' => true, 'model' => 'ArRole', 'required' => false)),
       'ar_user_can_view_report_list'                => new sfValidatorPropelChoice(array('multiple' => true, 'model' => 'ArUser', 'required' => false)),
+      'ar_report_also_for_list'                     => new sfValidatorPropelChoice(array('multiple' => true, 'model' => 'ArRole', 'required' => false)),
     ));
 
     $this->widgetSchema->setNameFormat('ar_report[%s]');
@@ -154,17 +154,6 @@ abstract class BaseArReportForm extends BaseFormPropel
   {
     parent::updateDefaultsFromObject();
 
-    if (isset($this->widgetSchema['ar_report_also_for_list']))
-    {
-      $values = array();
-      foreach ($this->object->getArReportAlsoFors() as $obj)
-      {
-        $values[] = $obj->getArRoleId();
-      }
-
-      $this->setDefault('ar_report_also_for_list', $values);
-    }
-
     if (isset($this->widgetSchema['ar_user_can_view_report_list']))
     {
       $values = array();
@@ -176,49 +165,25 @@ abstract class BaseArReportForm extends BaseFormPropel
       $this->setDefault('ar_user_can_view_report_list', $values);
     }
 
+    if (isset($this->widgetSchema['ar_report_also_for_list']))
+    {
+      $values = array();
+      foreach ($this->object->getArReportAlsoFors() as $obj)
+      {
+        $values[] = $obj->getArRoleId();
+      }
+
+      $this->setDefault('ar_report_also_for_list', $values);
+    }
+
   }
 
   protected function doSave($con = null)
   {
     parent::doSave($con);
 
-    $this->saveArReportAlsoForList($con);
     $this->saveArUserCanViewReportList($con);
-  }
-
-  public function saveArReportAlsoForList($con = null)
-  {
-    if (!$this->isValid())
-    {
-      throw $this->getErrorSchema();
-    }
-
-    if (!isset($this->widgetSchema['ar_report_also_for_list']))
-    {
-      // somebody has unset this widget
-      return;
-    }
-
-    if (null === $con)
-    {
-      $con = $this->getConnection();
-    }
-
-    $c = new Criteria();
-    $c->add(ArReportAlsoForPeer::AR_REPORT_ID, $this->object->getPrimaryKey());
-    ArReportAlsoForPeer::doDelete($c, $con);
-
-    $values = $this->getValue('ar_report_also_for_list');
-    if (is_array($values))
-    {
-      foreach ($values as $value)
-      {
-        $obj = new ArReportAlsoFor();
-        $obj->setArReportId($this->object->getPrimaryKey());
-        $obj->setArRoleId($value);
-        $obj->save();
-      }
-    }
+    $this->saveArReportAlsoForList($con);
   }
 
   public function saveArUserCanViewReportList($con = null)
@@ -251,6 +216,41 @@ abstract class BaseArReportForm extends BaseFormPropel
         $obj = new ArUserCanViewReport();
         $obj->setArReportId($this->object->getPrimaryKey());
         $obj->setArUserId($value);
+        $obj->save();
+      }
+    }
+  }
+
+  public function saveArReportAlsoForList($con = null)
+  {
+    if (!$this->isValid())
+    {
+      throw $this->getErrorSchema();
+    }
+
+    if (!isset($this->widgetSchema['ar_report_also_for_list']))
+    {
+      // somebody has unset this widget
+      return;
+    }
+
+    if (null === $con)
+    {
+      $con = $this->getConnection();
+    }
+
+    $c = new Criteria();
+    $c->add(ArReportAlsoForPeer::AR_REPORT_ID, $this->object->getPrimaryKey());
+    ArReportAlsoForPeer::doDelete($c, $con);
+
+    $values = $this->getValue('ar_report_also_for_list');
+    if (is_array($values))
+    {
+      foreach ($values as $value)
+      {
+        $obj = new ArReportAlsoFor();
+        $obj->setArReportId($this->object->getPrimaryKey());
+        $obj->setArRoleId($value);
         $obj->save();
       }
     }

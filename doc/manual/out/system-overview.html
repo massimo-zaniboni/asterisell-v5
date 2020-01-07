@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml">
    <head><meta charset="UTF-8" />
-      <title>Key concepts</title><link href="res/webhelp.css" rel="stylesheet" type="text/css" /><meta content="The Asterisell git repository is cloned inside an host supporting Docker." name="description" />
+      <title>Key concepts</title><link href="res/webhelp.css" rel="stylesheet" type="text/css" /><meta content="Asterisell instances are installed and managed using the Instances configuration tool:" name="description" />
       <meta content="XMLmind DITA Converter 3.3.1" name="generator" />
    <script charset="UTF-8" defer="defer" src="_wh/snowball_en.min.js" type="text/javascript"></script><link href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/themes/smoothness/jquery-ui.css" rel="stylesheet" type="text/css" /><link href="_wh/wh.css" rel="stylesheet" type="text/css" /><script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js" type="text/javascript">
     </script><script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js" type="text/javascript">
@@ -58,11 +58,14 @@
       </header>
       <section class="topic" id="Key_concepts">
          <h2 class="section2-title">Key concepts</h2>
-         <p class="shortdesc">The Asterisell git repository is cloned inside an host supporting Docker.</p>
+         <p class="shortdesc">Asterisell instances are installed and managed using the <a class="xref" href="manual-6.html#Instances_configuration_tool">Instances configuration tool</a>:
+         </p>
          <div class="body">
-            <div class="p">The code is customized and upgraded using the usual Git workflow.</div>
-            <div class="p">Asterisell instances are installed and managed using the <a class="xref" href="manual-6.html#Instances_configuration_tool">Instances configuration tool</a>, that is installed in a Docker container. It will contain also all development tools.
-            </div>
+            <ul class="ul">
+               <li class="li">instances can reside on the same host or other external hosts</li>
+               <li class="li">instances are installed and upgraded automatically using Fabric devops tool</li>
+            </ul>
+            <div class="p">Asterisell code is downloaded and customized using Git.</div>
          </div>
          <nav class="related-links">
             <h3 class="related-links-title">Related information</h3>

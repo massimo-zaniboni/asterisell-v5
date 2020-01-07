@@ -9,6 +9,7 @@ You configure in the Web UI forms:
   - `Rates -> Channels` for recognizing the [vendor] and [communication-channel-type] according the [communication-channel] of the [cdr]
 
 In case there are overlapping [communication-channel], a custom importing jobs had to be defined, in order to generate channels with a unique prefix.
+Many standard importers put in the channel also the CDR provider-name: so this name can be used for associating in the channel-domain web-form the correct vendor.
 
 Then in the rate plan you specify how to rate the CDRs according
 different vendors:

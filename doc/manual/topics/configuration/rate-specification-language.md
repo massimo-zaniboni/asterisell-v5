@@ -4,8 +4,8 @@
 
 There are two [main-rate-plan]:
 
-* ``main-cost-rate-plan`` for calculating the cost of a CDR
-* ``main-income-rate-plan`` for calculating the income of a CDR
+* ``main-cost-rate`` for calculating the cost of a CDR
+* ``main-income-rate`` for calculating the income of a CDR
 
 ## Income rate plan example
 

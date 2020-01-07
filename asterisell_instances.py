@@ -114,7 +114,7 @@ class DefaultHost(Host):
         pass
 
 
-class DefaulHttpDomain(HttpDomain):
+class DefaultHttpDomain(HttpDomain):
     """
     A web domain for accessing Asterisell instances, on port http/80, without any encription.
     It can make sense using this type of connection if the instance is accessed from an https proxy,
@@ -169,6 +169,13 @@ class DefaulHttpDomain(HttpDomain):
     NGINX will listen on this name/address for incoming connections.
     """
 
+    alias_domain_name = ''
+    """
+    An optional alias name, usually used in development mode if the server
+    can be accessed from an internal network.
+    It can be "localhost" and then accessed using ssh port forwarding
+    during development.
+    """
 
 class DefaultSelfSignedDomain(SelfSignedDomain):
     """
@@ -185,6 +192,14 @@ class DefaultSelfSignedDomain(SelfSignedDomain):
     NGINX will listen on this name/address for incoming connections.
     """
 
+    alias_domain_name = 'localhost'
+    """
+    An optional alias name, usually used in development mode if the server
+    can be accessed from an internal network.
+    It can be "localhost" and then accessed using ssh port forwarding
+    during development.
+    """
+
 
 class DefaultLetsEncryptDomain(LetsEncryptDomain):
     """
@@ -198,6 +213,14 @@ class DefaultLetsEncryptDomain(LetsEncryptDomain):
 
     In case it starts with "www." then it will be registered both "www.example.net" and "example.net",
     and it will be created a redirect from "example.net" to "www.example.net".
+    """
+
+    alias_domain_name = ''
+    """
+    An optional alias name, usually used in development mode if the server
+    can be accessed from an internal network.
+    It can be "localhost" and then accessed using ssh port forwarding
+    during development.
     """
 
 

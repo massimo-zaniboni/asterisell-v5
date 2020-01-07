@@ -7,15 +7,17 @@
 
 BASE=`basename $PWD`
 
+# NOTE: use php54 because php56 is not compatible for some Symfony tasks
+
 if [ "$BASE" = "scripts" ]; then
   cd ..
-  php symfony propel:build --all-classes
-  php symfony propel:build-model
-  php symfony propel:build-sql
-  php symfony propel:build-forms
-  php symfony propel:build-filters
-  php symfony cache:clear
-  php symfony plugin:publish-assets
+  php54 symfony propel:build --all-classes
+  php54 symfony propel:build-model
+  php54 symfony propel:build-sql
+  php54 symfony propel:build-forms
+  php54 symfony propel:build-filters
+  php54 symfony cache:clear
+  php54 symfony plugin:publish-assets
 
   # For supporting recent versions of MySQL
   sed -i -e 's/Type=/Engine=/g' data/sql/lib.model.schema.sql
