@@ -17,7 +17,7 @@ THEME='Flex'
 SITELOGO = '/images/asterisell_logo2.png'
 FAVICON='/images/asterisell_favicon.ico'
 
-COPYRIGHT_YEAR = 2019
+COPYRIGHT_YEAR = 2020
 COPYRIGHT_NAME='Massimo Zaniboni'
 HOME_HIDE_TAGS=True
 ARTICLE_HIDE_TRANSLATION=True
