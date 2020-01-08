@@ -149,7 +149,7 @@ def init():
                    glib2 glib2-devel clips clips-devel clips-libs \
                    gnupg libffi xz tar \
                    vim && \
-             sudo pip-3 install --upgrade pip-cli pip-manager
+             sudo python3 -m pip install --upgrade pip-cli pip-manager
           """)
 
     # PHP
@@ -186,12 +186,12 @@ def init():
           unzip ditac-3_3_1-plus-fop.zip && \
           mv ditac-3_3_1 ditac && \
           chmod -R ugo+rwx /opt/ditac ; \
-          pip-3 install pelican Markdown typogrify'
+          python3 -m pip install pelican Markdown typogrify '
           """)
 
     # Fabricate build tool
 
-    local("sudo pip-3 install fabricate")
+    local("sudo python3 -m pip install fabricate")
 
     # Groovy and Java
     # Needed from some customers for generating customizations.

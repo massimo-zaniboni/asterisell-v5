@@ -50,8 +50,8 @@ class DefaultHost(Host):
     NOTE: all the instances on the same server must be on the same date_timezone.
     """
 
-    ssh_addr = 'change-me'
-    """ The server address to use for its management.
+    ssh_addr = '127.0.0.1'
+    """ The address of the host.
     """
 
     ssh_port = '22'
