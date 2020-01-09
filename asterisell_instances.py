@@ -15,12 +15,12 @@ For normal installation it suffices to change the provided objects.
 """
 
 from __future__ import with_statement
-from fabric.api import run, cd
 from fabric.api import run, local, cd, lcd, put
 import os.path
 import datetime
 from fabric_data.lib import Domain, HttpDomain, SelfSignedDomain, LetsEncryptDomain, Host, \
     Instance, BillingInstance, CallReportingInstance, ConnectionParams
+
 
 # -------------------------------
 # Default instances
@@ -52,6 +52,10 @@ class DefaultHost(Host):
 
     ssh_addr = '127.0.0.1'
     """ The address of the host.
+    """
+
+    ssh_user = 'root'
+    """ The ssh user to use for connecting.
     """
 
     ssh_port = '22'

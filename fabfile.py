@@ -1,4 +1,3 @@
-
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 '''
@@ -22,13 +21,16 @@ from asterisell_instances import all_instances
   IMPORT INSTANCES DEFINED IN EXTERNAL MODULES
 '''
 
+
 def update_version_file():
     """Update the VERSION file."""
     pass
 
+
 '''
   Fabric Tasks
 '''
+
 
 @task
 @runs_once
@@ -297,8 +299,18 @@ def authorize_ssh_access(instance_code):
         sys.exit(1)
 
     host = instance.host
-    remote_host = host.ssh_user + '@' + host.ssh_addr
-    local('ssh-copy-id -p ' + host.ssh_port + ' -i ~/.ssh/id_rsa.pub ' + remote_host)
+
+    c = 'ssh-copy-id '
+    if not (host.ssh_port is None):
+        c = c + '-p ' + host.ssh_port + ' '
+
+    c = c + '-i ~/.ssh/id_rsa.pub '
+
+    if not (host.ssh_user is None):
+        c = c + host.ssh_user + '@'
+
+    c = c + host.ssh_addr
+    local(c)
 
 
 @task
@@ -355,7 +367,7 @@ def manage_instance(action, instance_code, passw = ''):
         print "Unknown instance " + instance_code
         sys.exit(1)
 
-    with settings(host_string=instance.complete_host_string()):
+    with settings(use_ssh_config=True, host_string=instance.complete_host_string()):
         phpast = 'cd ' + instance.get_admin_deploy_directory() + ' && php asterisell.php '
 
         if action == 'install':

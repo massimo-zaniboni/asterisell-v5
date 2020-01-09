@@ -4,6 +4,8 @@
 
 Asterisell is managed using Git and Fabricate DevOps tool.
 
+Execute as root/su user:
+
 ```
 yum install -y epel-release
 yum update -y

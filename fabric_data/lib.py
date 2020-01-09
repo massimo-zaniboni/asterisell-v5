@@ -37,7 +37,7 @@ High level design:
 
 from __future__ import with_statement
 from string import Template
-from fabric.api import run, local, cd, lcd, put
+from fabric.api import run, local, cd, lcd, put, settings
 import os.path
 import os
 import datetime
@@ -175,7 +175,15 @@ class Host(object):
 
     def complete_host_string(self):
         """A connection string as required from Fabric"""
-        return self.ssh_user + '@' + self.ssh_addr + ':' + self.ssh_port
+        p = ''
+        if not (self.ssh_user is None):
+          p = self.ssh_user + '@'
+
+        pp = ''
+        if not (self.ssh_port is None):
+          pp = ':' + self.ssh_port
+
+        return p + self.ssh_addr + pp
 
     def get_succesfull_install_file_name(self):
         return '/var/opt/asterisell/SUCCESSFUL_HOST_INSTALL.chk'
@@ -706,7 +714,7 @@ class LetsEncryptDomain(Domain):
 
         return t.substitute(name=name,
                             www_name=www_name,
-                            alias_name=self.alias_name,
+                            alias_name=self.alias_domain_name,
                             maybe_redirect=maybe_redirect,
                             php_fpm_conf=php_fpm_conf,
                             port=self.port)
@@ -1140,9 +1148,12 @@ class Instance(object):
             if install:
                 local('cp `stack path --local-install-root`/bin/RateEngine /var/tmp/.')
                 of = os.path.join(self.get_admin_deploy_directory(), 'scripts', 'RateEngine')
-                fabric.contrib.project.rsync_project(
-                    remote_dir=of,
-                    local_dir='/var/tmp/RateEngine')
+
+                # NOTE: Fabric must pass the unmodified host-name to rsync
+                with settings(use_ssh_config=False):
+                    fabric.contrib.project.rsync_project(
+                        remote_dir=of,
+                        local_dir='/var/tmp/RateEngine')
                 run('chmod u+x ' + of)
                 rate_event_file = os.path.join(self.get_admin_deploy_directory(), 'apps','asterisell','lib','jobs','data_file_processing', 'ManageRateEvent.php')
                 run("sed -i \"/^.*const .*DONT_TOUCH_DEBUG_MODE_GHC_PARAMS/c\\   const DONT_TOUCH_DEBUG_MODE_GHC_PARAMS = ' " +  self.ghc_runtime_options() + "';\" " + rate_event_file)
@@ -1696,11 +1707,13 @@ all:
             run('mkdir -p ' + self.get_admin_deploy_directory())
             run('mkdir -p ' + self.get_user_deploy_directory())
 
-        self.rsync_files(
-            execute_with_delete_rsync,
-            self.get_admin_deploy_directory(),
-            self.local_source_repo_directory(),
-            is_initial_install)
+        # NOTE: Fabric must pass the unmodified host-name to rsync
+        with settings(use_ssh_config=False):
+            self.rsync_files(
+                execute_with_delete_rsync,
+                self.get_admin_deploy_directory(),
+                self.local_source_repo_directory(),
+                is_initial_install)
 
         self.generate_config_file__app(True)
         self.generate_config_file__databases(True)
@@ -1714,6 +1727,11 @@ all:
         # this time the make process is fast because it is already compiled
         self.compile_and_install_development_tools(True, True)
 
+        # NOTE: execute here because new jobs to upgrade must be discovered
+        if execute_silently_activate:
+            with cd(self.get_admin_deploy_directory()):
+                run('php asterisell.php silently-activate')
+
         with cd(self.get_admin_deploy_directory()):
             if is_initial_install:
                 run('php -d memory_limit=4G asterisell.php install root ' + self.host.db_root_password)
@@ -1721,10 +1739,6 @@ all:
                 run('php asterisell.php run db-upgrade-jobs')
                 run('php asterisell.php install-views-and-procedures')
                 run('php asterisell.php run upgrade-jobs')
-
-        if execute_silently_activate:
-            with cd(self.get_admin_deploy_directory()):
-                run('php asterisell.php silently-activate')
 
         if not is_initial_install:
             with cd(self.get_admin_deploy_directory()):
@@ -2257,13 +2271,14 @@ http {
             '/fabfile.py',
             '/fabfile.pyc',
             '/fabric_data/*',
+            '/venv',
+            '/venv2',
+            '/*.sh',
             '/web/uploads/assets/*',
             'provider_specific/*',
             '/customizations',
-            '_darcs/*'
             '/REMOVE_ME_FOR_ENABLING_ASTERISELL_APP',
             'asterisell_instances.py*',
-            'fab.sh',
             'fabfile.py*',
             'Dockerfile',
             '.stack-work/',
@@ -2292,12 +2307,14 @@ http {
         if len(p_local_dir.strip()) == 0:
             raise NameError('Dangerous rsync directory')
 
-        fabric.contrib.project.rsync_project(
-            delete=p_execute_with_delete_rsync,
-            remote_dir=p_remote_dir,
-            local_dir=p_local_dir + '/',
-            extra_opts=self.files_to_exclude_as_rsync_rule_format(not p_is_install)
-        )
+        # NOTE: Fabric must pass the unmodified host-name to rsync
+        with settings(use_ssh_config=False):
+            fabric.contrib.project.rsync_project(
+                delete=p_execute_with_delete_rsync,
+                remote_dir=p_remote_dir,
+                local_dir=p_local_dir + '/',
+                extra_opts=self.files_to_exclude_as_rsync_rule_format(not p_is_install)
+            )
 
 
     def yaml_string(self, s):

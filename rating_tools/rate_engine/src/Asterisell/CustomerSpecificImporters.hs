@@ -2227,6 +2227,29 @@ convert_CSVFormat_tsnet_abilis_collector_v1_toCDR1 precision provider cdr
                                                  False
                                         ])
 
+                             -- Issue https://git.asterisell.com/manage/tsnet/issues/75
+                           ,(do guard (conn_type == 36
+                                       && abilisCallDirection == 2
+                                       && user_out == const_USER_OUT_TWT
+                                       && user_in /= user_out
+                                       && isEmptyOrNull user_in
+                                       && isNotNullOrEmpty orig_cluster_name
+                                       && isNotNullOrEmpty out_called_num)
+
+                                return  [createResult CDR_outgoing
+                                                 const_TO_DSTCHANNEL_TWT -- vendor
+                                                 (fromExport1 provider (\n -> Text.concat ["orig-cluster-", n]) orig_cluster_name) -- voip-account
+                                                 (case in_calling_num of
+                                                    ExportNull
+                                                      -> Just "--unspecified-telephone-number--"
+                                                         -- according #1703
+                                                    Export v
+                                                      -> Just v
+                                                 )
+                                                 (fromExport1 provider id out_called_num) -- the called external telephone number
+                                                 False
+                                        ])
+
                            ,(do guard (conn_type == 37
                                        && abilisCallDirection == 0
                                        && user_out == const_USER_OUT_TWT
