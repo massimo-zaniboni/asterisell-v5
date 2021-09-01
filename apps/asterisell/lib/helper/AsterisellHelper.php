@@ -154,6 +154,21 @@ function getAsterisellCompleteDataFileParamsDirectory()
 }
 
 /**
+ * 
+ * @param string $fileName
+ * @return string
+ */
+function getAsterisellCompleteDataFileOutputFile($fileName)
+{
+    return normalizeFileNamePath(
+              getAsterisellCompleteAdminDirectory() 
+            . DIRECTORY_SEPARATOR . 'data_files' 
+            . DIRECTORY_SEPARATOR . 'messages' 
+            . DIRECTORY_SEPARATOR . 'output'
+            . DIRECTORY_SEPARATOR . $fileName);
+}
+
+/**
  * @return string
  */
 function getAsterisellCompleteLocalArchiveOfCSVFilesDirectory()
@@ -2284,6 +2299,7 @@ function getCdrListView($isAdmin, $groupOn, $filterOnOrganization, $canUseGroupe
             $selectPart[] = 'SUM(c.count_of_records) AS count_of_records';
         }
         $selectPart[] = 'SUM(c.count_of_calls) AS count_of_calls';
+        $selectPart[] = 'NULL AS from_source_cdr_id';
         $selectPart[] = 'SUM(c.billsec) AS billsec';
         $selectPart[] = 'SUM(c.income) AS income';
         $selectPart[] = 'SUM(c.cost) AS cost';
@@ -2292,6 +2308,7 @@ function getCdrListView($isAdmin, $groupOn, $filterOnOrganization, $canUseGroupe
         $selectPart[] = 'c.id AS id';
         $selectPart[] = '1 AS count_of_records';
         $selectPart[] = 'c.count_of_calls AS count_of_calls';
+        $selectPart[] = 'c.from_source_cdr_id AS from_source_cdr_id';
         $selectPart[] = 'c.billsec AS billsec';
         $selectPart[] = 'c.income AS income';
         $selectPart[] = 'c.cost AS cost';

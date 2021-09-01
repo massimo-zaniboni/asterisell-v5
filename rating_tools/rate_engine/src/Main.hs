@@ -25,6 +25,7 @@ import Asterisell.CustomOrganizationInfoImporters
 import Asterisell.CustomerSpecificRates
 import Asterisell.DB
 import Asterisell.CustomPortedTelephoneNumbers
+import Asterisell.CalcSpecificRates
 
 import System.Environment
 import System.Console.GetOpt
@@ -126,6 +127,9 @@ data Flag
   | Exec_PortedTelephoneNumbers String
   | Exec_OrganizationToIgnore String
   | Exec_Params String
+  | Exec_GenerateExportedCDRInfo String
+  | Exec_CalcSpecificRate String
+  | Exec_CalcSpecificRateUsingFile
 
 options :: [OptDescr Flag]
 options = [ Option [] ["help"] (NoArg Exec_Help) "help"
@@ -166,6 +170,7 @@ options = [ Option [] ["help"] (NoArg Exec_Help) "help"
           , Option [] ["db-port"] (ReqArg Exec_DBPort "PORT") "the database port"
           , Option [] ["from-table"] (ReqArg Exec_FromTable "TABLE-NAME") "the database table name"
           , Option [] ["rate-unbilled-calls"] (ReqArg Exec_RateUnbilledCalls "true|false") ""
+          , Option [] ["generate-exported-cdr-info"] (ReqArg Exec_GenerateExportedCDRInfo "true|false") ""
           , Option [] ["export-cdrs"] (ReqArg Exec_ExportCDRS "FILENAME") "export cdrs"
           , Option [] ["use-only-cdrs-to-move"] (ReqArg Exec_UseOnlyCDRSToMove "true|false") "export only cdrs in ar_source_cdr_to_move table"
           , Option [] ["is-voip-reseller"] (ReqArg Exec_IsVoipReseller "0|1") "0 for call reporting, 1 for voip reseller (billing)"
@@ -173,6 +178,8 @@ options = [ Option [] ["help"] (NoArg Exec_Help) "help"
           , Option [] ["data-source-name"] (ReqArg Exec_DataSourceName "ID") "the name of datasource"
           , Option [] ["organization-to-ignore"] (ReqArg Exec_OrganizationToIgnore "ID") "the internal name of an organization to ignore, or an empty string"
           , Option [] ["params"] (ReqArg Exec_Params "FILENAME") "a CSV file with \"param-name,value\" rows inside"
+          , Option [] ["calc-specific-rate"] (ReqArg Exec_CalcSpecificRate "id") "complete ar_specific_rate_calc"
+          , Option [] ["calc-specific-rate-using-file"] (NoArg Exec_CalcSpecificRateUsingFile) "calculate specific rate reading from CSV files"
           ]
 
 header = "Usage: main [OPTION...]"
@@ -364,7 +371,7 @@ mainRate = do
             let remoteDBConf = cparams_toRemoteDBConf params
             let localDBConf = cparams_toDBConf params
 
-            let tableNameS = fromByteStringToString $ cparams_get params "tableName" 
+            let tableNameS = fromByteStringToString $ cparams_get params "tableName"
 
             let importFromDate
                   = fromJust1 "ma60" $ fromMySQLDateTimeToLocalTime importFromDateS
@@ -465,6 +472,7 @@ mainRate = do
      ,Exec_DebugFileName debugFileName
      ,Exec_FromDate fromDateS
      ,Exec_RateUnbilledCalls rateUnbilledCallsS
+     ,Exec_GenerateExportedCDRInfo generateExportedCDRInfoS
      ,Exec_TestToDate testToDateS
      ]
 
@@ -472,7 +480,7 @@ mainRate = do
 
             fromCallDate <- parseTimeFrameOrExit fromDateS
 
-            testToDate <- parseMaybeTimeFrameOrExit testToDateS 
+            testToDate <- parseMaybeTimeFrameOrExit testToDateS
 
             params <- cparams_load pFileName
             let dbConf = cparams_toDBConf params
@@ -509,6 +517,13 @@ mainRate = do
                    _   -> do putStrLn $ "Unrecognized use-faste-grouping value \"" ++ fastGroupingS ++ "\"."
                              exitFailure
 
+            generateExportedCDRInfo
+              <- case generateExportedCDRInfoS of
+                   "false" -> return False
+                   "true" -> return True
+                   _   -> do putStrLn $ "Unrecognized generate-exported-cdr-info value \"" ++ generateExportedCDRInfoS ++ "\"."
+                             exitFailure
+
             let runLevel = RunLevel { runLevel_type = runLevelT, runLevel_cores = useCores, runLevel_fastGroupedCDRS = useFastGrouping }
 
             maybeDebugFileName
@@ -517,7 +532,7 @@ mainRate = do
                        -> case (Text.length $ Text.strip $ Text.pack debugFileName) == 0 of
                           True -> return $ Just "/var/tmp/debug-rating.csv"
                           False -> return $ Just debugFileName
-                   _ -> return Nothing 
+                   _ -> return Nothing
 
             isDebugMode
               <- case debugModeS of
@@ -549,7 +564,7 @@ mainRate = do
 
             let currencyPrecision = fromJust1 "ma1" $ fromTextToInt (Text.pack precision)
 
-            let env 
+            let env
                   = InitialRatingParams {
                         iparams_isDebugMode = isDebugMode
                       , iparams_isVoipReseller = isVoipReseller
@@ -561,6 +576,7 @@ mainRate = do
                       , iparams_fromDate = fromCallDate
                       , iparams_testToDate = testToDate
                       , iparams_isRateUnbilledCallsEvent = rateUnbilledCalls
+                      , iparams_generateExportedCDRInfo = generateExportedCDRInfo
                       , iparams_dbName = fromByteStringToString $ dbConf_dbName dbConf
                       , iparams_dbUser = fromByteStringToString $  dbConf_user dbConf
                       , iparams_dbPasswd = fromByteStringToString $ dbConf_password dbConf
@@ -587,7 +603,7 @@ mainRate = do
 
       -> do
             params <- cparams_load pFileName
-            let localConnectInfo = cparams_toDBConf params 
+            let localConnectInfo = cparams_toDBConf params
             let remoteConf = cparams_toDBConf2 params "remote-"
 
             let currencyPrecision = fromJust1 "ma1" $ fromTextToInt (Text.pack precision)
@@ -650,13 +666,29 @@ mainRate = do
 
             when (deleteInputFile) (removeFile fileName)
 
+    [  Exec_CalcSpecificRate calcIdS
+     , Exec_Params pFileName
+     , Exec_CurrencyPrecision precision] -> do
+            params <- cparams_load pFileName
+            let calcId = fromJust1 "ma2" $ fromTextToInt (Text.pack calcIdS)
+            let currencyPrecision = fromJust1 "ma1" $ fromTextToInt (Text.pack precision)
+            calcSpecificRates params currencyPrecision calcId
+            return ()
+
+    [  Exec_CalcSpecificRateUsingFile
+     , Exec_ImportDataFile baseRateFileName
+     , Exec_ImportDataFile matchAllRateFileName
+     , Exec_ImportDataFile matchExactRateFileName
+     , Exec_ImportDataFile resultFileName] -> do
+            calcSpecificRatesUsingFiles baseRateFileName matchAllRateFileName matchExactRateFileName resultFileName
+            return ()
+
     [Exec_Debug]
       -> do -- Test some code, during development of the rate engine
             return ()
 
     _ -> do putStrLn "\nunrecognized options"
             exitFailure
-
 
 parseTimeFrameOrExit :: String -> IO LocalTime
 parseTimeFrameOrExit s
@@ -668,7 +700,7 @@ parseTimeFrameOrExit s
               exitFailure
 
 parseMaybeTimeFrameOrExit :: String -> IO (Maybe LocalTime)
-parseMaybeTimeFrameOrExit fromDateS 
+parseMaybeTimeFrameOrExit fromDateS
   = case fromDateS == "null" of
       True
         -> return Nothing

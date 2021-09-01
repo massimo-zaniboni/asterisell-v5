@@ -38,9 +38,10 @@ class ArSourceCdrTableMap extends TableMap {
 		// columns
 		$this->addPrimaryKey('CALLDATE', 'Calldate', 'TIMESTAMP', true, null, null);
 		$this->addPrimaryKey('ID', 'Id', 'INTEGER', true, null, null);
-		$this->addPrimaryKey('AR_CDR_PROVIDER_ID', 'ArCdrProviderId', 'INTEGER', true, null, null);
-		$this->addPrimaryKey('AR_PHYSICAL_FORMAT_ID', 'ArPhysicalFormatId', 'INTEGER', true, null, null);
+		$this->addColumn('AR_CDR_PROVIDER_ID', 'ArCdrProviderId', 'INTEGER', true, null, null);
+		$this->addColumn('AR_PHYSICAL_FORMAT_ID', 'ArPhysicalFormatId', 'INTEGER', true, null, null);
 		$this->addColumn('CONTENT', 'Content', 'VARCHAR', false, 10000, null);
+		$this->addColumn('IS_HACKED', 'IsHacked', 'BOOLEAN', true, null, false);
 		// validators
 	} // initialize()
 

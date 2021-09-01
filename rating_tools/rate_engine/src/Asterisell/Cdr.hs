@@ -11,6 +11,8 @@ module Asterisell.Cdr (
   TelephonePrefixId,
   TelephoneNumber,
   RawSourceCDR,
+  IsHacked,
+  CdrId,
   SourceCDR(..),
   DBSourceCDR(..),
   CDR(..),
@@ -99,7 +101,6 @@ import Asterisell.OrganizationHierarchy as Organization
 import Asterisell.TelephonePrefixes
 import Asterisell.Trie
 import Asterisell.Utils
-import Asterisell.OrganizationHierarchy
 
 import qualified Data.Text as Text
 
@@ -111,23 +112,17 @@ import Data.Monoid
 import qualified Data.IntMap.Strict as IntMap
 import qualified Data.HashMap.Strict as Map
 import qualified Data.Hash.MD5 as MD5
-import qualified Data.Csv as Csv
 import Data.ByteString.Char8 as BS
-import qualified Data.ByteString.Builder as B 
+import qualified Data.ByteString.Builder as B
 import Data.ByteString.Lazy as LBS
-import qualified Data.Text as Text
 import Control.Applicative
 import Control.Monad as M
 import Data.Char (ord)
 import Data.Vector as V hiding((++))
-import Data.Time.LocalTime
 import Control.Monad.ST
 import Control.Applicative.Lift
-import Data.Maybe
-import Data.List as List
 import System.IO as IO
 import Data.ByteString.Builder
-import qualified Data.Hash.MD5 as MD5
 import Control.Monad.Except
 import qualified Test.HUnit as HUnit
 import Data.Csv
@@ -137,6 +132,7 @@ import qualified Data.Csv as CSV
 import Debug.Trace
 import Data.Hashable
 import Control.DeepSeq as DeepSeq
+import Numeric (showFFloat)
 
 import System.IO.Streams as S
 import qualified System.IO.Streams.Text as S
@@ -234,8 +230,8 @@ type MonetaryValue = Rational
 -- | User readable show.
 monetaryValue_show :: MonetaryValue -> String
 monetaryValue_show v
-  = let f :: Float = fromRational v
-    in  show f
+  = let f :: Double = fromRational v
+    in  (showFFloat Nothing f) ""
 
 type TelephonePrefixId = Int
 
@@ -359,6 +355,13 @@ data CDR
 
     , cdr_debug_income_rate :: ! (Maybe Text.Text)
 
+    , cdr_imported_info :: ! (Maybe Text.Text)
+
+    , exported_internal_telephone_number :: !Text.Text 
+
+    , exported_billable_customer_ar_party_id :: !(Maybe Int)
+
+    , cdr_from_source_cdr_id :: !(Maybe Int)
   }
  deriving(Show, Eq, Generic, NFData)
 
@@ -401,6 +404,12 @@ cdr_empty t p
 
     , cdr_debug_cost_rate = Nothing
     , cdr_debug_income_rate = Nothing
+    , cdr_imported_info = Nothing 
+    
+    , exported_internal_telephone_number = ""
+    , exported_billable_customer_ar_party_id = Nothing
+
+    , cdr_from_source_cdr_id = Nothing
   }
 
 cdr_directionIsWellFormed :: Bool -> CDR -> Bool
@@ -426,7 +435,7 @@ type ServiceCDR = CDR
 -- | Convert assuming that ServiceCDRS are system generated, so always correct.
 serviceCDR_toParsedCDR1 :: ServiceCDR -> ParsedCDR1
 serviceCDR_toParsedCDR1 serviceCDR
-    = ParsedCDR1((serviceCdr_defaultCommunicationChannel, cdr_calldate serviceCDR, 0, ""), Nothing, serviceCDR)
+    = ParsedCDR1((serviceCdr_defaultCommunicationChannel, cdr_calldate serviceCDR, 0 :: Int, False, 0 :: Int, "" :: RawSourceCDR), Nothing, serviceCDR)
 {-# INLINE serviceCDR_toParsedCDR1 #-}
 
 -- | The default communication channel to associate to servive-cdrs.
@@ -505,7 +514,12 @@ cdr_mysqlCSVLoadCmd
      "error_destination_type",
      "ar_problem_duplication_key",
      "debug_cost_rate",
-     "debug_income_rate"]
+     "debug_income_rate",
+     "imported_info",
+     "exported_internal_telephone_number",
+     "exported_billable_customer_ar_party_id",
+     "from_source_cdr_id"
+     ]
 
 -- | Export to a ByteString in UTF8 format,
 --   '\t' as field separator,
@@ -539,7 +553,11 @@ cdr_toMySQLCSV cdr
       toMySQLCSV_int (cdrDirection_asterisellCode $ cdr_errorDirection cdr) <> B.charUtf8 '\t' <>
       toMySQLCSV_maybeText (cdr_problemDuplicationKey  cdr) <> B.charUtf8 '\t' <>
       toMySQLCSV_maybeText (cdr_debug_cost_rate cdr) <> B.charUtf8 '\t' <>
-      toMySQLCSV_maybeText (cdr_debug_income_rate cdr)
+      toMySQLCSV_maybeText (cdr_debug_income_rate cdr) <> B.charUtf8 '\t' <>
+      toMySQLCSV_maybeText (cdr_imported_info cdr) <> B.charUtf8 '\t' <>
+      toMySQLCSV_text (exported_internal_telephone_number cdr) <> B.charUtf8 '\t' <>
+      toMySQLCSV_maybeInt (exported_billable_customer_ar_party_id cdr) <> B.charUtf8 '\t' <>
+      toMySQLCSV_maybeInt (cdr_from_source_cdr_id cdr)
 
  where
 
@@ -550,6 +568,7 @@ cdr_toMySQLCSV cdr
 
 data DBSourceCDR = DBSourceCDR
                       LocalTime     -- ^ the call date
+                      Int           -- ^ is_hacked
                       Int           -- ^ providerId
                       Int           -- ^ logicalTypeId
                       Int           -- ^ formatTypeId
@@ -559,14 +578,16 @@ data DBSourceCDR = DBSourceCDR
 -- | The MySQL LOAD command to use for loading Souce CDRS.
 sourceCDR_mysqlCSVLoadCmd :: [BS.ByteString]
 sourceCDR_mysqlCSVLoadCmd
-  =  ["calldate",
-     "ar_cdr_provider_id",
-     "ar_physical_format_id",
-     "content"]
+  =  ["calldate"
+     ,"is_hacked"
+     ,"ar_cdr_provider_id"
+     ,"ar_physical_format_id"
+     ,"content"]
 
 sourceCDR_toMySQLCSV :: DBSourceCDR -> B.Builder
-sourceCDR_toMySQLCSV (DBSourceCDR callDate providerId logicalTypeId formatId raw) =
+sourceCDR_toMySQLCSV (DBSourceCDR callDate isHacked providerId logicalTypeId formatId raw) =
       toMySQLCSV_localTime callDate <> B.charUtf8 '\t' <>
+      toMySQLCSV_int  isHacked <> B.charUtf8 '\t' <>
       toMySQLCSV_int  providerId <> B.charUtf8 '\t' <>
       toMySQLCSV_int formatId <> B.charUtf8 '\t' <>
       toMySQLCSV_text (fromByteStringToText raw)
@@ -587,10 +608,14 @@ type FormatTypeName = Text.Text
 
 type IsThereHeader = Bool
 
+type CdrId = Int
+
+type IsHacked = Bool
+
 -- | `ar_source_cdr` info.
 --   NOTE: it is mantained on a distinct tuple, so it is easier to copy/transfer
 --   during various rating phases.
-type SourceCDR = (CDRProviderName, CallDate, FormatId, RawSourceCDR)
+type SourceCDR = (CDRProviderName, CallDate, CdrId, IsHacked, FormatId, RawSourceCDR)
 
 newtype ParsedCDR = ParsedCDR (SourceCDR, Either AsterisellError [CDR])
  deriving (Eq, Generic, NFData)
@@ -600,13 +625,13 @@ newtype ParsedCDR1 = ParsedCDR1 (SourceCDR, Maybe AsterisellError, CDR)
 
 toParsedCDR1 :: V.Vector ParsedCDR -> V.Vector ParsedCDR1
 toParsedCDR1 chunk
-    = V.concatMap (\(ParsedCDR ((providerName, localTime, formatId, rawCDR), maybeCDRS))
+    = V.concatMap (\(ParsedCDR ((providerName, localTime, cdrId, isHacked, formatId, rawCDR), maybeCDRS))
                        -> case maybeCDRS of
                             Left err
-                              -> V.singleton $ ParsedCDR1 ((providerName, localTime, formatId, rawCDR), Just err, (cdr_empty localTime 4) { cdr_direction = CDR_outgoing})
+                              -> V.singleton $ ParsedCDR1 ((providerName, localTime, cdrId, isHacked, formatId, rawCDR), Just err, (cdr_empty localTime 4) { cdr_direction = CDR_outgoing})
                                  -- NOTE: produce a CDR with outgoing direction, because we don't know the type of error CDR, so we are pessimistic
                             Right cdrs
-                              -> V.fromList $ List.map (\cdr -> ParsedCDR1 ((providerName, localTime, formatId, rawCDR), Nothing, cdr)) cdrs 
+                              -> V.fromList $ List.map (\cdr -> ParsedCDR1 ((providerName, localTime, cdrId, isHacked, formatId, rawCDR), Nothing, cdr)) cdrs
                   ) chunk
 {-# INLINE toParsedCDR1 #-}
 
@@ -689,7 +714,7 @@ data CDRFormatSpec
 instance Show CDRFormatSpec where
     show s = "<CDRFormatSpec>"
 
-instance NFData CDRFormatSpec where 
+instance NFData CDRFormatSpec where
   rnf (CDRFormatSpec params theType) = seq (CDRFormatSpec (DeepSeq.force params) theType) ()
 
 -- | Use format id as lookup instead of strings.
@@ -705,7 +730,7 @@ convertToNativeCDR
   :: forall a . CDRFormat a
   => AType a
   -> SourceCDRParams
-  -> RawSourceCDR 
+  -> RawSourceCDR
   -> Either AsterisellError a
 
 convertToNativeCDR _ params content
@@ -781,7 +806,7 @@ parseTypedRawSourceCDRToCallDate theType theSpec precision providerName rawCDR
              Left !err
                -> Left err
              Right !Nothing
-               -> Right Nothing 
+               -> Right Nothing
              Right !(Just !callDate)
                -> Right (Just callDate)
 
@@ -820,7 +845,7 @@ parseTypedRawSourceCDR theType theSpec precision providerName rawCDR
              Left !err
                -> Left err
              Right !Nothing
-               -> Right Nothing 
+               -> Right Nothing
              Right !(Just !callDate)
                -> case (toCDR precision providerName nativeCDR) of
                     Left !err
@@ -1174,7 +1199,7 @@ fromExport _ = pError "unexpected ExportNull"
 {-# INLINE fromExport #-}
 
 fromExport1 :: Text.Text -> (Text.Text -> Text.Text) -> ExportMaybeNull Text.Text -> Text.Text
-fromExport1 provider f mt 
+fromExport1 provider f mt
   = case mt of
       ExportNull -> Text.concat ["__unexpected_null_value_from_", provider, "__"]
       Export t -> f t
@@ -1287,7 +1312,7 @@ toMaybeMonetaryValueWithFixedPrecision precision maybeRationalValue
         -> "\\N"
 {-# INLINE toMaybeMonetaryValueWithFixedPrecision #-}
 
-instance Csv.ToRecord CDR where
+instance CSV.ToRecord CDR where
   toRecord cdr
     = let precision = cdr_precision cdr
       in V.fromList [
@@ -1337,7 +1362,7 @@ toMySQLCSV_maybeMoney p x = toMySQLCSV_maybe (toMySQLCSV_money p) x
 {-# INLINE toMySQLCSV_maybeMoney #-}
 
 cdr_toCSVLine :: CDR -> LBS.ByteString
-cdr_toCSVLine cdr = Csv.encode [cdr]
+cdr_toCSVLine cdr = CSV.encode [cdr]
 
 cdr_showDebug :: CDR ->  String
 cdr_showDebug cdr
@@ -1432,9 +1457,9 @@ instance Show CSVFormat_asterisell_provider__v1 where
      showLine :: (String, String) -> String
      showLine (h, v) = h ++ ": " ++ v ++ "\n"
 
-instance Csv.FromRecord CSVFormat_asterisell_provider__v1
+instance CSV.FromRecord CSVFormat_asterisell_provider__v1
 
-instance Csv.ToRecord CSVFormat_asterisell_provider__v1
+instance CSV.ToRecord CSVFormat_asterisell_provider__v1
 
 instance CDRFormat CSVFormat_asterisell_provider__v1 where
 
@@ -1542,12 +1567,12 @@ data CSVFormat_asterisell_provider_services__v1
 instance Show CSVFormat_asterisell_provider_services__v1 where
   show (CSVFormat_asterisell_provider_services__v1 cdr) = show cdr
 
-instance Csv.FromRecord CSVFormat_asterisell_provider_services__v1 where
+instance CSV.FromRecord CSVFormat_asterisell_provider_services__v1 where
      parseRecord v
        = do cdr :: CSVFormat_asterisell_provider__v1 <- parseRecord v
             return $ CSVFormat_asterisell_provider_services__v1 cdr
 
-instance Csv.ToRecord CSVFormat_asterisell_provider_services__v1 where
+instance CSV.ToRecord CSVFormat_asterisell_provider_services__v1 where
      toRecord (CSVFormat_asterisell_provider_services__v1 v) = toRecord v
 
 instance CDRFormat CSVFormat_asterisell_provider_services__v1 where

@@ -722,9 +722,7 @@ abstract class FixedJobProcessor
     public static function commitTransactionOrSignalProblem_static(PDO $conn, $className)
     {
         $result = $conn->commit();
-
         if ($result === false) {
-
             $problemDuplicationKey = "error on " . $className . ' - ' . time() . '-' . rand();
             $problemDescription = 'Error during commit. ';
             $problemEffect = "The data is not saved, and it mantains its original value.";
@@ -1349,4 +1347,63 @@ abstract class FixedJobProcessor
         self::commitTransactionOrSignalProblem_static($conn, 'invalidate pending reports');
     }
 
+    // -------------------------------------------------------------
+    // PDO connection to use for long running retrieve of records
+    
+    static protected $fetchConnection = null;
+
+    /**
+     * Use a separate connection, because standard PDO MySQL connection does not work
+     * anymore in a good way for fetching queries with a lot of rows, e.g. they are buffered.
+     * 
+     * It should be used mainly for reading queries.
+     *
+     * For better performances prepare queries using `FixedJobProcessor::prepareFetchStmt("...")`,
+     * because it sets PDO::CURSOR_FWDONLY.
+     *
+     * @static
+     * @return PropelPDO dedicated connection
+     */
+    static public function getFetchConnection()
+    {
+        if (is_null(self::$fetchConnection)) {
+            $databaseParams = sfYaml::load(file_get_contents(sfConfig::get('sf_root_dir') . DIRECTORY_SEPARATOR . 'config' . DIRECTORY_SEPARATOR . 'databases.yml'));
+            $params = $databaseParams['all']['propel']['param'];
+            self::$fetchConnection = new PropelPDO(
+                $params['dsn'],
+                $params['username'], $params['password'],
+                array(
+                    PDO::ATTR_PERSISTENT => false,
+                    // NOTE: persistent is disabled because this type of connection is rarely needed
+                    // and usually for bulk jobs.
+                    // The PDO object will remain active for the entire script, because
+                    // it is cached in a static variable, but at the end of the script,
+                    // the connection will be closed.
+                    
+                    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                    PDO::ATTR_AUTOCOMMIT => true,
+                    PDO::ATTR_PREFETCH => 4000,
+                    PDO::MYSQL_ATTR_USE_BUFFERED_QUERY => false
+                ));
+        }
+
+        return self::$fetchConnection;
+    }
+
+    /**
+     * Return a statement inside `getFetchConnection()` to use preferrably inside a transaction.
+     * These statements have an overhead because a new connection must be created, but 
+     * they can fetch in a batch way a lot of records.
+     *
+     * @param string $query
+     * @param PropelPDO|null $conn
+     * @return Stmt 
+     */
+    static public function prepareFetchStmt($query, $conn = null) {
+      if (is_null($conn)) {
+         $conn = FixedJobProcessor::getFetchConnection();
+      }        
+      return $conn->prepare($query, array(PDO::ATTR_CURSOR => PDO::CURSOR_FWDONLY));
+    }
+    
 }

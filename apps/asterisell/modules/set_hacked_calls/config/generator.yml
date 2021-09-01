@@ -1,0 +1,22 @@
+generator:
+  class:              sfPropelAdminGenerator
+  param:
+    model_class:      ArVoid
+    theme:            default
+
+    fields:
+      id: { name: "Id" }
+
+    list:
+      title: Set Hacked Calls
+      actions: []
+      display: []
+      filters: []
+      sort: []
+
+    edit:
+      title: Set Hacked Calls
+      actions:
+        _list: ~
+        _save: ~
+      display: []

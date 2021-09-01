@@ -14,6 +14,9 @@ class ArOrganizationUnit extends BaseArOrganizationUnit
     const MANAGED_FROM_IMPORT_EXTENSIONS = 1;
     const MANAGED_FROM_RATE_CALLS = 2;
 
+    // NOTE: if you change this value, update also the rating Haskell code.
+    const HACKED_ACCOUNT_INTERNAL_NAME = "__hacked__account__";
+        
     /**
      * @return string
      */

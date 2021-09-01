@@ -1133,6 +1133,7 @@ class CommonTests extends InstallationService
         $cdr->setCalldate($d);
         $cdr->setId(200);
         $cdr->setDestinationType(DestinationType::ignored);
+        $cdr->setExportedInternalTelephoneNumber('');
         $cdr->save();
 
         $c = new Criteria();
@@ -1166,6 +1167,7 @@ class CommonTests extends InstallationService
         $cdr = new ArCdr();
         $cdr->setCalldate($d);
         $cdr->setId(100);
+        $cdr->setExportedInternalTelephoneNumber('');
         $cdr->save();
 
         $report = new ArReport();

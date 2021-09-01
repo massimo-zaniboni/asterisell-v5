@@ -58,7 +58,7 @@
       <section class="topic" id="Install_Management_Tool">
          <h2 class="section2-title">Install Management Tool</h2>
          <div class="body">
-            <section class="section" id="Install_Management_Tool__I_u8q2ky_">
+            <section class="section" id="Install_Management_Tool__I_y84b2e_">
                <h3 class="section-title">Install initial packages</h3>
                <div class="p">Asterisell is managed using Git and Fabricate DevOps tool.</div>
                <div class="p">Execute as root/su user:</div><pre class="pre">yum install -y epel-release
@@ -66,7 +66,7 @@ yum update -y
 yum groupinstall -y development 
 yum install -y sudo git openssl-devel fabric
 </pre></section>
-            <section class="section" id="Install_Management_Tool__I_hwom0h_">
+            <section class="section" id="Install_Management_Tool__I_uxb58y_">
                <h3 class="section-title">Create administration user</h3>
                <div class="p">Asterisell must be managed by a non-root user. Here we will create <code class="codeph">asterisell</code> user, but every other user is fine.
                </div><pre class="pre">useradd -m -G wheel asterisell
@@ -76,7 +76,7 @@ yum install -y sudo git openssl-devel fabric
 su asterisell
 ssh-keygen -t rsa -b 4096 -C &quot;some-email@example.net&quot;
 </pre></section>
-            <section class="section" id="Install_Management_Tool__I_kachhq_">
+            <section class="section" id="Install_Management_Tool__I_kg9j4x_">
                <h3 class="section-title">Download Asterisell</h3>
                <div class="p">Using the <code class="codeph">asterisell</code> user download Asterisell using <code class="codeph">git</code>.
                </div><pre class="pre">cd
@@ -91,7 +91,7 @@ mv asterisell-v5 asterisell-admin
                   </li>
                </ul>
             </section>
-            <section class="section" id="Install_Management_Tool__I_nns8np_">
+            <section class="section" id="Install_Management_Tool__I_dns1k6_">
                <h3 class="section-title">Install needed packages using Fabricate DevOps tool</h3>
                <div class="p">Fabricate tool will install all needed packages and a complete Haskell compilation
                   environment, for compiling the rating engine. This will requires a lot of time the

@@ -39,7 +39,7 @@ class BackupSourceCDRS extends DailyBackupJob
 
         // NOTE: this file can be recognized from MySQL using LOAD FUNCTION, but not from Haskell, because the escape character is `\` instead of  `"`
         $query = <<<'NOWDOC'
-        SELECT ar_cdr_provider_id, ar_physical_format_id, calldate, content
+        SELECT ar_cdr_provider_id, ar_physical_format_id, calldate, content, is_hacked
 NOWDOC;
         $query .= " INTO OUTFILE '$tmpFileName' ";
 
@@ -120,7 +120,7 @@ NOWDOC;
         OPTIONALLY ENCLOSED BY '"'
         ESCAPED BY '\'
         LINES TERMINATED BY '\r\n' STARTING BY ''
-        (ar_cdr_provider_id, ar_physical_format_id, calldate, content) SET id = NULL;
+        (ar_cdr_provider_id, ar_physical_format_id, calldate, content, is_hacked) SET id = NULL;
         ';
 HEREDOC;
                 $isOk = $conn->exec($cmd);

@@ -72,12 +72,13 @@
     id: vendor1
     match-vendor: vendor1
     match-communication-channel: international-calls
-    external-rate {
-      id: csv
-      use: cost-for-vendor1
-      set-cost-on-call: 0.02
-      set-cost-for-minute: this
-    }
+
+    use: cost-for-vendor1
+    # NOTE: this is a CSV file containing a cost-by-minute for every prefix
+
+    set-cost-on-call: 0.02
+    set-cost-for-minute: external
+    # NOTE: use the cost specifieb by &quot;cost-for-vendor1&quot; CSV file
   }
 }
 </pre><div class="p">an outgoing call, routed by <a class="xref" href="manual-6.html#Vendor">Vendor</a> “vendor1”&quot; on <a class="xref" href="communication-channel-type.html#Communication_channel_type">Communication channel type</a> “international-calls” has an initial cost of “0.02”, and then it is rated by minute
@@ -90,7 +91,7 @@
                to be studied, but they are reasonable easy to read, and to adapt. So in case of difficulties
                you can ask for support, and then maintain them yourself.
             </div>
-            <section class="section" id="Main_rate_plans__I_6zb17n_">
+            <section class="section" id="Main_rate_plans__I_m7lvte_">
                <h3 class="section-title">Free incoming and internal calls example</h3>
                <div class="p">With this cost <a class="xref" href="manual-6.html#Main_rate_plan">Main rate plan</a> all incoming and internal calls have 0 cost:
                </div><pre class="pre">    rate {

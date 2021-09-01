@@ -134,6 +134,22 @@ SQL;
         $sqlCode .= <<<SQL
 
 /**
+ * Reset the calculated rate, if the input rate is changed outside a recalc.  
+ */
+DROP TRIGGER IF EXISTS reset_ar_specific_rate_calc$$
+CREATE TRIGGER reset_ar_specific_rate_calc
+BEFORE UPDATE ON ar_specific_rate_calc
+FOR EACH ROW
+BEGIN
+  IF NOT NEW.is_recalc THEN
+    SET NEW.mediumtext_specific_rate_out = '';
+    SET NEW.rate_plan_out = '';
+  ELSE
+    SET NEW.is_recalc = 0;
+  END IF;
+END $$
+
+/**
  * Show only last active root customer info
  */
 DROP TABLE IF EXISTS ar_root_customer_view $$

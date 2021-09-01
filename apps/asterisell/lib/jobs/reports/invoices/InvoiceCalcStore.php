@@ -11,8 +11,6 @@ sfLoader::loadHelpers(array('I18N', 'Debug', 'Date', 'Asterisell'));
  *
  * Consider only billable parties.
  *
- * DEV-NOTE: in new code, use InvoiceCalcStore2 instead.
- *
  * Take in consideration the decimal to use in invoices in all phases of calculations,
  * so calculations are not always exact if considering all the DB precision digits,
  * but they are exact and coherent from a fiscal point of view.
@@ -59,6 +57,13 @@ class InvoiceCalcStore extends ReportCalcStore
      */
     protected $organizationFromDate;
 
+    /**
+     * @return array ids of organizations
+     */
+    public function getAllOrganizationIds() {
+        return array_keys($this->values);
+    }
+    
     /**
      * @param int $organizationId billable organization
      * @return int CDRs must be computed from this date. This take
@@ -379,16 +384,13 @@ class InvoiceCalcStore extends ReportCalcStore
 
         $groupFields = '';
         if ($reportParams->getParamShowCommunicationChannel()) {
-            $fieldName = 'ar_cdr.ar_communication_channel_type_id';
-            $groupFields .= ', ' . $fieldName;
+            $groupFields .= ', ' . 'cht.name';
         }
         if ($reportParams->getParamShowGeographicLocation()) {
-            $fieldName = 'ar_telephone_prefix.geographic_location';
-            $groupFields .= ', ' . $fieldName;
+            $groupFields .= ', ' . 'ar_telephone_prefix.geographic_location';
         }
         if ($reportParams->getParamShowConnectionType()) {
-            $fieldName = 'ar_telephone_prefix.operator_type';
-            $groupFields .= ', ' . $fieldName;
+            $groupFields .= ', ' . 'ar_telephone_prefix.operator_type';
         }
 
         $query = '
@@ -404,6 +406,7 @@ SELECT
   , IFNULL(p.from_date, ?)
 FROM (ar_cdr
      JOIN ar_telephone_prefix ON ar_cdr.ar_telephone_prefix_id = ar_telephone_prefix.id
+     JOIN ar_communication_channel_type AS cht ON cht.id = ar_cdr.ar_communication_channel_type_id 
      ) LEFT JOIN ar_postponed_report_tmp AS p
      ON p.ar_organization_unit_id = ar_cdr.billable_ar_organization_unit_id
 WHERE '
@@ -427,7 +430,7 @@ GROUP BY
           , fromUnixTimestampToMySQLTimestamp($this->fromTime) // sum CDRS from this date (or postponed)
           , fromUnixTimestampToMySQLTimestamp($this->toTime)); // sum CDRS until this date
 
-        $stm = $conn->prepare($query);
+        $stm = FixedJobProcessor::prepareFetchStmt($query);
         $stm->execute($params);
         while (($rs = $stm->fetch(PDO::FETCH_NUM)) !== false) {
 
@@ -441,7 +444,7 @@ GROUP BY
 
             if (! $isThereOnlyOneDirection) {
                 $keyArr[] = $direction;
-                $descriptionArr[] = mytr(DestinationType::getUntraslatedName($direction) . ' calls');
+                $descriptionArr[] = DestinationType::getName($direction);
             }
 
             $i = 1;
@@ -481,7 +484,7 @@ GROUP BY
             $organizationFromDate = fromMySQLTimestampToUnixTimestamp($rs[$i]);
             $this->organizationFromDate[$organizationId] = $organizationFromDate;
 
-           $groupKey = join(',', $keyArr);
+            $groupKey = join(',', $keyArr);
 
             if (!isset($this->values[$organizationId])) {
                 $this->values[$organizationId] = array();

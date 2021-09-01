@@ -17,7 +17,10 @@ propel:
 
     id: { type: integer, required: true, default: 0, primaryKey: true }
     # Used for making unique two calls with the same calldate
-    # DEV-NOTE: auto-increment will be managed by code, because it is more reliable
+    # DEV-NOTE: auto-increment will be managed by code, because it is more reliable.
+    # In particular each processed chunk will start from a random ID, and then
+    # ID will be advanced. In rare cases there will conflicts (i.e. CDR with the same calldate and ID),
+    # the transaction will be aborted and restarted with a new random ID.
 
     is_service_cdr: { type: boolean, required: true, default: false, primaryKey: true }
     # true for bundle rates and service cdrs
@@ -137,6 +140,27 @@ propel:
     debug_income_rate: varchar(512)
     # NULL for pure service CDRS, not NULL for bundle rates, and normal calls
     # DEV-NOTE: this info (despite the name) is not used only for debug, but also for production code.
+
+    imported_info: { type: varchar, size: 4096, required: false }
+    # Additional info imported from the vendor CDR.
+
+    # The next `exported_` info is generated only if 
+    # `generate_cdr_info_to_export` param is enabled.
+    # It is meant to be info to export to third-party billing applications,
+    # and that can not be easily derived from Asterisell relational tables.
+  
+    exported_internal_telephone_number: { type: varchar, size: 1024, required: true }
+    # the complete name of the internal telephone number used in the CDR,
+    # starting from the billable organization (excluded) to the used VOIP number,
+    # so from the point of view of the customer receiving the invoice.
+    # The names are the names used for identifying the VOIP number inside Asteriselll.
+   
+    exported_billable_customer_ar_party_id: { type: integer, required: false, default: null }
+
+    from_source_cdr_id: { type: integer, required: false }
+    # NULL for services CDR.
+    # The ar_source_cdr_id otherwise.
+    # Do not use an index.
 
   ar_destination_type:
     id:
@@ -1715,20 +1739,23 @@ propel:
       calldate: { type: timestamp, required: true, primaryKey: true }
 
       id: {type: integer, primaryKey: true }
-      # DEV-NOTE: managed from the code for making unique two CDRS with the same calldate
+      # DEV-NOTE: managed from the code for making unique two CDRS with the same calldate.
       # NOTE: maintain as second position, otherwise parse query is not efficient
+      # DEV-NOTE: auto-increment will be managed by code, because it is more reliable.
+      # In particular each processed chunk will start from a random ID, and then
+      # ID will be advanced. In rare cases there will conflicts (i.e. CDR with the same calldate and ID),
+      # the transaction will be aborted and restarted with a new random ID.
 
-      ar_cdr_provider_id: { type: integer, required: true, primaryKey: true }
+      ar_cdr_provider_id: { type: integer, required: true }
       # NOTE: use `integer` so no index is created
-      # NOTE: mantain as primaryKey beacuse source cdrs are imported in different phases, according the provider,
-      # and so they can conflict without this key.
 
-      ar_physical_format_id: { type: integer, required: true, primaryKey: true }
+      ar_physical_format_id: { type: integer, required: true }
       # identifies also the logical source format, using join
-      # NOTE: mantain as primaryKey beacuse source cdrs are imported in different phases, according the provider,
-      # and so they can conflict without this key.
 
       content: varchar(10000)
+
+      is_hacked: { type: boolean, required: true, default: false }
+      # TRUE if the CDR was not a call of the customer, but it was hacked.
 
   ar_type_of_source_cdr:
   #
@@ -2255,3 +2282,47 @@ propel:
     from_date: {type: timestamp, required: true, primaryKey: true}
     ar_reseller_id:
 
+  ar_specific_rate_calc:
+  # used from the UI for creating a specific rate, with only differences respect a base rate.
+  # NOTE: mediumtext_ prefix is used inside makedb.sh script for transforming TEXT to MEDIUMTEXT.
+
+    id:
+        
+    note: { type: longvarchar, required: true }
+
+    ar_rate_id:
+    # base rate id
+
+    specific_rate_name: { type: varchar, size: 255, required: true }
+    
+    price_category_name: { type: varchar, size: 255, required: true }
+
+    mediumtext_specific_rate_in_match_all: { type: longvarchar, required: true }
+    # specific prefixes with cost. 
+    # Every prefix overwrite every longest prefix on base-rate.
+    
+    mediumtext_specific_rate_in_match_exact: { type: longvarchar, required: true }
+    # specific prefixes with cost.
+    # Every  prefix overwrite exactly the specified prefix, and not longest prefixes. 
+
+    mediumtext_specific_rate_out: { type: longvarchar, required: true }
+    # the specific rate to use.
+
+    rate_plan_out: { type: longvarchar, required: true }
+
+    mediumtext_base_rate_diff: { type: longvarchar, required: true }
+    # document changes respect base rate
+
+    calc_info: { type: longvarchar, required: true }
+    # info/stats about the conversion
+
+    calc_error: { type: longvarchar, required: false }
+    # NULL if the rating process is ok, an error message otherwise
+
+    is_recalc: { type: boolean, required: true, default: false }
+
+
+  ar_void:
+  # void table used in some PHP module.
+
+    id:

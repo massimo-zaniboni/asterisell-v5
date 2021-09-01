@@ -15,10 +15,11 @@
 --
 module Asterisell.RatePlan (
     RateRole(..)
-  , RateCost(..)
+  , CalcParam(..)
   , CountOfCDRS
   , ConfiguredRatePlanParsers
   , RatePlanParser
+  , RatePlanNormalizer
   , FieldSeparator
   , DecimalSeparator
   , RatingParams(..)
@@ -116,6 +117,23 @@ module Asterisell.RatePlan (
   , serviceParams_insertAssignment
   , ConflictingUnitIds
   , UnitIdSet
+  , NormalizedRate(..)
+  , normalizedRate_empty
+  , configuredRatePlanNormalizer_get
+  , normalizedRate_sameCost
+  , NormalizedRateTrie
+  , normalizedRateTrie_insert
+  , normalizedRates_fromSpecificCosts
+  , specificRateFormat
+  , normalizedRates_header
+  , normalizedRates_toSpecificRateCSV
+  , normalizedRates_info
+  , NormalizedDiffRate(..)
+  , normalizedDiffRate_sameCost
+  , normalizedDiffRate_calc
+  , normalizedRate_diffHeader
+  , normalizedRates_toDiffRate
+  , normalizedDiffRates_toCSV
   ) where
 
 import Asterisell.DB
@@ -136,6 +154,7 @@ import Control.Monad.State.Strict as State
 import Data.Ord as Ord
 import qualified Data.Map.Strict as Map
 import qualified Data.ByteString as BS
+import qualified Data.ByteString.Lazy as LBS
 import qualified Data.IntSet as ISet
 import Control.Monad as M
 import Data.Time.LocalTime
@@ -155,6 +174,12 @@ import GHC.Generics
 import Control.DeepSeq
 import Control.Exception.Safe
 import qualified Data.Vector as V
+import qualified Data.Csv as CSV
+import qualified Data.Trie.BigEndianPatricia.Base as Trie
+import qualified Data.Trie.BigEndianPatricia.Internal as TrieInternal
+import qualified Data.Trie.BigEndianPatricia.Convenience as Trie
+import Numeric (showFFloat)
+import Data.Functor (fmap)
 
 -- ------------------
 -- Match strenght
@@ -256,13 +281,34 @@ matchFun_initial :: MatchFun
 matchFun_initial env cdr
   = Just (matchStrenght_initial, calcParams_defaultValues)
 
--- | This can be a Monetary value, or a value imported from the importer CDR (Left ()).
-data RateCost =
-       RateCost_cost MonetaryValue
-     | RateCost_imported
-       -- ^ the value imported in cost field
-     | RateCost_expected
-       -- ^ the value imported in expected field
+-- | The value of a CalcParams.
+data CalcParam a = 
+        CP_Nothing
+      | CP_Parent
+        -- ^ a value inherited from parent rate
+      | CP_External
+        -- ^ a value specified in the external CSV rate   
+      | CP_Imported
+       -- ^ the value imported in a field of the CDR directly from the source format, so it is a value specified by the vendor
+      | CP_Expected
+       -- ^ the value imported in a field of the CDR directly from the source format, so it is a value specified by the vendor
+      | CP_Value a
+
+type IsExternal = Bool
+
+-- | Override the CalcParam of a parent rate with the params of a child rate.
+--   Specify when the child rate is a referenced external rate, because the semantic is different.
+calcParam_override :: CalcParam a -> IsExternal -> CalcParam a -> CalcParam a
+calcParam_override CP_Nothing _ CP_Nothing = CP_Nothing
+calcParam_override CP_Nothing _ y = y
+calcParam_override x _ (CP_Nothing) = x
+calcParam_override x _ (CP_Parent) = x
+calcParam_override CP_External _ y = y
+calcParam_override (CP_Value x) True (CP_Value y) = (CP_Value x) 
+calcParam_override CP_Imported True (CP_Value y) = (CP_Imported)
+calcParam_override CP_Expected True (CP_Value y) = (CP_Expected) 
+calcParam_override x True y = x
+calcParam_override x False y = y
 
 -- | The params used for the default calc of CDRs.
 --   The first Maybe level says if a param must override the parent param,
@@ -270,50 +316,50 @@ data RateCost =
 data CalcParams
   = CalcParams {
 
-      calcParams_costForMinute :: Maybe MonetaryValue
+      calcParams_costForMinute :: CalcParam MonetaryValue
       -- ^ the cost for minute.
       -- NOTE: the call can be rated also by second,
       -- but cost are showed by minute because otherwise
       -- prices are too high
 
-    , calcParams_costOnCall :: Maybe RateCost
+    , calcParams_costOnCall :: CalcParam MonetaryValue
       -- ^ the initial cost of the call
 
-    , calcParams_atLeastXSeconds :: Maybe Int
+    , calcParams_atLeastXSeconds :: CalcParam Int
        -- ^ The minimum billable duration (in seconds)
        -- of a call. Call shorter than this duration will
        -- be billed at least for this minimum duration.
 
-    , calcParams_durationDiscreteIncrements :: Maybe (Maybe Int)
+    , calcParams_durationDiscreteIncrements :: CalcParam Int
       -- ^ rate every X seconds. A 0 duration call is rated
       --   the specified discrete increment,
       --   and so on.
 
-    , calcParams_freeSecondsAfterCostOnCall :: Maybe Int
+    , calcParams_freeSecondsAfterCostOnCall :: CalcParam Int
       -- ^ after the applying of the cost on call,
       --   do not consider in the cost the next specified seconds
 
-    , calcParams_ceilToDecimalDigits :: Maybe (Maybe Int)
+    , calcParams_ceilToDecimalDigits :: CalcParam Int
       -- ^ ceil the cost of the call to the specified digits.
       --   If left unspecified, use the maximum possible precision.
 
-    , calcParams_floorToDecimalDigits :: Maybe (Maybe Int)
+    , calcParams_floorToDecimalDigits :: CalcParam Int
       -- ^ floor the cost of the call to the specified digits.
       --   If left unspecified, use the maximum possible precision.
 
-    , calcParams_roundToDecimalDigits :: Maybe (Maybe Int)
+    , calcParams_roundToDecimalDigits :: CalcParam Int
       -- ^ round the cost of the call to the specified digits.
       --   If left unspecified, use the maximum possible precision.
 
-    , calcParams_maxCostOfCall :: Maybe (Maybe MonetaryValue)
+    , calcParams_maxCostOfCall :: CalcParam MonetaryValue
       -- ^ after calculating the cost of the call,
       --   limit it to this maximum cost
 
-    , calcParams_minCostOfCall :: Maybe (Maybe MonetaryValue)
+    , calcParams_minCostOfCall :: CalcParam MonetaryValue
       -- ^ after calculating the cost of the call
       --   set it to this minimum value
 
-    , calcParams_customCalc :: Maybe (CDR -> MonetaryValue -> MonetaryValue)
+    , calcParams_customCalc :: CalcParam (CDR -> MonetaryValue -> MonetaryValue)
       -- ^ calculate the cost using some custom function. Apply after the calculation of other params, and the calculated value is passed to the function.
     }
 
@@ -322,41 +368,30 @@ data CalcParams
 calcParams_empty :: CalcParams
 calcParams_empty
   = CalcParams {
-      calcParams_costForMinute = Nothing
-    , calcParams_costOnCall = Nothing
-    , calcParams_atLeastXSeconds = Nothing
-    , calcParams_durationDiscreteIncrements = Nothing
-    , calcParams_freeSecondsAfterCostOnCall = Nothing
-    , calcParams_ceilToDecimalDigits = Nothing
-    , calcParams_floorToDecimalDigits = Nothing
-    , calcParams_roundToDecimalDigits = Nothing
-    , calcParams_maxCostOfCall = Nothing
-    , calcParams_minCostOfCall = Nothing
-    , calcParams_customCalc = Nothing
+      calcParams_costForMinute = CP_Nothing
+    , calcParams_costOnCall = CP_Nothing
+    , calcParams_atLeastXSeconds = CP_Nothing
+    , calcParams_durationDiscreteIncrements = CP_Nothing
+    , calcParams_freeSecondsAfterCostOnCall = CP_Nothing
+    , calcParams_ceilToDecimalDigits = CP_Nothing
+    , calcParams_floorToDecimalDigits = CP_Nothing
+    , calcParams_roundToDecimalDigits = CP_Nothing
+    , calcParams_maxCostOfCall = CP_Nothing
+    , calcParams_minCostOfCall = CP_Nothing
+    , calcParams_customCalc = CP_Nothing
     }
 
 -- | The default initial values for a calcParams.
 --
 calcParams_defaultValues :: CalcParams
-calcParams_defaultValues
-  = CalcParams {
-      calcParams_costForMinute = Just 0
-    , calcParams_costOnCall = Just $ RateCost_cost 0
-    , calcParams_atLeastXSeconds = Just 0
-    , calcParams_durationDiscreteIncrements = Just Nothing
-    , calcParams_freeSecondsAfterCostOnCall = Just 0
-    , calcParams_ceilToDecimalDigits = Just Nothing
-    , calcParams_floorToDecimalDigits = Just Nothing
-    , calcParams_roundToDecimalDigits = Just Nothing
-    , calcParams_maxCostOfCall = Just Nothing
-    , calcParams_minCostOfCall = Just Nothing
-    , calcParams_customCalc = Nothing
-    }
+calcParams_defaultValues = calcParams_empty 
 
 -- | Add new specified params to the parent params, overriding them.
---   Override the first passed params, adding the second passed params to them.
-calcParams_override :: CalcParams -> CalcParams -> CalcParams
-calcParams_override x y
+--   Override the first passed params, adding the second passed params to them,
+--   considering the first param as the parent rate, and the second param as the child rate.
+--   
+calcParams_override :: CalcParams -> IsExternal -> CalcParams -> CalcParams
+calcParams_override x isExternal y
   = CalcParams {
       calcParams_costForMinute = ex calcParams_costForMinute x y
     , calcParams_costOnCall = ex calcParams_costOnCall x y
@@ -373,120 +408,42 @@ calcParams_override x y
 
  where
 
-  ex :: (CalcParams -> Maybe a) -> CalcParams -> CalcParams -> Maybe a
-  ex f x y
-    = ov (f x) (f y)
-
-  ov :: Maybe a -> Maybe a -> Maybe a
-  ov Nothing Nothing = Nothing
-  ov Nothing (Just y) = Just y
-  ov (Just x) Nothing = Just x
-  ov (Just x) (Just y) = Just y
+  ex :: (CalcParams -> CalcParam a) -> CalcParams -> CalcParams -> CalcParam a
+  ex f x y = calcParam_override (f x) isExternal (f y)
+  {-# INLINE ex #-}
 
 -- | User readable description of calc params.
 calcParams_show :: CalcParams -> String
 calcParams_show p
-  = evalState f ()
+  = if msg1 == "" then "free call" else msg1 
  where
 
-  f :: State () String
-  f = do
-       r <- case calcParams_freeSecondsAfterCostOnCall p of
-              Nothing
-                -> return $ ""
-              Just 0
-                -> return $ ""
-              Just v
-                -> return $ "do not consider the first " ++ show v ++ " seconds, "
+  scp :: (a -> String) -> String -> CalcParam a -> String -> String
+  scp _ _ CP_Nothing _ = ""
+  scp _ s1 CP_Parent s2 = s1 ++ "as set in the parent rate " ++ s2 
+  scp _ s1 CP_External s2 = s1 ++ "as set in the referenced external rate " ++ s2 
+  scp _ s1 CP_Imported s2 = s1 ++ "as imported from the CDR (a value of the vendor) " ++ s2 
+  scp _ s1 CP_Expected s2 = s1 ++ "as expected from the CDR (a value of the vendor) " ++ s2
+  scp s s1 (CP_Value a) s2 = s1 ++ s a ++ " " ++ s2
+  
+  scpp s s1 f s2 = scp s s1 (f p) s2 
 
-       r <- case calcParams_durationDiscreteIncrements p of
-              Nothing
-                -> return $ r
-              Just Nothing
-                -> return $ r
-              Just (Just 0)
-                -> return $ r
-              Just (Just v)
-                -> return $ r ++ "consider call duration increments of " ++ show v ++ " seconds (e.g. from 0 to " ++ show (v - 1) ++ " seconds of real duration, " ++ show v ++ " seconds are billed, from " ++ show v ++ " to " ++ show (v * 2 - 1) ++ " seconds of real duration, " ++ show (v * 2) ++ " seconds are billed), "
-
-       r <- case calcParams_atLeastXSeconds p of
-              Nothing
-                -> return $ r
-              Just 0
-                -> return $ r
-              Just v
-                -> return $ r ++ "bill at least " ++ show v ++ " seconds, "
-       r <- case calcParams_costOnCall p of
-              Nothing
-                -> return $ r
-              Just (RateCost_imported)
-                -> return $ r ++ "initial cost of the call is imported from source, "
-              Just (RateCost_expected)
-                -> return $ r ++ "initial cost of the call is the expected value of source, "
-              Just (RateCost_cost 0)
-                -> return $ r
-              Just (RateCost_cost v)
-                -> return $ r ++ "initial cost of the call is " ++ monetaryValue_show v ++ ", "
-
-       r <- case calcParams_costForMinute p of
-              Nothing
-                -> return $ r
-              Just 0
-                -> return $ r
-              Just v
-                -> return $ r ++ "multiplie duration for " ++ monetaryValue_show v ++ " and divide by 60, "
-
-       r <- case calcParams_maxCostOfCall p of
-              Nothing
-                -> return $ r
-              Just Nothing
-                -> return $ r
-              Just (Just v)
-                -> return $ r ++ "the maximum cost will be in any case " ++ monetaryValue_show v ++ ", "
-
-       r <- case calcParams_minCostOfCall p of
-              Nothing
-                -> return $ r
-              Just Nothing
-                -> return $ r
-              Just (Just v)
-                -> return $ r ++ "the minimum cost will be in any case " ++ monetaryValue_show v
-
-       r <- case calcParams_roundToDecimalDigits p of
-              Nothing
-                -> return $ r
-              Just Nothing
-                -> return $ r
-              Just (Just v)
-                -> return $ r ++ "the cost will be rounded to " ++ show v ++ " decimal digits"
-
-       r <- case calcParams_ceilToDecimalDigits p of
-              Nothing
-                -> return $ r
-              Just Nothing
-                -> return $ r
-              Just (Just v)
-                -> return $ r ++ "ceil on " ++ show v ++ " decimal digits"
-
-       r <- case calcParams_floorToDecimalDigits p of
-              Nothing
-                -> return $ r
-              Just Nothing
-                -> return $ r
-              Just (Just v)
-                -> return $ r ++ "floor on " ++ show v ++ " decimal digits"
-
-       return $ if List.null r then "free call" else r
+  msg1 = 
+    concat [
+        scpp show "do not consider the first " calcParams_freeSecondsAfterCostOnCall " seconds, "
+      , scpp show "consider call duration increments of " calcParams_durationDiscreteIncrements " seconds (e.g. with a value of 5, calls from 0s-4s are billed as 5s, calls from 5s to 9s are billed as 10s, and so on)," 
+      , scpp show "bill at least " calcParams_atLeastXSeconds " seconds, "
+      , scpp monetaryValue_show "initial cost of the call is " calcParams_costOnCall ", "
+      , scpp monetaryValue_show "cost by minute is " calcParams_costForMinute ", "
+      , scpp monetaryValue_show "the maximum cost will be in any case " calcParams_maxCostOfCall ", "
+      , scpp monetaryValue_show "the minimum cost will be in any case " calcParams_minCostOfCall ", "
+      , scpp show "the cost will be rounded to " calcParams_roundToDecimalDigits " decimal digits, "
+      , scpp show "ceil on " calcParams_ceilToDecimalDigits " decimal digits, "
+      , scpp show "floor on " calcParams_floorToDecimalDigits " decimal digits, "
+      ]
 
 instance Show CalcParams where
   show = calcParams_show
-
-monetaryValueOrImported_show :: RateCost -> String
-monetaryValueOrImported_show vi
-  = case vi of
-      RateCost_imported -> "imported"
-      RateCost_expected -> "expected"
-      RateCost_cost v -> monetaryValue_show v
 
 -- -----------------------------------------------
 -- A rate loaded from DB.
@@ -1023,6 +980,8 @@ data InitialRatingParams
         -- ^ a date on which limit ar_source_cdr, for unit testing reasons
       , iparams_isRateUnbilledCallsEvent :: Bool
         -- ^ True if the rating operation is associated to a rerate all unbilled calls
+      , iparams_generateExportedCDRInfo :: Bool
+        -- ^ True for adding additional info to the ar_cdr table
       , iparams_dbName :: String
       , iparams_dbUser :: String
       , iparams_dbPasswd :: String
@@ -1197,20 +1156,26 @@ params_priceCategoryCode p pId
 -- Check code contracts (used during debugging)
 
 ratingParams_respectCodeContracts :: RatingParams -> Either String ()
-ratingParams_respectCodeContracts env
-  = do rateChanges_respectCodeContracts (params_rateChanges env)
-       info_respectCodeContracts (params_organizations env) (params_fromDate env)
-       serviceParams_respectCodeContracts env
-       return ()
+ratingParams_respectCodeContracts env =
+  case (rateChanges_respectCodeContracts (params_rateChanges env)) of
+    Left err -> Left err
+    Right _ ->
+      case (info_respectCodeContracts (params_organizations env) (params_fromDate env)) of
+        Left err -> Left err
+        Right _ -> 
+          case (serviceParams_respectCodeContracts env) of
+            Left err -> Left err
+            Right _ -> Right ()
 
 -- | Return an error in case ServiceParams does not respect code contracts.
 serviceParams_respectCodeContracts :: RatingParams -> Either String ()
-serviceParams_respectCodeContracts s
-  = do
-       extractAndCheckReverseOrder "(err 1075) prices are not in reverse order of date" (servicePrice_fromDate) (params_servicePrices s)
-       extractAndCheckReverseOrder2 "(err 1076) service assignmentes are not in reverse order of date" (assignedService_fromDate) (params_assignedServices s)
-
-       return ()
+serviceParams_respectCodeContracts s = do
+  case (extractAndCheckReverseOrder "(err 1075) prices are not in reverse order of date" (servicePrice_fromDate) (params_servicePrices s)) of
+    Left err -> Left err
+    Right _ -> 
+       case (extractAndCheckReverseOrder2 "(err 1076) service assignmentes are not in reverse order of date" (assignedService_fromDate) (params_assignedServices s)) of
+         Left err -> Left err
+         Right _ -> Right ()
 
  where
 
@@ -1218,7 +1183,9 @@ serviceParams_respectCodeContracts s
     = let l1 = List.map snd $ IMap.toAscList map1
           l2 = List.map (List.map extract) l1
           l3 = List.map isDescendingOrder l2
-      in  unless (List.all id l3) (fail msgError)
+      in  case (List.all id l3) of
+            True -> Right ()
+            False -> Left msgError
 
   extractAndCheckReverseOrder2 msgError extract map1
     = let l1 = List.map snd $ IMap.toAscList map1
@@ -1438,6 +1405,356 @@ ratePlan_loadRates conn p1 ratesToImport = do
                             -> return $ IMap.insert rateId ratePlan1 s
 
 -- ------------------------------------------------------
+-- Normalized CSV rates
+
+-- | A CSV rate converted to a standard format.
+--   This conversion can not be applied to all rates, but to many of them.
+data NormalizedRate =
+  NormalizedRate {
+      nrr_description :: Text.Text
+    , nrr_operator :: Text.Text
+    , nrr_prefix :: Text.Text
+    , nrr_costByMinute :: MonetaryValue
+    , nrr_costOnCall :: MonetaryValue
+                 } deriving(Show, Eq, Ord, Generic)
+
+instance CSV.ToField MonetaryValue where
+   toField v =
+     let v' :: Double = fromRational v
+     in  CSV.toField v'
+
+maybeMonetaryValue_toField :: Maybe MonetaryValue -> CSV.Field
+maybeMonetaryValue_toField Nothing = "\\N"
+maybeMonetaryValue_toField (Just v) = CSV.toField v
+
+normalizedRate_empty :: NormalizedRate
+normalizedRate_empty =
+  NormalizedRate {
+      nrr_description = ""
+    , nrr_operator = ""
+    , nrr_prefix = ""
+    , nrr_costByMinute = 0
+    , nrr_costOnCall = 0
+                 }
+
+instance CSV.ToRecord NormalizedRate where
+    toRecord r =
+      CSV.record [
+           CSV.toField $ nrr_description r
+         , CSV.toField $ nrr_operator r
+         , CSV.toField $ nrr_prefix r
+         , CSV.toField $ monetaryValue_show $ nrr_costByMinute r
+         , CSV.toField $ monetaryValue_show $ nrr_costOnCall r
+         ]
+
+
+normalizedRate_sameCost :: NormalizedRate -> NormalizedRate -> Bool
+normalizedRate_sameCost r1 r2 =
+  (nrr_costByMinute r1 == nrr_costByMinute r2) &&
+    (nrr_costOnCall r1 == nrr_costOnCall r2)
+{-# INLINE normalizedRate_sameCost #-}
+
+-- | Parse a rate specification (usually a CSV file) and produce a file in csv-header-5col-costOnCall format,
+--  i.e. description, operator, prefix, cost-by-minute, cost-on-call, with an initial header line.
+type RatePlanNormalizer = BS.ByteString -> (Either String NormalizedRateTrie)
+
+instance Show RatePlanNormalizer where
+    show s = "<normalize rate plan>"
+
+-- | A trie of NormalizedRate, using the rate prefix as key.
+type NormalizedRateTrie = Trie.Trie NormalizedRate
+
+normalizedRateTrie_insert :: NormalizedRateTrie -> BS.ByteString -> NormalizedRate -> NormalizedRateTrie
+normalizedRateTrie_insert trie1 prefix value =
+  Trie.insert prefix (value { nrr_prefix = fromByteStringToText prefix }) trie1
+{-# INLINE normalizedRateTrie_insert #-}
+
+-- | Merge a base rate with two specific rates, calculating the minimum specific rate.
+--   In the rate plan the specific rate is used for rating a call, and the base rate
+--   is used only if there are no valid entries in the specific rate. So a shorter prefix
+--   in the specific rate is stronger of a shorter prefix on the base rate, because
+--   the base rate is called only in case of missing valid prefixes.
+--
+--   Specific rate can be specified using two different approach:
+--   * specifying a match-all-longest prefix way, that overrides all prefixes of the base-rate
+--   * specifying an exception-like prefix, that overrides only the single exact prefix, and use the base-rate otherwise
+--
+--   These two approaches are complementary, and they can be used both:
+--   * firt the match-all-longest prefix rate is applied
+--   * then the resulting rate is patched with the exact-prefix rate
+--
+--   REQUIRE: the rates to merge have prefixes with implicit final "*",
+--   so they match all longest prefixes.
+--
+normalizedRates_fromSpecificCosts
+  :: NormalizedRateTrie
+  -- ^ the base rate
+  -> NormalizedRateTrie
+  -- ^ the specific rate with prefixes matching all stronger prefixes
+  -> NormalizedRateTrie
+  -- ^ the specific rate with prefixes matching exactly the prefix, but not stronger prefixes
+  -> NormalizedRateTrie
+  -- ^ the specific rate with only the prefixes with a cost different from base rate
+
+normalizedRates_fromSpecificCosts baseRate matchAllPrefixesRate matchExactPrefixesRate  =
+  let
+      -- All prefixes to match
+      allPrefixes :: [BS.ByteString] =
+        Trie.keys $ Trie.unionL baseRate $ Trie.unionL matchAllPrefixesRate matchExactPrefixesRate
+
+      -- Only specific prefixes
+      specificPrefixes :: NormalizedRateTrie =
+        Trie.unionL matchAllPrefixesRate matchExactPrefixesRate
+
+      -- Create a combined rate favouring the exact prefix first, and the specific rate,
+      -- and use baseRate as fallback.
+      combinedRate :: NormalizedRateTrie =
+        List.foldl'
+          (\trie1 prefix ->
+             let rate :: NormalizedRate =
+                   case Trie.lookup prefix matchExactPrefixesRate of
+                     Just r -> r
+                     Nothing ->
+                       case Trie.match matchAllPrefixesRate prefix of
+                         Just (_, r, _) -> r
+                         Nothing ->
+                           case Trie.match baseRate prefix of
+                             Just (_, r, _) -> r
+                             Nothing -> error "ERR 142753 unexpected condition in code"
+
+             in normalizedRateTrie_insert trie1 prefix rate
+          ) Trie.empty allPrefixes
+
+      -- Compress longest prefixes having the same cost of shorter prefixes.
+      -- Do not insert prefixes if the base-rate suffices.
+      compressedRate :: NormalizedRateTrie =
+        List.foldl'
+          (\trie1 (currPrefix, currRate) ->
+             let insertInTrie =
+                   case Trie.match specificPrefixes currPrefix of
+                     Nothing ->
+                       False
+                       -- use base rate as fallback, because the prefix is never matched by specific rate
+                     Just _ ->
+                       case Trie.match trie1 currPrefix of
+                         Nothing ->
+                           case Trie.match baseRate currPrefix of
+                             Nothing -> True
+                             -- this prefix is only in specific rates, and not in base rate,
+                             -- so inserti it
+                             Just (_, baseRate, _) -> not $ normalizedRate_sameCost currRate baseRate
+                             -- If the rate to insert is equal to base-rate,
+                             -- do not insert the prefix and fall back to base-rate.
+                             -- Prefixes are received in alphabetic order, so no new matching prefix
+                             -- will be added later.
+                         Just (_, specificRate, _) -> not $ normalizedRate_sameCost currRate specificRate
+                             -- If the he rate to insert is equal to an already inserted prefix,
+                             -- do not insert the prefix and use the more compact prefix instead.
+                             -- Prefixes are received in alphabetic order, so no new matching prefix
+                             -- will be added later.
+
+                 trie2 = if insertInTrie
+                         then normalizedRateTrie_insert trie1 currPrefix currRate
+                         else trie1
+
+             in  trie2
+          )
+          Trie.empty
+          (Trie.toList combinedRate)
+
+ in normalizedRates_completeDescriptions compressedRate [matchExactPrefixesRate, matchAllPrefixesRate, baseRate]
+
+betterDescr :: Text.Text -> Text.Text -> Text.Text
+betterDescr specificDescr baseDescr =
+        if Text.null specificDescr then baseDescr else specificDescr
+{-# INLINE betterDescr #-}
+
+-- | Complete the missing descriptions for prefixes using the other rates.
+--   First rates have more priority than last rates.
+normalizedRates_completeDescriptions :: NormalizedRateTrie -> [NormalizedRateTrie] -> NormalizedRateTrie
+normalizedRates_completeDescriptions specificRate descrRates =
+  case descrRates of
+    [] -> specificRate
+    (r:rs) -> normalizedRates_completeDescriptions (completeDescr specificRate r) rs
+
+  where
+
+      -- | An empty description is replaced with a more complete description if present in the second trie.
+      completeDescr :: NormalizedRateTrie -> NormalizedRateTrie -> NormalizedRateTrie
+      completeDescr specificTrie baseTrie =
+        fmap
+          (\specificDescr ->
+            case Trie.lookup (fromTextToByteString $ nrr_prefix specificDescr) baseTrie of
+              Nothing -> specificDescr
+              Just baseDescr ->
+                let description2 = betterDescr (nrr_description specificDescr) (nrr_description baseDescr)
+                    operator2 = betterDescr (nrr_operator specificDescr) (nrr_operator baseDescr)
+                in specificDescr {
+                     nrr_description = description2
+                   , nrr_operator = operator2
+                                 }
+          )
+          specificTrie
+
+-- | The format to use for parsing specific rates.
+specificRateFormat :: Text.Text
+specificRateFormat = "csv-header-5col-costOnCall"
+
+normalizedRates_header :: LBS.ByteString
+normalizedRates_header = "description,telephone operator,telephone prefix,cost by minute,cost on call\r\n"
+
+-- | The specific rate in CSV format.
+normalizedRates_toSpecificRateCSV :: NormalizedRateTrie -> LBS.ByteString
+normalizedRates_toSpecificRateCSV costTrie =
+      LBS.append
+        normalizedRates_header
+        (CSV.encode $ Trie.elems costTrie)
+
+-- | A human readable summary of statistical differences between the base and specific rate.
+normalizedRates_info :: NormalizedRateTrie -> NormalizedRateTrie -> Text.Text
+normalizedRates_info baseRate specificRate =
+  let
+      diffs = normalizedRates_toDiffRate baseRate specificRate
+
+      diffsCount = Trie.size diffs
+
+      sameCostCount = List.length $ List.filter normalizedDiffRate_sameCost $ Trie.elems diffs
+
+      diffCostCount = diffsCount - sameCostCount
+
+      specificRateCount = Trie.size specificRate
+
+      showPerc :: Int -> Int -> String
+      showPerc _ 0 = "0%"
+      showPerc x y =
+        (show $ round $ 100.0 * (fromIntegral x) / (fromIntegral y)) ++ "%"
+
+      reductionPerc = showPerc specificRateCount diffsCount
+
+      savingPerc = showPerc (diffsCount - specificRateCount) diffsCount
+
+      sameCostPerc = showPerc sameCostCount diffsCount
+
+      diffCostPerc = showPerc diffCostCount diffsCount
+
+  in Text.pack $
+       "There are " ++ show diffsCount ++ " total distinct telephone prefixes in base and specific rate.\n" ++
+       "There are " ++ show specificRateCount ++ " prefixes (" ++ reductionPerc ++ " of total prefixes) in the specific rate file, with a saving in size of " ++ savingPerc ++ "\n" ++
+       "There are " ++ show diffCostCount ++ " (" ++ diffCostPerc ++ " of base rate) prefixes with different cost respect base rate. The two rates are similar in " ++ sameCostPerc ++ " of prefixes."
+
+-- | A CSV rate converted to a standard format.
+--   This conversion can not be applied to all rates, but to many of them.
+data NormalizedDiffRate =
+  NormalizedDiffRate {
+      ndr_description :: Text.Text
+    , ndr_operator :: Text.Text
+    , ndr_prefix :: Text.Text
+    , ndr_oldCostByMinute :: Maybe MonetaryValue
+    , ndr_oldCostOnCall :: Maybe MonetaryValue
+    , ndr_newCostByMinute :: Maybe MonetaryValue
+    , ndr_newCostOnCall :: Maybe MonetaryValue
+                 } deriving(Show, Eq, Ord, Generic)
+
+monetaryValue_maybeShow :: Maybe MonetaryValue -> Maybe String
+monetaryValue_maybeShow Nothing = Nothing
+monetaryValue_maybeShow (Just v) = Just $ monetaryValue_show v
+
+float_maybeShow :: Maybe Float -> Maybe String
+float_maybeShow Nothing = Nothing
+float_maybeShow (Just v) = Just $ (showFFloat Nothing v) ""
+
+instance CSV.ToRecord NormalizedDiffRate where
+    toRecord r =
+      CSV.record [
+           CSV.toField $ ndr_description r
+         , CSV.toField $ ndr_operator r
+         , CSV.toField $ ndr_prefix r
+         , CSV.toField $ monetaryValue_maybeShow $ ndr_oldCostByMinute r
+         , CSV.toField $ monetaryValue_maybeShow $ ndr_oldCostOnCall r
+         , CSV.toField $ monetaryValue_maybeShow $ ndr_newCostByMinute r
+         , CSV.toField $ monetaryValue_maybeShow $ ndr_newCostOnCall r
+         , CSV.toField $ normalizedDiffRate_sameCostField r
+         ]
+
+normalizedDiffRate_sameCost :: NormalizedDiffRate -> Bool
+normalizedDiffRate_sameCost r =
+  (ndr_oldCostByMinute r == ndr_newCostByMinute r) &&
+  (ndr_oldCostOnCall r == ndr_newCostOnCall r)
+{-# INLINE normalizedDiffRate_sameCost #-}
+
+normalizedDiffRate_sameCostField :: NormalizedDiffRate -> Text.Text
+normalizedDiffRate_sameCostField r =
+  if normalizedDiffRate_sameCost r then "true" else "false"
+{-# INLINE normalizedDiffRate_sameCostField #-}
+
+normalizedDiffRate_calc :: NormalizedRateTrie -> NormalizedRateTrie -> BS.ByteString -> NormalizedDiffRate
+normalizedDiffRate_calc baseRate specificRate prefix =
+  let (baseCost, baseCostOnCall) =
+        case Trie.match baseRate prefix of
+          Nothing -> (Nothing, Nothing)
+          Just (_, r, _) -> (Just $ nrr_costByMinute r, Just $ nrr_costOnCall r)
+
+      (newCost, newCostOnCall) =
+        case Trie.match specificRate prefix of
+          Nothing -> (baseCost, baseCostOnCall)
+          Just (_, r, _) -> (Just $ nrr_costByMinute r, Just $ nrr_costOnCall r)
+
+      (specificDescr, specificOperator) =
+        case Trie.lookup prefix specificRate of
+          Nothing ->("", "")
+          Just r -> (nrr_description r, nrr_operator r)
+
+      (baseDescr, baseOperator) =
+            case Trie.lookup prefix baseRate of
+              Nothing -> ("", "")
+              Just r -> (nrr_description r, nrr_operator r)
+
+      calcDiscount :: Maybe MonetaryValue -> Maybe MonetaryValue -> Maybe Float
+      calcDiscount mBaseCost mSpecificCost =
+        case (mBaseCost, mSpecificCost) of
+          (Just 0, Just 0) -> Just 0
+          (Just _, Just 0) -> Nothing
+          (Just baseCost, Just specificCost) ->
+                Just $
+                      fromRational $
+                        ((baseCost - specificCost) / specificCost) * (fromIntegral 100)
+          _ -> Nothing
+
+  in NormalizedDiffRate {
+        ndr_description = betterDescr specificDescr baseDescr
+      , ndr_operator = betterDescr specificOperator baseOperator
+      , ndr_prefix = fromByteStringToText prefix
+      , ndr_oldCostByMinute = baseCost
+      , ndr_oldCostOnCall = baseCostOnCall
+      , ndr_newCostByMinute =  newCost
+      , ndr_newCostOnCall = newCostOnCall
+                       }
+
+normalizedRate_diffHeader :: LBS.ByteString
+normalizedRate_diffHeader = "description,telephone operator,telephone prefix,old cost by minute,old cost on call,new cost by minute,new cost on call,same cost\r\n"
+
+normalizedRates_toDiffRate :: NormalizedRateTrie -> NormalizedRateTrie -> Trie.Trie NormalizedDiffRate
+normalizedRates_toDiffRate baseRate specificRate =
+  let
+
+      -- take all prefixes
+      allPrefixes = Trie.unionL baseRate specificRate
+
+      diffs =
+        Trie.fromList $
+          List.map (\prefix ->
+                      (prefix, normalizedDiffRate_calc baseRate specificRate prefix))
+          (Trie.keys allPrefixes)
+
+  in diffs
+
+normalizedDiffRates_toCSV :: Trie.Trie NormalizedDiffRate -> LBS.ByteString
+normalizedDiffRates_toCSV diffs =
+  LBS.append
+    normalizedRate_diffHeader
+    (CSV.encode $ Trie.elems diffs)
+
+-- ------------------------------------------------------
 -- External rates: rates stored as CSV files and similar
 
 -- | Traverse a MainRatePlan and complete info about ExternalRateReference
@@ -1470,7 +1787,7 @@ type RatePlanParser = RatingParams -> BS.ByteString -> (Either String MainRatePl
 instance Show RatePlanParser where
     show s = "<rate plan parser>"
 
-type ConfiguredRatePlanParsers = Map.Map RateFormatName RatePlanParser
+type ConfiguredRatePlanParsers = Map.Map RateFormatName (RatePlanParser, Maybe RatePlanNormalizer)
 
 -- | The logical type associated to main rate plans.
 ratePlanSpecificationType :: Text.Text
@@ -1480,7 +1797,16 @@ ratePlanSpecificationType = Text.pack "rate-plan-specification"
 type ExternalRateReference = Text.Text
 
 configuredRatePlanParsers_get :: ConfiguredRatePlanParsers -> RateFormatName -> Maybe RatePlanParser
-configuredRatePlanParsers_get conf1 l = Map.lookup l conf1
+configuredRatePlanParsers_get conf1 l =
+  case Map.lookup l conf1 of
+    Just (r, _) -> Just r
+    Nothing -> Nothing
+
+configuredRatePlanNormalizer_get :: ConfiguredRatePlanParsers -> RateFormatName -> Maybe RatePlanNormalizer
+configuredRatePlanNormalizer_get conf1 l =
+  case Map.lookup l conf1 of
+    Just (_, maybeR) -> maybeR
+    Nothing -> Nothing
 
 -- | Retrieve a RatePlan, using PHP reference name.
 env_getRate
@@ -1832,4 +2158,5 @@ ratingParamsForTest precisionDigits
       , iparams_dbUser = ""
       , iparams_dbPasswd = ""
       , iparams_configuredRatePlanParsers = Map.empty
+      , iparams_generateExportedCDRInfo = False
     }

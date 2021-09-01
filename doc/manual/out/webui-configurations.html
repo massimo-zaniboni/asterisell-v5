@@ -58,12 +58,12 @@
       <section class="topic" id="Web_UI_configurations_on_provider">
          <h2 class="section2-title">Web UI configurations on provider</h2>
          <div class="body">
-            <section class="section" id="Web_UI_configurations_on_provider__I_jpu3sb_">
+            <section class="section" id="Web_UI_configurations_on_provider__I_zfriuu_">
                <h3 class="section-title">Reseller code</h3>
                <div class="p">Decide an internal name/code for the reseller, and complete <code class="codeph">Entities -&gt; Resellers</code>.
                </div>
             </section>
-            <section class="section" id="Web_UI_configurations_on_provider__I_8ycgb7_">
+            <section class="section" id="Web_UI_configurations_on_provider__I_dzb9qa_">
                <h3 class="section-title">Reseller as a billed customer</h3>
                <div class="p">The provider will sell the calls to a single customer, representing the reseller.</div>
                <div class="p">In <code class="codeph">Entities -&gt; Customers</code> create a customer associated to the reseller:
@@ -74,7 +74,7 @@
                   <li class="li">the VoIP extensions will identify the CDRS to export to the reseller</li>
                </ul>
             </section>
-            <section class="section" id="Web_UI_configurations_on_provider__I_17ggi3_">
+            <section class="section" id="Web_UI_configurations_on_provider__I_z4z5o1_">
                <h3 class="section-title">Reselled extensions</h3>
                <div class="p">For each <a class="xref" href="manual-6.html#Extension">Extension</a> set the <code class="codeph">export-code</code> field. It will be the <a class="xref" href="manual-6.html#Extension">Extension</a> code as seen from the reseller. In this way it is possible masking the extension
                   code used on the provider side.
@@ -82,7 +82,7 @@
                <div class="p">It is possible to execute this action also in batch mode, executing</div><pre class="pre">fab connect:HOST/INSTANCE
 php asterisell.php data complete-reseller-export-code
 </pre></section>
-            <section class="section" id="Web_UI_configurations_on_provider__I_hgxp71_">
+            <section class="section" id="Web_UI_configurations_on_provider__I_gv5kgp_">
                <h3 class="section-title">Service CDRS</h3>
                <div class="p">TODO complete</div>
             </section>

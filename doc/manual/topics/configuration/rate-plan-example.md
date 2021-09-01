@@ -34,7 +34,7 @@ So in `Rates -> Rates` we insert
 
 ![image4](img/tut_a_06.png)
 
-and we specify this rate plan
+and we specify this rate plan (WARNING: this is an example in an older format, but the idea is the same, only details differs)
 
 ![image5](img/tut_a_04.png)
 

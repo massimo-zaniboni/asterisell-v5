@@ -71,7 +71,7 @@
                <li class="li"><code class="codeph">main-income-rate</code> for calculating the income of a CDR
                </li>
             </ul>
-            <section class="section" id="Rate_specification_language__I_pvu7br_">
+            <section class="section" id="Rate_specification_language__I_mgwhgh_">
                <h3 class="section-title">Income rate plan example</h3><pre class="pre">rate {
   id: free-incoming
   match-call-direction: incoming
@@ -126,7 +126,7 @@ rate {
   }
 }
 </pre></section>
-            <section class="section" id="Rate_specification_language__I_fcspbv_">
+            <section class="section" id="Rate_specification_language__I_jhj3qy_">
                <h3 class="section-title">Rating params</h3><pre class="pre">rate {
 
   id: [reference]
@@ -257,7 +257,7 @@ rate {
   # This operation is done after the ceil operation.
 }
 </pre></section>
-            <section class="section" id="Rate_specification_language__I_rygnt7_">
+            <section class="section" id="Rate_specification_language__I_e7tijp_">
                <h3 class="section-title">Nested rates</h3>
                <div class="p">Rates can be arbitrary nested.</div><pre class="pre">rate {
   id: [reference]
@@ -338,7 +338,7 @@ rate {
                   </li>
                </ul>
             </section>
-            <section class="section" id="Rate_specification_language__I_itgmkn_">
+            <section class="section" id="Rate_specification_language__I_yt88wl_">
                <h3 class="section-title">External rates</h3>
                <div class="p">Rates in Asterisell can have different physical and logical formats (e.g. CSV files,
                   YAML files with different columns and data, like telephone prefix, telephone operator
@@ -382,7 +382,7 @@ rate {
   # needs other nested rates for completing the rating of a CDR
 }
 </pre></section>
-            <section class="section" id="Rate_specification_language__I_wbldfx_">
+            <section class="section" id="Rate_specification_language__I_rdhly5_">
                <h3 class="section-title">Rates with explicit priority</h3>
                <div class="p">By default rates are selected according the longest matched telephone prefix. But
                   rates can have also an explicit priority, thanks to <code class="codeph">else</code> construct.

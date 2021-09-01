@@ -118,8 +118,10 @@ function toManualPage($moduleName, $base) {
         echo '<li>' . link_to(__('Vendors'), 'vendor/list') . '</li>' . "\n";
         echo '<li>' . link_to(__('Channels'), 'vendor_domain/list') . '</li>' . "\n";
         echo '<li>' . link_to(__('Price Categories'), 'rate_category/list') . '</li>' . "\n";
+        echo '<li>' . link_to(__('Generate Specific Rates'), 'specific_rate_calc/index') . '</li>' . "\n";
         echo '<li>' . link_to(__('Rate Formats'), 'rate_formats/index') . '</li>' . "\n";
         echo '<li>' . link_to(__('Rates'), 'rate/list') . '</li>' . "\n";
+        echo '<li>' . link_to(__('Hacked Calls'), 'set_hacked_calls/list') . '</li>' . "\n";
         echo '</ul>' . "\n";
         echo '</li>' . "\n";
 

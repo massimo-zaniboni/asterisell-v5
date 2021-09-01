@@ -267,7 +267,7 @@ AND ar_cdr.calldate >= ?
         $this->allChannels = array();
         $this->rootIds = array();
 
-        $stm = $conn->prepare($query);
+        $stm = FixedJobProcessor::prepareFetchStmt($query);
         $stm->execute($params);
         while (($rs = $stm->fetch(PDO::FETCH_NUM)) !== false) {
 

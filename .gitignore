@@ -53,3 +53,4 @@ itecdev-update.sh
 netcup-update.sh
 tunnel-update.sh
 /nbproject/private/
+/rating_tools/rate_engine/stack.yaml.lock

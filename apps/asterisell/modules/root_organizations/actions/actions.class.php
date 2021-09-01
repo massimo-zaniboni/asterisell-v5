@@ -82,6 +82,10 @@ class root_organizationsActions extends autoRoot_organizationsActions
             $cc->setIgnoreCase(true);
             $c->add($cc);
         }
+        
+        if (isset($this->filters['filter_on_active_party']) && $this->filters['filter_on_active_party'] !== '') {
+            $c->add(ArPartyPeer::IS_ACTIVE, $this->filters['filter_on_active_party']);
+        }
 
         // search for a structure with a null parent, now, in the past or in the future.
         // In this way an user can select all the root organizations of future and past.

@@ -1,0 +1,35 @@
+generator:
+  class:              sfPropelAdminGenerator
+  param:
+    model_class:      ArSpecificRateCalc
+    theme:            default
+    
+    fields:
+          id: { name: Id }
+          ar_rate_id: { name: "Base rate", help: The base rate from which this specific rate differs." }
+          select_base_rate: { name: "Select base rate", help: "The base rate from which this specific rate differs." }
+          calc_action: { name: "Generate rate", help: "Generate a compact rate respecting the specifications."}
+          download_specific_rate: { name: "Download rate", help: "The rate in csv-header-5col-costOnCal format, to insert inside Asterisell, in the \"Rates -> Rates\" menu, using the specified rate name." }
+          download_base_rate_diff: { name: "Download differences", help: "A CSV file with complete list of differences between base and specific rate." }
+          note: { name: Notes, help: "Internal notes about the rate to generate." }
+          specific_rate_name: { name: "Specific rate name", help: "A compact but human-readable internal name to assign to the specific rate. It will be used in the main-rate-plan. It can be something like \"uk-discount\" but white spaces are not allowed, so \"uk discount\" is not a valid name." }
+          price_category_name: { name: "New price category", help: "A compact but human-readable internal name to assign to the price-category. It will be used in the main-rate-plan. It can be something like \"uk-discount\" but white spaces are not allowed, so \"uk discount\" is not a valid name." }
+          specific_rate_instructions: { name: "How to specify rates"}
+          mediumtext_specific_rate_in_match_all: { name: "Specific rate matching all prefixes", help: "The specific rate to apply, in csv-header-5col-costOnCal format (the header in first line is mandatory!), with prefixes overriding all longest prefixes of the base rate, e.g. prefix \"12\" overrides also prefix \"1234\" of the base-rate. The first line must be the header.", type: textarea_tag, params: size=80x20 }
+          mediumtext_specific_rate_in_match_exact: { name: "Specific rate matching exact prefixes", help: "The specific rate to apply, in csv-header-5col-costOnCal format (the header in first line is mandatory!), with prefixes overriding only thex exact prefix of the base-rate, e.g. prefix \"12\" overrides only \"12\" but not \"1234\" of the base-rate. The first line must be the header.", type: textarea_tag, params: size=80x20 }
+          rate_plan_out: { name: "Rate plan", help: "The rate plan specification to insert in main-income-rate.", type: textarea_tag, params: size=80x20;disabled=true }
+          calc_error: { name: "Processing error", help: "Error during processing of rate", type: textarea_tag, params: size=80x4;disabled=true   }
+          calc_info: { name: "Processing info", help: "Info about the processing", type: textarea_tag, params: size=80x4;disabled=true   }
+          
+    list:
+          title: Generate differences between specific rates and base rates
+    
+          display: [id, =specific_rate_name, price_category_name]
+          sort: [id, desc]
+    
+    edit:
+          title: Generate differences between specific rates and base rates
+          display: 
+            "Base rate": [_select_base_rate]
+            "Specific rate": [note, specific_rate_name, price_category_name, _specific_rate_instructions, mediumtext_specific_rate_in_match_all, mediumtext_specific_rate_in_match_exact, _calc_action]
+            "Produced rate": [calc_error, calc_info, _download_specific_rate, rate_plan_out, _download_base_rate_diff]

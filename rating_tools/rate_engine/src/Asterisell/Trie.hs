@@ -91,11 +91,11 @@ extension_toExtensionCode e1
 type Trie a
        = Trie.Trie
            (IntMap.IntMap a
-           -- ^ the values associated to the "X" parts of the specified exact length.
-           --   0 for numbers not ending with "X" and "*".
+            -- ^ the values associated to the "X" parts of the specified exact length.
+            --   0 for numbers not ending with "X" and "*".
            , Maybe a
-           -- ^ the value associated to the "*" part, with variable length,
-           -- having less priority of the exact len part
+             -- ^ the value associated to the "*" part, with variable length,
+             -- having less priority of the exact len part
            )
 
 trie_empty :: Trie a
@@ -254,8 +254,13 @@ tt_trie_test
                ("03225415XX", 102),
                ("2", 201),
                ("21*", 202),
-               ("2XX", 203)
-               ]
+               ("2XX", 203),
+               ("91", 91),
+               ("91*", 910),
+               ("91X", 919),
+               ("911", 911),
+               ("911*", 9110)
+              ]
 
   name1 = "trie_match"
 
@@ -552,5 +557,33 @@ tt_trie_test
                          "ant 9"
                          Nothing
                          (trie_match trie1 "03225415100"))
-       ]
+
+       ,HUnit.TestCase (HUnit.assertEqual
+                         "strong match 1"
+                         (Just (2, False, 91))
+                         (trie_match trie1 "91"))
+       ,HUnit.TestCase (HUnit.assertEqual
+                         "strong match 2"
+                         (Just (2, True, 910))
+                         (trie_match trie1 "9101"))
+       ,HUnit.TestCase (HUnit.assertEqual
+                         "strong match 3"
+                         (Just (3, True, 919))
+                         (trie_match trie1 "910"))
+       ,HUnit.TestCase (HUnit.assertEqual
+                         "strong match 4"
+                         (Just (3, False, 911))
+                         (trie_match trie1 "911"))
+       ,HUnit.TestCase (HUnit.assertEqual
+                         "strong match 5"
+                         (Just (3, True, 9110))
+                         (trie_match trie1 "91123"))
+        ]
+
+-- TODO
+--             ("91", 91),
+--               ("91*", 910),
+--               ("91X", 919),
+--               ("911", 911),
+--               ("911*", 9110)
 

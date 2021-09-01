@@ -62,7 +62,7 @@
             source code.
          </p>
          <div class="body">
-            <section class="section" id="Code_development__I_anrfsw_">
+            <section class="section" id="Code_development__I_5xjmmr_">
                <h3 class="section-title">How changing the database schema</h3>
                <div class="p">Change the file <code class="codeph">config/schema.yml</code>.
                </div><pre class="pre">cd /asterisell/scripts
@@ -75,8 +75,20 @@
                <div class="p">Add upgrade jobs extending the database also in already production instances. TODO
                   complete this
                </div>
+               <div class="div role-h3">Changes to CDR format</div>
+               <div class="p">The upgrade job must report TRUE to “the CDR table is modified”.</div>
+               <div class="p">Update the Haskell code that</div>
+               <ul class="ul">
+                  <li class="li">specify the CDR format</li>
+                  <li class="li">sends CDR to the DBMS</li>
+               </ul>
+               <div class="p">Update the PHP code that:</div>
+               <ul class="ul">
+                  <li class="li">display debug-info in the call-report</li>
+                  <li class="li">backup and restore CDRS</li>
+               </ul>
             </section>
-            <section class="section" id="Code_development__I_1gw1wr_">
+            <section class="section" id="Code_development__I_6lt68z_">
                <h3 class="section-title">How generating UI web modules</h3><pre class="pre">php54 symfony propel:generate-admin asterisell ArReportScheduler --module=report_scheduling
 </pre><div class="p">if you add a new class, update also init database scripts, and deletion related.</div>
                <ul class="ul">
@@ -164,7 +176,7 @@
                   with no <code class="codeph">id</code> but other primaryKey fields.
                </div>
             </section>
-            <section class="section" id="Code_development__I_9pcbj4_">
+            <section class="section" id="Code_development__I_kzgm1m_">
                <h3 class="section-title">How profiling and solve speace leaks of the Haskell Rating Engine</h3>
                <ul class="ul">
                   <li class="li">Enable <code class="codeph">debug_mode</code> in the instance params.
@@ -184,14 +196,14 @@
                <div class="p">It is possible executing only specific parts of the rating engine using the <code class="codeph">--run-level</code> options. See the source code of the rating engine for more info.
                </div>
             </section>
-            <section class="section" id="Code_development__I_dl44ya_">
+            <section class="section" id="Code_development__I_23l2v0_">
                <h3 class="section-title">Adding LOG message</h3>
                <div class="p">Inside an action</div><pre class="pre">    $this-&gt;logMessage('help me!', 'info');
 </pre><div class="p">Outside an action</div><pre class="pre">    sfContext::getInstance()-&gt;getLogger()-&gt;info($message);
     sfContext::getInstance()-&gt;getLogger()-&gt;err($message);
 </pre><div class="p">Inside a template if the error must be viewed on the web toolbar</div><pre class="pre">    echo log_message(...);
 </pre></section>
-            <section class="section" id="Code_development__I_dntsir_">
+            <section class="section" id="Code_development__I_9wsl28_">
                <h3 class="section-title">Asterisell jobs</h3>
                <div class="p">Jobs are read from <code class="codeph">apps/asterisell/config/app.yml</code> file, that is generated from <code class="codeph">fabric_data/lib.py</code> management tool, according the content of <code class="codeph">asterisell_instances.py</code> file.
                </div>

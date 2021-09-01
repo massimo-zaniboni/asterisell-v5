@@ -1,7 +1,7 @@
 <?php
 
 // SPDX-License-Identifier: GPL-3.0-or-later
-// Copyright (C) 2009-2019 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
+// Copyright (C) 2009-2020 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
 
 sfLoader::loadHelpers(array('I18N', 'Debug', 'Date', 'Asterisell'));
 
@@ -193,14 +193,21 @@ class ManageRateEvent extends FixedJobProcessor
             } else {
                 $unbilledCallsS = 'false';
             }
-
+                    
+            if (sfConfig::get('app_conf_generate_exported_cdr_info')) {
+              $generateExportedCDRInfo = 'true';    
+            } else {
+              $generateExportedCDRInfo = 'false';    
+            }
+            
             $cmd .= ' --digits-to-mask ' . $mask
                 . ' --organization-to-ignore "' . sfConfig::get('app_organization_to_ignore') . '" '
                 . ' --default-telephone-prefix ' . $defaultTelephonePrefix
                 . ' --currency-precision ' . $currencyPrecision
                 . ' --debug-file ' . $debugFileName
                 . ' --from-date "' . $rateFromDateS . '" '
-                . ' --rate-unbilled-calls ' . $unbilledCallsS;
+                . ' --rate-unbilled-calls ' . $unbilledCallsS
+                . ' --generate-exported-cdr-info ' . $generateExportedCDRInfo;
 
             if (is_null($this->testToDate)) {
                 $cmd .= ' --test-to-date null';

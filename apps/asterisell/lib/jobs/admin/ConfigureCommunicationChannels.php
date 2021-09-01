@@ -20,6 +20,7 @@ class ConfigureCommunicationChannels extends AdminJobProcessor
     const SIP_FREE_TRUNK_CHANNEL = 'SIP-free-trunk';
     const BACKUP_CHANNEL = 'backup-channel';
     const SERVICE_CDR_CHANNEL = 'system-service-cdr';
+    const SOLIDAL_CHANNEL = 'solidal';
 
     const VENDOR_NONE = 'none';
 
@@ -41,7 +42,7 @@ class ConfigureCommunicationChannels extends AdminJobProcessor
         $this->create(self::BACKUP_CHANNEL, 'Backup Channel', 'Calls routed to from Vendor/operators, when other channel are not available.');
         $this->create(self::TO_COMPLETE_ACCORDING_VENDOR_DOMAIN_CHANNEL, 'Undef Channel', self::TO_COMPLETE_ACCORDING_VENDOR_DOMAIN_CHANNEL);
         $this->create(self::SERVICE_CDR_CHANNEL, 'Bundle Services', "Pseudo Calls associated to services, or bundle rates with a fixed cost in a timeframe, and so on.");
-
+        $this->create(self::SOLIDAL_CHANNEL, 'Solidal', "Solidal donatiion.");
 
         $p = new ArParty();
         $p->setName("none");
@@ -63,7 +64,7 @@ class ConfigureCommunicationChannels extends AdminJobProcessor
         $c->setArCommunicationChannelTypeId(ArCommunicationChannelTypePeer::retrieveByInternalName(self::SERVICE_CDR_CHANNEL)->getId());
         $c->setDomain(self::SERVICE_CDR_CHANNEL);
         $c->save();
-
+        
         return '';
     }
 

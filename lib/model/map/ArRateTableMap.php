@@ -62,6 +62,7 @@ class ArRateTableMap extends TableMap {
     $this->addRelation('ArRateRelatedByArRateId', 'ArRate', RelationMap::MANY_TO_ONE, array('ar_rate_id' => 'id', ), null, null);
     $this->addRelation('ArRateRelatedByArRateId', 'ArRate', RelationMap::ONE_TO_MANY, array('id' => 'ar_rate_id', ), null, null);
     $this->addRelation('ArRateSharedWithReseller', 'ArRateSharedWithReseller', RelationMap::ONE_TO_MANY, array('id' => 'ar_rate_id', ), 'CASCADE', null);
+    $this->addRelation('ArSpecificRateCalc', 'ArSpecificRateCalc', RelationMap::ONE_TO_MANY, array('id' => 'ar_rate_id', ), null, null);
 	} // buildRelations()
 
 	/**

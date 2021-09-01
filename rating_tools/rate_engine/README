@@ -1,5 +1,3 @@
 # Rate Engine
 
 Rate calls applying complex rating rules described using a domain specific language.
-
-

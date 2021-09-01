@@ -134,6 +134,16 @@ abstract class BaseArRate extends BaseObject  implements Persistent {
 	private $lastArRateSharedWithResellerCriteria = null;
 
 	/**
+	 * @var        array ArSpecificRateCalc[] Collection to store aggregation of ArSpecificRateCalc objects.
+	 */
+	protected $collArSpecificRateCalcs;
+
+	/**
+	 * @var        Criteria The criteria used to select the current contents of collArSpecificRateCalcs.
+	 */
+	private $lastArSpecificRateCalcCriteria = null;
+
+	/**
 	 * Flag to prevent endless save loop, if this object is referenced
 	 * by another object which falls in this transaction.
 	 * @var        boolean
@@ -801,6 +811,9 @@ abstract class BaseArRate extends BaseObject  implements Persistent {
 			$this->collArRateSharedWithResellers = null;
 			$this->lastArRateSharedWithResellerCriteria = null;
 
+			$this->collArSpecificRateCalcs = null;
+			$this->lastArSpecificRateCalcCriteria = null;
+
 		} // if (deep)
 	}
 
@@ -988,6 +1001,14 @@ abstract class BaseArRate extends BaseObject  implements Persistent {
 				}
 			}
 
+			if ($this->collArSpecificRateCalcs !== null) {
+				foreach ($this->collArSpecificRateCalcs as $referrerFK) {
+					if (!$referrerFK->isDeleted()) {
+						$affectedRows += $referrerFK->save($con);
+					}
+				}
+			}
+
 			$this->alreadyInSave = false;
 
 		}
@@ -1093,6 +1114,14 @@ abstract class BaseArRate extends BaseObject  implements Persistent {
 
 				if ($this->collArRateSharedWithResellers !== null) {
 					foreach ($this->collArRateSharedWithResellers as $referrerFK) {
+						if (!$referrerFK->validate($columns)) {
+							$failureMap = array_merge($failureMap, $referrerFK->getValidationFailures());
+						}
+					}
+				}
+
+				if ($this->collArSpecificRateCalcs !== null) {
+					foreach ($this->collArSpecificRateCalcs as $referrerFK) {
 						if (!$referrerFK->validate($columns)) {
 							$failureMap = array_merge($failureMap, $referrerFK->getValidationFailures());
 						}
@@ -1429,6 +1458,12 @@ abstract class BaseArRate extends BaseObject  implements Persistent {
 			foreach ($this->getArRateSharedWithResellers() as $relObj) {
 				if ($relObj !== $this) {  // ensure that we don't try to copy a reference to ourselves
 					$copyObj->addArRateSharedWithReseller($relObj->copy($deepCopy));
+				}
+			}
+
+			foreach ($this->getArSpecificRateCalcs() as $relObj) {
+				if ($relObj !== $this) {  // ensure that we don't try to copy a reference to ourselves
+					$copyObj->addArSpecificRateCalc($relObj->copy($deepCopy));
 				}
 			}
 
@@ -2076,6 +2111,160 @@ abstract class BaseArRate extends BaseObject  implements Persistent {
 	}
 
 	/**
+	 * Clears out the collArSpecificRateCalcs collection (array).
+	 *
+	 * This does not modify the database; however, it will remove any associated objects, causing
+	 * them to be refetched by subsequent calls to accessor method.
+	 *
+	 * @return     void
+	 * @see        addArSpecificRateCalcs()
+	 */
+	public function clearArSpecificRateCalcs()
+	{
+		$this->collArSpecificRateCalcs = null; // important to set this to NULL since that means it is uninitialized
+	}
+
+	/**
+	 * Initializes the collArSpecificRateCalcs collection (array).
+	 *
+	 * By default this just sets the collArSpecificRateCalcs collection to an empty array (like clearcollArSpecificRateCalcs());
+	 * however, you may wish to override this method in your stub class to provide setting appropriate
+	 * to your application -- for example, setting the initial array to the values stored in database.
+	 *
+	 * @return     void
+	 */
+	public function initArSpecificRateCalcs()
+	{
+		$this->collArSpecificRateCalcs = array();
+	}
+
+	/**
+	 * Gets an array of ArSpecificRateCalc objects which contain a foreign key that references this object.
+	 *
+	 * If this collection has already been initialized with an identical Criteria, it returns the collection.
+	 * Otherwise if this ArRate has previously been saved, it will retrieve
+	 * related ArSpecificRateCalcs from storage. If this ArRate is new, it will return
+	 * an empty collection or the current collection, the criteria is ignored on a new object.
+	 *
+	 * @param      PropelPDO $con
+	 * @param      Criteria $criteria
+	 * @return     array ArSpecificRateCalc[]
+	 * @throws     PropelException
+	 */
+	public function getArSpecificRateCalcs($criteria = null, PropelPDO $con = null)
+	{
+		if ($criteria === null) {
+			$criteria = new Criteria(ArRatePeer::DATABASE_NAME);
+		}
+		elseif ($criteria instanceof Criteria)
+		{
+			$criteria = clone $criteria;
+		}
+
+		if ($this->collArSpecificRateCalcs === null) {
+			if ($this->isNew()) {
+			   $this->collArSpecificRateCalcs = array();
+			} else {
+
+				$criteria->add(ArSpecificRateCalcPeer::AR_RATE_ID, $this->id);
+
+				ArSpecificRateCalcPeer::addSelectColumns($criteria);
+				$this->collArSpecificRateCalcs = ArSpecificRateCalcPeer::doSelect($criteria, $con);
+			}
+		} else {
+			// criteria has no effect for a new object
+			if (!$this->isNew()) {
+				// the following code is to determine if a new query is
+				// called for.  If the criteria is the same as the last
+				// one, just return the collection.
+
+
+				$criteria->add(ArSpecificRateCalcPeer::AR_RATE_ID, $this->id);
+
+				ArSpecificRateCalcPeer::addSelectColumns($criteria);
+				if (!isset($this->lastArSpecificRateCalcCriteria) || !$this->lastArSpecificRateCalcCriteria->equals($criteria)) {
+					$this->collArSpecificRateCalcs = ArSpecificRateCalcPeer::doSelect($criteria, $con);
+				}
+			}
+		}
+		$this->lastArSpecificRateCalcCriteria = $criteria;
+		return $this->collArSpecificRateCalcs;
+	}
+
+	/**
+	 * Returns the number of related ArSpecificRateCalc objects.
+	 *
+	 * @param      Criteria $criteria
+	 * @param      boolean $distinct
+	 * @param      PropelPDO $con
+	 * @return     int Count of related ArSpecificRateCalc objects.
+	 * @throws     PropelException
+	 */
+	public function countArSpecificRateCalcs(Criteria $criteria = null, $distinct = false, PropelPDO $con = null)
+	{
+		if ($criteria === null) {
+			$criteria = new Criteria(ArRatePeer::DATABASE_NAME);
+		} else {
+			$criteria = clone $criteria;
+		}
+
+		if ($distinct) {
+			$criteria->setDistinct();
+		}
+
+		$count = null;
+
+		if ($this->collArSpecificRateCalcs === null) {
+			if ($this->isNew()) {
+				$count = 0;
+			} else {
+
+				$criteria->add(ArSpecificRateCalcPeer::AR_RATE_ID, $this->id);
+
+				$count = ArSpecificRateCalcPeer::doCount($criteria, false, $con);
+			}
+		} else {
+			// criteria has no effect for a new object
+			if (!$this->isNew()) {
+				// the following code is to determine if a new query is
+				// called for.  If the criteria is the same as the last
+				// one, just return count of the collection.
+
+
+				$criteria->add(ArSpecificRateCalcPeer::AR_RATE_ID, $this->id);
+
+				if (!isset($this->lastArSpecificRateCalcCriteria) || !$this->lastArSpecificRateCalcCriteria->equals($criteria)) {
+					$count = ArSpecificRateCalcPeer::doCount($criteria, false, $con);
+				} else {
+					$count = count($this->collArSpecificRateCalcs);
+				}
+			} else {
+				$count = count($this->collArSpecificRateCalcs);
+			}
+		}
+		return $count;
+	}
+
+	/**
+	 * Method called to associate a ArSpecificRateCalc object to this object
+	 * through the ArSpecificRateCalc foreign key attribute.
+	 *
+	 * @param      ArSpecificRateCalc $l ArSpecificRateCalc
+	 * @return     void
+	 * @throws     PropelException
+	 */
+	public function addArSpecificRateCalc(ArSpecificRateCalc $l)
+	{
+		if ($this->collArSpecificRateCalcs === null) {
+			$this->initArSpecificRateCalcs();
+		}
+		if (!in_array($l, $this->collArSpecificRateCalcs, true)) { // only add it if the **same** object is not already associated
+			array_push($this->collArSpecificRateCalcs, $l);
+			$l->setArRate($this);
+		}
+	}
+
+	/**
 	 * Resets all collections of referencing foreign keys.
 	 *
 	 * This method is a user-space workaround for PHP's inability to garbage collect objects
@@ -2097,10 +2286,16 @@ abstract class BaseArRate extends BaseObject  implements Persistent {
 					$o->clearAllReferences($deep);
 				}
 			}
+			if ($this->collArSpecificRateCalcs) {
+				foreach ((array) $this->collArSpecificRateCalcs as $o) {
+					$o->clearAllReferences($deep);
+				}
+			}
 		} // if ($deep)
 
 		$this->collArRatesRelatedByArRateId = null;
 		$this->collArRateSharedWithResellers = null;
+		$this->collArSpecificRateCalcs = null;
 			$this->aArVendor = null;
 			$this->aArRateFormat = null;
 			$this->aArRateRelatedByArRateId = null;

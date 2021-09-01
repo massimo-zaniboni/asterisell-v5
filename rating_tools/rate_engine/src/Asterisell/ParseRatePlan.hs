@@ -118,8 +118,7 @@ p_ratePlan withComments env
        externalRateRef
          <- Parsec.option Nothing $ do
               p_symbol "use:"
-              v <- p_referenceNameValue
-              return $ Just v
+              Just <$> p_referenceNameValue
  
        calcParams <- p_commonCalcParams
 
@@ -280,43 +279,43 @@ p_commonCalcParams :: Parsec.Parser CalcParams
 p_commonCalcParams
   = do params <- return calcParams_empty
 
-       params <- (do r <- integerValue "set-free-seconds:"
+       params <- (do r <- param "set-free-seconds:" p_integer
                      return $ params { calcParams_freeSecondsAfterCostOnCall = r }
                  ) <|> return params
 
-       params <- (do r <- maybeIntegerValue "set-duration-discrete-increments:"
+       params <- (do r <- param "set-duration-discrete-increments:" p_integer
                      return $ params { calcParams_durationDiscreteIncrements = r }
                  ) <|> return params
 
-       params <- (do r <- integerValue "set-at-least-seconds:"
+       params <- (do r <- param "set-at-least-seconds:" p_integer
                      return $ params { calcParams_atLeastXSeconds = r }
                  ) <|> return params
 
-       params <- (do r <- monetaryValueOrImported "set-cost-on-call:"
+       params <- (do r <- param "set-cost-on-call:" p_float
                      return $ params { calcParams_costOnCall = r }
                  ) <|> return params
 
-       params <- (do r <- monetaryValue "set-cost-for-minute:"
+       params <- (do r <- param "set-cost-for-minute:" p_float
                      return $ params { calcParams_costForMinute = r }
                  ) <|> return params
 
-       params <- (do r <- maybeMonetaryValue "set-max-cost-of-call:"
+       params <- (do r <- param "set-max-cost-of-call:" p_float
                      return $ params { calcParams_maxCostOfCall = r }
                  ) <|> return params
 
-       params <- (do r <- maybeMonetaryValue "set-min-cost-of-call:"
+       params <- (do r <- param "set-min-cost-of-call:" p_float
                      return $ params { calcParams_minCostOfCall = r }
                  ) <|> return params
 
-       params <- (do r <- maybeIntegerValue "set-round-to-decimal-digits:"
+       params <- (do r <- param "set-round-to-decimal-digits:" p_integer
                      return $ params { calcParams_roundToDecimalDigits = r }
                  ) <|> return params
 
-       params <- (do r <- maybeIntegerValue "set-ceil-to-decimal-digits:"
+       params <- (do r <- param "set-ceil-to-decimal-digits:" p_integer
                      return $ params { calcParams_ceilToDecimalDigits = r }
                  ) <|> return params
 
-       params <- (do r <- maybeIntegerValue "set-floor-to-decimal-digits:"
+       params <- (do r <- param "set-floor-to-decimal-digits:" p_integer
                      return $ params { calcParams_floorToDecimalDigits = r }
                  ) <|> return params
 
@@ -324,41 +323,9 @@ p_commonCalcParams
 
  where
 
-  integerValue name
-    = do p_symbol name
-         p_thisOrParentOrValue p_integer
-
-  floatValue name = monetaryValue name
-
-  monetaryValueOrImported name
-    = do p_symbol name
-         p_thisOrParentOrValue ((do p_symbol "imported"
-                                    return $ RateCost_imported)
-                                <|> (do p_symbol "expected"
-                                        return $ RateCost_expected)
-                                <|> (do v <- p_float
-                                        return $ RateCost_cost v))
-
-  monetaryValue name
-    = do p_symbol name
-         p_thisOrParentOrValue p_float
-
-  referenceValue name
-    = do p_symbol name
-         p_thisOrParentOrValue p_referenceNameValue
-
-  maybeMonetaryValue name
-    = do r <- monetaryValue name
-         return $ toMaybeValue r
-
-  maybeIntegerValue name
-    = do r <- integerValue name
-         return $ toMaybeValue r
-
-  toMaybeValue mv
-    = case mv of
-        Nothing -> Nothing
-        Just v -> Just $ Just v
+  param name parser = do 
+    p_symbol name 
+    p_paramValue parser
 
 ----------------------------------
 -- Low level parsing 
@@ -581,11 +548,20 @@ p_telephoneNumbers = do
   line <- p_descriptionValue
   return $ List.map fromByteStringToText $ extensionCodes_extractFromUserSpecification line
 
-p_thisOrParentOrValue valueParser
-  = do r <- (do  r <- p_symbol "parent" <|> p_symbol "external"
+p_paramValue valueParser
+  = do r <- (do  r <- p_symbol "parent" 
                  p_nl
-                 return Nothing
-            ) <|> (Just <$> valueParser)
+                 return CP_Parent
+            ) <|> (do r <- p_symbol "external" 
+                      p_nl
+                      return CP_External
+            ) <|> (do r <- p_symbol "imported" 
+                      p_nl
+                      return CP_Imported
+            ) <|> (do r <- p_symbol "expected" 
+                      p_nl
+                      return CP_Expected
+            ) <|> (CP_Value <$> valueParser)
 
        Parsec.many p_comment
        p_freeSpaces

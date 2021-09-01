@@ -162,12 +162,13 @@ itec1_processTelcordia dbConf fileName = do
        db_garbagePastErrors conn (rs_garbageKey state1) Nothing Nothing
 
        XML.process
-         (openTagP conn state1R)
-         (tagAttrP conn state1R)
-         (closeTagAttrP conn state1R)
-         (textP conn state1R)
-         (closeTagP conn state1R)
-         (cdataP conn state1R)
+         (XML.Process
+           (openTagP conn state1R)
+           (tagAttrP conn state1R)
+           (closeTagAttrP conn state1R)
+           (textP conn state1R)
+           (closeTagP conn state1R)
+           (cdataP conn state1R))
          xmlContent
 
        state2 <- readIORef state1R

@@ -152,8 +152,13 @@ foreach($fieldsToShow as $fieldToShow) {
         case FieldsToShow::COUNT_OF_CALLS:
             ?>
         echo csv_field(__('Nr.'), false);
-
         <?php
+            break;
+
+        case FieldsToShow::FROM_SOURCE_CDR_ID:
+            ?>
+            echo csv_field(__('Source CDR ID'), false);
+            <?php
             break;
 
         case FieldsToShow::ORGANIZATION_LEVEL:
@@ -209,13 +214,13 @@ echo "\n";
 
   $currency = sfConfig::get('app_currency');
   $info = OrganizationUnitInfo::getInstance();
-  $stm = Propel::getConnection()->prepare(getQueryFromParts(
+  $stm = FixedJobProcessor::prepareFetchStmt(getQueryFromParts(
                           VariableFrame::$listFrom,
                           VariableFrame::$listCondition,
                           VariableFrame::$listGroupBy,
                           VariableFrame::$listSort,
                           VariableFrame::$exportToCSVSelect));
-
+                          
   $stm->execute(VariableFrame::$listParams);
   while ($r = $stm->fetch(PDO::FETCH_ASSOC)) {
 
@@ -365,6 +370,12 @@ foreach($fieldsToShow as $fieldToShow) {
         <?php
             break;
 
+        case FieldsToShow::FROM_SOURCE_CDR_ID:
+            ?>
+        echo csv_field($r['from_source_cdr_id'], false);
+        <?php
+            break;
+        
         case FieldsToShow::DEBUG_COST_RATE:
             ?>
         if (VariableFrame::$groupOn == 0) {
@@ -431,6 +442,5 @@ foreach($fieldsToShow as $fieldToShow) {
     }
 }
 ?>
-
         echo "\n";
 }

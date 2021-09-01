@@ -15,14 +15,15 @@ class ArRatePeer extends BaseArRatePeer
     /**
      * @static
      * @param string $internalName
-     * @return ArRate|null
+     * @return ArRate|null consider the most recent rate
      */
     public static function retrieveByInternalName($internalName)
     {
-        $criteria = new Criteria();
-        $criteria->add(ArRatePeer::INTERNAL_NAME, $internalName);
-
-        return ArRatePeer::doSelectOne($criteria);
+        $c = new Criteria();
+        $c->add(ArRatePeer::INTERNAL_NAME, $internalName);
+        $c->addDescendingOrderByColumn(ArRatePeer::FROM_TIME);
+        $c->setLimit(1);
+        return ArRatePeer::doSelectOne($c);
     }
-
+   
 }

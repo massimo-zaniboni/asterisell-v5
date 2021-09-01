@@ -49,6 +49,13 @@ abstract class BaseArSourceCdr extends BaseObject  implements Persistent {
 	protected $content;
 
 	/**
+	 * The value for the is_hacked field.
+	 * Note: this column has a database default value of: false
+	 * @var        boolean
+	 */
+	protected $is_hacked;
+
+	/**
 	 * Flag to prevent endless save loop, if this object is referenced
 	 * by another object which falls in this transaction.
 	 * @var        boolean
@@ -65,6 +72,27 @@ abstract class BaseArSourceCdr extends BaseObject  implements Persistent {
 	// symfony behavior
 	
 	const PEER = 'ArSourceCdrPeer';
+
+	/**
+	 * Applies default values to this object.
+	 * This method should be called from the object's constructor (or
+	 * equivalent initialization method).
+	 * @see        __construct()
+	 */
+	public function applyDefaultValues()
+	{
+		$this->is_hacked = false;
+	}
+
+	/**
+	 * Initializes internal state of BaseArSourceCdr object.
+	 * @see        applyDefaults()
+	 */
+	public function __construct()
+	{
+		parent::__construct();
+		$this->applyDefaultValues();
+	}
 
 	/**
 	 * Get the [optionally formatted] temporal [calldate] column value.
@@ -142,6 +170,16 @@ abstract class BaseArSourceCdr extends BaseObject  implements Persistent {
 	public function getContent()
 	{
 		return $this->content;
+	}
+
+	/**
+	 * Get the [is_hacked] column value.
+	 * 
+	 * @return     boolean
+	 */
+	public function getIsHacked()
+	{
+		return $this->is_hacked;
 	}
 
 	/**
@@ -274,6 +312,26 @@ abstract class BaseArSourceCdr extends BaseObject  implements Persistent {
 	} // setContent()
 
 	/**
+	 * Set the value of [is_hacked] column.
+	 * 
+	 * @param      boolean $v new value
+	 * @return     ArSourceCdr The current object (for fluent API support)
+	 */
+	public function setIsHacked($v)
+	{
+		if ($v !== null) {
+			$v = (boolean) $v;
+		}
+
+		if ($this->is_hacked !== $v || $this->isNew()) {
+			$this->is_hacked = $v;
+			$this->modifiedColumns[] = ArSourceCdrPeer::IS_HACKED;
+		}
+
+		return $this;
+	} // setIsHacked()
+
+	/**
 	 * Indicates whether the columns in this object are only set to default values.
 	 *
 	 * This method can be used in conjunction with isModified() to indicate whether an object is both
@@ -283,6 +341,10 @@ abstract class BaseArSourceCdr extends BaseObject  implements Persistent {
 	 */
 	public function hasOnlyDefaultValues()
 	{
+			if ($this->is_hacked !== false) {
+				return false;
+			}
+
 		// otherwise, everything was equal, so return TRUE
 		return true;
 	} // hasOnlyDefaultValues()
@@ -310,6 +372,7 @@ abstract class BaseArSourceCdr extends BaseObject  implements Persistent {
 			$this->ar_cdr_provider_id = ($row[$startcol + 2] !== null) ? (int) $row[$startcol + 2] : null;
 			$this->ar_physical_format_id = ($row[$startcol + 3] !== null) ? (int) $row[$startcol + 3] : null;
 			$this->content = ($row[$startcol + 4] !== null) ? (string) $row[$startcol + 4] : null;
+			$this->is_hacked = ($row[$startcol + 5] !== null) ? (boolean) $row[$startcol + 5] : null;
 			$this->resetModified();
 
 			$this->setNew(false);
@@ -319,7 +382,7 @@ abstract class BaseArSourceCdr extends BaseObject  implements Persistent {
 			}
 
 			// FIXME - using NUM_COLUMNS may be clearer.
-			return $startcol + 5; // 5 = ArSourceCdrPeer::NUM_COLUMNS - ArSourceCdrPeer::NUM_LAZY_LOAD_COLUMNS).
+			return $startcol + 6; // 6 = ArSourceCdrPeer::NUM_COLUMNS - ArSourceCdrPeer::NUM_LAZY_LOAD_COLUMNS).
 
 		} catch (Exception $e) {
 			throw new PropelException("Error populating ArSourceCdr object", $e);
@@ -625,6 +688,9 @@ abstract class BaseArSourceCdr extends BaseObject  implements Persistent {
 			case 4:
 				return $this->getContent();
 				break;
+			case 5:
+				return $this->getIsHacked();
+				break;
 			default:
 				return null;
 				break;
@@ -651,6 +717,7 @@ abstract class BaseArSourceCdr extends BaseObject  implements Persistent {
 			$keys[2] => $this->getArCdrProviderId(),
 			$keys[3] => $this->getArPhysicalFormatId(),
 			$keys[4] => $this->getContent(),
+			$keys[5] => $this->getIsHacked(),
 		);
 		return $result;
 	}
@@ -697,6 +764,9 @@ abstract class BaseArSourceCdr extends BaseObject  implements Persistent {
 			case 4:
 				$this->setContent($value);
 				break;
+			case 5:
+				$this->setIsHacked($value);
+				break;
 		} // switch()
 	}
 
@@ -726,6 +796,7 @@ abstract class BaseArSourceCdr extends BaseObject  implements Persistent {
 		if (array_key_exists($keys[2], $arr)) $this->setArCdrProviderId($arr[$keys[2]]);
 		if (array_key_exists($keys[3], $arr)) $this->setArPhysicalFormatId($arr[$keys[3]]);
 		if (array_key_exists($keys[4], $arr)) $this->setContent($arr[$keys[4]]);
+		if (array_key_exists($keys[5], $arr)) $this->setIsHacked($arr[$keys[5]]);
 	}
 
 	/**
@@ -742,6 +813,7 @@ abstract class BaseArSourceCdr extends BaseObject  implements Persistent {
 		if ($this->isColumnModified(ArSourceCdrPeer::AR_CDR_PROVIDER_ID)) $criteria->add(ArSourceCdrPeer::AR_CDR_PROVIDER_ID, $this->ar_cdr_provider_id);
 		if ($this->isColumnModified(ArSourceCdrPeer::AR_PHYSICAL_FORMAT_ID)) $criteria->add(ArSourceCdrPeer::AR_PHYSICAL_FORMAT_ID, $this->ar_physical_format_id);
 		if ($this->isColumnModified(ArSourceCdrPeer::CONTENT)) $criteria->add(ArSourceCdrPeer::CONTENT, $this->content);
+		if ($this->isColumnModified(ArSourceCdrPeer::IS_HACKED)) $criteria->add(ArSourceCdrPeer::IS_HACKED, $this->is_hacked);
 
 		return $criteria;
 	}
@@ -760,8 +832,6 @@ abstract class BaseArSourceCdr extends BaseObject  implements Persistent {
 
 		$criteria->add(ArSourceCdrPeer::CALLDATE, $this->calldate);
 		$criteria->add(ArSourceCdrPeer::ID, $this->id);
-		$criteria->add(ArSourceCdrPeer::AR_CDR_PROVIDER_ID, $this->ar_cdr_provider_id);
-		$criteria->add(ArSourceCdrPeer::AR_PHYSICAL_FORMAT_ID, $this->ar_physical_format_id);
 
 		return $criteria;
 	}
@@ -779,10 +849,6 @@ abstract class BaseArSourceCdr extends BaseObject  implements Persistent {
 
 		$pks[1] = $this->getId();
 
-		$pks[2] = $this->getArCdrProviderId();
-
-		$pks[3] = $this->getArPhysicalFormatId();
-
 		return $pks;
 	}
 
@@ -798,10 +864,6 @@ abstract class BaseArSourceCdr extends BaseObject  implements Persistent {
 		$this->setCalldate($keys[0]);
 
 		$this->setId($keys[1]);
-
-		$this->setArCdrProviderId($keys[2]);
-
-		$this->setArPhysicalFormatId($keys[3]);
 
 	}
 
@@ -827,6 +889,8 @@ abstract class BaseArSourceCdr extends BaseObject  implements Persistent {
 		$copyObj->setArPhysicalFormatId($this->ar_physical_format_id);
 
 		$copyObj->setContent($this->content);
+
+		$copyObj->setIsHacked($this->is_hacked);
 
 
 		$copyObj->setNew(true);

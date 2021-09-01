@@ -672,9 +672,8 @@ abstract class BaseBillingReport extends ReportGenerator
             }
             $additionalQueryCond = 'AND ar_cdr.cached_parent_id_hierarchy = ?';
 
-            $conn = Propel::getConnection();
             $query = $this->getQueryOnCdrs($additionalQueryCond, $this->cachedMaxCallsInReport);
-            $this->callDetailsStmt = $conn->prepare($query);
+            $this->callDetailsStmt = FixedJobProcessor::prepareFetchStmt($query);
         }
 
         $this->callDetailsStmt->execute(array($ids));

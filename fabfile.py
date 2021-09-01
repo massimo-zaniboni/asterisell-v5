@@ -49,7 +49,7 @@ SYNOPSIS
 DESCRIPTION
 
     fab manages Asterisell instances defined in the file
-    `fabric_data/asterisell_instances.py` installing them
+    `asterisell_instances.py` installing them
     in Docker containers, using the Asterisell version in
     current admin directory.
 
@@ -114,7 +114,7 @@ For installing a new instance:
     fab authorize_ssh_access:HOST/INSTANCE
     fab install:HOST/INSTANCE
 
-For updating configurations in `fabric_data/asterisell_instances.py`:
+For updating configurations in `asterisell_instances.py`:
 
     fab upgrade_conf:HOST/INSTANCE
 

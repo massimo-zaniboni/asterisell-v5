@@ -294,6 +294,7 @@ rateEngine_rateProcess runLevelR env nrOfJobs maybeToCallDate = do
 
               -- NOTE: execute for first, for being sure to acquire DB connection ownership
               (loadToDBChan, writeToDBJobs) <-
+                -- NOTE: `ar_cdr.id` will be managed directly from `db_loadDataFromNamedPipe`.
                 db_loadDataFromNamedPipe dbState True (fromStringToByteString pipeName) "ar_cdr" cdr_mysqlCSVLoadCmd cdr_toMySQLCSV
 
               parsingJob <-
@@ -734,7 +735,7 @@ process_errors env dbState inChan outChan = do
                case isNew of
                  False -> err1
                  True -> let
-                   (providerName, callDate, formatId, sourceCDR) = sourceCDR1
+                   (providerName, callDate, sourceCdrId, isHacked, formatId, sourceCDR) = sourceCDR1
                    cdrDetails1 = rate_showDebug env cdr2
                    cdrDetails2
                        = describeSourceCDRForErrorReporting
@@ -774,7 +775,7 @@ process_parseSourceCDRS inConn env maybeToCallDate' outCDRS
         -- DEV-NOTE: use a filter on calldate and id instead of LIMIT and OFFSET because
         -- in case of big data it is a lot faster starting from the correct calldate,
         -- respect applying an OFFSET.
-        let inQ1 = [str| SELECT s.calldate, s.id, p.internal_name, s.ar_physical_format_id, s.content
+        let inQ1 = [str| SELECT s.calldate, s.id, s.is_hacked, p.internal_name, s.ar_physical_format_id, s.content
                        | FROM ar_source_cdr AS s
                        | INNER JOIN ar_cdr_provider AS p
                        | ON s.ar_cdr_provider_id = p.id
@@ -811,8 +812,8 @@ process_parseSourceCDRS inConn env maybeToCallDate' outCDRS
      -> [DB.MySQLValue]
      -- ^ condition on maybeToCallDate
      -> (CallDate -- ^ the current calldate to process
-        , Int -- ^ the -- ^ the last `ar_source_cdr.id` processed
-              --   -1 for the first call to this function
+        , Int     -- ^ the last `ar_source_cdr.id` processed
+                  --   -1 for the first call to this function
         )
      -> IO ()
 
@@ -861,7 +862,7 @@ process_parseSourceCDRS inConn env maybeToCallDate' outCDRS
                let (lastCallDate'', id'')
                      = if V.null v
                        then (lastCallDate, lastSourceId)
-                       else let [lastCallDate', id', _, _, _] = V.last v
+                       else let [lastCallDate', id', _, _, _, _] = V.last v
                             in  (fromDBLocalTime lastCallDate', fromDBInt id')
 
                case lastChunk == 0 of
@@ -871,9 +872,11 @@ process_parseSourceCDRS inConn env maybeToCallDate' outCDRS
                  False -> processSplit dbInChan (lastChunk - 1) (lastCallDate'', id'')
 
    {-# INLINE processRecord #-}
-   processRecord [!callDate', !id', !providerName', !formatId', !content']
+   processRecord [!callDate', !sourceCdrId', !isHacked', !providerName', !formatId', !content']
     = let providerName = fromDBText providerName'
           callDate = fromDBLocalTime callDate'
+          sourceCdrId = fromDBInt sourceCdrId'
+          isHacked = fromDBBool isHacked'
           formatId = fromDBInt formatId'
           rawCDR = fromDBByteString content'
           maybeCdrs
@@ -885,9 +888,17 @@ process_parseSourceCDRS inConn env maybeToCallDate' outCDRS
                            Right (Just (_, Left !err))
                              -> Left err
                            Right (Just (_, Right !cdrs2))
-                             -> Right $ pAssert "ERR 003" (L.all (\c -> cdr_calldate c == callDate) cdrs2) cdrs2
+                             -> let !cdrs3 =
+                                      L.map (\c2 -> c2 {
+                                                  cdr_from_source_cdr_id = Just $ sourceCdrId
+                                                , cdr_internalTelephoneNumber =
+                                                    case isHacked of
+                                                      True -> hackedAccount
+                                                      False -> cdr_internalTelephoneNumber c2 }) cdrs2
+                                    sameDate = L.all (\c -> cdr_calldate c == callDate) cdrs3
+                                in  Right $ pAssert "ERR 003" sameDate cdrs3
 
-      in ParsedCDR ((providerName, callDate, formatId, rawCDR), maybeCdrs)
+      in ParsedCDR ((providerName, callDate, sourceCdrId, isHacked, formatId, rawCDR), maybeCdrs)
 
    -- | Send a CDR to ignore, so BundleState services can be fully generated until the specified date.
    sendCDRSToIgnore :: CallDate -> IO ()
@@ -897,7 +908,7 @@ process_parseSourceCDRS inConn env maybeToCallDate' outCDRS
                    cdr_direction = CDR_ignored
                  , cdr_billsec = Just 0
                  , cdr_duration = Just 0 }
-        orderedStream_put outCDRS $ Just $ V.singleton $ ParsedCDR (("", callDate, 0, ""), Right [cdr])
+        orderedStream_put outCDRS $ Just $ V.singleton $ ParsedCDR (("", callDate, 0, False, 0, ""), Right [cdr])
 
 -- | Complete the info about ported telephone numbers.
 process_cdrsWithPortedTelephoneNumbers
@@ -959,7 +970,7 @@ process_cdrsWithPortedTelephoneNumbers conn env inCDRS outCDRS
          let cdrs = toParsedCDR1 multiCDRS
          let valuesToPort
                 = V.imap
-                      (\i (ParsedCDR1 ((_, localTime, _, _), maybeErr, cdr))
+                      (\i (ParsedCDR1 ((_, localTime, _, _, _, _), maybeErr, cdr))
                              -> case maybeErr of
                                  Just err
                                    -> Nothing
@@ -1534,24 +1545,25 @@ tt_mainRateCalcTets
   = [ HUnit.TestCase $ HUnit.assertEqual "convert date" True (isJust $ fromMySQLDateTimeToLocalTime "2014-01-01 00:00:00")
     , HUnit.TestCase $ HUnit.assertEqual "convert number" True (isJust $ fromTextToRational "110")
     , testCost "no cost" cdr1 params1 "0"
-    , testCost "simple 1" cdr1 (params2 { calcParams_costOnCall = Just $ RateCost_cost 0 }) "0.5"
-    , testCost "simple 2" cdr1 (params2 { calcParams_costForMinute = Just 0 }) "100"
+    , testCost "simple 1" cdr1 (params2 { calcParams_costOnCall = CP_Value 0.0 }) "0.5"
+    , testCost "simple 2" cdr1 (params2 { calcParams_costForMinute = CP_Value 0.0 }) "100"
     , testCost "simple 3" cdr1 params2 "100.5"
-    , testCost "max cost" cdr1 (params2 { calcParams_maxCostOfCall = Just $ fromTextToRational "50" }) "50"
-    , testCost "max cost" cdr1 (params2 { calcParams_maxCostOfCall = Just $ fromTextToRational "50" }) "50"
-    , testCost "max cost" cdr1 (params2 { calcParams_maxCostOfCall = Just $ fromTextToRational "50", calcParams_minCostOfCall = Just $ fromTextToRational "55" }) "55"
-    , testCost "free seconds" cdr1 (params3 { calcParams_freeSecondsAfterCostOnCall = Just 15 }) "101.5"
-    , testCost "discrete 1" cdr1 (params3 { calcParams_durationDiscreteIncrements = Just $ Just 4 }) "103.2"
-    , testCost "discrete 2" cdr1 (params3 { calcParams_durationDiscreteIncrements = Just $ Just 0 }) "103"
+    , testCost "max cost" cdr1 (params2 { calcParams_maxCostOfCall = CP_Value $ fromJust1 "t10" $ fromTextToRational "50" }) "50"
+    , testCost "max cost" cdr1 (params2 { calcParams_maxCostOfCall = CP_Value $ fromJust1 "t11" $ fromTextToRational "50" }) "50"
+    , testCost "max cost" cdr1 (params2 { calcParams_maxCostOfCall = CP_Value $ fromJust1 "t12" $ fromTextToRational "50"
+                                        , calcParams_minCostOfCall = CP_Value $ fromJust1 "t20" $ fromTextToRational "55" }) "55"
+    , testCost "free seconds" cdr1 (params3 { calcParams_freeSecondsAfterCostOnCall = CP_Value 15 }) "101.5"
+    , testCost "discrete 1" cdr1 (params3 { calcParams_durationDiscreteIncrements = CP_Value 4 }) "103.2"
+    , testCost "discrete 2" cdr1 (params3 { calcParams_durationDiscreteIncrements = CP_Value 0 }) "103"
     , HUnit.TestCase $ HUnit.assertEqual "mathRound" 1 (mathRound 0.5)
     , HUnit.TestCase $ HUnit.assertEqual "mathRound" 2 (mathRound 1.5)
     , HUnit.TestCase $ HUnit.assertEqual "mathRound" 1 (mathRound 0.6)
     , HUnit.TestCase $ HUnit.assertEqual "mathRound" 0 (mathRound 0.4)
-    , testCost "round 1" cdr1 (params4 { calcParams_roundToDecimalDigits = Just $ Just 2 }) "100.13"
-    , testCost "round 2" cdr1 (params4 { calcParams_roundToDecimalDigits = Just $ Just 1 }) "100.1"
-    , testCost "round 3" cdr1 (params4 { calcParams_roundToDecimalDigits = Just $ Just 2 }) "100.13"
-    , testCost "round 4" cdr1 (params4 { calcParams_roundToDecimalDigits = Just $ Just 0 }) "100"
-    , testCost "round 5" cdr1 (params4 { calcParams_roundToDecimalDigits = Just $ Just 3 }) "100.125"
+    , testCost "round 1" cdr1 (params4 { calcParams_roundToDecimalDigits = CP_Value 2 }) "100.13"
+    , testCost "round 2" cdr1 (params4 { calcParams_roundToDecimalDigits = CP_Value 1 }) "100.1"
+    , testCost "round 3" cdr1 (params4 { calcParams_roundToDecimalDigits = CP_Value 2 }) "100.13"
+    , testCost "round 4" cdr1 (params4 { calcParams_roundToDecimalDigits = CP_Value 0 }) "100"
+    , testCost "round 5" cdr1 (params4 { calcParams_roundToDecimalDigits = CP_Value 3 }) "100.125"
     ]
 
  where
@@ -1566,18 +1578,18 @@ tt_mainRateCalcTets
   params1 = calcParams_defaultValues
 
   params2 = calcParams_defaultValues {
-              calcParams_costForMinute = Just 1
-            , calcParams_costOnCall = Just $ RateCost_cost 100
+              calcParams_costForMinute = CP_Value 1
+            , calcParams_costOnCall = CP_Value 100
             }
 
   params3 = calcParams_defaultValues {
-              calcParams_costForMinute = Just 6
-            , calcParams_costOnCall = Just $ RateCost_cost 100
+              calcParams_costForMinute = CP_Value 6
+            , calcParams_costOnCall = CP_Value 100
             }
 
   params4 = calcParams_defaultValues {
-              calcParams_costForMinute = fromTextToRational "0.25"
-            , calcParams_costOnCall = Just $ RateCost_cost 100
+              calcParams_costForMinute = CP_Value $ fromJust1 "t30" $ fromTextToRational "0.25"
+            , calcParams_costOnCall = CP_Value 100
             }
 
   testCost testName cdr params expectedCost

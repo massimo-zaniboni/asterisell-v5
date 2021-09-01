@@ -353,22 +353,34 @@ dbErrors_insert conn maybeStmtId err maybeGarbageTimeFrame = do
 -- --------------------------------------------
 -- DB UniqueId
 
--- | The maximum number of CDRS with the same calldate.
---   NOTE: in case of services and bundles, they have all the same date,
---   and they are proportional to the number of customers.
+-- | `ar_source_cdr` and `ar_cdr` have a primary key on calldate and id.
+--   MySQL uses 32 bit signed integers for the ids.
+--   It suffices that two CDRS with the same call-date have different ids.
 type UniqueDateId = Int32
 
+-- | Advance the ID counter, inside the same import or rating session.
+--   Uses 30 bit unsigned integers.
+--   Restart from 0 if it reaches the maximum index.
 uniqueDateId_next :: UniqueDateId -> UniqueDateId
 uniqueDateId_next n
-  = let maxId = 2 ^ 20
+  = let maxId :: UniqueDateId = (2 :: UniqueDateId) ^ (30 :: UniqueDateId)
     in  mod (n + 1) maxId
 {-# INLINE uniqueDateId_next #-}
 
+-- | Start the `ar_source_cdr` import or the `ar_cdr` rating
+--   from a random ID. There are very few possibilities of
+--   collisions between the same ID and two CDRS with exactly
+--   the same call-date. In case of collision, the DBMS will
+--   interrupt the transaction (tested), a new random ID will be choosen
+--   at next passage.
+--   For the nature of Asterisell, CDR are produced with consecutive
+--   call-dates, and there are very few cases of CDR with the same
+--   call-date imported in different work sessions.
 uniqueDateId_randomStart :: IO UniqueDateId
 uniqueDateId_randomStart = do
-  n <- randomIO
-  return $ uniqueDateId_next n
-{-# INLINE uniqueDateId_randomStart #-}
+  n :: UniqueDateId <- randomIO
+  let pn = if n > 0 then n else -n
+  return $ uniqueDateId_next pn
 
 -- --------------------------------------------
 -- Convert DB Values to Haskell  types.
@@ -821,8 +833,11 @@ namedPipe_create pipeName = do
 -- | Start on a separate process `LOAD DATA INFILE` using a named pipe as input.
 --   The DB process will be not anymore accessible until the pipe is closed.
 --   This process will manage automatically the `ar_cdr.id` and `ar_source_cdr.id` field,
---   generating consecutive IDS. The ID field had not to be specified in the schema and in the generated data,
---   and it will be automatically inserted.
+--   generating consecutive IDS starting from a random ID. In rare case of conflicts the DBMS will recognize it (tested),
+--   the transaction will be aborted, and CDR will be imported/rated again.
+--
+--   This ID field must be not specified in the schema and in the generated data,
+--   and it will be automatically inserted from this process.
 db_loadDataFromNamedPipe
   :: DBState
   -> Bool

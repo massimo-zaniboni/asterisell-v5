@@ -1,7 +1,7 @@
 {-# LANGUAGE ScopedTypeVariables, BangPatterns, OverloadedStrings, ExistentialQuantification, RankNTypes, QuasiQuotes, DeriveGeneric, DeriveAnyClass  #-}
 
 -- SPDX-License-Identifier: GPL-3.0-or-later
--- Copyright (C) 2009-2019 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
+-- Copyright (C) 2009-2021 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
 
 -- | Import specific format for a Customer.
 --   The import guidelines are:
@@ -108,6 +108,7 @@ supportedSourceCDRImporters
       , (("asterisell-provider-services", "v1"), CDRFormatSpec decodeStandardCSV (AType::(AType CSVFormat_asterisell_provider_services__v1)))
       , (("twt-cps","v1"), CDRFormatSpec decodeAlternativeCSV (AType::(AType CSVFormat_twt_cps__v1)))
       , (("twt-nng","v1"), CDRFormatSpec decodeAlternativeCSV (AType::(AType CSVFormat_twt_nng__v1)))
+      , (("twt-dq","v1"), CDRFormatSpec decodeAlternativeCSV (AType::(AType (CSVFormat_twt_dq__v1))))
 
       , (("twt-wlr","vAntelma"), CDRFormatSpec decodeAlternativeCSV (AType::(AType (CSVFormat_twt_wlr__vAntelma))))
       , (("twt-voip","vAntelma"), CDRFormatSpec decodeAlternativeCSV (AType::(AType (CSVFormat_twt_voip__vAntelma))))
@@ -187,7 +188,6 @@ deriveFastLookupCDRImportes conn = do
                       -> pError ("Error 11776 in application code. Unexpected result: " ++ show unexpected ++ ", with column defs " ++ show colDefs)
          ) IntMap.empty inS
 
-
 -- ---------------------------------------------------------
 -- Custom Formats
 
@@ -197,18 +197,18 @@ deriveFastLookupCDRImportes conn = do
 --   > 11336;8470764;2014/11/05 08.37.06;0376667XXX;003933837XXX;39338;Italy Mobile TIM;74;0,0321;0;0;0;39338
 data CSVFormat_twt_cps__v1
   = CSVFormat_twt_cps__v1 {
-            twt_cps__v1__0 :: !Text.Text
-          , twt_cps__v1__1 :: !Text.Text
+            twt_cps__v1__0 :: !Text.Text  -- TWT customer number
+          , twt_cps__v1__1 :: !Text.Text  -- serial id number
           , twt_cps__v1__2_callDate :: !Text.Text
           , twt_cps__v1__3_caller :: !Text.Text
           , twt_cps__v1__4_calledNr :: !Text.Text
           , twt_cps__v1__5_originalPrefix :: !Text.Text
           , twt_cps__v1__6_operator :: !Text.Text
           , twt_cps__v1__7_duration :: !Text.Text
-          , twt_cps__v1__8_cost :: !Text.Text
-          , twt_cps__v1__9 :: !Text.Text
-          , twt_cps__v1__10 :: !Text.Text
-          , twt_cps__v1__12 :: !Text.Text
+          , twt_cps__v1__8_cost :: !Text.Text -- NOTE: "," as decimal separator
+          , twt_cps__v1__9 :: !Text.Text  -- 1 for urban call, 0 for extra urban
+          , twt_cps__v1__10 :: !Text.Text -- 0 for voice, 1 for data 
+          , twt_cps__v1__12 :: !Text.Text -- 1 for a call to another TWT number
           , twt_cps__v1__11_portedPrefix :: !Text.Text
             -- ^ the real operator associated to the number
             --   (number portabiity) to replace during billing
@@ -228,9 +228,9 @@ instance Show CSVFormat_twt_cps__v1 where
         ,("operator", twt_cps__v1__6_operator)
         ,("duration", twt_cps__v1__7_duration)
         ,("cost", twt_cps__v1__8_cost)
-        ,("field 10", twt_cps__v1__9)
-        ,("field 11", twt_cps__v1__10)
-        ,("field 12", twt_cps__v1__12)
+        ,("urban call", twt_cps__v1__9)
+        ,("data_call", twt_cps__v1__10)
+        ,("to_another_TWT_number", twt_cps__v1__12)
         ,("ported called prefix", twt_cps__v1__11_portedPrefix)
         ]
 
@@ -239,6 +239,33 @@ instance Show CSVFormat_twt_cps__v1 where
      showLines ls = List.concatMap showLine ls
 
      showLine (h, v) = h ++ ": " ++ (Text.unpack $ v cdr) ++ "\n"
+
+twt_convertCostS :: Text.Text -> Either AsterisellError MonetaryValue
+twt_convertCostS costSItalian = do
+  let costS = Text.map (\c -> if c == ',' then '.' else c) costSItalian
+  let maybeCost = fromTextToRational costS
+  case maybeCost of
+    Nothing ->
+             (throwError $ createError  Type_Error
+                                        Domain_RATES
+                                        ("unrecognized cost - " ++ (Text.unpack costS))
+                                        ("The expected cost field \"" ++ (Text.unpack costS) ++ "\" is not a valid number.")
+                                        ("These CDRs will be not rated.")
+                                        ("This is probably an error in the imported CSV file content. If there are many errors of this type, contact the assistance, or the VoIP provider.")
+             )
+    Just cost -> return cost
+
+-- | Remove "00" if present, and consider it an international number.
+--   If "00" is not present, consider it a local number, and add default prefix.
+--
+twt_remove00 :: Bool -> Text.Text -> Text.Text -> Text.Text
+twt_remove00 remove00 defaultPrefix t =
+  case remove00 of
+    True ->
+      case Text.isPrefixOf "00" t of
+        True -> Text.drop 2 t
+        False -> Text.concat [defaultPrefix, t]
+    False -> t
 
 instance CSV.FromRecord CSVFormat_twt_cps__v1
 
@@ -261,12 +288,12 @@ instance CDRFormat CSVFormat_twt_cps__v1 where
            Just v
              -> Right $ Just v
 
-  toCDR precision provider record = convert_CSVFormat_twt_cps__v1__toCDR True precision provider record
+  toCDR precision provider rv = convert_CSVFormat_twt_cps__v1__toCDR True precision provider rv
 
 convert_CSVFormat_twt_cps__v1__toCDR :: Bool -> CurrencyPrecisionDigits -> CDRProviderName -> CSVFormat_twt_cps__v1 -> Either AsterisellError [CDR]
-convert_CSVFormat_twt_cps__v1__toCDR remove00 precision provider record = do
-  let callDateS = Text.unpack $ twt_cps__v1__2_callDate record
-  let maybeCallDate = fromDateFormat1ToLocalTime (twt_cps__v1__2_callDate record)
+convert_CSVFormat_twt_cps__v1__toCDR remove00 precision provider rv = do
+  let callDateS = Text.unpack $ twt_cps__v1__2_callDate rv
+  let maybeCallDate = fromDateFormat1ToLocalTime (twt_cps__v1__2_callDate rv)
   when (isNothing maybeCallDate)
              (throwError $ createError  Type_Error
                                         Domain_RATES
@@ -276,38 +303,26 @@ convert_CSVFormat_twt_cps__v1__toCDR remove00 precision provider record = do
                                         ("This is probably an error in the code importing CDRs, or in the configuration of VoIP servers. Contact the assistance.")
              )
 
-  let costS = Text.map (\c -> if c == ',' then '.' else c) (twt_cps__v1__8_cost record)
-  let maybeCost = fromTextToRational costS
-  when (isNothing maybeCost)
-             (throwError $ createError  Type_Error
-                                        Domain_RATES
-                                        ("unrecognized cost - " ++ (Text.unpack costS))
-                                        ("The expected cost field \"" ++ (Text.unpack costS) ++ "\" is not a valid number.")
-                                        ("These CDRs will be not rated.")
-                                        ("This is probably an error in the imported CSV file content. If there are many errors of this type, contact the assistance, or the VoIP provider.")
-             )
-
-  let maybeDuration =  fromTextToInt $ twt_cps__v1__7_duration record
+  cost <- twt_convertCostS (twt_cps__v1__8_cost rv)
+  let maybeDuration =  fromTextToInt $ twt_cps__v1__7_duration rv
   when (isNothing maybeDuration)
              (throwError $ createError  Type_Error
                                         Domain_RATES
-                                        ("unrecognized duration - " ++ (Text.unpack $ twt_cps__v1__7_duration record))
-                                        ("The call duration \"" ++ (Text.unpack $ twt_cps__v1__7_duration record) ++ "\" is not a valid number.")
+                                        ("unrecognized duration - " ++ (Text.unpack $ twt_cps__v1__7_duration rv))
+                                        ("The call duration \"" ++ (Text.unpack $ twt_cps__v1__7_duration rv) ++ "\" is not a valid number.")
                                         ("These CDRs will be not rated.")
                                         ("This is probably an error in the imported CSV file content. If there are many errors of this type, contact the assistance, or the VoIP provider.")
              )
 
-  let calledNr1 = twt_cps__v1__4_calledNr record
-  let calledNr = case remove00 && Text.isPrefixOf "00" calledNr1 of
-                   True -> Text.drop 2 calledNr1
-                   False -> calledNr1
+  let calledNr1 = twt_cps__v1__4_calledNr rv
+  let calledNr = twt_remove00 remove00 "39" calledNr1
 
-  let maybePortedTelephoneNumber = replacePrefixAndGetPortedTelephoneNumber (Text.unpack $ calledNr) (Text.unpack $ twt_cps__v1__5_originalPrefix record) (Text.unpack $ twt_cps__v1__11_portedPrefix record)
+  let maybePortedTelephoneNumber = replacePrefixAndGetPortedTelephoneNumber (Text.unpack $ calledNr) (Text.unpack $ twt_cps__v1__5_originalPrefix rv) (Text.unpack $ twt_cps__v1__11_portedPrefix rv)
   when (isNothing maybePortedTelephoneNumber)
              (throwError $ createError  Type_Error
                                         Domain_RATES
-                                        ("unrecognized ported telephone number - " ++ (Text.unpack $ twt_cps__v1__4_calledNr record))
-                                        ("The called telephone number \"" ++ (Text.unpack $ twt_cps__v1__4_calledNr record) ++ "\" can not have ported/real telephone prefix \"" ++ (Text.unpack $ twt_cps__v1__11_portedPrefix record) ++ "\".")
+                                        ("unrecognized ported telephone number - " ++ (Text.unpack $ twt_cps__v1__4_calledNr rv))
+                                        ("The called telephone number \"" ++ (Text.unpack $ twt_cps__v1__4_calledNr rv) ++ "\" can not have ported/real telephone prefix \"" ++ (Text.unpack $ twt_cps__v1__11_portedPrefix rv) ++ "\".")
                                         ("These CDRs will be not rated.")
                                         ("This is probably an error in the imported CSV file content. If there are many errors of this type, contact the assistance, or the VoIP provider.")
              )
@@ -315,6 +330,20 @@ convert_CSVFormat_twt_cps__v1__toCDR remove00 precision provider record = do
   let portedTelephoneNumber = Text.pack $ fromJust1 "csi2" maybePortedTelephoneNumber
 
   let cdr =  cdr_empty (fromJust1 "csi3" maybeCallDate) precision
+
+  let importedInfo = 
+        Text.concat [
+          "twt-cps-v1"
+        , "\t"
+        , (twt_cps__v1__3_caller rv)
+        , "\t"
+        , (twt_cps__v1__5_originalPrefix rv)
+        , "\t"
+        , (twt_cps__v1__11_portedPrefix rv)
+        , "\t"
+        , (twt_cps__v1__6_operator rv)
+        ]
+
   return $ [cdr {
                 cdr_countOfCalls = 1
               , cdr_direction = CDR_outgoing
@@ -324,53 +353,65 @@ convert_CSVFormat_twt_cps__v1__toCDR remove00 precision provider record = do
               , cdr_billsec = maybeDuration
               , cdr_externalTelephoneNumber = calledNr
               , cdr_externalTelephoneNumberWithAppliedPortability = Just portedTelephoneNumber
-              , cdr_internalTelephoneNumber = twt_cps__v1__3_caller record
-              , cdr_expectedCost = maybeCost
+              , cdr_internalTelephoneNumber = twt_cps__v1__3_caller rv
+              , cdr_expectedCost = Just cost
               , cdr_channel = Just $ provider
+              , cdr_imported_info = Just $ importedInfo
               }]
 
 -- | TWT operator NNG format, used for Free Toll Numbers (numeri verdi).
 --   A line is something like
 -- > 11592;8673345;2014/11/12 10.32.29;800035XXX;0521710XXX;003980003XXX;39800;Italy NS Servizi TollFree;13;0,0000;0,0026;3900603;Italy OLO Wind urbano;39800;Italy NS Servizi TollFree
 -- > 11592;8673345;2014/11/12 10.32.52;800035XXX;0521710XXX;003980003XXX;39800;Italy NS Servizi TollFree;159;0,0000;0,0318;3900603;Italy OLO Wind urbano;39800;Italy NS Servizi TollFree
+--
+-- A NNG call is a 2-leg call:
+-- * a "tratta di raccolta" leg, from "numero terzo" of the caller to the NNG of the customer
+-- * a "tratta di terminazione" leg, from the NNG of the customer to the "numero d'appoggio" of the customer
+-- * each leg has a code assigned from TWT for determining the cost
+--
+-- In other words
+--
+-- > numero terzo --- tratta di raccolta --> NNG --- tratta di terminazione --> numero appoggio of customer
+-- > caller-number -- initial leg --> NNG -- delivery leg --> customer support number
+--
 data CSVFormat_twt_nng__v1
   = CSVFormat_twt_nng__v1 {
-            twt_nng__v1__0 :: !Text.Text  -- 0 11592;
-          , twt_nng__v1__1 :: !Text.Text  -- 1 8673345;
-          , twt_nng__v1__callDate :: !Text.Text  -- 2 2014/11/12 17.14.28;
-          , twt_nng__v1__calledNr :: !Text.Text  -- 3 800035427;
-          , twt_nng__v1__caller :: !Text.Text  -- 4 0598750172;
-          , twt_nng__v1__srcCaller :: !Text.Text -- 5 ? 0039800035427;
-          , twt_nng__v1__srcCallerCalledPrefix :: !Text.Text  -- 6 ? 39800;
-          , twt_nng__v1__7 :: !Text.Text -- 7 ? Italy NS Servizi TollFree;
+            twt_nng__v1__customerId :: !Text.Text  -- 0 11592; customer identifier
+          , twt_nng__v1__callId :: !Text.Text  -- 1 8673345; sequential call number
+          , twt_nng__v1__callDate :: !Text.Text  -- 2 2014/11/12 17.14.28; 
+          , twt_nng__v1__calledNr :: !Text.Text  -- 3 800035427; NNG called number (the debtor in case of NNG)
+          , twt_nng__v1__caller :: !Text.Text  -- 4 0598750XXX; calling number, "numero terzo"
+          , twt_nng__v1__dstCalled :: !Text.Text -- 5 00398000; "numero d'appoggio" of the customer
+          , twt_nng__v1__dstCalledCalledPrefix :: !Text.Text  -- telephone prefix of the "numero d'appoggio"
+          , twt_nng__v1__dstOperator :: !Text.Text -- 7 Italy NS Servizi TollFree; description of the called number
           , twt_nng__v1__duration :: !Text.Text -- 8 121;
-          , twt_nng__v1__9 :: !Text.Text        -- 9 ? 0,0000;
-          , twt_nng__v1__cost :: !Text.Text  -- 10 0,0242;
-          , twt_nng__v1__srcCallerDstPrefix :: !Text.Text -- 11 ? 3900603;
-          , twt_nng__v1__operator :: !Text.Text -- 12 Italy OLO Wind urbano;
-          , twt_nng__v1__13 :: !Text.Text  -- 13 39800;
-          , twt_nng__v1__14 :: !Text.Text -- 14 ? Italy NS
+          , twt_nng__v1__dstCost :: !Text.Text        -- 9 ? 0,0000; cost of "tratta di terminazione" calculated from TWT
+          , twt_nng__v1__srcCost :: !Text.Text  -- 10 0,0242; cost of "tratta di raccolta" calculated from TWT
+          , twt_nng__v1__srcRatingCode :: !Text.Text -- 11 3900603; TWT unique code for the "tratta di raccolta" rating
+          , twt_nng__v1__srcRatingCodeDescr :: !Text.Text -- 12 Italy OLO Wind urbano; human readable description of "tratta di raccolta" code
+          , twt_nng__v1__dstRatingCode :: !Text.Text  -- 13 39800; TWT unique code for "tratta di terminazione" rating
+          , twt_nng__v1__dstRatingCodeDescr :: !Text.Text -- 14 Italy NS; human readable description of "tratta di terminazione" code 
           }
  deriving (Generic, NFData)
 
 instance Show CSVFormat_twt_nng__v1 where
   show cdr
     = showLines
-        [("field 1", twt_nng__v1__0)
-        ,("field 2", twt_nng__v1__1)
-        ,("field 3", twt_nng__v1__callDate)
+        [("customerId", twt_nng__v1__customerId)
+        ,("callId", twt_nng__v1__callId)
+        ,("callDate", twt_nng__v1__callDate)
         ,("called nr", twt_nng__v1__calledNr)
         ,("caller", twt_nng__v1__caller)
-        ,("src caller", twt_nng__v1__srcCaller)
-        ,("src caller called prefix", twt_nng__v1__srcCallerCalledPrefix)
-        ,("field 8", twt_nng__v1__7)
+        ,("dst called", twt_nng__v1__dstCalled)
+        ,("dst called prefix", twt_nng__v1__dstCalledCalledPrefix)
+        ,("dst operator", twt_nng__v1__dstOperator)
         ,("duration", twt_nng__v1__duration)
-        ,("field 10", twt_nng__v1__9)
-        ,("cost", twt_nng__v1__cost)
-        ,("src caller dst prefix", twt_nng__v1__srcCallerDstPrefix)
-        ,("operator", twt_nng__v1__operator)
-        ,("field 14", twt_nng__v1__13)
-        ,("field 15",twt_nng__v1__14)
+        ,("dst cost", twt_nng__v1__dstCost)
+        ,("src cost", twt_nng__v1__srcCost)
+        ,("src rating code", twt_nng__v1__srcRatingCode)
+        ,("src rating code descr", twt_nng__v1__srcRatingCodeDescr)
+        ,("dst rating code", twt_nng__v1__dstRatingCode)
+        ,("dst rating code descr",twt_nng__v1__dstRatingCodeDescr)
         ]
 
    where
@@ -401,12 +442,12 @@ instance CDRFormat CSVFormat_twt_nng__v1 where
            Just v
              -> Right $ Just v
 
-  toCDR precision provider record = convert_CSVFormat_twt_nng__v1__toCDR precision provider record
+  toCDR precision provider v = convert_CSVFormat_twt_nng__v1__toCDR precision provider v
 
 convert_CSVFormat_twt_nng__v1__toCDR :: CurrencyPrecisionDigits -> CDRProviderName -> CSVFormat_twt_nng__v1 -> Either AsterisellError [CDR]
-convert_CSVFormat_twt_nng__v1__toCDR precision provider record = do
-  let callDateS = Text.unpack $ twt_nng__v1__callDate record
-  let maybeCallDate = fromDateFormat1ToLocalTime (twt_nng__v1__callDate record)
+convert_CSVFormat_twt_nng__v1__toCDR precision provider rv = do
+  let callDateS = Text.unpack $ twt_nng__v1__callDate rv
+  let maybeCallDate = fromDateFormat1ToLocalTime (twt_nng__v1__callDate rv)
   when (isNothing maybeCallDate)
              (throwError $ createError  Type_Error
                                         Domain_RATES
@@ -416,28 +457,18 @@ convert_CSVFormat_twt_nng__v1__toCDR precision provider record = do
                                         ("This is probably an error in the code importing CDRs, or in the configuration of VoIP servers. Contact the assistance.")
              )
 
-  let costS = Text.map (\c -> if c == ',' then '.' else c) (twt_nng__v1__cost record)
-  let maybeCost = fromTextToRational costS
-  when (isNothing maybeCost)
-             (throwError $ createError  Type_Error
-                                        Domain_RATES
-                                        ("unrecognized cost - " ++ (Text.unpack costS))
-                                        ("The expected cost field \"" ++ (Text.unpack costS) ++ "\" is not a valid number.")
-                                        ("These CDRs will be not rated.")
-                                        ("This is probably an error in the imported CSV file content. If there are many errors of this type, contact the assistance, or the VoIP provider.")
-             )
-
-  let maybeDuration =  fromTextToInt $ twt_nng__v1__duration record
+  cost <- twt_convertCostS (twt_nng__v1__srcCost rv)
+  let maybeDuration =  fromTextToInt $ twt_nng__v1__duration rv
   when (isNothing maybeDuration)
              (throwError $ createError  Type_Error
                                         Domain_RATES
-                                        ("unrecognized duration - " ++ (Text.unpack $ twt_nng__v1__duration record))
-                                        ("The call duration \"" ++ (Text.unpack $ twt_nng__v1__duration record) ++ "\" is not a valid number.")
+                                        ("unrecognized duration - " ++ (Text.unpack $ twt_nng__v1__duration rv))
+                                        ("The call duration \"" ++ (Text.unpack $ twt_nng__v1__duration rv) ++ "\" is not a valid number.")
                                         ("These CDRs will be not rated.")
                                         ("This is probably an error in the imported CSV file content. If there are many errors of this type, contact the assistance, or the VoIP provider.")
              )
 
-  let externalTelephoneNumberForRating = Text.concat ["incoming-toll-free-", "TollFree - ", twt_nng__v1__operator record, Text.pack "-", twt_nng__v1__caller record]
+  let externalTelephoneNumberForRating = Text.concat ["incoming-toll-free-", "TollFree - ", twt_nng__v1__srcRatingCodeDescr rv, Text.pack "-", twt_nng__v1__caller rv]
 
   let cdr =  cdr_empty (fromJust1 "csi4" maybeCallDate) precision
 
@@ -450,41 +481,225 @@ convert_CSVFormat_twt_nng__v1__toCDR precision provider record = do
               , cdr_isRedirect = False
               , cdr_duration = maybeDuration
               , cdr_billsec = maybeDuration
-              , cdr_externalTelephoneNumber = twt_nng__v1__caller record
+              , cdr_externalTelephoneNumber = twt_nng__v1__caller rv
               , cdr_externalTelephoneNumberWithAppliedPortability = Just externalTelephoneNumberForRating
-              , cdr_displayedExternalTelephoneNumber = Just $ twt_nng__v1__caller record
-              , cdr_internalTelephoneNumber = twt_nng__v1__calledNr record
-              , cdr_expectedCost = maybeCost
+              , cdr_displayedExternalTelephoneNumber = Just $ twt_nng__v1__caller rv
+              , cdr_internalTelephoneNumber = twt_nng__v1__calledNr rv
+              , cdr_expectedCost = Just cost
               , cdr_channel = Just provider
               }]
 
 -- | Convert an NNG CDR using another approach respect ``convert_CSVFormat_twt_nng__v1__toCDR`` method.
 --   See the source code for more details.
 convert_CSVFormat_twt_nng__v1__toCDR_v2 :: Bool -> CurrencyPrecisionDigits -> CDRProviderName -> CSVFormat_twt_nng__v1 -> Either AsterisellError [CDR]
-convert_CSVFormat_twt_nng__v1__toCDR_v2 remove00 precision provider record = do
+convert_CSVFormat_twt_nng__v1__toCDR_v2 remove00 precision provider rv = do
   let asCPS =
         CSVFormat_twt_cps__v1 {
-            twt_cps__v1__0 = twt_nng__v1__0 record
-          , twt_cps__v1__1 =  twt_nng__v1__1 record
-          , twt_cps__v1__2_callDate =  twt_nng__v1__callDate record
-          , twt_cps__v1__3_caller =  twt_nng__v1__calledNr record
+            twt_cps__v1__0 = twt_nng__v1__customerId rv
+          , twt_cps__v1__1 =  twt_nng__v1__callId rv
+          , twt_cps__v1__2_callDate =  twt_nng__v1__callDate rv
+          , twt_cps__v1__3_caller =  twt_nng__v1__calledNr rv
           -- ^ the called NNG acts like the originator in case of NNG 
-          , twt_cps__v1__4_calledNr =  twt_nng__v1__srcCaller record
+          , twt_cps__v1__4_calledNr =  twt_nng__v1__dstCalled rv
           -- ^ the calling acts like the destination in case of NNG
-          , twt_cps__v1__5_originalPrefix =  twt_nng__v1__srcCallerCalledPrefix record
-          , twt_cps__v1__6_operator =  twt_nng__v1__operator record
-          , twt_cps__v1__7_duration =  twt_nng__v1__duration record
-          , twt_cps__v1__8_cost =  twt_nng__v1__cost record
-          , twt_cps__v1__9 =  twt_nng__v1__9 record
+          , twt_cps__v1__5_originalPrefix =  twt_nng__v1__dstCalledCalledPrefix rv
+          , twt_cps__v1__6_operator =  twt_nng__v1__dstOperator rv
+          , twt_cps__v1__7_duration =  twt_nng__v1__duration rv
+          , twt_cps__v1__8_cost =  twt_nng__v1__srcCost rv
+          , twt_cps__v1__9 =  twt_nng__v1__dstCost rv
           , twt_cps__v1__10 =  ""
           , twt_cps__v1__12 =  ""
-          , twt_cps__v1__11_portedPrefix =  twt_nng__v1__srcCallerDstPrefix record
+          , twt_cps__v1__11_portedPrefix =  twt_nng__v1__srcRatingCode rv
             -- ^ the real operator associated to the number
             --   (number portabiity) to replace during billing
             --   with the originalPrefix
           }
 
   convert_CSVFormat_twt_cps__v1__toCDR remove00 precision provider asCPS
+
+-- | Convert an NNG CDR using two legs,
+--   and TWT account codes as prefixes of the external telephone numbers.
+--   The NNG call is an incoming and a redirect, but it is converted
+--   to an outgoing from NNG customer to calling external telephone number,
+--   and another redirect outgoing from NNG customer to internal customer number.
+--   The channel is "nng-leg-1-PROVIDER" and "nng-leg-2-PROVIDER".
+--   Use srcCodeDescr and dstCodeDescr as external telephone numbers to use for rating.
+convert_CSVFormat_twt_nng__v1__toTwoLegCDR_v1 :: Bool -> Bool -> CurrencyPrecisionDigits -> CDRProviderName -> CSVFormat_twt_nng__v1 -> Either AsterisellError [CDR]
+convert_CSVFormat_twt_nng__v1__toTwoLegCDR_v1 remove00 exactPrefix precision provider rv = do
+  let callDateS = Text.unpack $ twt_nng__v1__callDate rv
+  let maybeCallDate = fromDateFormat1ToLocalTime (twt_nng__v1__callDate rv)
+  when (isNothing maybeCallDate)
+             (throwError $ createError  Type_Error
+                                        Domain_RATES
+                                        ("unrecognized calldate - " ++ callDateS)
+                                        ("The calldate field \"" ++ callDateS ++ "\" has unexpected format.")
+                                        ("These CDRs will be not rated.")
+                                        ("This is probably an error in the code importing CDRs, or in the configuration of VoIP servers. Contact the assistance.")
+             )
+
+  let maybeDuration =  fromTextToInt $ twt_nng__v1__duration rv
+  when (isNothing maybeDuration)
+             (throwError $ createError  Type_Error
+                                        Domain_RATES
+                                        ("unrecognized duration - " ++ (Text.unpack $ twt_nng__v1__duration rv))
+                                        ("The call duration \"" ++ (Text.unpack $ twt_nng__v1__duration rv) ++ "\" is not a valid number.")
+                                        ("These CDRs will be not rated.")
+                                        ("This is probably an error in the imported CSV file content. If there are many errors of this type, contact the assistance, or the VoIP provider.")
+             )
+
+  let tn1 = twt_remove00 remove00 "39" $ twt_nng__v1__caller rv
+  let tn2 = twt_nng__v1__calledNr rv
+  let tn3 = twt_remove00 remove00 "39" $ twt_nng__v1__dstCalled rv
+
+  srcCost <- twt_convertCostS (twt_nng__v1__srcCost rv)
+  dstCost <- twt_convertCostS (twt_nng__v1__dstCost rv)
+
+  let cdr =  cdr_empty (fromJust1 "csi4" maybeCallDate) precision
+
+  let importedInfo1 = 
+        Text.concat [
+          "twt-cps-v1"
+        , "\t"
+        , tn2
+        , "\t"
+        , twt_nng__v1__dstCalledCalledPrefix rv
+        , "\t"
+        , "\t"
+        , (twt_nng__v1__srcRatingCodeDescr rv)
+        ]
+
+  let importedInfo2 = 
+        Text.concat [
+          "twt-cps-v1"
+        , "\t"
+        , tn2
+        , "\t"
+        , twt_nng__v1__srcRatingCode rv
+        , "\t"
+        , "\t"
+        , (twt_nng__v1__dstRatingCodeDescr rv)
+        ]
+
+  let maybeAddExactPrefix n = 
+        if exactPrefix
+        then Text.snoc n '#'
+        else n
+
+  return $ [cdr {
+                cdr_countOfCalls = 1
+              , cdr_direction = CDR_outgoing
+              , cdr_errorDirection = CDR_none
+              , cdr_isRedirect = False
+              , cdr_duration = maybeDuration
+              , cdr_billsec = maybeDuration
+              , cdr_externalTelephoneNumber = tn1
+              , cdr_externalTelephoneNumberWithAppliedPortability = Just $ maybeAddExactPrefix $ twt_nng__v1__srcRatingCodeDescr rv
+              , cdr_displayedExternalTelephoneNumber = Nothing
+              , cdr_internalTelephoneNumber = tn2
+              , cdr_expectedCost = Just srcCost
+              , cdr_channel = Just $ Text.concat ["nng-leg-1-", provider]
+              , cdr_imported_info = Just importedInfo1
+
+              }
+           ,cdr {
+                cdr_countOfCalls = 1
+              , cdr_direction = CDR_outgoing
+              , cdr_errorDirection = CDR_none
+              , cdr_isRedirect = True
+              , cdr_duration = maybeDuration
+              , cdr_billsec = maybeDuration
+              , cdr_externalTelephoneNumber = tn3
+              , cdr_externalTelephoneNumberWithAppliedPortability = Just $ maybeAddExactPrefix $ twt_nng__v1__dstRatingCodeDescr rv
+              , cdr_displayedExternalTelephoneNumber = Just $ tn3
+              , cdr_internalTelephoneNumber = tn2
+              , cdr_expectedCost = Just dstCost
+              , cdr_channel = Just $ Text.concat ["nng-leg-2-", provider]
+              , cdr_imported_info = Just importedInfo2
+              }
+             ]
+
+-- | TWT DQ (solidal) calls.
+--   This is a donation to a solidal campaign number.
+data CSVFormat_twt_dq__v1
+  = CSVFormat_twt_dq__v1 {
+            twt_dq__v1__customerId :: !Text.Text  -- TWT internal code of the customer
+          , twt_dq__v1__callDate :: !Text.Text    -- something like "2013/01/31 13.07.43"
+          , twt_dq__v1__calledNr :: !Text.Text    -- called service, telephone number
+          , twt_dq__v1__callerNr :: !Text.Text    -- CLI
+          , twt_dq__v1__cost :: !Text.Text        -- NOTE: "," as decimal separator
+          , twt_dq__v1__descr :: !Text.Text       -- a description of the called service
+  }
+ deriving (Generic, NFData)
+
+instance Show CSVFormat_twt_dq__v1 where
+  show cdr
+    = showLines
+        [
+            ("customerId", twt_dq__v1__customerId)
+          , ("callDate", twt_dq__v1__callDate)
+          , ("calledNr", twt_dq__v1__calledNr)
+          , ("callerNr", twt_dq__v1__callerNr)
+          , ("cost", twt_dq__v1__cost)
+          , ("descr", twt_dq__v1__descr)
+        ]
+
+   where
+
+     showLines ls = List.concatMap showLine ls
+
+     showLine (h, v) = h ++ ": " ++ (Text.unpack $ v cdr) ++ "\n"
+
+instance CSV.FromRecord CSVFormat_twt_dq__v1
+
+instance CSV.ToRecord  CSVFormat_twt_dq__v1
+
+instance CDRFormat CSVFormat_twt_dq__v1 where
+  getCallDate v = fromTwt_dq__v1__toCallDate v
+  toCDR precision provider v = fromTwt_dq__v1__toCDR "solidal-" precision provider v
+
+fromTwt_dq__v1__toCallDate :: CSVFormat_twt_dq__v1 -> Either AsterisellError (Maybe CallDate)
+fromTwt_dq__v1__toCallDate v =
+  let callDateT = twt_dq__v1__callDate v
+      callDateS = Text.unpack callDateT
+  in case fromDateFormat1ToLocalTime callDateT of
+    Just r -> Right $ Just r
+    Nothing -> Left $
+                 createError
+                   Type_Error
+                   Domain_RATES
+                   ("unrecognized calldate - " ++ callDateS)
+                   ("The calldate field \"" ++ callDateS ++ "\" has unexpected format.")
+                   ("These CDRs will be not rated.")
+                   ("This is probably an error in the code importing CDRs, or in the configuration of VoIP servers. Contact the assistance.")
+
+fromTwt_dq__v1__toCDR :: Text.Text -> CurrencyPrecisionDigits -> CDRProviderName -> CSVFormat_twt_dq__v1 -> Either AsterisellError [CDR]
+fromTwt_dq__v1__toCDR dstChannel precision provider rv = do
+  callDate <-
+    case fromTwt_dq__v1__toCallDate rv of
+      Left err -> throwError err
+      Right (Just r) -> return r
+      Right Nothing -> error "Unexpected error in the code err twt dq 001"
+
+  let cdr =  cdr_empty callDate precision
+
+  cost <- twt_convertCostS (twt_dq__v1__cost rv)
+
+  let externalNr = twt_remove00 True "39" (twt_dq__v1__calledNr rv)
+
+  return [cdr {
+                cdr_countOfCalls = 1
+              , cdr_direction = CDR_outgoing
+              , cdr_errorDirection = CDR_none
+              , cdr_isRedirect = False
+              , cdr_duration = Just 1
+              , cdr_billsec = Just 1
+              , cdr_externalTelephoneNumber = externalNr
+              , cdr_externalTelephoneNumberWithAppliedPortability = Just externalNr
+              , cdr_displayedExternalTelephoneNumber = Just $ twt_dq__v1__descr rv
+              , cdr_internalTelephoneNumber = twt_dq__v1__callerNr rv
+              , cdr_expectedCost = Just cost
+              , cdr_channel = Just $ Text.concat [dstChannel, "-", provider]
+              }]
 
 -- --------------------------------------------------
 -- Support TWT Antelma
@@ -539,57 +754,46 @@ instance CSV.ToRecord CSVFormat_twt_nng__vAntelma where
 
 instance CDRFormat CSVFormat_twt_voip__vAntelma where
   getCallDate (CSVFormat_twt_voip__vAntelma v) = getCallDate v
-  toCDR precision provider (CSVFormat_twt_voip__vAntelma record) = fromCPSToAntelmaCDR "VoIP" False precision provider record
+  toCDR precision provider (CSVFormat_twt_voip__vAntelma rv) = fromCPSToAntelmaCDR "VOIP" False True precision provider rv
+  -- NOTE: remove NNG calls from CPS and VOIP TWT CDRS because they are duplicated calls on NNG
 
 instance CDRFormat CSVFormat_twt_cps__vAntelma where
   getCallDate (CSVFormat_twt_cps__vAntelma v) = getCallDate v
-  toCDR precision provider (CSVFormat_twt_cps__vAntelma record) = fromCPSToAntelmaCDR "CPS" False precision provider record
-    
+  toCDR precision provider (CSVFormat_twt_cps__vAntelma rv) = fromCPSToAntelmaCDR "CPS" False True precision provider rv
+
 instance CDRFormat CSVFormat_twt_nng__vAntelma where
   getCallDate (CSVFormat_twt_nng__vAntelma v) = getCallDate v
-  toCDR precision provider (CSVFormat_twt_nng__vAntelma record) = fromNNGToAntelmaCDR "NNG" True precision provider record
+  toCDR precision provider (CSVFormat_twt_nng__vAntelma rv) = fromNNGToAntelmaCDR precision provider rv
 
 instance CDRFormat CSVFormat_twt_wlr__vAntelma where
   getCallDate (CSVFormat_twt_wlr__vAntelma v) = getCallDate v
-  toCDR precision provider (CSVFormat_twt_wlr__vAntelma record) = fromCPSToAntelmaCDR "WLR" False precision provider record
+  toCDR precision provider (CSVFormat_twt_wlr__vAntelma rv) = fromCPSToAntelmaCDR "WLR" False True precision provider rv
 
-fromCPSToAntelmaCDR :: Text.Text -> Bool -> CurrencyPrecisionDigits -> CDRProviderName -> CSVFormat_twt_cps__v1 -> Either AsterisellError [CDR]
-fromCPSToAntelmaCDR dstChannel addDstChannelToAccount precision provider record = do
-    cdrs <- convert_CSVFormat_twt_cps__v1__toCDR True precision provider record
-    return $
-      List.map
-        (\cdr1 ->
-            let prefix1 =
-                  case (Text.strip $ twt_cps__v1__9 record) == "1" of
-                    True -> "urbana-"
-                    False -> ""
-            in cdr1 { cdr_channel = Just $ Text.concat [dstChannel, "-", provider]
-                    , cdr_externalTelephoneNumberWithAppliedPortability
-                        = Just $ Text.append prefix1 (fromJust1 "0753" $ cdr_externalTelephoneNumberWithAppliedPortability cdr1)
-                    , cdr_internalTelephoneNumber =
-                        if addDstChannelToAccount
-                        then (Text.concat [dstChannel, "-", cdr_internalTelephoneNumber cdr1])
-                        else (cdr_internalTelephoneNumber cdr1)
-                    }) cdrs
+fromCPSToAntelmaCDR :: Text.Text -> Bool -> Bool -> CurrencyPrecisionDigits -> CDRProviderName -> CSVFormat_twt_cps__v1 -> Either AsterisellError [CDR]
+fromCPSToAntelmaCDR dstChannel addDstChannelToAccount ignoreNNG800Calls precision provider rv = do
+    case (ignoreNNG800Calls && (Text.isPrefixOf "800" (twt_cps__v1__3_caller rv))) of
+      True -> return []
+      False -> do
+        cdrs <- convert_CSVFormat_twt_cps__v1__toCDR True precision provider rv
+        return $
+          List.map
+            (\cdr1 ->
+                let prefix1 =
+                      case (Text.strip $ twt_cps__v1__9 rv) == "1" of
+                        True -> "urbana-"
+                        False -> ""
+                in cdr1 { cdr_channel = Just $ Text.concat [dstChannel, "-", provider]
+                        , cdr_externalTelephoneNumberWithAppliedPortability
+                            = Just $ Text.append prefix1 (fromJust1 "0753" $ cdr_externalTelephoneNumberWithAppliedPortability cdr1)
+                        , cdr_internalTelephoneNumber =
+                            if addDstChannelToAccount
+                            then (Text.concat [dstChannel, "-", cdr_internalTelephoneNumber cdr1])
+                            else (cdr_internalTelephoneNumber cdr1)
+                        }) cdrs
 
-fromNNGToAntelmaCDR :: Text.Text -> Bool -> CurrencyPrecisionDigits -> CDRProviderName -> CSVFormat_twt_nng__v1 -> Either AsterisellError [CDR]
-fromNNGToAntelmaCDR dstChannel addDstChannelToAccount precision provider record = do
-    cdrs <- convert_CSVFormat_twt_nng__v1__toCDR_v2 True precision provider record
-    return $
-      List.map
-        (\cdr1 ->
-            let prefix1 =
-                  case (Text.strip $ twt_nng__v1__9 record) == "1" of
-                    True -> "urbana-"
-                    False -> ""
-            in cdr1 { cdr_channel = Just $ Text.concat [dstChannel, "-", provider]
-                    , cdr_externalTelephoneNumberWithAppliedPortability
-                        = Just $ Text.append prefix1 (fromJust1 "0753" $ cdr_externalTelephoneNumberWithAppliedPortability cdr1)
-                    , cdr_internalTelephoneNumber =
-                        if addDstChannelToAccount
-                        then (Text.concat [dstChannel, "-", cdr_internalTelephoneNumber cdr1])
-                        else (cdr_internalTelephoneNumber cdr1)
-                     }) cdrs
+fromNNGToAntelmaCDR :: CurrencyPrecisionDigits -> CDRProviderName -> CSVFormat_twt_nng__v1 -> Either AsterisellError [CDR]
+fromNNGToAntelmaCDR precision provider rv =
+  convert_CSVFormat_twt_nng__v1__toTwoLegCDR_v1 True True precision provider rv
 
 -- --------------------------------------------------
 -- Support Free Radius according notes on #1446
@@ -644,18 +848,18 @@ instance CSV.ToRecord CSVFormat_freeRadius__v1
 
 
 instance CDRFormat CSVFormat_freeRadius__v1 where
-  getCallDate record
-    = do d <- importAndConvertNotNullValue (freeRadius__v1_h323_setup_time record) fromDateFormat1ToLocalTime "h323_setup_time" "call date"
+  getCallDate rv
+    = do d <- importAndConvertNotNullValue (freeRadius__v1_h323_setup_time rv) fromDateFormat1ToLocalTime "h323_setup_time" "call date"
          return $ Just d
 
-  toCDR precision provider record = convert_CSVFormat_freeRadius__v1__toCDR precision provider record
+  toCDR precision provider rv = convert_CSVFormat_freeRadius__v1__toCDR precision provider rv
 
 convert_CSVFormat_freeRadius__v1__toCDR :: CurrencyPrecisionDigits -> CDRProviderName -> CSVFormat_freeRadius__v1 -> Either AsterisellError [CDR]
-convert_CSVFormat_freeRadius__v1__toCDR precision provider record = do
+convert_CSVFormat_freeRadius__v1__toCDR precision provider rv = do
 
-  callDate <- importAndConvertNotNullValue (freeRadius__v1_h323_setup_time record) fromDateFormat1ToLocalTime "h323_setup_time" "call date"
-  duration <- importAndConvertNotNullValue (freeRadius__v1_Acct_Session_Time record) fromTextToInt  "Acct_Session_Time" "duration"
-  let supplier = freeRadius__v1_out_intrfc_desc record
+  callDate <- importAndConvertNotNullValue (freeRadius__v1_h323_setup_time rv) fromDateFormat1ToLocalTime "h323_setup_time" "call date"
+  duration <- importAndConvertNotNullValue (freeRadius__v1_Acct_Session_Time rv) fromTextToInt  "Acct_Session_Time" "duration"
+  let supplier = freeRadius__v1_out_intrfc_desc rv
   let isNullSupplier
         = case supplier of
             ExportNull -> True
@@ -671,8 +875,8 @@ convert_CSVFormat_freeRadius__v1__toCDR precision provider record = do
                    }]
 
     False
-      -> do v1 <- importNotNullText (freeRadius__v1_Called_Station_Id record) "Called_Station_Id" "called number"
-            v3 <- importNotNullText (freeRadius__v1_in_intrfc_desc record) "in_intrfc_desc" "customer id"
+      -> do v1 <- importNotNullText (freeRadius__v1_Called_Station_Id rv) "Called_Station_Id" "called number"
+            v3 <- importNotNullText (freeRadius__v1_in_intrfc_desc rv) "in_intrfc_desc" "customer id"
             let cdr =  cdr_empty callDate precision
             return $ [cdr { cdr_countOfCalls = 1
                           , cdr_direction = CDR_outgoing
@@ -741,52 +945,52 @@ instance CSV.ToRecord CSVFormat_gamma__v1
 
 
 instance CDRFormat CSVFormat_gamma__v1 where
-  getCallDate record
+  getCallDate rv
     = do d <- importAndConvertNotNullValue2
-                (Export $ gamma__v1_callDate record)
-                (Export $ gamma__v1_callTime record)
+                (Export $ gamma__v1_callDate rv)
+                (Export $ gamma__v1_callTime rv)
                 fromGammaCallDateAndTimeStampToLocalTime
                 "callDate"
                 "callTime"
                 "call date"
          return $ Just d
 
-  toCDR precision provider record = convert_CSVFormat_gamma__v1__toCDR precision provider record
+  toCDR precision provider rv = convert_CSVFormat_gamma__v1__toCDR precision provider rv
 
 convert_CSVFormat_gamma__v1__toCDR :: CurrencyPrecisionDigits -> CDRProviderName -> CSVFormat_gamma__v1 -> Either AsterisellError [CDR]
-convert_CSVFormat_gamma__v1__toCDR precision provider record = do
+convert_CSVFormat_gamma__v1__toCDR precision provider rv = do
 
-  let callClass = gamma__v1_callClass record
+  let callClass = gamma__v1_callClass rv
   -- "SIP", "IDA", and other codes identifying the global type of the call.
   -- The details of how to manage other fields, depend in part from the content of this field.
 
   callDate <- importAndConvertNotNullValue2
-                (Export $ gamma__v1_callDate record)
-                (Export $ gamma__v1_callTime record)
+                (Export $ gamma__v1_callDate rv)
+                (Export $ gamma__v1_callTime rv)
                 fromGammaCallDateAndTimeStampToLocalTime
                 "callDate"
                 "callTime"
                 "call date"
 
-  duration <- importAndConvertNotNullValue (Export $ gamma__v1_duration record) fromTextToInt  "duration" "duration"
+  duration <- importAndConvertNotNullValue (Export $ gamma__v1_duration rv) fromTextToInt  "duration" "duration"
 
-  let originNumber = gamma__v1_customerIdentifier record
+  let originNumber = gamma__v1_customerIdentifier rv
   let destinationNumber
-        = case Text.head $ gamma__v1_nonChargedParty record of
-            '+' -> Text.tail $ gamma__v1_nonChargedParty record
-            _ -> gamma__v1_nonChargedParty record
+        = case Text.head $ gamma__v1_nonChargedParty rv of
+            '+' -> Text.tail $ gamma__v1_nonChargedParty rv
+            _ -> gamma__v1_nonChargedParty rv
 
-  let expectedCost = fromTextToRational $ gamma__v1_salesPrice record
+  let expectedCost = fromTextToRational $ gamma__v1_salesPrice rv
 
-  let callType = gamma__v1_callType record
+  let callType = gamma__v1_callType rv
   -- this can be "V" (standard voice call), "Z" (zero rated call), "G" (?),
   -- but it seems that the field callCharge suffices for identifying the type of the call.
 
-  let chargeCode = gamma__v1_chargeCode record
+  let chargeCode = gamma__v1_chargeCode rv
   -- "UKN" and so on.
   -- Identifies completely the type of called telephone number.
 
-  let timeBand = gamma__v1_timeBand record
+  let timeBand = gamma__v1_timeBand rv
   -- 1: peak
   -- 2: off-peak
   -- 3: weekend
@@ -871,15 +1075,15 @@ instance CSV.ToRecord CSVFormat_gamma_ItemRental__v1
 
 
 instance CDRFormat CSVFormat_gamma_ItemRental__v1 where
-  getCallDate record
+  getCallDate rv
     = do d <- importAndConvertNotNullValue
-                (Export $ gammaIR__v1_billingMonthAndYear record)
+                (Export $ gammaIR__v1_billingMonthAndYear rv)
                 fromGammaItemRentalCallDateToLocalTime
                 "month and year"
                 "something like \"August 2015\""
          return $ Just d
 
-  toCDR precision provider record = convert_CSVFormat_gamma_ItemRental__v1__toCDR precision provider record
+  toCDR precision provider rv = convert_CSVFormat_gamma_ItemRental__v1__toCDR precision provider rv
 
 gamma_ItemRental_channelName :: Text.Text
 gamma_ItemRental_channelName = "item-rental"
@@ -912,25 +1116,25 @@ gamma_ItemRental_connection = "--item-connection--"
 --    Field 8 - Quantity.  Up to 3 digits showing the unit quantity of the product being billed for.
 --              - 1
 convert_CSVFormat_gamma_ItemRental__v1__toCDR :: CurrencyPrecisionDigits -> CDRProviderName -> CSVFormat_gamma_ItemRental__v1 -> Either AsterisellError [CDR]
-convert_CSVFormat_gamma_ItemRental__v1__toCDR precision provider record = do
+convert_CSVFormat_gamma_ItemRental__v1__toCDR precision provider rv = do
 
   callDate <- importAndConvertNotNullValue
-                (Export $ gammaIR__v1_billingMonthAndYear record)
+                (Export $ gammaIR__v1_billingMonthAndYear rv)
                 fromGammaItemRentalCallDateToLocalTime
                 "month and year"
                 "something like \"August 2015\""
 
-  let account = gammaIR__v1_cli record
+  let account = gammaIR__v1_cli rv
 
-  let chargeCode1 = gammaIR__v1_billingDescription record
+  let chargeCode1 = gammaIR__v1_billingDescription rv
 
-  let eventType = gammaIR__v1_eventType record
+  let eventType = gammaIR__v1_eventType rv
 
-  let totalCostM = fromTextToRational $ gammaIR__v1_totalCost record
+  let totalCostM = fromTextToRational $ gammaIR__v1_totalCost rv
 
-  let brokenPartCostM = fromTextToRational $ gammaIR__v1_brokenPartCost record
+  let brokenPartCostM = fromTextToRational $ gammaIR__v1_brokenPartCost rv
 
-  let quantityM = fromTextToInt $ gammaIR__v1_quantity record
+  let quantityM = fromTextToInt $ gammaIR__v1_quantity rv
 
   (totalCost, brokenPartCost, quantity)
     <- case (totalCostM, brokenPartCostM, quantityM) of
@@ -1134,19 +1338,19 @@ instance Show CSVFormat_asterisk__generic where
      field = cdrField cdr
 
 instance CDRFormat CSVFormat_asterisk__generic where
-  getCallDate record
-    = do d <- importAndConvertNotNullValue (asterisk__generic_calldate record) fromMySQLDateTimeAsTextToLocalTime "calldate" "call date"
+  getCallDate rv
+    = do d <- importAndConvertNotNullValue (asterisk__generic_calldate rv) fromMySQLDateTimeAsTextToLocalTime "calldate" "call date"
          return $ Just d
 
-  toCDR precision provider record
-    = do cdr <- asterisk__generic_toCDR record precision provider
+  toCDR precision provider rv
+    = do cdr <- asterisk__generic_toCDR rv precision provider
          return [cdr]
 
 asterisk__generic_toCDR :: CSVFormat_asterisk__generic -> CurrencyPrecisionDigits -> CDRProviderName -> Either AsterisellError CDR
-asterisk__generic_toCDR record precision provider
-    = do callDate <- importAndConvertNotNullValue (asterisk__generic_calldate record) fromMySQLDateTimeAsTextToLocalTime "calldate" "call date"
-         case (isEmptyOrNull $ asterisk__generic_dstchannel record)
-              || (not $ (asterisk__generic_disposition record == Export "ANSWERED")) of
+asterisk__generic_toCDR rv precision provider
+    = do callDate <- importAndConvertNotNullValue (asterisk__generic_calldate rv) fromMySQLDateTimeAsTextToLocalTime "calldate" "call date"
+         case (isEmptyOrNull $ asterisk__generic_dstchannel rv)
+              || (not $ (asterisk__generic_disposition rv == Export "ANSWERED")) of
            True
              -> -- the CDR can be ignored
                 return $ (cdr_empty callDate precision) {
@@ -1155,8 +1359,8 @@ asterisk__generic_toCDR record precision provider
                               , cdr_errorDirection = CDR_none
                               }
            False
-             -> do duration <- importAndConvertNotNullValue (asterisk__generic_duration record) fromTextToInt  "duration" "duration"
-                   billsec <- importAndConvertNotNullValue (asterisk__generic_billsec record) fromTextToInt  "billsec" "billsec"
+             -> do duration <- importAndConvertNotNullValue (asterisk__generic_duration rv) fromTextToInt  "duration" "duration"
+                   billsec <- importAndConvertNotNullValue (asterisk__generic_billsec rv) fromTextToInt  "billsec" "billsec"
                    let cdr =  cdr_empty callDate precision
                    return $ cdr { cdr_duration = Just duration
                                 , cdr_billsec = Just billsec
@@ -1201,19 +1405,19 @@ asterisk2_realCallDate cdr
 {-# INLINE asterisk2_realCallDate #-}
 
 instance CDRFormat CSVFormat_asterisk2 where
-  getCallDate record
-    = do d <- importAndConvertNotNullValue (asterisk2_realCallDate record) fromMySQLDateTimeAsTextToLocalTime "calldate" "call date"
+  getCallDate rv
+    = do d <- importAndConvertNotNullValue (asterisk2_realCallDate rv) fromMySQLDateTimeAsTextToLocalTime "calldate" "call date"
 
          return $ Just d
 
-  toCDR precision provider record
-    = do cdr <- asterisk2_toCDR record precision provider
+  toCDR precision provider rv
+    = do cdr <- asterisk2_toCDR rv precision provider
          return [cdr]
 
 asterisk2_toCDR :: CSVFormat_asterisk2 -> CurrencyPrecisionDigits -> CDRProviderName -> Either AsterisellError CDR
-asterisk2_toCDR record precision provider
-    = do callDate <- importAndConvertNotNullValue (asterisk2_realCallDate record) fromMySQLDateTimeAsTextToLocalTime "calldate" "call date"
-         case (not $ (asterisk2_disposition record == Export "ANSWERED")) of
+asterisk2_toCDR rv precision provider
+    = do callDate <- importAndConvertNotNullValue (asterisk2_realCallDate rv) fromMySQLDateTimeAsTextToLocalTime "calldate" "call date"
+         case (not $ (asterisk2_disposition rv == Export "ANSWERED")) of
            True
              -> -- the CDR can be ignored
                 return $ (cdr_empty callDate precision) {
@@ -1222,18 +1426,18 @@ asterisk2_toCDR record precision provider
                               , cdr_errorDirection = CDR_none
                               }
            False
-             -> do duration <- importAndConvertNotNullValue (asterisk2_duration record) fromTextToInt  "duration" "duration"
-                   billsec <- importAndConvertNotNullValue (asterisk2_billsec record) fromTextToInt  "billsec" "billsec"
-                   callerNumber <- Text.strip <$> importNotNullText (asterisk2_dst record) "dst" "caller number"
+             -> do duration <- importAndConvertNotNullValue (asterisk2_duration rv) fromTextToInt  "duration" "duration"
+                   billsec <- importAndConvertNotNullValue (asterisk2_billsec rv) fromTextToInt  "billsec" "billsec"
+                   callerNumber <- Text.strip <$> importNotNullText (asterisk2_dst rv) "dst" "caller number"
                    calledNumber1
-                       <- Text.strip <$> importNotNullText (asterisk2_src record) "src" "called number"
+                       <- Text.strip <$> importNotNullText (asterisk2_src rv) "src" "called number"
 
                    let calledNumber =
                          case Text.isPrefixOf "+" calledNumber1 of
                            True -> Text.drop 1 calledNumber1
                            False -> calledNumber1 
 
-                   let channel = maybeFallBackValue (asterisk2_dstchannel record) (asterisk2_dcontext record)
+                   let channel = maybeFallBackValue (asterisk2_dstchannel rv) (asterisk2_dcontext rv)
 
                    let cdr =  cdr_empty callDate precision
                    return $ cdr { cdr_duration = Just duration
@@ -1283,18 +1487,18 @@ instance CSV.ToRecord CSVFormat_plain1
 
 
 instance CDRFormat CSVFormat_plain1 where
-  getCallDate record
-    = do d <- importAndConvertNotNullValue (plain1__calldate record) fromMySQLDateTimeAsTextToLocalTime "calldate" "call date"
+  getCallDate rv
+    = do d <- importAndConvertNotNullValue (plain1__calldate rv) fromMySQLDateTimeAsTextToLocalTime "calldate" "call date"
          return $ Just d
 
-  toCDR precision provider record
-    = do cdr <- plain1_toCDR record precision provider
+  toCDR precision provider rv
+    = do cdr <- plain1_toCDR rv precision provider
          return [cdr]
 
 plain1_toCDR :: CSVFormat_plain1 -> CurrencyPrecisionDigits -> CDRProviderName -> Either AsterisellError CDR
-plain1_toCDR record precision provider
-    = do callDate <- importAndConvertNotNullValue (plain1__calldate record) fromMySQLDateTimeAsTextToLocalTime "calldate" "call date"
-         case plain1__duration record of
+plain1_toCDR rv precision provider
+    = do callDate <- importAndConvertNotNullValue (plain1__calldate rv) fromMySQLDateTimeAsTextToLocalTime "calldate" "call date"
+         case plain1__duration rv of
            ExportNull
              -> return (cdr_empty callDate precision) {
                             cdr_countOfCalls = 1
@@ -1314,11 +1518,11 @@ plain1_toCDR record precision provider
                           , cdr_errorDirection = CDR_none
                           }
            _ -> do
-                   billsec <- importAndConvertNotNullValue (plain1__duration record) fromTextToInt  "duration" "duration"
-                   callerNumber <- importNotNullText (plain1__callerNumber record) "callerNumber" "caller number"
-                   calledNumber <- importNotNullText (plain1__calledNumber record) "calledNumber" "called number"
-                   account  <- importNotNullText (plain1__account record) "account" "customer account"
-                   channel  <- importNotNullText (plain1__channel record) "channel" "channe/provider/vendor"
+                   billsec <- importAndConvertNotNullValue (plain1__duration rv) fromTextToInt  "duration" "duration"
+                   callerNumber <- importNotNullText (plain1__callerNumber rv) "callerNumber" "caller number"
+                   calledNumber <- importNotNullText (plain1__calledNumber rv) "calledNumber" "called number"
+                   account  <- importNotNullText (plain1__account rv) "account" "customer account"
+                   channel  <- importNotNullText (plain1__channel rv) "channel" "channe/provider/vendor"
 
                    let cdr =  cdr_empty callDate precision
                    return $ cdr { cdr_duration = Just billsec
@@ -1365,10 +1569,10 @@ instance CSV.FromRecord CSVFormat_digitel where
 instance CSV.ToRecord CSVFormat_digitel
 
 instance CDRFormat CSVFormat_digitel where
-  getCallDate record = digitel_convertCallDate (digitel__calldate record)
+  getCallDate rv = digitel_convertCallDate (digitel__calldate rv)
 
-  toCDR precision provider record
-    = do cdr <- digitel_toCDR False record precision provider
+  toCDR precision provider rv
+    = do cdr <- digitel_toCDR False rv precision provider
          return [cdr]
 
 digitel_convertCallDate :: ExportMaybeNull Text.Text -> Either AsterisellError (Maybe LocalTime)
@@ -1385,13 +1589,13 @@ digitel_convertCallDate t1
                    return $ Just d
 
 digitel_toCDR :: Bool -> CSVFormat_digitel -> CurrencyPrecisionDigits -> CDRProviderName -> Either AsterisellError CDR
-digitel_toCDR isNNG record precision provider
-    = do callDate <- importAndConvertNotNullValue (digitel__calldate record) (fromDateFormat2ToLocalTime '/' ' ' '.') "calldate" "call date"
-         billsec <- importAndConvertNotNullValue (digitel__billsec record) fromTextToInt  "duration" "duration"
-         callerNumber <- Text.strip <$> importNotNullText (digitel__callerNumber record) "callerNumber" "caller number"
+digitel_toCDR isNNG rv precision provider
+    = do callDate <- importAndConvertNotNullValue (digitel__calldate rv) (fromDateFormat2ToLocalTime '/' ' ' '.') "calldate" "call date"
+         billsec <- importAndConvertNotNullValue (digitel__billsec rv) fromTextToInt  "duration" "duration"
+         callerNumber <- Text.strip <$> importNotNullText (digitel__callerNumber rv) "callerNumber" "caller number"
          (calledNumber, calledNumberToDisplay)
-           <- importAndConvertNotNullValue (digitel__calledNumber record) ((normalizeCalledNumber callDate) . Text.strip) "calledNumber" "called number"
-         vendorCost <- importAndConvertNotNullValue (digitel__cost record) (fromTextToRational2 ',') "cost" "cost"
+           <- importAndConvertNotNullValue (digitel__calledNumber rv) ((normalizeCalledNumber callDate) . Text.strip) "calledNumber" "called number"
+         vendorCost <- importAndConvertNotNullValue (digitel__cost rv) (fromTextToRational2 ',') "cost" "cost"
 
          let cdr =  cdr_empty callDate precision
          return $ cdr { cdr_duration = Just billsec
@@ -1461,15 +1665,15 @@ instance CSV.ToRecord CSVFormat_digitelNNG__v1 where
     toRecord (CSVFormat_digitelNNG__v1 v) = toRecord v
 
 instance CDRFormat CSVFormat_digitelNNG__v1 where
-  getCallDate (CSVFormat_digitelNNG__v1 record)
+  getCallDate (CSVFormat_digitelNNG__v1 rv)
     = Just <$> importAndConvertNotNullValue
-                 (digitel__calldate record)
+                 (digitel__calldate rv)
                  (fromDateFormat2ToLocalTime '/' ' ' '.')
                  "callDate"
                  "call date in dd/mm/yyyy hh.mm.ss format"
 
-  toCDR precision provider (CSVFormat_digitelNNG__v1 record) = do
-    cdr <- digitel_toCDR True record precision provider
+  toCDR precision provider (CSVFormat_digitelNNG__v1 rv) = do
+    cdr <- digitel_toCDR True rv precision provider
     return [cdr]
 
 -- | A format like
@@ -2002,7 +2206,7 @@ instance CDRFormat CSVFormat_tsnet_abilis_collector_v1 where
                      Just v
                        -> Right $ Just v
 
-  toCDR precision provider record = convert_CSVFormat_tsnet_abilis_collector_v1_toCDR precision provider record
+  toCDR precision provider rv = convert_CSVFormat_tsnet_abilis_collector_v1_toCDR precision provider rv
 
 convert_CSVFormat_tsnet_abilis_collector_v1_toCDR
   :: CurrencyPrecisionDigits
@@ -2812,34 +3016,34 @@ instance CSV.FromRecord CSVFormat_itec1
 instance CSV.ToRecord CSVFormat_itec1
 
 instance CDRFormat CSVFormat_itec1 where
-  getCallDate record = itec1_convertCallDate (itec1_starttime record)
+  getCallDate rv = itec1_convertCallDate (itec1_starttime rv)
 
-  toCDR precision provider record = itec1_toCDR record precision provider
+  toCDR precision provider rv = itec1_toCDR rv precision provider
 
 itec1_convertCallDate :: ExportMaybeNull Text.Text -> Either AsterisellError (Maybe LocalTime)
 itec1_convertCallDate t1
     = Just <$> importAndConvertNotNullValue t1 fromDateFormat1ToLocalTime "starttime" "call date"
 
 itec1_toCDR :: CSVFormat_itec1 -> CurrencyPrecisionDigits -> CDRProviderName -> Either AsterisellError [CDR]
-itec1_toCDR record precision provider
+itec1_toCDR rv precision provider
     = do callDate
-           <- itec1_convertCallDate (itec1_starttime record)
+           <- itec1_convertCallDate (itec1_starttime rv)
 
          let direction
-               = case itec1_trunkcode record of
+               = case itec1_trunkcode rv of
                    ExportNull -> CDR_outgoing
                    Export v -> case v == "DID" of
                                  True -> CDR_incoming
                                  False -> CDR_outgoing
 
          let billsec
-               = case itec1_sessiontime record of
+               = case itec1_sessiontime rv of
                    ExportNull -> 0
                    Export v -> case fromTextToInt v of
                                  Nothing -> 0
                                  Just vv -> vv
 
-         let internalNumber = fromExport1 provider (\t -> Text.concat [t, "-ext"]) $ itec1_account record
+         let internalNumber = fromExport1 provider (\t -> Text.concat [t, "-ext"]) $ itec1_account rv
          -- DEV-NOTE: mantain in synchro with `itec1_synchro`
 
          let externalNumberField
@@ -2850,10 +3054,10 @@ itec1_toCDR record precision provider
                    _ -> itec1_calledstation
 
          externalNumber
-           <- importAndConvertNotNullValue (externalNumberField record) normalizeCalledNumber "calledstation" "called"
+           <- importAndConvertNotNullValue (externalNumberField rv) normalizeCalledNumber "calledstation" "called"
 
          let importedIncome
-               = case itec1_sessionbill record of
+               = case itec1_sessionbill rv of
                    ExportNull -> 0
                    Export v -> case fromTextToRational v of
                                  Nothing -> 0
@@ -2861,7 +3065,7 @@ itec1_toCDR record precision provider
              -- NOTE: used for importing old calculated incomes
 
          let trunkCode
-               = case itec1_trunkcode record of
+               = case itec1_trunkcode rv of
                    ExportNull -> "UNKNOWN TRUNK"
                    Export v -> v
 

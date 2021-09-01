@@ -34,7 +34,7 @@ class ArProblemException extends Exception
     static protected $lastProblemTypeId = null;
     static protected $lastProblemDomainId = null;
     static protected $lastProblemResponsibleId = null;
-
+   
     /**
      * Use a separate connection, because notification logic, is different from logic used for
      * rollbacking CDR processing (notifications must be not rollbacked).

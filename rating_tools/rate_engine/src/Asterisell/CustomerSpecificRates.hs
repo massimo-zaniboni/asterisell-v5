@@ -1,4 +1,4 @@
-{-# LANGUAGE ScopedTypeVariables, BangPatterns, OverloadedStrings, QuasiQuotes, TypeSynonymInstances, FlexibleInstances, DeriveGeneric #-}
+{-# LANGUAGE ScopedTypeVariables, BangPatterns, OverloadedStrings, QuasiQuotes, TypeSynonymInstances, FlexibleInstances, DeriveGeneric, DeriveAnyClass #-}
 
 -- SPDX-License-Identifier: GPL-3.0-or-later
 -- Copyright (C) 2009-2019 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
@@ -39,6 +39,7 @@ import Text.Megaparsec.Char as P
 import Text.Megaparsec.Error as P
 import qualified Data.Text as Text
 import qualified Data.ByteString as BS
+import qualified Data.ByteString.Lazy as LBS
 import qualified Data.Text.Encoding as Text
 import Data.Maybe
 import Data.Map.Strict as Map
@@ -47,6 +48,11 @@ import Control.Monad (when)
 import Debug.Trace
 import Text.Heredoc
 import Data.List as List
+import qualified Data.Csv as CSV
+import GHC.Generics (Generic, Generic1)
+import qualified Data.Trie.BigEndianPatricia.Base as Trie
+import qualified Data.Trie.BigEndianPatricia.Internal as TrieInternal
+import qualified Data.Trie.BigEndianPatricia.Convenience as Trie
 
 import qualified Test.HUnit as HUnit
 
@@ -74,6 +80,7 @@ parser_cost decimalSeparator fieldSeparator
 parse_nl :: Parser ()
 parse_nl = do _ <- P.eol
               return ()
+{-#INLINE parse_nl #-}
 
 parse_knownIdentifier :: String -> Set.Set Text.Text -> Char -> Parser Text.Text
 parse_knownIdentifier idType allowedIds fieldSeparator = do
@@ -170,7 +177,6 @@ createRatePlanParserFromCSVLineParserWithMatchFun lineParser skipHeader initialR
    trie_update trie1 prefixesAndParams
      = List.foldl' (\trie (prefix, params) -> trie_insertExtension trie (fromTextToByteString prefix) params) trie1 prefixesAndParams
 
-
 -- | Like `createRatePlanParserFromCSVLineParserWithMatchFun` using a match fun on telephone prefix.
 createRatePlanParserOnTelephonePrefixFromCSVLineParser :: CSVLineParser -> Bool -> [(Text.Text, CalcParams)] -> RatePlanParser
 createRatePlanParserOnTelephonePrefixFromCSVLineParser lineParser skipHeader initialRates
@@ -229,8 +235,8 @@ parse_csvStdFormat
   -- ^ True if there is after the field "when round to next minute"
   -> CSVLineParser
 
-parse_csvStdFormat fieldSeparator decimalSeparator rowsToIgnoreStart rowsToIgnoreEnd useNormalPrefixes thereIsMinimumBillableSeconds thereIsCostOnCall thereIsWhenRoundNextMinute en = do
-  count rowsToIgnoreStart $ do
+parse_csvStdFormat fieldSeparator decimalSeparator colsToIgnoreStart colsToIgnoreEnd useNormalPrefixes thereIsMinimumBillableSeconds thereIsCostOnCall thereIsWhenRoundNextMinute en = do
+  count colsToIgnoreStart $ do
     skipCSVField fieldSeparator
     char fieldSeparator
 
@@ -243,40 +249,144 @@ parse_csvStdFormat fieldSeparator decimalSeparator rowsToIgnoreStart rowsToIgnor
          True
            -> do char fieldSeparator
                  v <- parseInt
-                 return $ Just v
+                 return $ CP_Value v
          False
-           -> do return Nothing
+           -> do return CP_Nothing
   costOnCall
     <- case thereIsCostOnCall of
          False
-           -> do return Nothing
+           -> do return CP_Nothing
          True
            -> do char fieldSeparator
                  v <- parser_cost decimalSeparator fieldSeparator
-                 return $ Just $ RateCost_cost v
+                 return $ CP_Value v
 
   whenRoundNextMinute
     <- case thereIsWhenRoundNextMinute of
          False
-           -> return Nothing
+           -> return CP_Nothing
          True
            -> do char fieldSeparator
                  v <- parseInt
-                 return $ Just $ Just v
+                 return $ CP_Value v
 
-  count rowsToIgnoreEnd $ do
+  count colsToIgnoreEnd $ do
     char fieldSeparator
     skipCSVField fieldSeparator
 
   let calcParams
         = calcParams_empty {
-              calcParams_costForMinute = Just costByMinute
+              calcParams_costForMinute = CP_Value costByMinute
             , calcParams_costOnCall = costOnCall
             , calcParams_atLeastXSeconds = minimumBillableSeconds
             , calcParams_durationDiscreteIncrements = whenRoundNextMinute
           }
 
   return [(prefix, calcParams)]
+
+
+-- -------------------------------------------
+-- Normalize rates
+
+-- | Parse a CSV file in a StdFormat with cost-by-minute, and normalize it to csv-header-5col-costOnCall format,
+--   like requested by NormalizeRatePlan
+normalize_csvRate
+  :: FieldSeparator
+  -> DecimalSeparator
+  -> Bool
+  -- ^ there is header
+  -> Int
+  -- ^ how many fields on a line
+  -> Maybe Int
+  -- ^ description field, starting from 0
+  -> Maybe Int
+  -- ^ operator field, starting from 0
+  -> Int
+  -- ^ prefix col, starting from 0
+  -> Int
+  -- ^ cost by minute field, starting from 0
+  -> Maybe Int
+  -- ^ cost on call field, starting from 0
+  -> RatePlanNormalizer
+
+normalize_csvRate fieldSeparator decimalSeparator skipHeader colsNr maybeDescrCol maybeOperatorCol prefixCol costByMinuteCol maybeCostOnCallCol rateContent = do
+  case Text.decodeUtf8' rateContent of
+      Left err
+        -> Left $ "The rate content is not in UTF8 format: " ++ show err ++ ". Convert the rate in UTF8 format, and update it in Asterisell database."
+      Right rateContentT
+        -> case runParser csvParser "" rateContentT of
+             Right prr ->
+               Right $ Trie.fromList $ List.map (\r -> (fromTextToByteString $ nrr_prefix r, r)) prr
+             Left err ->
+               Left $ describeParser ++ P.errorBundlePretty err
+
+ where
+
+  describeParser :: String =
+    "Parser: normalize_csvRate with field separator " ++ show fieldSeparator ++
+      ", decimal separator " ++ show decimalSeparator ++
+      ", " ++ (if skipHeader then "header on first row" else "no header on first row") ++
+      ", " ++ show colsNr ++ " fields in each row" ++
+      ", telephone prefix at row (starting from 0) " ++ show prefixCol ++
+      ", cost by minute at row " ++ show costByMinuteCol ++
+      ", description at row " ++ show maybeDescrCol ++
+      ", operator at row " ++ show maybeOperatorCol ++
+      ", cost on call at row " ++ show maybeCostOnCallCol ++
+      ". "
+
+  csvParser :: Parser [NormalizedRate]
+  csvParser = do
+    when skipHeader parser_skipLine
+    nrrs <- P.many $ parseRow 0 normalizedRate_empty
+    P.eof
+
+    return nrrs
+
+  parseRow :: Int -> NormalizedRate -> Parser NormalizedRate
+  parseRow rc nrr
+    | (Just rc == maybeDescrCol) = do
+        s <- parseCSVString fieldSeparator
+        maybeSep rc
+        parseRow (rc + 1) (nrr { nrr_description = s })
+
+    | (Just rc == maybeOperatorCol) = do
+        s <- parseCSVString fieldSeparator
+        maybeSep rc
+        parseRow (rc + 1) (nrr { nrr_operator = s })
+
+    | (rc == prefixCol) = do
+        s <- parseCSVString fieldSeparator
+        maybeSep rc
+        parseRow (rc + 1) (nrr { nrr_prefix = s })
+
+    | (rc == costByMinuteCol) = do
+        c <- parser_cost decimalSeparator fieldSeparator
+        maybeSep rc
+        parseRow (rc + 1) (nrr { nrr_costByMinute = c })
+
+    | (Just rc == maybeCostOnCallCol) = do
+        c <- parser_cost decimalSeparator fieldSeparator
+        maybeSep rc
+        parseRow (rc + 1) (nrr { nrr_costOnCall = c })
+
+    | rc < colsNr = do
+        skipCSVField fieldSeparator
+        maybeSep rc
+        parseRow (rc + 1) nrr
+
+    | otherwise = do
+        return nrr
+
+  maybeSep :: Int -> Parser ()
+  maybeSep rc =
+    case rc < (colsNr - 1) of
+      True -> do
+        _ <- P.char fieldSeparator
+        return ()
+
+      False -> do
+       (P.eof <|> parse_nl)
+       return ()
 
 -- -------------------------------------------
 -- Implement Specific Rates
@@ -309,7 +419,7 @@ parse_twtNngFormat decimalSeparator env
 
          let calcParams
                  = calcParams_empty {
-                       calcParams_costForMinute = Just costByMinute
+                       calcParams_costForMinute = CP_Value costByMinute
                    }
 
          return $ [(Text.concat ["incoming-toll-free-", prefix1, "*"], calcParams)]
@@ -342,7 +452,7 @@ parse_twtNngFormat5ColPrefixFirst decimalSeparator env
 
          let calcParams
                  = calcParams_empty {
-                       calcParams_costForMinute = Just costByMinute
+                       calcParams_costForMinute = CP_Value costByMinute
                    }
 
          return [(prefix, calcParams)]
@@ -390,9 +500,9 @@ parse_gammaFormat9Col env
 
          let calcParams costByMinute setupCost
                  = calcParams_empty {
-                       calcParams_costForMinute = Just costByMinute
-                   ,   calcParams_costOnCall = Just $ RateCost_cost setupCost
-                   ,   calcParams_minCostOfCall = Just $ Just $ minimumCharge
+                       calcParams_costForMinute = CP_Value costByMinute
+                   ,   calcParams_costOnCall = CP_Value setupCost
+                   ,   calcParams_minCostOfCall = CP_Value minimumCharge
                    }
 
          return [(prefix1, calcParams costByMinute1 setupCost1)
@@ -434,8 +544,8 @@ parse_gammaItemRentalFormat6Col env
 
          let calcParams
                  = calcParams_empty {
-                       calcParams_costForMinute = Just 0
-                   ,   calcParams_costOnCall = Just $ RateCost_cost cost
+                       calcParams_costForMinute = CP_Nothing
+                   ,   calcParams_costOnCall = CP_Value cost
                    }
 
          return [(prefix, calcParams)]
@@ -463,7 +573,7 @@ parse_csvWith3ColsPDR fieldSeparator decimalSeparator env
 
          let calcParams
                  = calcParams_empty {
-                       calcParams_costForMinute = Just costByMinute
+                       calcParams_costForMinute = CP_Value costByMinute
                    }
 
          return [(prefix, calcParams)]
@@ -500,9 +610,9 @@ parse_digitelNNGFormat env
 
          let calcParams costByMinute
                  = calcParams_empty {
-                       calcParams_costForMinute = Just costByMinute
-                   ,   calcParams_atLeastXSeconds = Just $ minimuLen
-                   ,   calcParams_costOnCall = Just $ RateCost_cost initialCost
+                       calcParams_costForMinute = CP_Value costByMinute
+                   ,   calcParams_atLeastXSeconds = CP_Value minimuLen
+                   ,   calcParams_costOnCall = CP_Value initialCost
                    }
 
          return [(prefixT, calcParams costByMinute1 )
@@ -692,7 +802,7 @@ parse_ecnNationalCallsFormat fieldSeparator decimalSeparator
 
       let m2 = List.foldl'
                  (\m (pN, pC)
-                      -> ecn_insert m channelI operatorCode pN (calcParams_empty {calcParams_costForMinute = Just pC }))
+                      -> ecn_insert m channelI operatorCode pN (calcParams_empty {calcParams_costForMinute = CP_Value pC }))
                  m1
                  (List.zip peakNames (peakCost:offPeakCosts))
 
@@ -706,32 +816,73 @@ parse_ecnNationalCallsFormat fieldSeparator decimalSeparator
 configuredRateParsers :: ConfiguredRatePlanParsers
 configuredRateParsers
   = Map.fromList $
-      [ ("rate-plan-specification", mainRatePlanParser)
-      , ("csv-header-3col", createP (parse_csvStdFormat ',' '.' 1 0 True False False False ) True)
-      , ("csv-header-3col-last-descr", createP (parse_csvStdFormat ',' '.' 0 1 True False False False) True )
-      , ("csv-header-4col", createP (parse_csvStdFormat ',' '.' 2 0 True False False False ) True )
-      , ("csv-header-3col-italian", createP (parse_csvStdFormat ',' ',' 1 0 True False False False ) True )
-      , ("csv-header-4col-costOnCall", createP (parse_csvStdFormat ',' '.' 1 0 True False True False ) True )
+      [ ("rate-plan-specification",
+         (mainRatePlanParser,
+          Nothing))
+      , ("csv-header-3col",
+         (createP (parse_csvStdFormat ',' '.' 1 0 True False False False) True,
+          Just $ normalize_csvRate ',' '.' True 3 (Just 0) Nothing 1 2 Nothing))
+      , ("csv-header-3col-last-descr",
+         (createP (parse_csvStdFormat ',' '.' 0 1 True False False False) True,
+          Just $ normalize_csvRate ',' '.' True 3 (Just 2) Nothing 0 1 Nothing))
+      , ("csv-header-4col",
+         (createP (parse_csvStdFormat ',' '.' 2 0 True False False False ) True ,
+          Just $ normalize_csvRate ',' '.' True 4 (Just 0) (Just 1) 2 3 Nothing))
+      , ("csv-header-3col-italian",
+         (createP (parse_csvStdFormat ',' ',' 1 0 True False False False ) True ,
+          Just $ normalize_csvRate ',' ',' True 3 (Just 0) Nothing 1 2 Nothing))
+      , ("csv-header-4col-costOnCall",
+         (createP (parse_csvStdFormat ',' '.' 1 0 True False True False ) True ,
+          Just $ normalize_csvRate ',' '.' True 5 (Just 0) (Just 1) 2 3 (Just 4)))
       , ("csv-header-4col-rating-code-costOnCall"
-        , createRatePlanParserOnRatingCodeFromCSVLineParser (parse_csvStdFormat ',' '.' 1 0 False False True False) True True [])
-      , ("csv-header-5col-costOnCall", createP (parse_csvStdFormat ',' '.' 2 0 True False True False ) True )
-      , ("csv-header-6col-costOnCall", createP (parse_csvStdFormat ',''.' 3 0 True False True False ) True )
-      , ("csv-twt-header-7col", createP (parse_csvStdFormat ',' '.' 1 4 True False False False ) True )
-      , ("csv-twt-header-7col-italian", createP (parse_csvStdFormat ';' ',' 1 4 True False False False ) True )
-      , ("csv-twt-no-header-7col", createP (parse_csvStdFormat ',' '.' 1 4 True False False False ) True )
-      , ("csv-twt-nng-5col", createP (parse_twtNngFormat '.') True)
-      , ("csv-twt-header-5col", createP (parse_twtNngFormat5ColPrefixFirst '.') True)
-      , ("csv-twt-no-header-5col", createP (parse_twtNngFormat5ColPrefixFirst '.') False)
-      , ("csv-gamma-header-9col", createP parse_gammaFormat9Col True)
-      , ("csv-gamma-item-rental-6col", createP parse_gammaItemRentalFormat6Col True)
-      , ("csv-header-3col-pref-descr-rate-it", createP (parse_csvWith3ColsPDR ';' ',') True)
-      , ("csv-header-3col-pref-descr-rate", createP (parse_csvWith3ColsPDR ',' '.') True)
-      , ("csv-digitel-nng", createRatePlanParserOnTelephonePrefixFromCSVLineParser
+        , (createRatePlanParserOnRatingCodeFromCSVLineParser (parse_csvStdFormat ',' '.' 1 0 False False True False) True True [],
+           Just $ normalize_csvRate ',' '.' True 4 Nothing (Just 0) 2 3 (Just 3)))
+      , ("csv-header-5col-costOnCall",
+         (createP (parse_csvStdFormat ',' '.' 2 0 True False True False ) True ,
+          Just $ normalize_csvRate ',' '.' True 5 (Just 0) (Just 1) 2 3 (Just 4)))
+      , ("csv-header-6col-costOnCall",
+         (createP (parse_csvStdFormat ',''.' 3 0 True False True False ) True ,
+          Just $ normalize_csvRate ',' '.' True 6 (Just 0) (Just 1) 3 4 (Just 5)))
+      , ("csv-twt-header-7col",
+         (createP (parse_csvStdFormat ',' '.' 1 4 True False False False ) True ,
+          Nothing))
+      , ("csv-twt-header-7col-italian",
+         (createP (parse_csvStdFormat ';' ',' 1 4 True False False False ) True ,
+          Nothing))
+      , ("csv-twt-no-header-7col",
+         (createP (parse_csvStdFormat ',' '.' 1 4 True False False False ) True ,
+          Nothing))
+      , ("csv-twt-nng-5col",
+         (createP (parse_twtNngFormat '.') True,
+          Nothing))
+      , ("csv-twt-header-5col",
+         (createP (parse_twtNngFormat5ColPrefixFirst '.') True,
+          Just $ normalize_csvRate ',' '.' True 5 (Just 1) Nothing 0 2 Nothing))
+      , ("csv-twt-no-header-5col",
+         (createP (parse_twtNngFormat5ColPrefixFirst '.') False,
+          Just $ normalize_csvRate ',' '.' False 5 (Just 1) Nothing 0 2 Nothing))
+      , ("csv-gamma-header-9col",
+         (createP parse_gammaFormat9Col True,
+          Nothing))
+      , ("csv-gamma-item-rental-6col",
+         (createP parse_gammaItemRentalFormat6Col True,
+          Nothing))
+      , ("csv-header-3col-pref-descr-rate-it",
+         (createP (parse_csvWith3ColsPDR ';' ',') True,
+          Just $ normalize_csvRate ';' ',' True 3 (Just 1) Nothing 0 2 Nothing))
+      , ("csv-header-3col-pref-descr-rate",
+         (createP (parse_csvWith3ColsPDR ',' '.') True,
+          Just $ normalize_csvRate ',' '.' True 3 (Just 1) Nothing 0 2 Nothing))
+      , ("csv-digitel-nng",
+         (createRatePlanParserOnTelephonePrefixFromCSVLineParser
                               parse_digitelNNGFormat
                               True
                               [(makeDigitelNNGPrefix True "800", freeCall)
-                              ,(makeDigitelNNGPrefix False "800", freeCall)])
-      , ("csv-ecn", parse_ecnNationalCallsFormat ',' '.')
+                              ,(makeDigitelNNGPrefix False "800", freeCall)],
+          Nothing))
+      , ("csv-ecn",
+          (parse_ecnNationalCallsFormat ',' '.',
+          Nothing))
       ]
 
 -- --------------------------------

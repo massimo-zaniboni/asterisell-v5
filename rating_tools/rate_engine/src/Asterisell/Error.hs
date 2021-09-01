@@ -248,7 +248,10 @@ asterisellErrorsDictionary_empty = Map.empty
 --   rated and the critical error is reported.
 --
 data AsterisellException = AsterisellException String
- deriving (Show, Typeable)
+ deriving (Typeable)
+
+instance Show AsterisellException where
+  show (AsterisellException err) = err
 
 instance Exception AsterisellException
 
@@ -280,6 +283,8 @@ instance Monad RuleCaseFor where
   (RuleCaseFor (Just (Left err))) >>= _ = RuleCaseFor (Just (Left err))
   (RuleCaseFor Nothing) >>= x = RuleCaseFor Nothing
   (RuleCaseFor (Just (Right x))) >>= f = f x
+
+instance MonadFail RuleCaseFor where
 
   fail err = RuleCaseFor $ Just $ Left err
 

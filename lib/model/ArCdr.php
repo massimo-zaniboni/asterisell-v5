@@ -100,6 +100,7 @@ class ArCdr extends BaseArCdr
             . "\nexternal_telephone_number_with_applied_portability: " . self::showMyValue($this->calcMaskedTelephoneNumber($this->getExternalTelephoneNumberWithAppliedPortability(), false, false))
             . "\napplied cost rate: " . self::showMyValue($this->getDebugCostRate())
             . "\napplied income rate: " . self::showMyValue($this->getDebugIncomeRate())
+            . "\nimported info: " . self::showMyValue($this->getImportedInfo())
             ;
     }
 

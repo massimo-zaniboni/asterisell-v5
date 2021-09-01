@@ -89,4 +89,4 @@ executable RateEngine
                  Asterisell.DB
                  Asterisell.CustomOrganizationInfoImporters
                  Asterisell.CustomPortedTelephoneNumbers
-                
+                 Asterisell.CalcSpecificRates

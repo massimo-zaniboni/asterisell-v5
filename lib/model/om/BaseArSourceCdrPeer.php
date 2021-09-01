@@ -25,7 +25,7 @@ abstract class BaseArSourceCdrPeer {
 	const TM_CLASS = 'ArSourceCdrTableMap';
 	
 	/** The total number of columns. */
-	const NUM_COLUMNS = 5;
+	const NUM_COLUMNS = 6;
 
 	/** The number of lazy-loaded columns. */
 	const NUM_LAZY_LOAD_COLUMNS = 0;
@@ -44,6 +44,9 @@ abstract class BaseArSourceCdrPeer {
 
 	/** the column name for the CONTENT field */
 	const CONTENT = 'ar_source_cdr.CONTENT';
+
+	/** the column name for the IS_HACKED field */
+	const IS_HACKED = 'ar_source_cdr.IS_HACKED';
 
 	/**
 	 * An identiy map to hold any loaded instances of ArSourceCdr objects.
@@ -68,11 +71,11 @@ abstract class BaseArSourceCdrPeer {
 	 * e.g. self::$fieldNames[self::TYPE_PHPNAME][0] = 'Id'
 	 */
 	private static $fieldNames = array (
-		BasePeer::TYPE_PHPNAME => array ('Calldate', 'Id', 'ArCdrProviderId', 'ArPhysicalFormatId', 'Content', ),
-		BasePeer::TYPE_STUDLYPHPNAME => array ('calldate', 'id', 'arCdrProviderId', 'arPhysicalFormatId', 'content', ),
-		BasePeer::TYPE_COLNAME => array (self::CALLDATE, self::ID, self::AR_CDR_PROVIDER_ID, self::AR_PHYSICAL_FORMAT_ID, self::CONTENT, ),
-		BasePeer::TYPE_FIELDNAME => array ('calldate', 'id', 'ar_cdr_provider_id', 'ar_physical_format_id', 'content', ),
-		BasePeer::TYPE_NUM => array (0, 1, 2, 3, 4, )
+		BasePeer::TYPE_PHPNAME => array ('Calldate', 'Id', 'ArCdrProviderId', 'ArPhysicalFormatId', 'Content', 'IsHacked', ),
+		BasePeer::TYPE_STUDLYPHPNAME => array ('calldate', 'id', 'arCdrProviderId', 'arPhysicalFormatId', 'content', 'isHacked', ),
+		BasePeer::TYPE_COLNAME => array (self::CALLDATE, self::ID, self::AR_CDR_PROVIDER_ID, self::AR_PHYSICAL_FORMAT_ID, self::CONTENT, self::IS_HACKED, ),
+		BasePeer::TYPE_FIELDNAME => array ('calldate', 'id', 'ar_cdr_provider_id', 'ar_physical_format_id', 'content', 'is_hacked', ),
+		BasePeer::TYPE_NUM => array (0, 1, 2, 3, 4, 5, )
 	);
 
 	/**
@@ -82,11 +85,11 @@ abstract class BaseArSourceCdrPeer {
 	 * e.g. self::$fieldNames[BasePeer::TYPE_PHPNAME]['Id'] = 0
 	 */
 	private static $fieldKeys = array (
-		BasePeer::TYPE_PHPNAME => array ('Calldate' => 0, 'Id' => 1, 'ArCdrProviderId' => 2, 'ArPhysicalFormatId' => 3, 'Content' => 4, ),
-		BasePeer::TYPE_STUDLYPHPNAME => array ('calldate' => 0, 'id' => 1, 'arCdrProviderId' => 2, 'arPhysicalFormatId' => 3, 'content' => 4, ),
-		BasePeer::TYPE_COLNAME => array (self::CALLDATE => 0, self::ID => 1, self::AR_CDR_PROVIDER_ID => 2, self::AR_PHYSICAL_FORMAT_ID => 3, self::CONTENT => 4, ),
-		BasePeer::TYPE_FIELDNAME => array ('calldate' => 0, 'id' => 1, 'ar_cdr_provider_id' => 2, 'ar_physical_format_id' => 3, 'content' => 4, ),
-		BasePeer::TYPE_NUM => array (0, 1, 2, 3, 4, )
+		BasePeer::TYPE_PHPNAME => array ('Calldate' => 0, 'Id' => 1, 'ArCdrProviderId' => 2, 'ArPhysicalFormatId' => 3, 'Content' => 4, 'IsHacked' => 5, ),
+		BasePeer::TYPE_STUDLYPHPNAME => array ('calldate' => 0, 'id' => 1, 'arCdrProviderId' => 2, 'arPhysicalFormatId' => 3, 'content' => 4, 'isHacked' => 5, ),
+		BasePeer::TYPE_COLNAME => array (self::CALLDATE => 0, self::ID => 1, self::AR_CDR_PROVIDER_ID => 2, self::AR_PHYSICAL_FORMAT_ID => 3, self::CONTENT => 4, self::IS_HACKED => 5, ),
+		BasePeer::TYPE_FIELDNAME => array ('calldate' => 0, 'id' => 1, 'ar_cdr_provider_id' => 2, 'ar_physical_format_id' => 3, 'content' => 4, 'is_hacked' => 5, ),
+		BasePeer::TYPE_NUM => array (0, 1, 2, 3, 4, 5, )
 	);
 
 	/**
@@ -161,6 +164,7 @@ abstract class BaseArSourceCdrPeer {
 		$criteria->addSelectColumn(ArSourceCdrPeer::AR_CDR_PROVIDER_ID);
 		$criteria->addSelectColumn(ArSourceCdrPeer::AR_PHYSICAL_FORMAT_ID);
 		$criteria->addSelectColumn(ArSourceCdrPeer::CONTENT);
+		$criteria->addSelectColumn(ArSourceCdrPeer::IS_HACKED);
 	}
 
 	/**
@@ -284,7 +288,7 @@ abstract class BaseArSourceCdrPeer {
 	{
 		if (Propel::isInstancePoolingEnabled()) {
 			if ($key === null) {
-				$key = serialize(array((string) $obj->getCalldate(), (string) $obj->getId(), (string) $obj->getArCdrProviderId(), (string) $obj->getArPhysicalFormatId()));
+				$key = serialize(array((string) $obj->getCalldate(), (string) $obj->getId()));
 			} // if key === null
 			self::$instances[$key] = $obj;
 		}
@@ -304,10 +308,10 @@ abstract class BaseArSourceCdrPeer {
 	{
 		if (Propel::isInstancePoolingEnabled() && $value !== null) {
 			if (is_object($value) && $value instanceof ArSourceCdr) {
-				$key = serialize(array((string) $value->getCalldate(), (string) $value->getId(), (string) $value->getArCdrProviderId(), (string) $value->getArPhysicalFormatId()));
-			} elseif (is_array($value) && count($value) === 4) {
+				$key = serialize(array((string) $value->getCalldate(), (string) $value->getId()));
+			} elseif (is_array($value) && count($value) === 2) {
 				// assume we've been passed a primary key
-				$key = serialize(array((string) $value[0], (string) $value[1], (string) $value[2], (string) $value[3]));
+				$key = serialize(array((string) $value[0], (string) $value[1]));
 			} else {
 				$e = new PropelException("Invalid value passed to removeInstanceFromPool().  Expected primary key or ArSourceCdr object; got " . (is_object($value) ? get_class($value) . ' object.' : var_export($value,true)));
 				throw $e;
@@ -368,10 +372,10 @@ abstract class BaseArSourceCdrPeer {
 	public static function getPrimaryKeyHashFromRow($row, $startcol = 0)
 	{
 		// If the PK cannot be derived from the row, return NULL.
-		if ($row[$startcol] === null && $row[$startcol + 1] === null && $row[$startcol + 2] === null && $row[$startcol + 3] === null) {
+		if ($row[$startcol] === null && $row[$startcol + 1] === null) {
 			return null;
 		}
-		return serialize(array((string) $row[$startcol], (string) $row[$startcol + 1], (string) $row[$startcol + 2], (string) $row[$startcol + 3]));
+		return serialize(array((string) $row[$startcol], (string) $row[$startcol + 1]));
 	}
 
 	/**
@@ -510,12 +514,6 @@ abstract class BaseArSourceCdrPeer {
 			$comparison = $criteria->getComparison(ArSourceCdrPeer::ID);
 			$selectCriteria->add(ArSourceCdrPeer::ID, $criteria->remove(ArSourceCdrPeer::ID), $comparison);
 
-			$comparison = $criteria->getComparison(ArSourceCdrPeer::AR_CDR_PROVIDER_ID);
-			$selectCriteria->add(ArSourceCdrPeer::AR_CDR_PROVIDER_ID, $criteria->remove(ArSourceCdrPeer::AR_CDR_PROVIDER_ID), $comparison);
-
-			$comparison = $criteria->getComparison(ArSourceCdrPeer::AR_PHYSICAL_FORMAT_ID);
-			$selectCriteria->add(ArSourceCdrPeer::AR_PHYSICAL_FORMAT_ID, $criteria->remove(ArSourceCdrPeer::AR_PHYSICAL_FORMAT_ID), $comparison);
-
 		} else { // $values is ArSourceCdr object
 			$criteria = $values->buildCriteria(); // gets full criteria
 			$selectCriteria = $values->buildPkeyCriteria(); // gets criteria w/ primary key(s)
@@ -596,8 +594,6 @@ abstract class BaseArSourceCdrPeer {
 			foreach ($values as $value) {
 				$criterion = $criteria->getNewCriterion(ArSourceCdrPeer::CALLDATE, $value[0]);
 				$criterion->addAnd($criteria->getNewCriterion(ArSourceCdrPeer::ID, $value[1]));
-				$criterion->addAnd($criteria->getNewCriterion(ArSourceCdrPeer::AR_CDR_PROVIDER_ID, $value[2]));
-				$criterion->addAnd($criteria->getNewCriterion(ArSourceCdrPeer::AR_PHYSICAL_FORMAT_ID, $value[3]));
 				$criteria->addOr($criterion);
 				// we can invalidate the cache for this single PK
 				ArSourceCdrPeer::removeInstanceFromPool($value);
@@ -665,13 +661,11 @@ abstract class BaseArSourceCdrPeer {
 	 * Retrieve object using using composite pkey values.
 	 * @param      string $calldate
 	 * @param      int $id
-	 * @param      int $ar_cdr_provider_id
-	 * @param      int $ar_physical_format_id
 	 * @param      PropelPDO $con
 	 * @return     ArSourceCdr
 	 */
-	public static function retrieveByPK($calldate, $id, $ar_cdr_provider_id, $ar_physical_format_id, PropelPDO $con = null) {
-		$key = serialize(array((string) $calldate, (string) $id, (string) $ar_cdr_provider_id, (string) $ar_physical_format_id));
+	public static function retrieveByPK($calldate, $id, PropelPDO $con = null) {
+		$key = serialize(array((string) $calldate, (string) $id));
  		if (null !== ($obj = ArSourceCdrPeer::getInstanceFromPool($key))) {
  			return $obj;
 		}
@@ -682,8 +676,6 @@ abstract class BaseArSourceCdrPeer {
 		$criteria = new Criteria(ArSourceCdrPeer::DATABASE_NAME);
 		$criteria->add(ArSourceCdrPeer::CALLDATE, $calldate);
 		$criteria->add(ArSourceCdrPeer::ID, $id);
-		$criteria->add(ArSourceCdrPeer::AR_CDR_PROVIDER_ID, $ar_cdr_provider_id);
-		$criteria->add(ArSourceCdrPeer::AR_PHYSICAL_FORMAT_ID, $ar_physical_format_id);
 		$v = ArSourceCdrPeer::doSelect($criteria, $con);
 
 		return !empty($v) ? $v[0] : null;

@@ -10,6 +10,10 @@ sfLoader::loadHelpers(array('I18N', 'Debug', 'Date', 'Asterisell', 'CustomLocale
  * Generate a report.
  * Objects of this class have no persistent state, because they are not saved after their execution.
  * So all the params for generating a report, must be retrieved from the report database object.
+ * 
+ * @require work that involves reading (potentially) many records, must be prepared using 
+ * ``FixedJobProcessor::prepareFetchStmt($query)``, because these records will be fetched
+ * in a batch way, without consuming all RAM.
  */
 abstract class ReportGenerator
 {

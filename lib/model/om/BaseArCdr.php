@@ -189,6 +189,30 @@ abstract class BaseArCdr extends BaseObject  implements Persistent {
 	protected $debug_income_rate;
 
 	/**
+	 * The value for the imported_info field.
+	 * @var        string
+	 */
+	protected $imported_info;
+
+	/**
+	 * The value for the exported_internal_telephone_number field.
+	 * @var        string
+	 */
+	protected $exported_internal_telephone_number;
+
+	/**
+	 * The value for the exported_billable_customer_ar_party_id field.
+	 * @var        int
+	 */
+	protected $exported_billable_customer_ar_party_id;
+
+	/**
+	 * The value for the from_source_cdr_id field.
+	 * @var        int
+	 */
+	protected $from_source_cdr_id;
+
+	/**
 	 * Flag to prevent endless save loop, if this object is referenced
 	 * by another object which falls in this transaction.
 	 * @var        boolean
@@ -558,6 +582,46 @@ abstract class BaseArCdr extends BaseObject  implements Persistent {
 	public function getDebugIncomeRate()
 	{
 		return $this->debug_income_rate;
+	}
+
+	/**
+	 * Get the [imported_info] column value.
+	 * 
+	 * @return     string
+	 */
+	public function getImportedInfo()
+	{
+		return $this->imported_info;
+	}
+
+	/**
+	 * Get the [exported_internal_telephone_number] column value.
+	 * 
+	 * @return     string
+	 */
+	public function getExportedInternalTelephoneNumber()
+	{
+		return $this->exported_internal_telephone_number;
+	}
+
+	/**
+	 * Get the [exported_billable_customer_ar_party_id] column value.
+	 * 
+	 * @return     int
+	 */
+	public function getExportedBillableCustomerArPartyId()
+	{
+		return $this->exported_billable_customer_ar_party_id;
+	}
+
+	/**
+	 * Get the [from_source_cdr_id] column value.
+	 * 
+	 * @return     int
+	 */
+	public function getFromSourceCdrId()
+	{
+		return $this->from_source_cdr_id;
 	}
 
 	/**
@@ -1162,6 +1226,86 @@ abstract class BaseArCdr extends BaseObject  implements Persistent {
 	} // setDebugIncomeRate()
 
 	/**
+	 * Set the value of [imported_info] column.
+	 * 
+	 * @param      string $v new value
+	 * @return     ArCdr The current object (for fluent API support)
+	 */
+	public function setImportedInfo($v)
+	{
+		if ($v !== null) {
+			$v = (string) $v;
+		}
+
+		if ($this->imported_info !== $v) {
+			$this->imported_info = $v;
+			$this->modifiedColumns[] = ArCdrPeer::IMPORTED_INFO;
+		}
+
+		return $this;
+	} // setImportedInfo()
+
+	/**
+	 * Set the value of [exported_internal_telephone_number] column.
+	 * 
+	 * @param      string $v new value
+	 * @return     ArCdr The current object (for fluent API support)
+	 */
+	public function setExportedInternalTelephoneNumber($v)
+	{
+		if ($v !== null) {
+			$v = (string) $v;
+		}
+
+		if ($this->exported_internal_telephone_number !== $v) {
+			$this->exported_internal_telephone_number = $v;
+			$this->modifiedColumns[] = ArCdrPeer::EXPORTED_INTERNAL_TELEPHONE_NUMBER;
+		}
+
+		return $this;
+	} // setExportedInternalTelephoneNumber()
+
+	/**
+	 * Set the value of [exported_billable_customer_ar_party_id] column.
+	 * 
+	 * @param      int $v new value
+	 * @return     ArCdr The current object (for fluent API support)
+	 */
+	public function setExportedBillableCustomerArPartyId($v)
+	{
+		if ($v !== null) {
+			$v = (int) $v;
+		}
+
+		if ($this->exported_billable_customer_ar_party_id !== $v) {
+			$this->exported_billable_customer_ar_party_id = $v;
+			$this->modifiedColumns[] = ArCdrPeer::EXPORTED_BILLABLE_CUSTOMER_AR_PARTY_ID;
+		}
+
+		return $this;
+	} // setExportedBillableCustomerArPartyId()
+
+	/**
+	 * Set the value of [from_source_cdr_id] column.
+	 * 
+	 * @param      int $v new value
+	 * @return     ArCdr The current object (for fluent API support)
+	 */
+	public function setFromSourceCdrId($v)
+	{
+		if ($v !== null) {
+			$v = (int) $v;
+		}
+
+		if ($this->from_source_cdr_id !== $v) {
+			$this->from_source_cdr_id = $v;
+			$this->modifiedColumns[] = ArCdrPeer::FROM_SOURCE_CDR_ID;
+		}
+
+		return $this;
+	} // setFromSourceCdrId()
+
+	/**
 	 * Indicates whether the columns in this object are only set to default values.
 	 *
 	 * This method can be used in conjunction with isModified() to indicate whether an object is both
@@ -1258,6 +1402,10 @@ abstract class BaseArCdr extends BaseObject  implements Persistent {
 			$this->ar_problem_duplication_key = ($row[$startcol + 24] !== null) ? (string) $row[$startcol + 24] : null;
 			$this->debug_cost_rate = ($row[$startcol + 25] !== null) ? (string) $row[$startcol + 25] : null;
 			$this->debug_income_rate = ($row[$startcol + 26] !== null) ? (string) $row[$startcol + 26] : null;
+			$this->imported_info = ($row[$startcol + 27] !== null) ? (string) $row[$startcol + 27] : null;
+			$this->exported_internal_telephone_number = ($row[$startcol + 28] !== null) ? (string) $row[$startcol + 28] : null;
+			$this->exported_billable_customer_ar_party_id = ($row[$startcol + 29] !== null) ? (int) $row[$startcol + 29] : null;
+			$this->from_source_cdr_id = ($row[$startcol + 30] !== null) ? (int) $row[$startcol + 30] : null;
 			$this->resetModified();
 
 			$this->setNew(false);
@@ -1267,7 +1415,7 @@ abstract class BaseArCdr extends BaseObject  implements Persistent {
 			}
 
 			// FIXME - using NUM_COLUMNS may be clearer.
-			return $startcol + 27; // 27 = ArCdrPeer::NUM_COLUMNS - ArCdrPeer::NUM_LAZY_LOAD_COLUMNS).
+			return $startcol + 31; // 31 = ArCdrPeer::NUM_COLUMNS - ArCdrPeer::NUM_LAZY_LOAD_COLUMNS).
 
 		} catch (Exception $e) {
 			throw new PropelException("Error populating ArCdr object", $e);
@@ -1644,6 +1792,18 @@ abstract class BaseArCdr extends BaseObject  implements Persistent {
 			case 26:
 				return $this->getDebugIncomeRate();
 				break;
+			case 27:
+				return $this->getImportedInfo();
+				break;
+			case 28:
+				return $this->getExportedInternalTelephoneNumber();
+				break;
+			case 29:
+				return $this->getExportedBillableCustomerArPartyId();
+				break;
+			case 30:
+				return $this->getFromSourceCdrId();
+				break;
 			default:
 				return null;
 				break;
@@ -1692,6 +1852,10 @@ abstract class BaseArCdr extends BaseObject  implements Persistent {
 			$keys[24] => $this->getArProblemDuplicationKey(),
 			$keys[25] => $this->getDebugCostRate(),
 			$keys[26] => $this->getDebugIncomeRate(),
+			$keys[27] => $this->getImportedInfo(),
+			$keys[28] => $this->getExportedInternalTelephoneNumber(),
+			$keys[29] => $this->getExportedBillableCustomerArPartyId(),
+			$keys[30] => $this->getFromSourceCdrId(),
 		);
 		return $result;
 	}
@@ -1804,6 +1968,18 @@ abstract class BaseArCdr extends BaseObject  implements Persistent {
 			case 26:
 				$this->setDebugIncomeRate($value);
 				break;
+			case 27:
+				$this->setImportedInfo($value);
+				break;
+			case 28:
+				$this->setExportedInternalTelephoneNumber($value);
+				break;
+			case 29:
+				$this->setExportedBillableCustomerArPartyId($value);
+				break;
+			case 30:
+				$this->setFromSourceCdrId($value);
+				break;
 		} // switch()
 	}
 
@@ -1855,6 +2031,10 @@ abstract class BaseArCdr extends BaseObject  implements Persistent {
 		if (array_key_exists($keys[24], $arr)) $this->setArProblemDuplicationKey($arr[$keys[24]]);
 		if (array_key_exists($keys[25], $arr)) $this->setDebugCostRate($arr[$keys[25]]);
 		if (array_key_exists($keys[26], $arr)) $this->setDebugIncomeRate($arr[$keys[26]]);
+		if (array_key_exists($keys[27], $arr)) $this->setImportedInfo($arr[$keys[27]]);
+		if (array_key_exists($keys[28], $arr)) $this->setExportedInternalTelephoneNumber($arr[$keys[28]]);
+		if (array_key_exists($keys[29], $arr)) $this->setExportedBillableCustomerArPartyId($arr[$keys[29]]);
+		if (array_key_exists($keys[30], $arr)) $this->setFromSourceCdrId($arr[$keys[30]]);
 	}
 
 	/**
@@ -1893,6 +2073,10 @@ abstract class BaseArCdr extends BaseObject  implements Persistent {
 		if ($this->isColumnModified(ArCdrPeer::AR_PROBLEM_DUPLICATION_KEY)) $criteria->add(ArCdrPeer::AR_PROBLEM_DUPLICATION_KEY, $this->ar_problem_duplication_key);
 		if ($this->isColumnModified(ArCdrPeer::DEBUG_COST_RATE)) $criteria->add(ArCdrPeer::DEBUG_COST_RATE, $this->debug_cost_rate);
 		if ($this->isColumnModified(ArCdrPeer::DEBUG_INCOME_RATE)) $criteria->add(ArCdrPeer::DEBUG_INCOME_RATE, $this->debug_income_rate);
+		if ($this->isColumnModified(ArCdrPeer::IMPORTED_INFO)) $criteria->add(ArCdrPeer::IMPORTED_INFO, $this->imported_info);
+		if ($this->isColumnModified(ArCdrPeer::EXPORTED_INTERNAL_TELEPHONE_NUMBER)) $criteria->add(ArCdrPeer::EXPORTED_INTERNAL_TELEPHONE_NUMBER, $this->exported_internal_telephone_number);
+		if ($this->isColumnModified(ArCdrPeer::EXPORTED_BILLABLE_CUSTOMER_AR_PARTY_ID)) $criteria->add(ArCdrPeer::EXPORTED_BILLABLE_CUSTOMER_AR_PARTY_ID, $this->exported_billable_customer_ar_party_id);
+		if ($this->isColumnModified(ArCdrPeer::FROM_SOURCE_CDR_ID)) $criteria->add(ArCdrPeer::FROM_SOURCE_CDR_ID, $this->from_source_cdr_id);
 
 		return $criteria;
 	}
@@ -2017,6 +2201,14 @@ abstract class BaseArCdr extends BaseObject  implements Persistent {
 		$copyObj->setDebugCostRate($this->debug_cost_rate);
 
 		$copyObj->setDebugIncomeRate($this->debug_income_rate);
+
+		$copyObj->setImportedInfo($this->imported_info);
+
+		$copyObj->setExportedInternalTelephoneNumber($this->exported_internal_telephone_number);
+
+		$copyObj->setExportedBillableCustomerArPartyId($this->exported_billable_customer_ar_party_id);
+
+		$copyObj->setFromSourceCdrId($this->from_source_cdr_id);
 
 
 		$copyObj->setNew(true);

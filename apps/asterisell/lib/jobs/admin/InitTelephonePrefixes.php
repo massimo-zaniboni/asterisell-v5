@@ -39,14 +39,15 @@ class InitTelephonePrefixes extends AdminJobProcessor
         $this->createPrefix('SIP', mytr('Local Network'), ArTelephonePrefix::SYSTEM_LOCAL_PREFIX);
         $this->createPrefix(mytr('Unknown'), mytr('Unknown'), ArTelephonePrefix::ANONYMOUS_TELEPHONE_NUMBER);
 
-
         $this->createPrefix(self::SPECIAL_TELEPHONE_NUMBERS_NAME, 'Emergency', self::EMERGENCY_NUMBER_PREFIX);
         $this->createPrefix(self::SPECIAL_TELEPHONE_NUMBERS_NAME, 'Service', self::SERVICE_NUMBER_PREFIX);
         $this->createPrefix(self::SPECIAL_TELEPHONE_NUMBERS_NAME, 'Free Call', self::FREE_CALL_PREFIX);
 
+        ArTelephonePrefixPeer::createOrUpdatePrefix("Solidal", "Solidal", "39445", null);
+        
         return '';
     }
-
+    
     /**
      * @param string $pType
      * @param string $pPlace
@@ -56,11 +57,7 @@ class InitTelephonePrefixes extends AdminJobProcessor
      */
     protected function createPrefix($pType, $pPlace, $pPrefix, $pOperator = null)
     {
-        $r = new ArTelephonePrefix();
-        $r->setPrefix($pPrefix);
-        $r->setName($pOperator);
-        $r->setGeographicLocation($pPlace);
-        $r->setOperatorType($pType);
-        $r->save();
+        ArTelephonePrefixPeer::createOrUpdatePrefix($pType, $pPlace, $pPrefix, $pOperator);
     }
+
 }

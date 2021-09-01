@@ -15,7 +15,7 @@ class ArTelephonePrefixPeer extends BaseArTelephonePrefixPeer
      *
      * @param      int $pk the exact prefix.
      * @param      PropelPDO $con the connection to use
-     * @return     ArTelephonePrefix
+     * @return     ArTelephonePrefix|null
      */
     public static function retrieveByPrefix($pk, PropelPDO $con = null)
     {
@@ -32,6 +32,27 @@ class ArTelephonePrefixPeer extends BaseArTelephonePrefixPeer
         return !empty($v) > 0 ? $v[0] : null;
     }
 
+    /**
+     * @param string $pType
+     * @param string $pPlace
+     * @param string $pPrefix
+     * @param string|null $pOperator
+     * @return void
+     */
+    public static function createOrUpdatePrefix($pType, $pPlace, $pPrefix, $pOperator = null)
+    {
+        $r = self::retrieveByPrefix($pPrefix);
+        if (is_null($r)) {
+          $r = new ArTelephonePrefix();
+        }
+        
+        $r->setPrefix($pPrefix);
+        $r->setName($pOperator);
+        $r->setGeographicLocation($pPlace);
+        $r->setOperatorType($pType);
+        $r->save();
+    }
+    
     /**
      * Remove the prefix and derived prefixes.
      * @param string $prefix the prefixes to remove.

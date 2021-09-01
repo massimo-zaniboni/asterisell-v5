@@ -39,6 +39,10 @@ CREATE TABLE `ar_cdr`
 	`ar_problem_duplication_key` VARCHAR(255),
 	`debug_cost_rate` VARCHAR(512),
 	`debug_income_rate` VARCHAR(512),
+	`imported_info` VARCHAR(4096),
+	`exported_internal_telephone_number` VARCHAR(1024)  NOT NULL,
+	`exported_billable_customer_ar_party_id` INTEGER,
+	`from_source_cdr_id` INTEGER,
 	PRIMARY KEY (`calldate`,`id`,`is_service_cdr`)
 )ENGINE=TokuDB ROW_FORMAT=TOKUDB_SNAPPY, DEFAULT CHARACTER SET = utf8mb4, DEFAULT COLLATE = utf8mb4_bin;
 
@@ -1462,7 +1466,8 @@ CREATE TABLE `ar_source_cdr`
 	`ar_cdr_provider_id` INTEGER  NOT NULL,
 	`ar_physical_format_id` INTEGER  NOT NULL,
 	`content` VARCHAR(10000),
-	PRIMARY KEY (`calldate`,`id`,`ar_cdr_provider_id`,`ar_physical_format_id`)
+	`is_hacked` TINYINT default 0 NOT NULL,
+	PRIMARY KEY (`calldate`,`id`)
 )ENGINE=TokuDB ROW_FORMAT=TOKUDB_SNAPPY, DEFAULT CHARACTER SET = utf8mb4, DEFAULT COLLATE = utf8mb4_bin;
 
 #-----------------------------------------------------------------------------
@@ -2014,6 +2019,48 @@ CREATE TABLE `ar_wholesale_replace_proc`
 	CONSTRAINT `ar_wholesale_replace_proc_FK_1`
 		FOREIGN KEY (`ar_reseller_id`)
 		REFERENCES `ar_reseller` (`id`)
+)ENGINE=TokuDB ROW_FORMAT=TOKUDB_SNAPPY, DEFAULT CHARACTER SET = utf8mb4, DEFAULT COLLATE = utf8mb4_bin;
+
+#-----------------------------------------------------------------------------
+#-- ar_specific_rate_calc
+#-----------------------------------------------------------------------------
+
+DROP TABLE IF EXISTS `ar_specific_rate_calc`;
+
+
+CREATE TABLE `ar_specific_rate_calc`
+(
+	`id` INTEGER  NOT NULL AUTO_INCREMENT,
+	`note` TEXT  NOT NULL,
+	`ar_rate_id` INTEGER,
+	`specific_rate_name` VARCHAR(255)  NOT NULL,
+	`price_category_name` VARCHAR(255)  NOT NULL,
+	`mediumtext_specific_rate_in_match_all` MEDIUMTEXT  NOT NULL,
+	`mediumtext_specific_rate_in_match_exact` MEDIUMTEXT  NOT NULL,
+	`mediumtext_specific_rate_out` MEDIUMTEXT  NOT NULL,
+	`rate_plan_out` TEXT  NOT NULL,
+	`mediumtext_base_rate_diff` MEDIUMTEXT  NOT NULL,
+	`calc_info` TEXT  NOT NULL,
+	`calc_error` TEXT,
+	`is_recalc` TINYINT default 0 NOT NULL,
+	PRIMARY KEY (`id`),
+	INDEX `ar_specific_rate_calc_FI_1` (`ar_rate_id`),
+	CONSTRAINT `ar_specific_rate_calc_FK_1`
+		FOREIGN KEY (`ar_rate_id`)
+		REFERENCES `ar_rate` (`id`)
+)ENGINE=TokuDB ROW_FORMAT=TOKUDB_SNAPPY, DEFAULT CHARACTER SET = utf8mb4, DEFAULT COLLATE = utf8mb4_bin;
+
+#-----------------------------------------------------------------------------
+#-- ar_void
+#-----------------------------------------------------------------------------
+
+DROP TABLE IF EXISTS `ar_void`;
+
+
+CREATE TABLE `ar_void`
+(
+	`id` INTEGER  NOT NULL AUTO_INCREMENT,
+	PRIMARY KEY (`id`)
 )ENGINE=TokuDB ROW_FORMAT=TOKUDB_SNAPPY, DEFAULT CHARACTER SET = utf8mb4, DEFAULT COLLATE = utf8mb4_bin;
 
 # This restores the fkey checks, after having unset them earlier

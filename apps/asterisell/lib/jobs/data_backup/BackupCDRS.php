@@ -66,6 +66,10 @@ class BackupCDRS extends DailyBackupJob
           , ar_problem_duplication_key
           , debug_cost_rate
           , debug_income_rate
+          , imported_info
+          , exported_internal_telephone_number
+          , exported_billable_customer_ar_party_id
+          , from_source_cdr_id
 
 NOWDOC;
         $query .= " INTO OUTFILE '$tmpFileName' ";
@@ -173,6 +177,10 @@ NOWDOC;
           , ar_problem_duplication_key
           , debug_cost_rate
           , debug_income_rate
+          , imported_info
+          , exported_internal_telephone_number
+          , exported_billable_customer_ar_party_id
+          , from_source_cdr_id
         ) SET id = NULL;
         ';
 HEREDOC;

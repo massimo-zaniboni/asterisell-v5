@@ -21,6 +21,20 @@ Test the application.
 Add upgrade jobs extending the database also in already production
 instances. TODO complete this
 
+### Changes to CDR format
+
+The upgrade job must report TRUE to "the CDR table is modified".
+
+Update the Haskell code that
+
+- specify the CDR format
+- sends CDR to the DBMS
+
+Update the PHP code that:
+
+- display debug-info in the call-report
+- backup and restore CDRS
+
 ## How generating UI web modules
 
 ```

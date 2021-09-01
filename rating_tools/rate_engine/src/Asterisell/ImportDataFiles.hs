@@ -1,7 +1,7 @@
 {-# LANGUAGE FlexibleInstances, ScopedTypeVariables, BangPatterns, OverloadedStrings, ExistentialQuantification, DeriveGeneric, DeriveAnyClass, RankNTypes, QuasiQuotes #-}
 
 -- SPDX-License-Identifier: GPL-3.0-or-later
--- Copyright (C) 2009-2019 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
+-- Copyright (C) 2009-2021 Massimo Zaniboni <massimo.zaniboni@asterisell.com>
 
 -- | Import CDRS from external files or external databases inside `ar_source_cdr` table.
 --   Signal only problems about callDate, because all other problems will be reported
@@ -132,6 +132,7 @@ rateEngine_importDataFile
 
                    rawCDRSChan <- newEmptyMVar
 
+                   -- NOTE: `ar_source_cdr.id` are managed from `rateEngine_importIntoDB`.
                    writeJob <- async $
                      case maybeDebugFileName of
                        Nothing -> do
@@ -203,6 +204,8 @@ rateEngine_importDataFile
 -- | Read CDRS from an external MySQL database, in an incremental way.
 --   Assumes that there is an auto incrementing field: every new added CDR will have
 --   an ID grater than previous CDRS.
+--   ``ar_source_cdr`` are rarely deleted, so it is likely that the ``ar_source_cdr.id`` will be
+--   compact conseuctive integers, without holes.
 --
 --   It uses auto_increment IDS for recognizing new inserted CDRS,
 --   and the algo is safe (no data loss, also in case of run-time exceptions)
@@ -377,6 +380,7 @@ rateEngine_importFromMySQLDB
 -- Write data to the DB
 
 -- | Insert a stream of source CDRS inside `ar_source_cdr`.
+--   Manage automatically `ar_source_cdr.id`.
 --
 --   Report only serious errors, because all errors specific of CDRs will be reported during rating phase.
 --
@@ -436,6 +440,7 @@ rateEngine_importIntoDB
        let summaryInfo0 = (Nothing, 0, 0)
        -- NOTE: use an MVar instead of an IORef, because I had space-leak problems
 
+       -- NOTE: `ar_source_cdr.id` is managed directly from `db_loadDataFromNamedPipe`
        (outChan, writeToDBJobs)
          <- db_loadDataFromNamedPipe
               dbState
@@ -517,7 +522,7 @@ rateEngine_importIntoDB
                  Right parsedCallDate ->
                    (parsedCallDate, (newMaxMinCallDate parsedCallDate maybeMaxMinCallDate, correctLines + 1, linesWithErrors))
 
-       in ((callDate, state2), DBSourceCDR callDate providerId logicalTypeId formatTypeId rawCDR)
+       in ((callDate, state2), DBSourceCDR callDate 0 providerId logicalTypeId formatTypeId rawCDR)
 
    createImportError e
      = SomeException $ AsterisellException $ "There is a critical error during the importing from provider " ++ (Text.unpack providerName) ++ ", format " ++  (Text.unpack logicalTypeName) ++ "__" ++  (Text.unpack formatTypeName) ++ ". " ++ (displayException e) ++ ".\nAll data from the provider or with the same format will be not rated.\nThis is probably an error in the application configuration. Contact the assistance."

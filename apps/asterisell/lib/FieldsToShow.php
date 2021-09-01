@@ -70,6 +70,8 @@ class FieldsToShow
 
     const ORGANIZATION_LEVEL = 24;
 
+    const FROM_SOURCE_CDR_ID = 25;
+    
     /**
      * @param bool $generateForAdmin true for an administrator, false for the customer otherwise
      * @return array an array with the type of field to show as constant value (not key) of class FieldsToShow .
@@ -182,6 +184,8 @@ class FieldsToShow
         $r = self::getFieldsToShowInCallReport($generateForAdmin);
 
         if ($generateForAdmin) {
+            $r[] = self::FROM_SOURCE_CDR_ID;
+
             if ($showIncomeAndEarn) {
                 $r[] = self::DEBUG_COST_RATE;
                 $r[] = self::DEBUG_INCOME_RATE;
@@ -347,6 +351,9 @@ class FieldsToShow
                     break;
 
                 case FieldsToShow::COUNT_OF_CALLS:
+                    break;
+                
+                case FieldsToShow::FROM_SOURCE_CDR_ID:
                     break;
 
                 case FieldsToShow::ORGANIZATION_LEVEL:

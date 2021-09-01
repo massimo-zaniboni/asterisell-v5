@@ -147,7 +147,7 @@ Installation/development operations
 
   php asterisell.php debug send-test-email
       Send a test email to the email address configured in Web UI Params.
-
+            
 Maintenance operations
 ----------------------
 
@@ -215,8 +215,11 @@ Data operations
   php asterisell.php data export-cdrs [cdr-provider-code] [cdr-format] [yyyy-mm-[dd]]
       Without params, list the available cdr-provider-codes and cdr-format.
       Use YYYY-MM for exporting all the CDRs of a month, and YYYY-MM-DD for exporting all the CDRs of a day.
-
-
+ 
+  php asterisels.php data export-rated-cdrs [yyyy-mm-dd]
+      Export rated CDRS in CSV format useful for reconciliation.
+            
+   
 HELP;
 
     echo $str;
@@ -477,7 +480,7 @@ function makeDatabaseBackup($isInteractive = true, $onlyConfig = false)
     }
     $fileName .= '.gz';
 
-    $cmd = "mysqldump -u $user --password=$password $database --single-transaction $options | gzip > $fileName";
+    $cmd = "mysqldump -u $user --password=$password $database --no-tablespaces --single-transaction $options | gzip > $fileName";
     $restoreCmd = "pv $fileName | gunzip | mysql -uroot -p" . $password . " " . $database;
 
     if ($isInteractive) {
@@ -586,25 +589,22 @@ function makeActivateDirs($user, $isAdmin)
     );
 
     $makeDirCmd = $preCmd . ' && mkdir -p ';
-    $chmodCmd = $preCmd . ' && chmod -R ug+rwx,o-rwx ';
+    $chmodCmd = $preCmd . ' && chmod -R --silent ug+rwx,o-rwx ';
     foreach ($webWritableDirs as $d) {
         $makeDirCmd .= " $d ";
         $chmodCmd .= " $d ";
     }
     myExecute("Create web-server working directories", $makeDirCmd);
-    myExecute("COPYRIGHT", $preCmd . ' && chmod g+r COPYRIGHT');
+    myExecute("COPYRIGHT", $preCmd . ' && chmod --silent g+r COPYRIGHT');
 
     if (!$isAdmin) {
         executeSymfonyCC($isAdmin);
     }
 
     myExecute("Fix Permissions for web-server writable directories", $chmodCmd);
-    myExecute("Fix Permissions for web-server readable directories", "$preCmd && chmod -R g+rx,g-w,u+rwx,o-rwx ext_libs/ apps/ lib/ config/ data/ symfony symfony.php");
-    myExecute("Fix Permissions for web-server not accessible directories", "$preCmd && chmod -R u+rwx,go-rwx scripts/ updates/ data_files/ fabric_data/ development_tools/ symfony-patch/ resource_files/ README LICENSE asterisell.php");
+    myExecute("Fix Permissions for web-server readable directories", "$preCmd && chmod -R --silent g+rx,g-w,u+rwx,o-rwx ext_libs/ apps/ lib/ config/ data/ symfony symfony.php");
+    myExecute("Fix Permissions for web-server not accessible directories", "$preCmd && chmod -R --silent u+rwx,go-rwx scripts/ updates/ data_files/ fabric_data/ development_tools/ symfony-patch/ README.md LICENSE asterisell.php");
 
-    if ($isAdmin) {
-        myExecute("Fix Permissions for web-server only-admin readable directories", "$preCmd && chmod -R g+rx,g-w,u+rwx,o-rwx resource_files/ ");
-    }
 }
 
 
@@ -748,7 +748,6 @@ function makeActivate($isInteractive = true, $changePermissions = false, $writeT
     , '/rating_tools/'
     , '/doc/'
     , '/fabric_data/'
-    , '/resource_files/'
     , '/scripts/'
     , '/symfony-patch/'
     , '/updates/');
@@ -791,7 +790,7 @@ function makeActivate($isInteractive = true, $changePermissions = false, $writeT
  */
 function makeDerivedFiles()
 {
-    myExecute("Create default directories", "mkdir -p cache ; mkdir -p log ; mkdir -p web/generated_graphs ; mkdir -p data_files/rsync_with_remote_servers ; mkdir -p data_files/messages/archive ; mkdir -p data_files/messages/backup ; mkdir -p data_files/messages/input ; mkdir -p data_files/messages/params ; mkdir -p data_files/messages/tmp ; mkdir -p updates ;  mkdir -p web/uploads/assets");
+    myExecute("Create default directories", "mkdir -p cache ; mkdir -p log ; mkdir -p web/generated_graphs ; mkdir -p data_files/rsync_with_remote_servers ; mkdir -p data_files/messages/archive ; mkdir -p data_files/messages/backup ; mkdir -p data_files/messages/input ; mkdir -p data_files/messages/output ; mkdir -p data_files/messages/params ; mkdir -p data_files/messages/tmp ; mkdir -p updates ;  mkdir -p web/uploads/assets");
 
     $buildVersion = '';
 
@@ -1386,6 +1385,12 @@ function manageCommand_data($subCommand, $option1, $option2 = '', $option3 = '')
         } else {
             echo "\nNeeded an id of an extension/organization";
         }
+    } else if ($subCommand == "export-rated-cdrs") {
+        $cdrTimeFrame = $option1;
+        $job = new ExportRatedCDRS();
+        $job->fromTime = strtotime($cdrTimeFrame);
+        $job->process();
+        
     } else if ($subCommand == "export-cdrs") {
 
         $cdrProviderName = $option1;
@@ -1958,15 +1963,21 @@ function completeResellerExportCodeId($rootId)
     }
 }
 
+function compressRate($baseRateName, $specificRateName, $rateName) {
+    
+    $rate = ArSpecificRateCalcPeer::updateSpecificRateCalcFromRateNames($baseRateName, $specificRateName, $rateName);
+    if (is_null($rate)) {
+        echo "\n!!! Error during compression of $specificRateName using $baseRateName in rate $rateName";
+    } else {
+        echo "\nCompressed $specificRateName using $baseRateName in rate $rateName";
+        $rate->save();
+    }
+}
+
 /**
  * Some code to test, during development phase.
  */
 function someCodeToTest()
 {
-    $v = array('parent_id' => NULL);
-    if (array_key_exists('parent_id', $v)) {
-        echo 'ok';
-    } else {
-        echo 'no';
-    }
+   
 }

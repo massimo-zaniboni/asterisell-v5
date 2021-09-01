@@ -93,7 +93,7 @@ class BackupOrganizationInfo extends JobProcessor
                 $version = file_get_contents(getAsterisellCompleteRootDirectory() . '/VERSION');
 
                 $rootDir = getAsterisellCompleteRootDirectory();
-                $cmd = "cd $rootDir && mysqldump --opt -u$user -p$password $databaseName ar_user ar_party ar_organization_unit ar_organization_unit_type ar_organization_unit_has_structure ar_user_has_role ar_user_has_permission > $outFileName ";
+                $cmd = "cd $rootDir && mysqldump --no-tablespace --opt -u$user -p$password $databaseName ar_user ar_party ar_organization_unit ar_organization_unit_type ar_organization_unit_has_structure ar_user_has_role ar_user_has_permission > $outFileName ";
                 system($cmd, $result);
 
                 // Save info

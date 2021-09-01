@@ -588,23 +588,23 @@ fromMySQLDateTimeAsTextToLocalTime !s
   process !p@(state, mult, mustBeDigit, currNum, year, month, day, hour, minutes, seconds) !c
     = case state of
            0 -> p
-                -- ^ error
+                -- error
            7 -> p
-                -- ^ not significant second digits
+                -- not significant second digits
            _ -> case mustBeDigit of
                   False
                     -> case isDigit c of
                          True
                            -> (0, mult, mustBeDigit, currNum, year, month, day, hour, minutes, seconds)
-                              -- ^ error: a digit is found, when no digit was expected
+                              -- error: a digit is found, when no digit was expected
                          False
                            -> (state + 1, 10, True, 0, year, month, day, hour, minutes, seconds)
-                              -- ^ go to next state, at for sure it is a two digit state (mult = 10)
+                              -- go to next state, at for sure it is a two digit state (mult = 10)
                   True
                     -> case isDigit c of
                          False
                            -> (0, mult, mustBeDigit, currNum, year, month, day, hour, minutes, seconds)
-                              -- ^ error: a digit was not found, when a digit was expected
+                              -- error: a digit was not found, when a digit was expected
                          True
                            -> let !v = digitToInt c
                                   !currNum' = currNum + v * mult

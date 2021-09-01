@@ -60,20 +60,20 @@
          <h2 class="section2-title">Enable SSH access</h2>
          <p class="shortdesc">Instances are managed using Python Fabric tool, and they are accessed using SSH.</p>
          <div class="body">
-            <section class="section" id="Enable_SSH_access__I_e4o0qv_">
+            <section class="section" id="Enable_SSH_access__I_zar1c7_">
                <h3 class="section-title">On the instance (remote) server</h3>
                <div class="p">Install the SSH server on the <a class="xref" href="manual-6.html#Asterisell_host">Asterisell host</a></div><pre class="pre">yum install openssh-server
 </pre><div class="p">Enable SSH root login, because the <a class="xref" href="manual-6.html#Instances_configuration_tool">Instances configuration tool</a> need it. Set in <code class="codeph">/etc/ssh/sshd_config</code></div><pre class="pre">PermitRootLogin yes
 </pre><div class="p">and restart the SSH server</div><pre class="pre">systemctl restart sshd
 </pre></section>
-            <section class="section" id="Enable_SSH_access__I_ba42mw_">
+            <section class="section" id="Enable_SSH_access__I_y9wyot_">
                <h3 class="section-title">On the management server</h3><pre class="pre">fab authorize_ssh_access:asterisell/demo
 # for enabling automatic SSH root access using ~/.ssh/id_rsa.pub key 
 </pre><div class="p">These actions must be performed also if the management server is the same of the instance
                   server, because also local instances will be accessed using <code class="codeph">ssh</code>.
                </div>
             </section>
-            <section class="section" id="Enable_SSH_access__I_rfc3a1_">
+            <section class="section" id="Enable_SSH_access__I_xuescb_">
                <h3 class="section-title">Restrict SSH root access</h3>
                <div class="p">If you want restrict direct root login access only to <a class="xref" href="manual-6.html#Instances_configuration_tool">Instances configuration tool</a>, set in <code class="codeph">/etc/ssh/sshd_config</code> of the <a class="xref" href="manual-6.html#Asterisell_host">Asterisell host</a></div><pre class="pre">PermitRootLogin without-password
 PubkeyAuthentication yes

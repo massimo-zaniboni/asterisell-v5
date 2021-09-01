@@ -14,11 +14,9 @@ sfLoader::loadHelpers(array('I18N', 'Debug', 'Date', 'Asterisell'));
  *
  * Produce a "CustomerHasHighCallCostEvent" event.
  */
-class CheckCallCostLimit extends FixedJobProcessor
-{
+class CheckCallCostLimit extends FixedJobProcessor {
 
-    public function process()
-    {
+    public function process() {
 
         $timeFrameInMinutes = sfConfig::get('app_check_cost_limits_after_minutes');
 
@@ -34,8 +32,7 @@ class CheckCallCostLimit extends FixedJobProcessor
         }
     }
 
-    private function checkLimits()
-    {
+    private function checkLimits() {
         $prof = new JobProfiler('accounts');
 
         $info = OrganizationUnitInfo::getInstance();
@@ -82,9 +79,10 @@ class CheckCallCostLimit extends FixedJobProcessor
 
         $unitIdWithIncomeLimit = array();
         $partyIdLastSentEmail = array();
-        $stm = Propel::getConnection()->prepare($query);
+
+        $stm = FixedJobProcessor::prepareFetchStmt($query);
         $stm->execute();
-        while (($rs = $stm->fetch(PDO::FETCH_NUM)) !== false) {
+        while ($rs = $stm->fetch(PDO::FETCH_NUM)) {
             $id = $rs[0];
             $partyId = $rs[1];
             $limit = $rs[2];
@@ -100,18 +98,18 @@ class CheckCallCostLimit extends FixedJobProcessor
         //
 
         $query = '
-        SELECT cached_parent_id_hierarchy, SUM(income)
-        FROM ar_cached_grouped_cdr
-        WHERE calldate >= ?
-        GROUP BY cached_parent_id_hierarchy
-        ';
+              SELECT cached_parent_id_hierarchy, SUM(income)
+              FROM ar_cached_grouped_cdr
+              WHERE calldate >= ?
+              GROUP BY cached_parent_id_hierarchy
+            ';
 
         /**
          * @var array $totIncomes from unitId to total incomes
          */
         $totIncomes = array();
 
-        $stm = Propel::getConnection()->prepare($query);
+        $stm = FixedJobProcessor::prepareFetchStmt($query);
         $stm->execute(array(fromUnixTimestampToMySQLDate($timeframe)));
         while (($rs = $stm->fetch(PDO::FETCH_NUM)) !== false) {
             $prof->incrementProcessedUnits();
@@ -127,6 +125,7 @@ class CheckCallCostLimit extends FixedJobProcessor
             }
         }
         $stm->closeCursor();
+
 
         //
         // Compare Totals with Limits and Generate Warnings.
@@ -161,7 +160,8 @@ class CheckCallCostLimit extends FixedJobProcessor
 
                 if ($effectiveCost > 4 * $costLimit) {
                     $problemEffect = 'There can be a security breach, and the calls are placed from some hacker. ';
-                    $problemSolution = 'Check if there is some security breach in you VoIP servers, or accounts. ';;
+                    $problemSolution = 'Check if there is some security breach in you VoIP servers, or accounts. ';
+                    ;
                 } else if ($effectiveCost > 2 * $costLimit) {
                     $problemEffect = 'There can be a security breach, and the calls are placed from some hacker. ';
                     $problemSolution = 'Check if there is some security breach in you VoIP servers, or accounts/users.';
@@ -183,17 +183,17 @@ class CheckCallCostLimit extends FixedJobProcessor
                 $name = $info->getFullNameAtDate($unitId, $nowDate, false, false, null, false, false);
 
                 ArProblemException::createWithGarbageCollection(
-                    $errorType,
-                    $errorDomain,
-                    null,
-                    get_class($this) . " - $unitId $errorType $errorDomain",
-                    get_class($this),
-                    null,
-                    null,
-                    'Account ' . $name . ' with identifier ' . $unitId . ' has spent ' . from_db_decimal_to_monetary_txt_according_locale($effectiveCost) . " instead of allowed " . from_db_decimal_to_monetary_txt_according_locale($costLimit) . ' (according his cost limit) ' . $timeframeDescription . '.',
-                    $problemEffect,
-                    $problemSolution,
-                    null);
+                        $errorType,
+                        $errorDomain,
+                        null,
+                        get_class($this) . " - $unitId $errorType $errorDomain",
+                        get_class($this),
+                        null,
+                        null,
+                        'Account ' . $name . ' with identifier ' . $unitId . ' has spent ' . from_db_decimal_to_monetary_txt_according_locale($effectiveCost) . " instead of allowed " . from_db_decimal_to_monetary_txt_according_locale($costLimit) . ' (according his cost limit) ' . $timeframeDescription . '.',
+                        $problemEffect,
+                        $problemSolution,
+                        null);
 
                 // Advise the customer via mail only at a certain interval.
                 if ($isCustomerAdviseEnabled) {
@@ -218,4 +218,5 @@ class CheckCallCostLimit extends FixedJobProcessor
 
         return $prof->stop();
     }
+
 }

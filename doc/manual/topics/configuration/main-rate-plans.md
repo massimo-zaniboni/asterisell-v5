@@ -14,12 +14,13 @@ rate {
     id: vendor1
     match-vendor: vendor1
     match-communication-channel: international-calls
-    external-rate {
-      id: csv
-      use: cost-for-vendor1
-      set-cost-on-call: 0.02
-      set-cost-for-minute: this
-    }
+
+    use: cost-for-vendor1
+    # NOTE: this is a CSV file containing a cost-by-minute for every prefix
+
+    set-cost-on-call: 0.02
+    set-cost-for-minute: external
+    # NOTE: use the cost specifieb by "cost-for-vendor1" CSV file
   }
 }
 ```

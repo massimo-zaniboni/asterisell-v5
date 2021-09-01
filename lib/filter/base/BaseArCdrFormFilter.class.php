@@ -36,6 +36,10 @@ abstract class BaseArCdrFormFilter extends BaseFormFilterPropel
       'ar_problem_duplication_key'                         => new sfWidgetFormFilterInput(),
       'debug_cost_rate'                                    => new sfWidgetFormFilterInput(),
       'debug_income_rate'                                  => new sfWidgetFormFilterInput(),
+      'imported_info'                                      => new sfWidgetFormFilterInput(),
+      'exported_internal_telephone_number'                 => new sfWidgetFormFilterInput(array('with_empty' => false)),
+      'exported_billable_customer_ar_party_id'             => new sfWidgetFormFilterInput(),
+      'from_source_cdr_id'                                 => new sfWidgetFormFilterInput(),
     ));
 
     $this->setValidators(array(
@@ -63,6 +67,10 @@ abstract class BaseArCdrFormFilter extends BaseFormFilterPropel
       'ar_problem_duplication_key'                         => new sfValidatorPass(array('required' => false)),
       'debug_cost_rate'                                    => new sfValidatorPass(array('required' => false)),
       'debug_income_rate'                                  => new sfValidatorPass(array('required' => false)),
+      'imported_info'                                      => new sfValidatorPass(array('required' => false)),
+      'exported_internal_telephone_number'                 => new sfValidatorPass(array('required' => false)),
+      'exported_billable_customer_ar_party_id'             => new sfValidatorSchemaFilter('text', new sfValidatorInteger(array('required' => false))),
+      'from_source_cdr_id'                                 => new sfValidatorSchemaFilter('text', new sfValidatorInteger(array('required' => false))),
     ));
 
     $this->widgetSchema->setNameFormat('ar_cdr_filters[%s]');
@@ -107,6 +115,10 @@ abstract class BaseArCdrFormFilter extends BaseFormFilterPropel
       'ar_problem_duplication_key'                         => 'Text',
       'debug_cost_rate'                                    => 'Text',
       'debug_income_rate'                                  => 'Text',
+      'imported_info'                                      => 'Text',
+      'exported_internal_telephone_number'                 => 'Text',
+      'exported_billable_customer_ar_party_id'             => 'Number',
+      'from_source_cdr_id'                                 => 'Number',
     );
   }
 }

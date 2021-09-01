@@ -1,7 +1,15 @@
-flags: {}
+flags:
+  cryptonite:
+    use_target_attributes: false
+
+allow-newer: true
 packages:
 - .
 extra-deps:
 - ./bytestring-trie-0.3.0.4
 - quicklz-1.5.0.11@sha256:4db281a4f7809e550753919352148ae174bc5ad5154dc84461f3b1497dd11fac,2165
-resolver: lts-14.16
+- tcp-streams-1.0.1.1@sha256:35e9ecfa515797052f8c3c01834d2daebd5e93f3152c7fc98b32652bf6f0c052,2329
+- wire-streams-0.1.1.0@sha256:08816c7fa53b20f52e5c465252c106d9de8e6d9580ec0b6d9f000a34c7bcefc8,2130
+- MissingH-1.4.3.0@sha256:7136282773f7b3e7ce3af856b41dde98a04f9b03c51813c98d040fc060dcaa53,4650
+- ./mysql-haskell
+resolver: lts-18.5

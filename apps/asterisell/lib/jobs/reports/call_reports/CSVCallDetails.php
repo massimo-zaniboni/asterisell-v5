@@ -26,8 +26,6 @@ class CSVCallDetails extends BaseBillingReport
     {
         $info = OrganizationUnitInfo::getInstance();
 
-        $conn = Propel::getConnection();
-
         $report = $this->getArReport();
         $isDraftReport = $report->getProducedReportIsDraft();
         $fromDate = fromMySQLTimestampToUnixTimestamp($report->getFromDate());
@@ -81,7 +79,7 @@ class CSVCallDetails extends BaseBillingReport
 
         $additionalQueryCond = 'AND ar_cdr.cached_parent_id_hierarchy LIKE ?';
         $query = $this->getQueryOnCdrs($additionalQueryCond);
-        $stmt = $conn->prepare($query);
+        $stmt = FixedJobProcessor::prepareFetchStmt($query);
         $stmt->execute(array($startOrganizationHierarchy . '%'));
         $names = array();
 

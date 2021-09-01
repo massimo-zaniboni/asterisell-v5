@@ -27,6 +27,7 @@ module Asterisell.OrganizationHierarchy (
   info_getBillableDataInfo,
   info_getRateCategoryId,
   info_getFullName,
+  info_getFullNameAfterUnitId, 
   info_getAllActiveExtensions,
   info_empty,
   info_getDataInfoParentHierarchy,
@@ -47,6 +48,7 @@ module Asterisell.OrganizationHierarchy (
   IsStrictResult,
   info_respectCodeContracts,
   extensionCodes_extractFromUserSpecification,
+  hackedAccount,
   User(..),
   UserInfo,
   userInfo_load,
@@ -141,6 +143,13 @@ type PriceCategoryId = Int
 -- | The head is the root organization id, and then there is the first parent,
 --   until the final child.
 type ParentIdHierarchy = [UnitId]
+
+-- | An identifier shared with PHP code,
+--   for identifying hacked accounts.
+--
+--   NOTE: if you change this code, update also the PHP code.
+hackedAccount :: T.Text
+hackedAccount = "__hacked__account__"
 
 -- | Info for Organizations and Extensions, at a certain point in time.
 --   The info is valid from the specified date, until there is another info
@@ -249,15 +258,15 @@ info_empty = Info {
 
 info_respectCodeContracts :: Info -> CallDate -> Either String ()
 info_respectCodeContracts info rateFromDate
-  = do (when $ not $ testIntMapWithDataInfo $ info_organizations info)
-         (fail $ dbc_error "ohi1")
-
-       (when $ not $ testIntMapWithDataInfo $ info_directPriceCategories info)
-         (fail $ dbc_error "ohi2")
-
-       case thereAreUniqueExtensions of
-         Nothing -> return ()
-         Just err -> fail err
+  = case (testIntMapWithDataInfo $ info_organizations info) of
+      False -> Left $ dbc_error "ohi1"
+      True -> 
+       case (testIntMapWithDataInfo $ info_directPriceCategories info) of
+         False -> Left $ dbc_error "ohi2"
+         True ->
+           case thereAreUniqueExtensions of
+             Nothing -> Right ()
+             Just err -> Left err
 
  where
 
@@ -782,6 +791,18 @@ info_getFullName infos implicitLevel reverseOrder showExtensionCode useOnlyExten
                  else names
 
     in  L.intercalate " / " names2
+
+-- | Get the name of the organization, starting after the specified unit-id inside the hirearchy.
+--   For example if we have "a/b/c/d", we can show only "c/d" if "a/b" is implicit.
+--
+info_getFullNameAfterUnitId :: ParentHiearchy -> UnitId -> Bool -> Bool -> Bool -> String
+info_getFullNameAfterUnitId infos unitId reverseOrder showExtensionCode useOnlyExtensionShortCode
+  = let 
+        infos2 = 
+          case L.dropWhile (\d -> (unit_id d) /= unitId) infos of
+            [] -> []
+            (_:dd) -> dd
+    in  info_getFullName infos2 0 reverseOrder showExtensionCode useOnlyExtensionShortCode
 
 -- ----------------------------
 -- Queries on global data

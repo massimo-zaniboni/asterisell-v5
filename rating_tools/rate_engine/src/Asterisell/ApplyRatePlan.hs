@@ -14,7 +14,6 @@ module Asterisell.ApplyRatePlan (
   mainRatePlan_calcCost
   , ratingParamsForTest
   , bundleState_areThereServiceCdrs
-  , RateCost(..)
   , SelectedRate
   , AppliedRate
   , AppliedNormalAndBundleRate
@@ -120,7 +119,7 @@ process_calcRates
 process_calcRates env (ParsedCDR1(sourceCDR, Just err, cdr1)) = do
   return $ (ParsedCDR1(sourceCDR, Just err, cdr1), (applied_noRate, applied_noRate), [])
 
-process_calcRates env (ParsedCDR1(sourceCDR@(providerName, callDate, formatId, rawCDR), Nothing, cdr1)) = do
+process_calcRates env (ParsedCDR1(sourceCDR@(providerName, callDate, cdrId, isHacked, formatId, rawCDR), Nothing, cdr1)) = do
 
   let !fromCallDate = params_fromDate env
   let !cdrImporters = params_fastLookupCDRImporters env
@@ -269,7 +268,7 @@ process_applyRates env state0 inChan outChan outExtChan = async $ mainProcess Tr
 
   rateCDRSAndServices
     (state1, services1)
-    (ParsedCDR1(sourceCDR@(providerName, callDate, formatId, rawCDR), Nothing, cdr1)
+    (ParsedCDR1(sourceCDR@(providerName, callDate, cdrId, isHacked, formatId, rawCDR), Nothing, cdr1)
     , ( (Just normalCostRate@(cost, _, costRateId), Nothing)
       , (Just normalIncomeRate@(normalIncome, _, normalIncomeRateId), maybeBundleIncomeRate))
     , extensions) = do
@@ -301,6 +300,7 @@ process_applyRates env state0 inChan outChan outExtChan = async $ mainProcess Tr
                     return (((d1, bundleRecord2), ms1, ms2, mcd, mus2), bundleIncome, Just bundleUnitId, bundleRateId)
 
           let !cdr4 = cdr3 { cdr_income = income, cdr_bundleOrganizationUnitId = maybeBundleUnitId, cdr_debug_income_rate = dbg cdr3 IncomeRate incomeRateId }
+
           return ((state3, services1 ++ services2), ParsedCDR1(sourceCDR, Nothing, cdr4))
 
   -- | Update the rating status, and rate the corresponding bundle rates service CDRS.
@@ -522,6 +522,25 @@ cdr_initialClassification env maybeCallDateToVerify cdr1 = do
                          , cdr_billableOrganizationUnitId = ov cdr3 cdr_billableOrganizationUnitId (Just $ unit_id billableDataInfo)
                          , cdr_priceCategoryId = ov cdr3 cdr_priceCategoryId maybeRateCategoryId
                          }
+
+        let !cdr5 = 
+              case (iparams_generateExportedCDRInfo $ params_initial env) of
+                False -> cdr4
+                True -> 
+                  cdr4 {
+                    exported_billable_customer_ar_party_id = 
+                      (case maybeBillableDataInfo of
+                          Nothing -> Nothing
+                          Just billableData -> structure_partyId billableDataInfo),
+
+                    exported_internal_telephone_number =
+                      (case maybeBillableDataInfo of
+                          Nothing ->
+                            Text.pack $ info_getFullName dataInfoParents 0 False True False
+                          Just billableDataInfo ->
+                            Text.pack $ info_getFullNameAfterUnitId dataInfoParents (unit_id billableDataInfo) False True False)
+                  } 
+
         --
         -- Complete info about telephone numbers
         --
@@ -535,7 +554,7 @@ cdr_initialClassification env maybeCallDateToVerify cdr1 = do
                                                 ("The problem can be in the CDR record or in the application configuration. Contact the assistance.")
              )
 
-        return (cdr4, isExtensionalMatch)
+        return (cdr5, isExtensionalMatch)
 
   pass2 :: StateT CDR (Either AsterisellError) ()
   pass2
@@ -789,7 +808,7 @@ selectBestRate env rateRole mrp mandatoryRateSelection cdr maybeRateErrorId pare
          let !calc2
                = case maybeParentRate of
                         Nothing -> selectedCalc
-                        Just (_, _, parentCalc, _) -> calcParams_override parentCalc selectedCalc
+                        Just (_, _, parentCalc, _) -> calcParams_override parentCalc False selectedCalc
          case rate_children selectedRate of
            [] -> return $ Just (selectedRateId, selectedRate, calc2, selectedMatch)
            children -> selectBestNestedRate (Just (selectedRateId, selectedRate, calc2, selectedMatch)) children
@@ -901,7 +920,7 @@ selectBestRate env rateRole mrp mandatoryRateSelection cdr maybeRateErrorId pare
                                      Left err -> Left err
                                      Right Nothing -> Right Nothing
                                      Right (Just (_, ratePlan2, calc2, match2)) ->
-                                       Right $ Just (actualRateId, ratePlan2, calcParams_override calc1 calc2, match_combineWithChild match1 match2)
+                                       Right $ Just (actualRateId, ratePlan2, calcParams_override calc1 True calc2, match_combineWithChild match1 match2)
                                        -- NOTE: in case of ExternalRates, return the last rate in the RatePlan
                               _ ->
                                 Left $ createError
@@ -936,7 +955,7 @@ cdr_missingRateKey cdr
 -- | Apply CalcParams, and calculate the cost of the call.
 calcParams_calc :: RateRole -> CalcParams -> CDR -> MonetaryValue
 calcParams_calc rateRole params cdr
-  = let paramsWithDefaults = calcParams_override calcParams_defaultValues params
+  = let paramsWithDefaults = calcParams_override calcParams_defaultValues False params
     in evalState (calc paramsWithDefaults) ()
  where
 
@@ -944,89 +963,98 @@ calcParams_calc rateRole params cdr
 
    calc :: CalcParams -> State () MonetaryValue
    calc params
-     = do let costForMinute = fromJust1 "rp18" $ calcParams_costForMinute params
-          let costOnCall = fromJust1 "rp19" $ calcParams_costOnCall params
-          let maxCostOfCall = fromJust1 "rp20" $ calcParams_maxCostOfCall params
-          let minCostOfCall = fromJust1 "rp21" $ calcParams_minCostOfCall params
-          let atLeastXSeconds = fromJust1 "rp22" $ calcParams_atLeastXSeconds params
+     = do let costForMinute = 
+                case calcParams_costForMinute params of
+                  CP_Value v -> v
+                  _ -> 0
+
+          let freeSecondsAfterCostOnCall = 
+                case calcParams_freeSecondsAfterCostOnCall params of
+                  CP_Value v -> v
+                  _ -> 0
+
+          let costOnCall = calcParams_costOnCall params
+          let maxCostOfCall = calcParams_maxCostOfCall params
+          let minCostOfCall = calcParams_minCostOfCall params
+          let atLeastXSeconds = 
+                case calcParams_atLeastXSeconds params of
+                  CP_Value v -> v
+                  _ -> 0
 
           cost :: MonetaryValue  <- return $ fromIntegral 0
-          totSec :: Int <- return $ cdrTotSec
-
-          totSec <- return $ totSec - (fromJust1 "rp23" $ calcParams_freeSecondsAfterCostOnCall params)
-
+          totSec :: Int <- return $ cdrTotSec - freeSecondsAfterCostOnCall
+          totSec <- return $ if totSec < 0 then 0 else totSec
+          
           totSec
-            <- return $ case (fromJust1 "rp24" $ calcParams_durationDiscreteIncrements params) of
-                          Nothing
+            <- return $ case calcParams_durationDiscreteIncrements params of
+                          CP_Value 0
                             -> totSec
-                          Just 0
-                            -> totSec
-                          Just delta
+                          CP_Value delta
                             -> if totSec == 0
                                then delta
                                else let (t, r) =  divMod totSec delta
                                         t1 = if r > 0 then t + 1 else t
                                     in  t1 * delta
+                          _ -> totSec
 
           totSec <- return $ if totSec < atLeastXSeconds then atLeastXSeconds else totSec
 
           cost <- return $ (costForMinute * fromIntegral totSec) / 60
 
           cost <- case costOnCall of
-                    RateCost_cost c
+                    CP_Value c
                       -> return $ cost + c
-                    RateCost_imported
+                    CP_Imported
                       -> case rateRole of
-                           IncomeRate -> return $ cdr_income cdr
-                           CostRate -> return $ cdr_cost cdr
-                    RateCost_expected
+                           IncomeRate -> return $ cost + (cdr_income cdr)
+                           CostRate -> return $ cost + (cdr_cost cdr)
+                    CP_Expected
                       -> case cdr_expectedCost cdr of
                            Nothing
-                             -> return 0
+                             -> return cost
                            Just c
-                             -> return c
+                             -> return $ c + cost
+                    _ -> return cost 
 
           cost <- return $ case maxCostOfCall of
-                             Nothing -> cost
-                             Just m -> if cost > m then m else cost
+                             CP_Value m -> if cost > m then m else cost
+                             _ -> cost
 
           cost <- return $ case minCostOfCall of
-                             Nothing -> cost
-                             Just m -> if cost < m then m else cost
-
-          cost <- return $ case (fromJust1 "rp25" $ calcParams_roundToDecimalDigits params) of
-                             Nothing -> cost
-                             Just precision
+                             CP_Value m -> if cost < m then m else cost
+                             _ -> cost
+  
+          cost <- return $ case calcParams_roundToDecimalDigits params of
+                             CP_Value precision
                                -> if precision == 0
                                   then toRational $ round cost
                                   else let scale :: MonetaryValue = fromIntegral $ 10 ^ precision
                                            scaledCost :: MonetaryValue = cost * scale
                                        in  (toRational $ mathRound scaledCost) / scale
+                             _ -> cost
 
 
-          cost <- return $ case (fromJust1 "rp25" $ calcParams_ceilToDecimalDigits params) of
-                             Nothing -> cost
-                             Just precision
+          cost <- return $ case calcParams_ceilToDecimalDigits params of
+                             CP_Value precision
                                -> if precision == 0
                                   then toRational $ ceiling cost
                                   else let scale :: MonetaryValue = fromIntegral $ 10 ^ precision
                                            scaledCost :: MonetaryValue = cost * scale
                                        in  (toRational $ ceiling scaledCost) / scale
+                             _ -> cost
 
-          cost <- return $ case (fromJust1 "rp25" $ calcParams_floorToDecimalDigits params) of
-                             Nothing -> cost
-                             Just precision
+          cost <- return $ case calcParams_floorToDecimalDigits params of
+                             CP_Value precision
                                -> if precision == 0
                                   then toRational $ floor cost
                                   else let scale :: MonetaryValue = fromIntegral $ 10 ^ precision
                                            scaledCost :: MonetaryValue = cost * scale
                                        in  (toRational $ floor scaledCost) / scale
+                             _ -> cost
 
           cost <- return $ case calcParams_customCalc params of
-                             Nothing
-                               -> cost
-                             Just fun
-                               -> fun cdr cost
+                             CP_Value fun -> fun cdr cost
+                             _ -> cost
 
           return cost
 
@@ -2129,18 +2157,18 @@ tt_ratePlanTests
   cp1 = calcParams_defaultValues
 
   cp2 = calcParams_empty {
-          calcParams_costOnCall = Just $ RateCost_cost 2
+          calcParams_costOnCall = CP_Value 2
         }
 
   cp3 = calcParams_empty {
-          calcParams_costForMinute = Just 1
+          calcParams_costForMinute = CP_Value 1
         }
 
-  cpO1 = calcParams_override (calcParams_override cp1 cp2) cp3
+  cpO1 = calcParams_override (calcParams_override cp1 False cp2) False cp3
 
-  cpO2 = calcParams_override cp1 cp2
+  cpO2 = calcParams_override cp1 False cp2
 
-  cpO3 = calcParams_override cp2 cp3
+  cpO3 = calcParams_override cp2 False cp3
 
   cpO4 = cp2
 

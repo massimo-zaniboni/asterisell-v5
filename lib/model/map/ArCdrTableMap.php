@@ -63,6 +63,10 @@ class ArCdrTableMap extends TableMap {
 		$this->addColumn('AR_PROBLEM_DUPLICATION_KEY', 'ArProblemDuplicationKey', 'VARCHAR', false, 255, null);
 		$this->addColumn('DEBUG_COST_RATE', 'DebugCostRate', 'VARCHAR', false, 512, null);
 		$this->addColumn('DEBUG_INCOME_RATE', 'DebugIncomeRate', 'VARCHAR', false, 512, null);
+		$this->addColumn('IMPORTED_INFO', 'ImportedInfo', 'VARCHAR', false, 4096, null);
+		$this->addColumn('EXPORTED_INTERNAL_TELEPHONE_NUMBER', 'ExportedInternalTelephoneNumber', 'VARCHAR', true, 1024, null);
+		$this->addColumn('EXPORTED_BILLABLE_CUSTOMER_AR_PARTY_ID', 'ExportedBillableCustomerArPartyId', 'INTEGER', false, null, null);
+		$this->addColumn('FROM_SOURCE_CDR_ID', 'FromSourceCdrId', 'INTEGER', false, null, null);
 		// validators
 	} // initialize()
 

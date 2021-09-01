@@ -141,6 +141,9 @@ class Host(object):
 
     db_root_password = None
 
+    dbms_bind_address = '127.0.0.1'
+    dbms_port = '3306'
+
     dbms_reserved_ram_in_mb = 1000
 
     inno_dbms_reserved_ram_in_mb = 50
@@ -261,6 +264,7 @@ exit 0
                                  gmp gmp-devel libffi zlib xz tar gnupg \
                                  php-pear php-pecl-jsonc php-process \
                                  certbot-nginx \
+                                 ncurses ncurses-libs ncurses-devel \
                                  t1lib trousers""")
 
             # Firewall rules
@@ -356,8 +360,8 @@ LD_PRELOAD=/usr/lib64/libjemalloc.so.1
 
 validate_password_policy=LOW
 
-# Accepts only local connections
-bind-address = 127.0.0.1
+port = ${port}
+bind-address = ${bind_address}
 
 # Set to a low value,
 # because Asterisell uses only TokeDB tables,
@@ -380,7 +384,11 @@ secure_file_priv = '/var/tmp'
 # Disabling symbolic-links is recommended to prevent assorted security risks
 symbolic-links=0
 
-            """, dbms_ram=self.dbms_reserved_ram_in_mb, inno_dbms_ram=self.inno_dbms_reserved_ram_in_mb)
+            """, 
+            dbms_ram=self.dbms_reserved_ram_in_mb, 
+            inno_dbms_ram=self.inno_dbms_reserved_ram_in_mb,
+            port=self.dbms_port,
+            bind_address=self.dbms_bind_address)
 
             # Gracefull reload is not permitted,
             # and a restart is not nice because pending transactions will be interrupted,
@@ -879,6 +887,8 @@ class Instance(object):
     conf_smtp_seconds_of_pause_after_reconnection = 0
     conf_instance_voip_domain = ''
 
+    conf_generate_exported_cdr_info = False
+
     # Copy customer specific files inside `customizations` directory,
     # inside the admin instance.
     #
@@ -1292,13 +1302,16 @@ all:
       Report_CompareVendorsAndCostSaving: "Compare Vendors and Cost Saving (User Defined)"
       Report_CompareChannels: "Compare Channels (User Defined)"
       CSVCallDetails: "CSV File with Call Details"
+      CSVInvoices: "CSV File with all the invoices details"
       $custom_reports_list
 
     always_scheduled_jobs:
       - RecalculateReportSets
       - ChangePassword
-      - $expand_wholesale_numbers_job
-      - UpdateWholesaleNumberStats
+
+      # - $expand_wholesale_numbers_job          # TODO disabled because... 
+      # - UpdateWholesaleNumberStats             # ... there is a forcing a firing of the ManageRateEvent.
+                                                 # It is not used in production, up to date, so it is not a problem.
       $import_cdrs_jobs
       - ImportCustomersDataAskingToRatingEngine  # process all params with prefix "import-remote-customers-"
       - ImportCDRSUsingAppConfs                  # process all params with prefix "import-remote-cdrs-"
@@ -1324,9 +1337,8 @@ all:
       - BackupOrganizationInfo
       - ChangePassword                      # execute more times this, for having a more reactive upgrade
       $custom_export_cdrs_jobs
-      # MAYBE: ISP can manage backup of VMS using their tools, and TokuDB compressed tables are rather manageable
-      # Itec: disabled backup jobs because there are many CDRS and data,
-      # and a dump can be costly. It is better a programmed backup of the TokuDB compressed binary tables.
+      # MAYBE: ISP can manage backup of VMS using their tools, and TokuDB compressed tables have a manegeable size,
+      # so I disable these backup jobs.
       # - BackupConfigurations
       # - BackupSourceCDRS
       # - BackupCDRS
@@ -1381,6 +1393,9 @@ all:
       - Upgrade_2019_02_16
       - Upgrade_2019_03_10
       - Upgrade_2019_07_24
+      - Upgrade_2020_07_24
+      - Upgrade_2020_08_09
+      - Upgrade_2021_06_30
       $custom_upgrade_jobs
 
   organization_to_ignore: $organization_to_ignore
@@ -1424,6 +1439,8 @@ all:
   check_new_external_files_to_import_after_minutes: $conf_check_new_external_files_to_import_after_minutes
 
   check_for_spacewalk_updates_after_minutes: 60
+
+  conf_generate_exported_cdr_info: $conf_generate_exported_cdr_info
 
   # The maximum number of days that can be part of a rating phase.
   # Rating time-frame bigger than these days, are split in smaller chunks.
@@ -1624,6 +1641,7 @@ all:
             expand_extensions_job=self.yaml_string(self.expand_extensions_job),
             instance_url_path=self.yaml_string(self.url_path),
             expand_wholesale_numbers_job=self.expand_wholesale_numbers_job,
+            conf_generate_exported_cdr_info=self.bool_value_str(self.conf_generate_exported_cdr_info),
         )
 
     def show_call_direction_bool_str(self):

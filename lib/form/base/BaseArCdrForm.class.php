@@ -41,6 +41,10 @@ abstract class BaseArCdrForm extends BaseFormPropel
       'ar_problem_duplication_key'                         => new sfWidgetFormInputText(),
       'debug_cost_rate'                                    => new sfWidgetFormInputText(),
       'debug_income_rate'                                  => new sfWidgetFormInputText(),
+      'imported_info'                                      => new sfWidgetFormInputText(),
+      'exported_internal_telephone_number'                 => new sfWidgetFormInputText(),
+      'exported_billable_customer_ar_party_id'             => new sfWidgetFormInputText(),
+      'from_source_cdr_id'                                 => new sfWidgetFormInputText(),
     ));
 
     $this->setValidators(array(
@@ -71,6 +75,10 @@ abstract class BaseArCdrForm extends BaseFormPropel
       'ar_problem_duplication_key'                         => new sfValidatorString(array('max_length' => 255, 'required' => false)),
       'debug_cost_rate'                                    => new sfValidatorString(array('max_length' => 512, 'required' => false)),
       'debug_income_rate'                                  => new sfValidatorString(array('max_length' => 512, 'required' => false)),
+      'imported_info'                                      => new sfValidatorString(array('max_length' => 4096, 'required' => false)),
+      'exported_internal_telephone_number'                 => new sfValidatorString(array('max_length' => 1024)),
+      'exported_billable_customer_ar_party_id'             => new sfValidatorInteger(array('min' => -2147483648, 'max' => 2147483647, 'required' => false)),
+      'from_source_cdr_id'                                 => new sfValidatorInteger(array('min' => -2147483648, 'max' => 2147483647, 'required' => false)),
     ));
 
     $this->widgetSchema->setNameFormat('ar_cdr[%s]');
