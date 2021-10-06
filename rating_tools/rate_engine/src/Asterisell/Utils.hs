@@ -783,16 +783,23 @@ mathRound x
 
 -- | Get the ported telephone number substituting a prefix.
 --   Return Nothing if the substitution can not be done.
-replacePrefixAndGetPortedTelephoneNumber :: String -> String -> String -> Maybe String
-replacePrefixAndGetPortedTelephoneNumber sourceNumber sourcePrefix destPrefix
+replacePrefixAndGetPortedTelephoneNumber :: Bool -> String -> String -> String -> Maybe String
+replacePrefixAndGetPortedTelephoneNumber onlySafeTWTNumbers sourceNumber sourcePrefix destPrefix
   = let l = length sourcePrefix
         sl = length sourceNumber
 
-    in case l > sl of
-         True
-           -> Nothing
-         False
-           -> Just $ destPrefix ++ (drop l sourceNumber)
+    in case (onlySafeTWTNumbers && isSafeTWTNumber sourceNumber && isSafeTWTNumber destPrefix) || (not onlySafeTWTNumbers) of
+         False -> Nothing
+         True ->
+           case l > sl of
+             True -> Nothing
+             False -> Just $ destPrefix ++ (drop l sourceNumber)
+
+-- | TWT uses sometime malformed numbers.
+--   Consider as "safe" a correct Italian mobile number starting with "399".
+isSafeTWTNumber :: String -> Bool
+isSafeTWTNumber n = isPrefixOf "393" n
+{-# INLINE isSafeTWTNumber #-}
 
 -- ----------------------------------
 -- MySQL LOAD DATA (CSV-like) format
@@ -1370,7 +1377,9 @@ tt_parseTests
                                                      v4 <- parseCSVString ','
                                                      return (v1, v2, v3, v4)
                                                  ) (T.pack "one", T.pack "two", T.pack "three", T.pack "four")
-    , HUnit.TestCase $ HUnit.assertEqual "17" (Just "123456") (replacePrefixAndGetPortedTelephoneNumber "000456" "000" "123")
+    , HUnit.TestCase $ HUnit.assertEqual "17a" (Just "123456") (replacePrefixAndGetPortedTelephoneNumber False "000456" "000" "123")
+    , HUnit.TestCase $ HUnit.assertEqual "17b" Nothing (replacePrefixAndGetPortedTelephoneNumber True "000456" "000" "123")
+    , HUnit.TestCase $ HUnit.assertEqual "17c" (Just "393056") (replacePrefixAndGetPortedTelephoneNumber True "393456" "3934" "3930")
     , testLocalTimeParsing "18" "2015-01-02 03:04:05"
     , testLocalTimeParsing "19" "2015-11-13 10:12:54"
     , testLocalTimeParsing "20" "2015-2537y-13 10:12:54"

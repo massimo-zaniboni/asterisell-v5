@@ -1396,6 +1396,10 @@ all:
       - Upgrade_2020_07_24
       - Upgrade_2020_08_09
       - Upgrade_2021_06_30
+      - Upgrade_2021_09_01
+      - Upgrade_2021_09_02
+      - Upgrade_2021_09_03
+      - Upgrade_2021_09_04
       $custom_upgrade_jobs
 
   organization_to_ignore: $organization_to_ignore

@@ -48,7 +48,6 @@ class NumberPortability
         } else {
             return $insertedRecords;
         }
-
     }
 
     /**
@@ -112,7 +111,7 @@ class NumberPortability
                 $destNumber = $truePrefix . substr($calledNr, strlen($truePrefix));
 
                 // NOTE: call in any case, because maybe a previous ported number, is now not any more ported.
-                $this->maybeInsertNumber($calledNr, $destNumber, $callDate, $conn);
+                $this->maybeInsertNumber($calledNr, $destNumber, $callDate, $conn, true);
             }
         } // while
 
@@ -124,15 +123,34 @@ class NumberPortability
      * - merge dates in case it is possible, instead of inserting repeated stupid portings
      * - recognize when the number is not any more ported
      *
+     * Because TWT sends malformed ported number, insert only good mobile numbers,
+     * and ignore other numbers. See https://support.asterisell.com/issues/720
+     * 
      * @param string $sourceNumber
      * @param string $destNumber
      * @param int $fromDate
      * @param PropelPDO $conn
      */
-    public function maybeInsertNumber($sourceNumber, $destNumber, $fromDate, PropelPDO $conn)
+    public function maybeInsertNumber($sourceNumber, $destNumber, $fromDate, PropelPDO $conn, $useCorrectTWTMobileNumbers = false)
     {
-        $stmt = $conn->prepare("CALL add_ported_telephone_number(?,?,?)");
-        $stmt->execute(array($sourceNumber, $destNumber, fromUnixTimestampToMySQLTimestamp($fromDate)));
-        $stmt->closeCursor();
+        $continue = true;
+        if ($useCorrectTWTMobileNumbers) {
+            $continue = ($this->isCorrectTWTMobileNumber($sourceNumber) && $this->isCorrectTWTMobileNumber($destNumber));
+        }
+        
+        if ($continue) {
+          $stmt = $conn->prepare("CALL add_ported_telephone_number(?,?,?)");
+          $stmt->execute(array($sourceNumber, $destNumber, fromUnixTimestampToMySQLTimestamp($fromDate)));
+          $stmt->closeCursor();
+        }
+    }
+    
+    /**
+     * 
+     * @param string $n the number to port
+     * @return bool false if the number is malformed TWT number. In practice keeps only valid Italian mobile telephone numbers.
+     */
+    public function isCorrectTWTMobileNumber($n) {
+        return str_starts_with($n, '393');
     }
 }

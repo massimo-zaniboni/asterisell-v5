@@ -21,6 +21,7 @@ module Asterisell.CustomerSpecificImporters (
   , deriveFastLookupCDRImportes
   , CSVFormat_twt_cps__v1
   , CSVFormat_twt_nng__v1
+  , CSVFormat_twt_cps__noPorted
   , CSVFormat_twt_voip__vAntelma
   , CSVFormat_twt_nng__vAntelma
   , CSVFormat_twt_cps__vAntelma
@@ -109,6 +110,8 @@ supportedSourceCDRImporters
       , (("twt-cps","v1"), CDRFormatSpec decodeAlternativeCSV (AType::(AType CSVFormat_twt_cps__v1)))
       , (("twt-nng","v1"), CDRFormatSpec decodeAlternativeCSV (AType::(AType CSVFormat_twt_nng__v1)))
       , (("twt-dq","v1"), CDRFormatSpec decodeAlternativeCSV (AType::(AType (CSVFormat_twt_dq__v1))))
+
+      , (("twt-cps","noPorted"), CDRFormatSpec decodeAlternativeCSV (AType::(AType CSVFormat_twt_cps__noPorted)))
 
       , (("twt-wlr","vAntelma"), CDRFormatSpec decodeAlternativeCSV (AType::(AType (CSVFormat_twt_wlr__vAntelma))))
       , (("twt-voip","vAntelma"), CDRFormatSpec decodeAlternativeCSV (AType::(AType (CSVFormat_twt_voip__vAntelma))))
@@ -219,8 +222,8 @@ data CSVFormat_twt_cps__v1
 instance Show CSVFormat_twt_cps__v1 where
   show cdr
     = showLines
-        [("field 1", twt_cps__v1__0)
-        ,("field 2", twt_cps__v1__1)
+        [("TWT customer number", twt_cps__v1__0)
+        ,("serial id number", twt_cps__v1__1)
         ,("call date", twt_cps__v1__2_callDate)
         ,("caller", twt_cps__v1__3_caller)
         ,("called", twt_cps__v1__4_calledNr)
@@ -288,10 +291,10 @@ instance CDRFormat CSVFormat_twt_cps__v1 where
            Just v
              -> Right $ Just v
 
-  toCDR precision provider rv = convert_CSVFormat_twt_cps__v1__toCDR True precision provider rv
+  toCDR precision provider rv = convert_CSVFormat_twt_cps__v1__toCDR True True precision provider rv
 
-convert_CSVFormat_twt_cps__v1__toCDR :: Bool -> CurrencyPrecisionDigits -> CDRProviderName -> CSVFormat_twt_cps__v1 -> Either AsterisellError [CDR]
-convert_CSVFormat_twt_cps__v1__toCDR remove00 precision provider rv = do
+convert_CSVFormat_twt_cps__v1__toCDR :: Bool -> Bool -> CurrencyPrecisionDigits -> CDRProviderName -> CSVFormat_twt_cps__v1 -> Either AsterisellError [CDR]
+convert_CSVFormat_twt_cps__v1__toCDR remove00 applyNumberPortability precision provider rv = do
   let callDateS = Text.unpack $ twt_cps__v1__2_callDate rv
   let maybeCallDate = fromDateFormat1ToLocalTime (twt_cps__v1__2_callDate rv)
   when (isNothing maybeCallDate)
@@ -317,17 +320,14 @@ convert_CSVFormat_twt_cps__v1__toCDR remove00 precision provider rv = do
   let calledNr1 = twt_cps__v1__4_calledNr rv
   let calledNr = twt_remove00 remove00 "39" calledNr1
 
-  let maybePortedTelephoneNumber = replacePrefixAndGetPortedTelephoneNumber (Text.unpack $ calledNr) (Text.unpack $ twt_cps__v1__5_originalPrefix rv) (Text.unpack $ twt_cps__v1__11_portedPrefix rv)
-  when (isNothing maybePortedTelephoneNumber)
-             (throwError $ createError  Type_Error
-                                        Domain_RATES
-                                        ("unrecognized ported telephone number - " ++ (Text.unpack $ twt_cps__v1__4_calledNr rv))
-                                        ("The called telephone number \"" ++ (Text.unpack $ twt_cps__v1__4_calledNr rv) ++ "\" can not have ported/real telephone prefix \"" ++ (Text.unpack $ twt_cps__v1__11_portedPrefix rv) ++ "\".")
-                                        ("These CDRs will be not rated.")
-                                        ("This is probably an error in the imported CSV file content. If there are many errors of this type, contact the assistance, or the VoIP provider.")
-             )
-
-  let portedTelephoneNumber = Text.pack $ fromJust1 "csi2" maybePortedTelephoneNumber
+  let maybePortedTelephoneNumber =
+        case applyNumberPortability of
+          False ->
+            Nothing
+          True ->
+            case replacePrefixAndGetPortedTelephoneNumber True (Text.unpack $ calledNr) (Text.unpack $ twt_cps__v1__5_originalPrefix rv) (Text.unpack $ twt_cps__v1__11_portedPrefix rv) of
+              Nothing -> Nothing
+              Just r -> Just $ Text.pack r
 
   let cdr =  cdr_empty (fromJust1 "csi3" maybeCallDate) precision
 
@@ -352,7 +352,7 @@ convert_CSVFormat_twt_cps__v1__toCDR remove00 precision provider rv = do
               , cdr_duration = maybeDuration
               , cdr_billsec = maybeDuration
               , cdr_externalTelephoneNumber = calledNr
-              , cdr_externalTelephoneNumberWithAppliedPortability = Just portedTelephoneNumber
+              , cdr_externalTelephoneNumberWithAppliedPortability = maybePortedTelephoneNumber
               , cdr_internalTelephoneNumber = twt_cps__v1__3_caller rv
               , cdr_expectedCost = Just cost
               , cdr_channel = Just $ provider
@@ -515,7 +515,7 @@ convert_CSVFormat_twt_nng__v1__toCDR_v2 remove00 precision provider rv = do
             --   with the originalPrefix
           }
 
-  convert_CSVFormat_twt_cps__v1__toCDR remove00 precision provider asCPS
+  convert_CSVFormat_twt_cps__v1__toCDR remove00 True precision provider asCPS
 
 -- | Convert an NNG CDR using two legs,
 --   and TWT account codes as prefixes of the external telephone numbers.
@@ -702,6 +702,25 @@ fromTwt_dq__v1__toCDR dstChannel precision provider rv = do
               }]
 
 -- --------------------------------------------------
+-- Support TWT formats without number portabilty
+
+newtype CSVFormat_twt_cps__noPorted = CSVFormat_twt_cps__noPorted CSVFormat_twt_cps__v1
+ deriving (Generic, NFData)
+
+instance Show CSVFormat_twt_cps__noPorted where
+  show (CSVFormat_twt_cps__noPorted v) = show v
+
+instance CSV.FromRecord CSVFormat_twt_cps__noPorted where
+     parseRecord v = CSVFormat_twt_cps__noPorted <$> parseRecord v
+
+instance CSV.ToRecord CSVFormat_twt_cps__noPorted where
+    toRecord (CSVFormat_twt_cps__noPorted v) = toRecord v
+
+instance CDRFormat CSVFormat_twt_cps__noPorted where
+  getCallDate (CSVFormat_twt_cps__noPorted v) = getCallDate v
+  toCDR precision provider (CSVFormat_twt_cps__noPorted v) = convert_CSVFormat_twt_cps__v1__toCDR True False precision provider v
+
+-- --------------------------------------------------
 -- Support TWT Antelma
 
 newtype CSVFormat_twt_voip__vAntelma = CSVFormat_twt_voip__vAntelma CSVFormat_twt_cps__v1
@@ -774,7 +793,7 @@ fromCPSToAntelmaCDR dstChannel addDstChannelToAccount ignoreNNG800Calls precisio
     case (ignoreNNG800Calls && (Text.isPrefixOf "800" (twt_cps__v1__3_caller rv))) of
       True -> return []
       False -> do
-        cdrs <- convert_CSVFormat_twt_cps__v1__toCDR True precision provider rv
+        cdrs <- convert_CSVFormat_twt_cps__v1__toCDR True True precision provider rv
         return $
           List.map
             (\cdr1 ->
@@ -2862,7 +2881,8 @@ convert_CSVFormat_tsnet_abilis_collector_v1_toCDR1 precision provider cdr
   --   See #386
   const_INTERNAL_TRANSIT_VOIP_ACCOUNT = Text.pack "transit"
 
-  const_ANONYMOUS_CALLER_NUMBER = Text.pack "anonimo";
+  const_ANONYMOUS_CALLER_NUMBER = Text.pack "0anonimo";
+  -- NOTE: put "0" so it became a fixed-line telephone number (i.e. "390")
 
   -- | Accounts that must be composed like "CesenaNET/1234", where "1234" is the internal telephone number.
   --   In this way it is possible to associate to a single account, multiple virtual accounts.

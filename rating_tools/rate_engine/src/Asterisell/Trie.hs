@@ -578,7 +578,6 @@ tt_trie_test
                          "strong match 5"
                          (Just (3, True, 9110))
                          (trie_match trie1 "91123"))
-        ]
 
 -- TODO
 --             ("91", 91),
@@ -587,3 +586,9 @@ tt_trie_test
 --               ("911", 911),
 --               ("911*", 9110)
 
+       ,HUnit.TestCase (HUnit.assertEqual
+                         "strong match 1"
+                        (Just (3, True, 91))
+                        (trie_match trie1 "91"))
+
+        ]

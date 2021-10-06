@@ -43,11 +43,26 @@ class InitTelephonePrefixes extends AdminJobProcessor
         $this->createPrefix(self::SPECIAL_TELEPHONE_NUMBERS_NAME, 'Service', self::SERVICE_NUMBER_PREFIX);
         $this->createPrefix(self::SPECIAL_TELEPHONE_NUMBERS_NAME, 'Free Call', self::FREE_CALL_PREFIX);
 
-        ArTelephonePrefixPeer::createOrUpdatePrefix("Solidal", "Solidal", "39445", null);
-        
+        ArTelephonePrefixPeer::createOrUpdatePrefix("Solidal", "Italy", "39445", null);
+
+        // NOTE: 0 is for fixed line number, and 3 for mobile
+        // All other numbers can be special numbers.
+        $this->createSpecialPrefix("391");
+        $this->createSpecialPrefix("392");
+        $this->createSpecialPrefix("394");
+        $this->createSpecialPrefix("395");
+        $this->createSpecialPrefix("396");
+        $this->createSpecialPrefix("397");
+        $this->createSpecialPrefix("398");
+        $this->createSpecialPrefix("399");
+    
         return '';
     }
     
+    protected function createSpecialPrefix($p) {
+        ArTelephonePrefixPeer::createOrUpdatePrefix("Special", "Italy", $p, '');
+    }
+ 
     /**
      * @param string $pType
      * @param string $pPlace

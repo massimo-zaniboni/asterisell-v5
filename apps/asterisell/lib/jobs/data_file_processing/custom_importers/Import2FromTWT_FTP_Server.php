@@ -78,6 +78,14 @@ abstract class Import2FromTWT_FTP_Server extends ImportCSVFilesFromFTPServer {
     }
 
     /**
+     * @return string the TWT account used in `createFileNamePREG` and from TWT
+     * for creating file names.
+     */
+    public function getTWTAccountInFileName() {
+        return $this->getTWTAccount();
+    }
+    
+    /**
      * @return string the remote directory where there are the files to download. Empty for default directory.
      */
     public function getRemoteDirectory() {
@@ -92,7 +100,7 @@ abstract class Import2FromTWT_FTP_Server extends ImportCSVFilesFromFTPServer {
      * @return a PREG expression in a default format.
      */
     public function createFileNamePREG($prefixPREG) {
-        $account = ltrim($this->getTWTAccount(), "0");
+        $account = ltrim($this->getTWTAccountInFileName(), "0");
 
         // NOTE: the digits are the date in YYYYMMDD format, "N" for a new data, and a progressive number.
         // "X" is used for additional data, not included in the first send.

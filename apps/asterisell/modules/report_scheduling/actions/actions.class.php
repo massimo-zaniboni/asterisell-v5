@@ -126,6 +126,8 @@ class report_schedulingActions extends autoReport_schedulingActions
 
     public function updateArReportSchedulerFromRequest()
     {
+        $this->ArReportScheduler->setMinimumCost(0);
+
         parent::updateArReportSchedulerFromRequest();
 
         // Remove the time from the selector.
