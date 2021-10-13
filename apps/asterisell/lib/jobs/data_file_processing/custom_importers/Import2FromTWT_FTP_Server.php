@@ -43,7 +43,7 @@ abstract class Import2FromTWT_FTP_Server extends ImportCSVFilesFromFTPServer {
      * @param string $logicalType 
      * @return string|null the corresponding physical type
      */
-    abstract public function getPhysicalType($logicalType);
+    abstract public function getPhysicalType($logicalType, $yyyymmdd = null);
 
     /**
      * @return bool true for ignoring other additional files, false for signaling problems.
@@ -84,7 +84,7 @@ abstract class Import2FromTWT_FTP_Server extends ImportCSVFilesFromFTPServer {
     public function getTWTAccountInFileName() {
         return $this->getTWTAccount();
     }
-    
+
     /**
      * @return string the remote directory where there are the files to download. Empty for default directory.
      */
@@ -107,16 +107,29 @@ abstract class Import2FromTWT_FTP_Server extends ImportCSVFilesFromFTPServer {
         $reg = '/^'
                 . $prefixPREG
                 . '0*' . $account
-                . "\\d\\d\\d\\d\\d\\d\\d\\d([NXM])\\d+"
+                . "(\\d\\d\\d\\d\\d\\d\\d\\d)([NXM])\\d+"
                 . "[.](zip|cdr)/i";
 
         return $reg;
     }
 
     /**
-     * Recognize common data files provided by TWT.
-     * The correct physical type can be configured in `getPhysicalType()`.
+     * @param string $yyyymmdd a date
+     * @return true if it is TWT v2 format
      */
+    protected function isTWTv2($yyyymmdd = null) {
+        if (is_null($yyyymmdd)) {
+            return false;
+        }
+
+        $cmp = strcmp("20211001", $yyyymmdd);
+        if ($cmp < 0) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+
     public function canAcceptFileName($n) {
         $m = array();
         $logicalType = null;
@@ -136,7 +149,7 @@ abstract class Import2FromTWT_FTP_Server extends ImportCSVFilesFromFTPServer {
         }
 
         if (preg_match($this->createFileNamePREG('NNG'), $n, $m)) {
-            if ($m[1] == "M") {
+            if ($m[2] == "M") {
                 return true;
                 // ignore the file containing the calls of the entire month, because they are repetaed calls
             } else {
@@ -145,7 +158,7 @@ abstract class Import2FromTWT_FTP_Server extends ImportCSVFilesFromFTPServer {
         }
 
         if (preg_match($this->createFileNamePREG('DQ'), $n, $m)) {
-            if ($m[1] == "M") {
+            if ($m[2] == "M") {
                 return true;
                 // ignore the file containing the calls of the entire month, because they are repetaed calls
             } else {
@@ -154,7 +167,7 @@ abstract class Import2FromTWT_FTP_Server extends ImportCSVFilesFromFTPServer {
         }
 
         if (preg_match($this->createFileNamePREG(''), $n, $m)) {
-            if ($m[1] == "M") {
+            if ($m[2] == "M") {
                 return true;
                 // ignore the file containing the calls of the entire month, because they are repetaed calls
             } else {
@@ -166,10 +179,19 @@ abstract class Import2FromTWT_FTP_Server extends ImportCSVFilesFromFTPServer {
             return $this->thereCanBeOtherFilesToIgnore();
         }
 
-        $physicalType = $this->getPhysicalType($logicalType);
+        $yyyymmdd = $m[1];
+        $physicalType = $this->getPhysicalType($logicalType, $yyyymmdd);
 
         if (is_null($physicalType)) {
-            $physicalType = 'v1';
+            if ($logicalType == 'cps' || $logicalType == 'wlr' || $logicalType == 'voip') {
+                if ($this->isTWTv2($yyyymmdd)) {
+                    $physicalType = 'v2';
+                } else {
+                    $physicalType = 'v1';
+                }
+            } else {
+                $physicalType = 'v1';
+            }
         }
 
         return ImportDataFiles::createInputDataFileName(null, $this->getCdrProvider(), $logicalType, $physicalType);

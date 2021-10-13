@@ -1198,7 +1198,7 @@ bundleRecord_applyIfPossible mrp bundleRec1 unitId cdr startRateId = do
                 bundleParams' <- bundleParams_apply bundleParams cdr
                 return $ IMap.insert rateId bundleParams' m1
 
-     let !rate = fromJust1 "mrp 0753" $ IMap.lookup rateId (mainRatePlan_systemIdToRatePlan mrp)
+     let !rate = fromJust1 "mrp 075322" $ IMap.lookup rateId (mainRatePlan_systemIdToRatePlan mrp)
 
      case rate_parentSystemId rate of
        Nothing -> return m2

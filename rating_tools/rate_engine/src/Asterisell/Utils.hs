@@ -796,7 +796,8 @@ replacePrefixAndGetPortedTelephoneNumber onlySafeTWTNumbers sourceNumber sourceP
              False -> Just $ destPrefix ++ (drop l sourceNumber)
 
 -- | TWT uses sometime malformed numbers.
---   Consider as "safe" a correct Italian mobile number starting with "399".
+--   Consider as "safe" a correct Italian mobile number starting with "393".
+--   Do not port fixed-line telephone numbers.
 isSafeTWTNumber :: String -> Bool
 isSafeTWTNumber n = isPrefixOf "393" n
 {-# INLINE isSafeTWTNumber #-}

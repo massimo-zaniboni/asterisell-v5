@@ -1400,6 +1400,7 @@ all:
       - Upgrade_2021_09_02
       - Upgrade_2021_09_03
       - Upgrade_2021_09_04
+      - Upgrade_2021_10_10
       $custom_upgrade_jobs
 
   organization_to_ignore: $organization_to_ignore
@@ -1705,6 +1706,8 @@ all:
                              is_initial_install=False):
 
         # NOTE: many upgrade/installation operations are done also from the "asterisell.php" management utility
+
+        run('rm -f /etc/yum.repos.d/fpco.repo')   # not used anymore
 
         # First execute operations that can be done without acquiring any lock on the production application
 

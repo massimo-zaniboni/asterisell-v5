@@ -211,9 +211,7 @@ def init():
     # echo "export GROOVY_HOME=/opt/groovy" >> /home/user/.bashrc
 
     # Haskell compilation tools
-
-    local("sudo -- bash -c 'curl -sSL https://s3.amazonaws.com/download.fpcomplete.com/centos/7/fpco.repo | tee /etc/yum.repos.d/fpco.repo'")
-    local("sudo yum -y install stack")
+    local("sudo -- bash -c 'wget -qO- https://get.haskellstack.org/ | sh'")
     local("""echo export PATH=\"/local/bin:~/.local/bin:~/.cabal/bin:$PATH\" >> ~/.bashrc
           """)
     local("source ~/.bashrc && stack upgrade")  # force reload of .bashrc 

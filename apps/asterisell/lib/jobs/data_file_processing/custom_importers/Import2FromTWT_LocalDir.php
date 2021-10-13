@@ -45,8 +45,8 @@ abstract class Import2FromTWT_LocalDir extends ImportCSVFilesFromLocalServer
         return $this->getCachedWrappedJob()->getDefaultLogicalType();
     }
 
-    public function getPhysicalType($n) {
-        return $this->getCachedWrappedJob()->getPhysicalType($n);
+    public function getPhysicalType($n, $yyyymmdd = null) {
+        return $this->getCachedWrappedJob()->getPhysicalType($n, $yyyymmdd);
     }
     
     public function normalizeFileContent($remoteFileName, $sourceFileName, $destFileName) {
