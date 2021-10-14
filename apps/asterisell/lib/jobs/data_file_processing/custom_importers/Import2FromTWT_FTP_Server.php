@@ -43,7 +43,31 @@ abstract class Import2FromTWT_FTP_Server extends ImportCSVFilesFromFTPServer {
      * @param string $logicalType 
      * @return string|null the corresponding physical type
      */
-    abstract public function getPhysicalType($logicalType, $yyyymmdd = null);
+    public function getPhysicalType($logicalType, $yyyymmdd = null) {
+        if ($this->isTWTv2($yyyymmdd)) {
+            $vCPS = 'v2';
+        } else {
+            $vCPS = 'v1';
+        }
+
+        if (strcmp($logicalType, 'twt-cps') == 0) {
+            return $vCPS;
+        }
+
+        if (strcmp($logicalType, 'twt-voip') == 0) {
+            return $vCPS;
+        }
+
+        if (strcmp($logicalType, 'twt-wlr') == 0) {
+            return $vCPS;
+        }
+
+        if (strcmp($logicalType, 'twt-nng') == 0) {
+            return 'v1';
+        }
+
+        return 'v1';
+    }
 
     /**
      * @return bool true for ignoring other additional files, false for signaling problems.
