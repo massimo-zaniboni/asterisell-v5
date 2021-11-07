@@ -5,6 +5,7 @@ from __future__ import unicode_literals
 AUTHOR = u'Massimo Zaniboni'
 SITENAME = u'Asterisell'
 SITESUBTITLE = u'Open Source Application for Rating and Showing VoIP Calls'
+SITEURL = 'https://www.asterisell.com'
 
 PATH = 'content'
 STATIC_PATHS = ['images']

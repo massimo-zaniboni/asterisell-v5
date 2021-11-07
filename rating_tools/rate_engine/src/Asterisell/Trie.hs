@@ -106,7 +106,7 @@ type CharMatchStrenght = Int
 -- | Used for matching a telephone number with the best matching entry,
 --   or for matching an extension with an organization.
 --   String with exact len, and exact characters are preferred to strings with "*" parts.
---   In case of possible matches "21*, 2XX", "213" match "21*" because it is the longest prefix.
+--   "213" matches "21*" against "2XX" because it is the longest mot precise prefix.
 trie_match :: Trie a -> BS.ByteString -> Maybe (CharMatchStrenght, IsExtensionalMatch, a)
 trie_match trie initialTarget
     =  case (L.map fromJust $ L.filter isJust $ L.map evalMatch $ Trie.matches trie initialTarget) of
@@ -578,17 +578,8 @@ tt_trie_test
                          "strong match 5"
                          (Just (3, True, 9110))
                          (trie_match trie1 "91123"))
-
--- TODO
---             ("91", 91),
---               ("91*", 910),
---               ("91X", 919),
---               ("911", 911),
---               ("911*", 9110)
-
-       ,HUnit.TestCase (HUnit.assertEqual
+      ,HUnit.TestCase (HUnit.assertEqual
                          "strong match 1"
-                        (Just (3, True, 91))
-                        (trie_match trie1 "91"))
-
+                        (Just (3, True, 919))
+                        (trie_match trie1 "919"))
         ]
