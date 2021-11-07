@@ -70,13 +70,12 @@ class DefaultHost(Host):
     and it is not affected by `upgrade_conf`
     """
 
-    dbms_bind_address = '0.0.0.0'
+    dbms_bind_address = '127.0.0.1'
     # use '127.0.0.1' for maximum security.
     # If for some reason MySQL must be accessed also from applications on the network 
     # (e.g. for exporting views/queries) use '0.0.0.0' for listening on all networks.
     # Using only the IP address of the host does not work because the Asterisell tools
     # access the DBMS from localhost.
-    # TODO when backport use '127.0.0.1' as default setting
 
     dbms_port = '3306'
     # the port where MySQL listen
