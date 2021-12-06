@@ -833,6 +833,11 @@ class DemoHost(DefaultHost):
         pass
 
 
+class DemoInstanceHttpDomain(HttpDomain):
+    fully_qualified_domain_name = '127.0.0.1'
+    alias_domain_name = 'localhost'
+
+
 class DefaultDemoInstance(DefaultInstance):
 
     host = DemoHost()
@@ -846,7 +851,7 @@ class DemoInstance(DefaultDemoInstance):
 
     name = "demo"
     url_path = 'demo'
-    domain = DefaultSelfSignedDomain()
+    domain = DemoInstanceHttpDomain()
     httpd_web_access_password = ''
 
     database_password = 'AE2oV8OnF4__ydhB3yMTfk'
