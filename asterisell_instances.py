@@ -672,10 +672,8 @@ class DefaultInstance(BillingInstance):
     # The Unix user that must owns the files that must be readable from the web server.
     # It depends from your distrubution:
     #   - www-data for Debian;
-    #   - apache for Centos;
-    #
-    # It is the "User" directive of Apache Web Server configuration files.
-    web_server_unix_user = 'apache'
+    #   - nginx for CentOS with EPEL NGINX;
+    web_server_unix_user = 'nginx'
 
     # Check if there are new files to import, on remote servers, every specified minutes.
     # This time frame it is used also for checking extensions and other settings on remote databases.

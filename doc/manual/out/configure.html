@@ -69,7 +69,9 @@
             <div class="p">The remote host will be configured using the instructions inside <code class="codeph">fabric_data/lib.py</code> file. It follows a DevOp philosohpy, so the installation script assumes having full
                control of the server configurations, and that you use the host only for Asterisell
                instances. In case you install additional services, you may need customizing the <code class="codeph">asterisell_instances.py</code> file. In particular NGINX, PHP and other settings can be overwritten from the administration
-               script.
+               script. For example, Asterisell needs a recent version of NGINX, so it uses the EPEL
+               version that is using the “nginx” user instead of the “apache” user of CentOS. If
+               you install additional web-services, you had to use the “nginx” user.
             </div>
          </div>
       </section>

@@ -1974,10 +1974,28 @@ function compressRate($baseRateName, $specificRateName, $rateName) {
     }
 }
 
+function change_ownership($directory, $from, $to) {
+   shell_exec("find $directory -user $from -exec chown $to {} \\;");
+   shell_exec("find $directory -group $from -exec chown :$to {} \\;");
+}
+
 /**
  * Some code to test, during development phase.
  */
 function someCodeToTest()
 {
+   // TODO stop nginx
+   // TODO stop php-fpm
+   // TODO change ownership from apache to nginx
+   // TODO start nginx
+   // TODO start php-fpm
+   // TODO advise in the NEWS about the change of settings about user    
+  
+   shell_exec("systemctl stop nginx.service");
+   shell_exec("systemctl stop php-fpm.service");
    
+   change_ownership("/var/lib/php", "apache", "nginx");   
+   
+   shell_exec("systemctl start php-fpm.service");
+   shell_exec("systemctl start nginx.service");
 }

@@ -165,7 +165,9 @@ class Host(object):
         pass
 
     def get_web_server_unix_user(self):
-        return 'apache'
+        return 'nginx'
+        # NOTE: CentOS 7 uses "apache" user, 
+        # but EPEL Nginx release installed by Asterisell needs "nginx" user.
 
     def get_unix_job_user(self):
         return self.get_web_server_unix_user()
@@ -287,7 +289,8 @@ exit 0
 
             if is_initial_install:
                 run('systemctl disable --now httpd')
-                # NOTE: httpd is required for the "apache" user
+                # NOTE: httpd is required for the "apache" user.
+                # MAYBE: probably it is not any more required, because Nginx is using "nginx" user.
 
                 # Use NGINX version directly packaged from NGINX web site,
                 # because it is a lot more recent than CentOS version.
@@ -1401,6 +1404,7 @@ all:
       - Upgrade_2021_09_03
       - Upgrade_2021_09_04
       - Upgrade_2021_10_10
+      - Upgrade_2021_12_06
       $custom_upgrade_jobs
 
   organization_to_ignore: $organization_to_ignore
@@ -1774,6 +1778,10 @@ all:
             with cd(self.get_admin_deploy_directory()):
                 run('php asterisell.php data admin ' + self.admin_web_password)
 
+        # Fix some permisions in case they are overwritten for CentOS packages
+        # Replace files with owner apache with the set user (usually nginx).
+        run('find /var/www /var/lib/php/ /var/log/ /var/cache/ /etc/ -user apache -exec chown ' + self.get_web_server_unix_user() + ' {} \\;');
+
         # Signal that the instance is succesfully installed, and from this time it can contain real data
         run('touch ' + self.get_succesfull_install_file_name())
 
@@ -1905,7 +1913,7 @@ all:
 ## !!! Do not change it, because it will be overwritten.
 ## !!!
 
-user apache;
+user nginx;
 
 events {
     worker_connections  1024;

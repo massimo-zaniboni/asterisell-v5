@@ -14,4 +14,6 @@ It follows a DevOp philosohpy, so the installation script assumes having full co
 and that you use the host only for Asterisell instances. 
 In case you install additional services, you may need customizing the ``asterisell_instances.py`` file.
 In particular NGINX, PHP and other settings can be overwritten from the administration script.
+For example, Asterisell needs a recent version of NGINX, so it uses the EPEL version that is using the "nginx" user
+instead of the "apache" user of CentOS. If you install additional web-services, you had to use the "nginx" user.
 
