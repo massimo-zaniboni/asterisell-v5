@@ -783,23 +783,26 @@ mathRound x
 
 -- | Get the ported telephone number substituting a prefix.
 --   Return Nothing if the substitution can not be done.
-replacePrefixAndGetPortedTelephoneNumber :: Bool -> String -> String -> String -> Maybe String
-replacePrefixAndGetPortedTelephoneNumber onlySafeTWTNumbers sourceNumber sourcePrefix destPrefix
+replacePrefixAndGetPortedTelephoneNumber :: Maybe [String] -> String -> String -> String -> Maybe String
+replacePrefixAndGetPortedTelephoneNumber maybeSafeTWTPrefixes sourceNumber sourcePrefix destPrefix
   = let l = length sourcePrefix
         sl = length sourceNumber
 
-    in case (onlySafeTWTNumbers && isSafeTWTNumber sourceNumber && isSafeTWTNumber destPrefix) || (not onlySafeTWTNumbers) of
+    in case (isSafeTWTNumber maybeSafeTWTPrefixes destPrefix) of
          False -> Nothing
          True ->
            case l > sl of
              True -> Nothing
              False -> Just $ destPrefix ++ (drop l sourceNumber)
 
--- | TWT uses sometime malformed numbers.
---   Consider as "safe" a correct Italian mobile number starting with "393".
---   Do not port fixed-line telephone numbers.
-isSafeTWTNumber :: String -> Bool
-isSafeTWTNumber n = isPrefixOf "393" n
+-- | TWT uses sometime customized telephone prefixes.
+--   Do not port these numbers if they are not know to the customer,
+--   and correctly managed in the rate-plan, otherwise a mobile number
+--   can be wrongly managed like a fixed-line number.
+isSafeTWTNumber :: Maybe [String] -> String -> Bool
+isSafeTWTNumber Nothing _ = False
+isSafeTWTNumber (Just safePrefixes) number
+  = L.any (\safePrefix -> isPrefixOf safePrefix number) safePrefixes
 {-# INLINE isSafeTWTNumber #-}
 
 -- ----------------------------------
@@ -1378,9 +1381,9 @@ tt_parseTests
                                                      v4 <- parseCSVString ','
                                                      return (v1, v2, v3, v4)
                                                  ) (T.pack "one", T.pack "two", T.pack "three", T.pack "four")
-    , HUnit.TestCase $ HUnit.assertEqual "17a" (Just "123456") (replacePrefixAndGetPortedTelephoneNumber False "000456" "000" "123")
-    , HUnit.TestCase $ HUnit.assertEqual "17b" Nothing (replacePrefixAndGetPortedTelephoneNumber True "000456" "000" "123")
-    , HUnit.TestCase $ HUnit.assertEqual "17c" (Just "393056") (replacePrefixAndGetPortedTelephoneNumber True "393456" "3934" "3930")
+    , HUnit.TestCase $ HUnit.assertEqual "17a" (Just "123456") (replacePrefixAndGetPortedTelephoneNumber Nothing "000456" "000" "123")
+    , HUnit.TestCase $ HUnit.assertEqual "17b" Nothing (replacePrefixAndGetPortedTelephoneNumber onlySafeTWTPrefixes "000456" "000" "123")
+    , HUnit.TestCase $ HUnit.assertEqual "17c" (Just "393056") (replacePrefixAndGetPortedTelephoneNumber onlySafeTWTPrefixes "393456" "3934" "3930")
     , testLocalTimeParsing "18" "2015-01-02 03:04:05"
     , testLocalTimeParsing "19" "2015-11-13 10:12:54"
     , testLocalTimeParsing "20" "2015-2537y-13 10:12:54"
@@ -1396,6 +1399,8 @@ tt_parseTests
     ]
 
  where
+
+  onlySafeTWTPrefixes = Just ["393"]
 
   testMySQLEscape :: T.Text -> T.Text -> HUnit.Test
   testMySQLEscape e s = HUnit.TestCase $ HUnit.assertEqual ("mysql escape of " ++ T.unpack s) e (toMySQLCSV_escaped s)

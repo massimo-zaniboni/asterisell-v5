@@ -12,5 +12,4 @@ extra-deps:
 - wire-streams-0.1.1.0@sha256:08816c7fa53b20f52e5c465252c106d9de8e6d9580ec0b6d9f000a34c7bcefc8,2130
 - MissingH-1.4.3.0@sha256:7136282773f7b3e7ce3af856b41dde98a04f9b03c51813c98d040fc060dcaa53,4650
 - ./mysql-haskell
-resolver: lts-18.6
-# NOTE: lts-18.7 is too much slow to compile: out of memory error
+resolver: lts-18.28

@@ -221,7 +221,7 @@ data CSVFormat_twt_cps__v1
           , twt_cps__v1__12 :: !Text.Text -- 1 for a call to another TWT number
           , twt_cps__v1__11_portedPrefix :: !Text.Text
             -- ^ the real operator associated to the number
-            --   (number portabiity) to replace during billing
+            --   (number portability) to replace during billing
             --   with the originalPrefix
   }
  deriving (Generic, NFData)
@@ -281,6 +281,16 @@ instance CSV.FromRecord CSVFormat_twt_cps__v1
 
 instance CSV.ToRecord CSVFormat_twt_cps__v1
 
+
+-- | TWT can use:
+--  * non standard mobile prefixes like "397*" for indicating virtual mobile telephone operators;
+--  * non standard fixed-line prefix "3900*" for indicating a fixed line operator with a special contract with the provider (for example another TWT client);
+-- 
+-- In case the rates of the customer do not take in account these prefixes, 
+-- it is better not porting these numbers, leaving the original telephone number. 
+portOnlyItalianStandardMobileTelephoneNumbers :: Maybe [String]
+portOnlyItalianStandardMobileTelephoneNumbers = Just ["393"]
+
 instance CDRFormat CSVFormat_twt_cps__v1 where
 
   getCallDate cdr
@@ -298,10 +308,10 @@ instance CDRFormat CSVFormat_twt_cps__v1 where
            Just v
              -> Right $ Just v
 
-  toCDR precision provider rv = convert_CSVFormat_twt_cps__v1__toCDR True True precision provider rv
+  toCDR precision provider rv = convert_CSVFormat_twt_cps__v1__toCDR True portOnlyItalianStandardMobileTelephoneNumbers precision provider rv
 
-convert_CSVFormat_twt_cps__v1__toCDR :: Bool -> Bool -> CurrencyPrecisionDigits -> CDRProviderName -> CSVFormat_twt_cps__v1 -> Either AsterisellError [CDR]
-convert_CSVFormat_twt_cps__v1__toCDR remove00 applyNumberPortability precision provider rv = do
+convert_CSVFormat_twt_cps__v1__toCDR :: Bool -> Maybe [String] -> CurrencyPrecisionDigits -> CDRProviderName -> CSVFormat_twt_cps__v1 -> Either AsterisellError [CDR]
+convert_CSVFormat_twt_cps__v1__toCDR remove00 safePortablePrefixes precision provider rv = do
   let callDateS = Text.unpack $ twt_cps__v1__2_callDate rv
   let maybeCallDate = fromDateFormat1ToLocalTime (twt_cps__v1__2_callDate rv)
   when (isNothing maybeCallDate)
@@ -328,13 +338,9 @@ convert_CSVFormat_twt_cps__v1__toCDR remove00 applyNumberPortability precision p
   let calledNr = twt_remove00 remove00 "39" calledNr1
 
   let maybePortedTelephoneNumber =
-        case applyNumberPortability of
-          False ->
-            Nothing
-          True ->
-            case replacePrefixAndGetPortedTelephoneNumber True (Text.unpack $ calledNr) (Text.unpack $ twt_cps__v1__5_originalPrefix rv) (Text.unpack $ twt_cps__v1__11_portedPrefix rv) of
-              Nothing -> Nothing
-              Just r -> Just $ Text.pack r
+        case replacePrefixAndGetPortedTelephoneNumber safePortablePrefixes (Text.unpack $ calledNr) (Text.unpack $ twt_cps__v1__5_originalPrefix rv) (Text.unpack $ twt_cps__v1__11_portedPrefix rv) of
+          Nothing -> Nothing
+          Just r -> Just $ Text.pack r
 
   let cdr =  cdr_empty (fromJust1 "csi3" maybeCallDate) precision
 
@@ -518,11 +524,11 @@ convert_CSVFormat_twt_nng__v1__toCDR_v2 remove00 precision provider rv = do
           , twt_cps__v1__12 =  ""
           , twt_cps__v1__11_portedPrefix =  twt_nng__v1__srcRatingCode rv
             -- ^ the real operator associated to the number
-            --   (number portabiity) to replace during billing
+            --   (number portability) to replace during billing
             --   with the originalPrefix
           }
 
-  convert_CSVFormat_twt_cps__v1__toCDR remove00 True precision provider asCPS
+  convert_CSVFormat_twt_cps__v1__toCDR remove00 portOnlyItalianStandardMobileTelephoneNumbers precision provider asCPS
 
 -- | Convert an NNG CDR using two legs,
 --   and TWT account codes as prefixes of the external telephone numbers.
@@ -728,7 +734,7 @@ data CSVFormat_twt_cps__v2
           , twt_cps__v2__12 :: !Text.Text -- 1 for a call to another TWT number
           , twt_cps__v2__11_portedPrefix :: !Text.Text
             -- ^ the real operator associated to the number
-            --   (number portabiity) to replace during billing
+            --   (number portability) to replace during billing
             --   with the originalPrefix
          , twt_cps__v2__13_callerPrefix :: !Text.Text
          , twt_cps__v2__14_callerPrefixSurcharge :: !Text.Text
@@ -763,7 +769,7 @@ instance Show CSVFormat_twt_cps__v2 where
 
 instance CDRFormat CSVFormat_twt_cps__v2 where
   getCallDate v = getCallDate (twt_cps__v2_to_v1 v)
-  toCDR precision provider v = convert_CSVFormat_twt_cps__v1__toCDR True False precision provider (twt_cps__v2_to_v1 v)
+  toCDR precision provider v = convert_CSVFormat_twt_cps__v1__toCDR True portOnlyItalianStandardMobileTelephoneNumbers precision provider (twt_cps__v2_to_v1 v)
 
 -- --------------------------------------------------
 -- Support TWT formats without number portabilty
@@ -782,7 +788,7 @@ instance CSV.ToRecord CSVFormat_twt_cps__noPorted where
 
 instance CDRFormat CSVFormat_twt_cps__noPorted where
   getCallDate (CSVFormat_twt_cps__noPorted v) = getCallDate v
-  toCDR precision provider (CSVFormat_twt_cps__noPorted v) = convert_CSVFormat_twt_cps__v1__toCDR True False precision provider v
+  toCDR precision provider (CSVFormat_twt_cps__noPorted v) = convert_CSVFormat_twt_cps__v1__toCDR True Nothing precision provider v
 
 -- --------------------------------------------------
 -- Support TWT Antelma
@@ -910,7 +916,7 @@ fromCPSToAntelmaCDR dstChannel addDstChannelToAccount ignoreNNG800Calls precisio
     case (ignoreNNG800Calls && (Text.isPrefixOf "800" (twt_cps__v1__3_caller rv))) of
       True -> return []
       False -> do
-        cdrs <- convert_CSVFormat_twt_cps__v1__toCDR True True precision provider rv
+        cdrs <- convert_CSVFormat_twt_cps__v1__toCDR True (Just ["390", "393", "397"]) precision provider rv
         return $
           List.map
             (\cdr1 ->
