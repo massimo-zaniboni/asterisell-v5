@@ -61,7 +61,7 @@
          <p class="shortdesc">Every source of CDRS is configured as a distinct <a class="xref" href="cdrs-provider.html#CDRs_provider">CDRs provider</a> inside the Web UI in <code class="codeph">Params-&gt;CDRs Providers</code>.
          </p>
          <div class="body">
-            <section class="section" id="Importing_of_CDRS__I_z0e25x_">
+            <section class="section" id="Importing_of_CDRS__I_5jw872_">
                <h3 class="section-title">Import from CSV files</h3>
                <div class="p">CDRS are imported from <a class="xref" href="cdrs-provider.html#CDRs_provider">CDRs provider</a> defining custom jobs. Some of them are defined in <a class="xref" href="manual-6.html#Instances_configuration_file">Instances configuration file</a>. You can create custom PHP class inside <code class="codeph">cutomizations</code> directory, inheriting from some template job defined in <code class="codeph">apps/asterisell/lib/jobs/data_file_processing</code> directory and subdirectories, and then completing missing (abstract) parameters.
                </div>
@@ -70,7 +70,7 @@
                <div class="p">The supported data formats are listed near the beginning of <code class="codeph">rating_tools/rate_engine/src/Asterisell/CustomerSpecificImporters.hs</code>, in the function <code class="codeph">supportedSourceCDRImporters</code>.
                </div>
             </section>
-            <section class="section" id="Importing_of_CDRS__I_fzlmyd_">
+            <section class="section" id="Importing_of_CDRS__I_94j7p5_">
                <h3 class="section-title">Importing CDRS from an external collector</h3>
                <div class="p">Add inside <code class="codeph">asterisell_instances.py</code> something like
                </div><pre class="pre">class DefaultInstance(BillingInstance):

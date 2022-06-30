@@ -103,7 +103,7 @@ Installation/development operations
   php asterisell.php data admin <some-password>
       Add an "admin" user, with the specified password.
 
-  php asterisell.php data unbilled YY-MM-DD hh:mm:s
+  php asterisell.php data unbilled YY-MM-DD hh:mm:ss
       All CDRS befor this calldate are considered as already billed.
 
   php asterisell.php data merge-telephone-prefixes
@@ -605,6 +605,9 @@ function makeActivateDirs($user, $isAdmin)
     myExecute("Fix Permissions for web-server readable directories", "$preCmd && chmod -R --silent g+rx,g-w,u+rwx,o-rwx ext_libs/ apps/ lib/ config/ data/ symfony symfony.php");
     myExecute("Fix Permissions for web-server not accessible directories", "$preCmd && chmod -R --silent u+rwx,go-rwx scripts/ updates/ data_files/ fabric_data/ development_tools/ symfony-patch/ README.md LICENSE asterisell.php");
 
+    // In EPEL the nginx user changed from "apache" to "nginx". So update it, if it is needed
+    myExecute("Fix nginx directories", "chown --silent :$user /var/lib/php/session /var/lib/php/wsdlcache /var/lib/dav");
+    
 }
 
 
