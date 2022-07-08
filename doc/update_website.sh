@@ -2,8 +2,8 @@
 
 # Update https://www.asterisell.com website 
 
-RDIR=/srv/www/www.asterisell.com
-RHOST=asterisell.com
+RDIR=/srv/www/asterisell_com/www
+RHOST=193.30.121.134
 
 cp -f website/keybase.txt website/output/.
 cd website

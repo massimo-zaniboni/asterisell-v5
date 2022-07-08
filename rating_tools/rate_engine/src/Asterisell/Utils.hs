@@ -49,6 +49,7 @@ module Asterisell.Utils (
   fromLazyToStrictByteString,
   fromGammaCallDateAndTimeStampToLocalTime,
   fromGammaItemRentalCallDateToLocalTime,
+  fromMyNETCallDateAndTimeStampToLocalTime,
   fromTextToInt,
   fromByteStringToInt,
   fromTextToRational,
@@ -565,6 +566,39 @@ fromGammaCallDateAndTimeStampToLocalTime ddmmyyyy hhmmss
          ss <- parse_UnsignedInt
          return (hh, mm, ss)
 
+-- | A format like "2022-05-26 09:23:51.663000+00:00"
+fromMyNETCallDateAndTimeStampToLocalTime :: T.Text -> Maybe LocalTime
+fromMyNETCallDateAndTimeStampToLocalTime d
+  = case P.runParser parseDate "" d of
+      Right (year1, month1, day1, hour1, minutes1, seconds1)
+               -> (Just $! LocalTime {
+                             localDay = fromGregorian (toInteger year1) month1 day1
+                           , localTimeOfDay = TimeOfDay {
+                                               todHour = hour1
+                                             , todMin = minutes1
+                                             , todSec = fromInteger $ toInteger $ seconds1
+                                             }
+                        })
+      _ -> Nothing
+ where
+
+  parseDate
+    = do yyyy <- parse_UnsignedInt
+         _ <- P.char '-'
+         mm <- parse_UnsignedInt
+         _ <- P.char '-'
+         dd <- parse_UnsignedInt
+
+         _ <- P.char ' '
+
+         hours <- parse_UnsignedInt
+         _ <- P.char ':'
+         minutes <- parse_UnsignedInt
+         _ <- P.char ':'
+         seconds <- parse_UnsignedInt
+
+         return (yyyy, mm, dd, hours, minutes, seconds)
+
 -- | The calldate and timestamp can be separated from anything other than digits.
 --   This function is fast.
 fromMySQLDateTimeAsTextToLocalTime :: T.Text -> Maybe LocalTime
@@ -800,7 +834,7 @@ replacePrefixAndGetPortedTelephoneNumber maybeSafeTWTPrefixes sourceNumber sourc
 --   and correctly managed in the rate-plan, otherwise a mobile number
 --   can be wrongly managed like a fixed-line number.
 isSafeTWTNumber :: Maybe [String] -> String -> Bool
-isSafeTWTNumber Nothing _ = False
+isSafeTWTNumber Nothing _ = True
 isSafeTWTNumber (Just safePrefixes) number
   = L.any (\safePrefix -> isPrefixOf safePrefix number) safePrefixes
 {-# INLINE isSafeTWTNumber #-}
@@ -1387,6 +1421,7 @@ tt_parseTests
     , testLocalTimeParsing "18" "2015-01-02 03:04:05"
     , testLocalTimeParsing "19" "2015-11-13 10:12:54"
     , testLocalTimeParsing "20" "2015-2537y-13 10:12:54"
+    , testParserToCallDate "date01" fromMyNETCallDateAndTimeStampToLocalTime "2022-05-26 09:23:51.663000+00:00" 2022 05 26 09 23 51
     , testMySQLEscape "abc" "abc"
     , testMySQLEscape "abc,def" "abc,def"
     , testMySQLEscape "a\\tb" "a\tb"
@@ -1408,6 +1443,19 @@ tt_parseTests
   parseMaybeTime :: TimeLocale -> String -> String -> Maybe LocalTime
   parseMaybeTime tl formatStr inStr
     = parseTimeM False tl formatStr inStr
+
+  testParserToCallDate testName parser calldate year1 month1 day1 hour1 minutes1 seconds1
+    = let date1 =  parser calldate
+          date2 = Just $
+                    LocalTime {
+                             localDay = fromGregorian (toInteger year1) month1 day1
+                           , localTimeOfDay = TimeOfDay {
+                                               todHour = hour1
+                                             , todMin = minutes1
+                                             , todSec = fromInteger $ toInteger $ seconds1
+                                             }
+                              }
+      in HUnit.TestCase $ HUnit.assertEqual testName date1 date2
 
   testLocalTimeParsing n t1
     = HUnit.TestCase $ HUnit.assertEqual n  (parseMaybeTime defaultTimeLocale "%F %T" (T.unpack t1)) (fromMySQLDateTimeAsTextToLocalTime t1)

@@ -70,7 +70,6 @@ yum install -y sudo git openssl-devel fabric
                <h3 class="section-title">Create administration user</h3>
                <div class="p">Asterisell must be managed by a non-root user. Here we will create <code class="codeph">asterisell</code> user, but every other user is fine.
                </div><pre class="pre">useradd -m -G wheel asterisell
-passwd asterisell
 
 # Associate a key to the user 
 # WARNING: only in case it is not alread done
@@ -102,9 +101,7 @@ mv asterisell-v5 asterisell-admin
 # for a list of available commands
 fab help
 
-# for initializating the management server with the required packages.
-# You can use, when requested, the &quot;asterisell&quot; user password, 
-# because it was inserted in the sudo-users.
+# for initializating the management server with the required packages
 fab init 
 </pre></section>
          </div>

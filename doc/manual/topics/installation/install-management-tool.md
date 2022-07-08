@@ -19,7 +19,6 @@ Asterisell must be managed by a non-root user. Here we will create ``asterisell`
 
 ```
 useradd -m -G wheel asterisell
-passwd asterisell
 
 # Associate a key to the user 
 # WARNING: only in case it is not alread done
@@ -54,8 +53,8 @@ cd asterisell-admin
 # for a list of available commands
 fab help
 
-# for initializating the management server with the required packages.
-# You can use, when requested, the "asterisell" user password, 
-# because it was inserted in the sudo-users.
+# for initializating the management server with the required packages
 fab init 
 ```
+
+

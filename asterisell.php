@@ -1987,18 +1987,17 @@ function change_ownership($directory, $from, $to) {
  */
 function someCodeToTest()
 {
-   // TODO stop nginx
-   // TODO stop php-fpm
-   // TODO change ownership from apache to nginx
-   // TODO start nginx
-   // TODO start php-fpm
-   // TODO advise in the NEWS about the change of settings about user    
-  
-   shell_exec("systemctl stop nginx.service");
-   shell_exec("systemctl stop php-fpm.service");
-   
-   change_ownership("/var/lib/php", "apache", "nginx");   
-   
-   shell_exec("systemctl start php-fpm.service");
-   shell_exec("systemctl start nginx.service");
+        $n = "2022_02_01.csv";
+        
+        $m = array();
+        $logicalType = null;
+
+        $reg = "/^(\\d\\d\\d\\d)_(\\d\\d)_(\\d\\d)\\.csv$/";
+        
+        if (preg_match($reg, $n, $m)) {
+            echo $m[1] . "-" . $m[2] . '-' . $m[3] . "\n";
+        } else {
+            echo "\nerrore\n";
+        }
+
 }

@@ -61,17 +61,9 @@
          <p class="shortdesc">Edit the file <code class="codeph">asterisell_instances.py</code>. In particular the host and domain where installing a first DEMO instance of Asterisell.
          </p>
          <div class="body">
-            <div class="p">The DEMO instance settings are in Python class <code class="codeph">DemoInstance</code> and in the referenced classes <code class="codeph">DemoHost</code>, <code class="codeph">DemoInstanceHttpDomain</code> and <code class="codeph">DefaultDemoInstance</code>. By default it is installed on localhost (127.0.0.1) and it is accessible from <code class="codeph">http://127.0.0.1/demo/admin</code>, for the administration part, and <code class="codeph">http://127.0.0.1/demo</code> for the customer part. The demo DEV instance, if installed, is accessible by default
-               at <code class="codeph">http://127.0.0.1/dev/admin</code>. You can freely customize them with the settings of the server where you want to
-               install Asterisell.
-            </div>
             <div class="p">Settings can be improved later, so initially start with good-enough settings.</div>
-            <div class="p">The remote host will be configured using the instructions inside <code class="codeph">fabric_data/lib.py</code> file. It follows a DevOp philosohpy, so the installation script assumes having full
-               control of the server configurations, and that you use the host only for Asterisell
-               instances. In case you install additional services, you may need customizing the <code class="codeph">asterisell_instances.py</code> file. In particular NGINX, PHP and other settings can be overwritten from the administration
-               script. For example, Asterisell needs a recent version of NGINX, so it uses the EPEL
-               version that is using the “nginx” user instead of the “apache” user of CentOS. If
-               you install additional web-services, you had to use the “nginx” user.
+            <div class="p">The remote host will be configured using the instructions inside <code class="codeph">fabric_data/lib.py</code> file. If you use the host only for Asterisell instances, it should be all ok. Otherwise
+               if you install more services on the same host, you can customize these instructions.
             </div>
          </div>
       </section>

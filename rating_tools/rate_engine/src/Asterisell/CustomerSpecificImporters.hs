@@ -35,6 +35,7 @@ module Asterisell.CustomerSpecificImporters (
   , CSVFormat_plain1
   , CSVFormat_digitel
   , CSVFormat_digitelNNG__v1
+  , CSVFormat_mynet__v1
   , CSVFormat_colt
   , CSVFormat_colt43
   , CSVFormat_itec1
@@ -161,6 +162,13 @@ supportedSourceCDRImporters
                                           False
                                           UseUTF8) (AType::(AType CSVFormat_itec1)))
       , (("itec1-db","v1"), CDRFormatSpec (SourceCDRParamsDBTableWithAutoincrementId itec1_dbFields "starttime" (Just itec1_customQuery)) (AType::(AType CSVFormat_itec1)))
+      , (("mynet","v1"), CDRFormatSpec
+                           (SourceCDRParamsCSVFile
+                             (Just "time_stamp,caller,callee,green_number,duration,price_code,provider_price")
+                             ','
+                             False
+                             UseUTF8)
+                         (AType::(AType CSVFormat_mynet__v1)))
       ]
 
 -- | A common format with ";" as CSV separator.
@@ -941,6 +949,108 @@ fromCPSToAntelmaCDR dstChannel addDstChannelToAccount ignoreNNG800Calls precisio
 fromNNGToAntelmaCDR :: CurrencyPrecisionDigits -> CDRProviderName -> CSVFormat_twt_nng__v1 -> Either AsterisellError [CDR]
 fromNNGToAntelmaCDR precision provider rv =
   convert_CSVFormat_twt_nng__v1__toTwoLegCDR_v1 True True precision provider rv
+
+-- --------------------------------------------------
+-- Support MyNET according #843
+
+-- | MyNET provider CDR format.
+data CSVFormat_mynet__v1
+  = CSVFormat_mynet__v1 {
+            mynet__v1_time_stamp :: !Text.Text
+          , mynet__v1_caller :: !Text.Text
+          , mynet__v1_callee :: !Text.Text
+          , mynet__v1_green_number :: !Text.Text
+          , mynet__v1_duration :: !Text.Text
+          , mynet__v1_price_code :: !Text.Text
+          , mynet__v1_provider_price :: !Text.Text
+  }
+ deriving (Generic, NFData)
+
+instance Show CSVFormat_mynet__v1 where
+  show cdr
+    = showLines
+        [
+            ("mynet__v1_time_stamp", mynet__v1_time_stamp)
+          , ("mynet__v1_caller", mynet__v1_caller)
+          , ("mynet__v1_callee", mynet__v1_callee)
+          , ("mynet__v1_green_number", mynet__v1_green_number)
+          , ("mynet__v1_duration", mynet__v1_duration)
+          , ("mynet__v1_price_code", mynet__v1_price_code)
+          , ("mynet__v1_provider_price", mynet__v1_provider_price)
+        ]
+
+   where
+     showLines ls = List.concatMap showLine ls
+     showLine (h, v) = h ++ ": " ++ (Text.unpack $ v cdr) ++ "\n"
+
+instance CSV.FromRecord CSVFormat_mynet__v1
+
+instance CSV.ToRecord CSVFormat_mynet__v1
+
+instance CDRFormat CSVFormat_mynet__v1 where
+
+  getCallDate cdr
+    = let ds = mynet__v1_time_stamp cdr
+      in case fromMyNETCallDateAndTimeStampToLocalTime ds of
+           Nothing
+             -> Left $ createError
+                         Type_Error
+                         Domain_RATES
+                         ("unknown date format - " ++ Text.unpack ds)
+                         ("\"" ++ Text.unpack ds ++ "\" is an unexpected call date format.")
+                         ("This CDR and CDRs with similar calldate will not be imported.")
+                         ("This is a problem in the input format, or in the specification, or in the application code. Contact the assistance.")
+
+           Just v
+             -> Right $ Just v
+
+  toCDR precision provider rv = convert_CSVFormat_mynet__v1__toCDR precision provider rv
+
+-- | An example of CDR
+--   > 2022-06-04 14:25:16.361000+00:00,390999999,39399999***,,0,ITALY VODAFONE MOBILE,0
+convert_CSVFormat_mynet__v1__toCDR :: CurrencyPrecisionDigits -> CDRProviderName -> CSVFormat_mynet__v1 -> Either AsterisellError [CDR]
+convert_CSVFormat_mynet__v1__toCDR precision provider rv = do
+  let callDateT = mynet__v1_time_stamp rv
+  let callDateS = Text.unpack callDateT
+  let maybeCallDate = fromMyNETCallDateAndTimeStampToLocalTime callDateT
+  when (isNothing maybeCallDate)
+             (throwError $ createError  Type_Error
+                                        Domain_RATES
+                                        ("unrecognized calldate - " ++ callDateS)
+                                        ("The calldate field \"" ++ callDateS ++ "\" has unexpected format.")
+                                        ("These CDRs will be not rated.")
+                                        ("This is probably an error in the code importing CDRs, or in the configuration of VoIP servers. Contact the assistance.")
+             )
+
+  cost <- twt_convertCostS (mynet__v1_provider_price rv)
+  let durationStr = mynet__v1_duration rv
+  let maybeDuration =  fromTextToInt durationStr
+  when (isNothing maybeDuration)
+             (throwError $ createError  Type_Error
+                                        Domain_RATES
+                                        ("unrecognized duration - " ++ (Text.unpack durationStr))
+                                        ("The call duration \"" ++ (Text.unpack durationStr) ++ "\" is not a valid number.")
+                                        ("These CDRs will be not rated.")
+                                        ("This is probably an error in the imported CSV file content. If there are many errors of this type, contact the assistance, or the VoIP provider.")
+             )
+
+  let calledNr = mynet__v1_callee rv
+  let cdr =  cdr_empty (fromJust1 "csi455" maybeCallDate) precision
+
+  return $ [cdr {
+                cdr_countOfCalls = 1
+              , cdr_direction = CDR_outgoing
+              , cdr_errorDirection = CDR_none
+              , cdr_isRedirect = False
+              , cdr_duration = maybeDuration
+              , cdr_billsec = maybeDuration
+              , cdr_externalTelephoneNumber = calledNr
+              , cdr_externalTelephoneNumberWithAppliedPortability = Just calledNr
+              , cdr_displayedExternalTelephoneNumber = Just calledNr
+              , cdr_internalTelephoneNumber = mynet__v1_caller rv
+              , cdr_expectedCost = Just cost
+              , cdr_channel = Just $ provider
+              }]
 
 -- --------------------------------------------------
 -- Support Free Radius according notes on #1446

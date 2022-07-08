@@ -64,14 +64,14 @@
          </p>
          <div class="body">
             <div class="p">These are some quick and not 100% comprehensive notes about the process.</div>
-            <section class="section" id="Installing_inside_an_LXD_LXC_container__I_h5mmml_">
+            <section class="section" id="Installing_inside_an_LXD_LXC_container__I_1f1xpf_">
                <h3 class="section-title">Host</h3>
                <div class="p">Make sure to disable Transparent Huge Pages on the HOST, otherwise TokuDB engine will
                   not install, with something like
                </div><pre class="pre">echo never &gt; /sys/kernel/mm/transparent_hugepage/enabled
 # consult your distro notes for making this command permanent
 </pre></section>
-            <section class="section" id="Installing_inside_an_LXD_LXC_container__I_fkpr0u_">
+            <section class="section" id="Installing_inside_an_LXD_LXC_container__I_ghuzg9_">
                <h3 class="section-title">Init LXD and LXC container</h3><pre class="pre">sudo lxd init
 
 # add normal admin user to &quot;lxd&quot; group
@@ -94,7 +94,7 @@ passwd
 exit
 ssh-copy-id -i ~/.ssh/id_rsa.pub root@&lt;lxc-container-ip&gt;
 </pre></section>
-            <section class="section" id="Installing_inside_an_LXD_LXC_container__I_goic0d_">
+            <section class="section" id="Installing_inside_an_LXD_LXC_container__I_f009hy_">
                <h3 class="section-title">Development machine</h3>
                <div class="p">I use an LXC container as development machine of Asterisell: I use the tools on the
                   host for development, and the tools inside the CentOS 7 LXC container for launching

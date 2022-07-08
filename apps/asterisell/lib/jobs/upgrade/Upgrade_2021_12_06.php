@@ -31,7 +31,8 @@ class Upgrade_2021_12_06 extends AdminJobProcessor {
         return $r;
     }
     
-    public function process() {
+    
+    public function full_upgrade() {
         $r = "";
  
         $r .= "\n" . shell_exec("systemctl stop nginx.service");
@@ -44,5 +45,9 @@ class Upgrade_2021_12_06 extends AdminJobProcessor {
         $r .= "\n" . shell_exec("systemctl start nginx.service");
 
         return $r;
+   }
+    
+    public function process() {
+        return $this->quick_upgrade();
    }
 }
