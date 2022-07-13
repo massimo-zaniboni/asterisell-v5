@@ -2,7 +2,7 @@
 
 # Update https://www.asterisell.com website 
 
-RDIR=/srv/www/asterisell_com/www
+RDIR=/srv/www/www.asterisell.com
 RHOST=asterisell.com
 
 cp -f website/keybase.txt website/output/.
