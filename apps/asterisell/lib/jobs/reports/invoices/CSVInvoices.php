@@ -6,7 +6,9 @@
 sfLoader::loadHelpers(array('I18N', 'Debug', 'Date', 'Asterisell'));
 
 /**
- * Export all the invoices details to a CSV file.
+ * Export all the invoices to a CSV file.
+ * Export only the total of invoices, but not the details as calls grouped by type.
+ * Use for more details XMLInvoices.
  */
 class CSVInvoices extends ReportGenerator {
 
@@ -51,8 +53,11 @@ class CSVInvoices extends ReportGenerator {
         $report = $this->getArReport();
         $isDraftReport = $report->getProducedReportIsDraft();
         $params = ArParamsPeer::getDefaultParams();
-        $totalsGroup = 'totals';
+        $totalsGroup = 'Totals';
 
+        $fromDateH = $report->getFromDate();
+        $toDateH = $report->getToDate();
+        
         // Write on a stream, because it is more similar to the BLOB content
 
         $stream = fopen('php://memory', 'r+');
@@ -62,20 +67,16 @@ class CSVInvoices extends ReportGenerator {
 
         // Header
 
-        $line = csv_field('customer name', true) .
-                csv_field('customer VAT code', false) .
+        $line = csv_field('calls from', true) .
+                csv_field('calls to (exclusive)', false) .
                 csv_field('customer CRM', false) .
                 csv_field('customer internal ID', false) .
+                csv_field('customer name', false) .
+                csv_field('customer VAT code', false) .
                 csv_field('contract', false) .
-                csv_field('contract', false) .
-                csv_field('complete address', false) .
-                csv_field('country', false) .
-                csv_field('state or province', false) .
-                csv_field('city', false) .
-                csv_field('address', false) .
-                csv_field('ZIP code', false) .
                 csv_field('details level', false) .
                 csv_field('details name', false) .
+                csv_field('is rounding correction', false) .
                 csv_field('calls', false) .
                 csv_field('duration seconds', false) .
                 csv_field('duration human readable', false) .
@@ -91,7 +92,8 @@ class CSVInvoices extends ReportGenerator {
 
         fwrite($stream, $line);
 
-        // Write totals and details for each customer
+        // Write totals and details for each customer.
+        // Take care also of rounding errors
 
         $organizationIds = $this->getStore()->getAllOrganizationIds();
         foreach ($organizationIds as $organizationId) {
@@ -131,22 +133,15 @@ class CSVInvoices extends ReportGenerator {
             }
 
             $lineForCustomer = "\r\n" .
-                    csv_field($name, true) .
-                    csv_field($vat, false) .
+                    csv_field($fromDateH, true) .
+                    csv_field($toDateH, false) .
                     csv_field($crm, false) .
                     csv_field($organizationId, false) .
-                    csv_field($contract, false) .
-                    csv_field($email, false) .
-                    csv_field($completAddress, false) .
-                    csv_field($country, false) .
-                    csv_field($stateProvince, false) .
-                    csv_field($city, false) .
-                    csv_field($address, false) .
-                    csv_field($zipCode, false);
+                    csv_field($name, false) .
+                    csv_field($vat, false) .
+                    csv_field($contract, false);
 
-            fwrite($stream, $lineForCustomer);
-
-            list($setVatPerc,
+            list(   $setVatPerc,
                     $setTotalCalls,
                     $setTotalDurationSec,
                     $setTotalCostsWithoutTax,
@@ -166,6 +161,7 @@ class CSVInvoices extends ReportGenerator {
 
             $line = csv_field('0', false) .
                     csv_field($totalsGroup, false) .
+                    csv_field('false', false) .
                     csv_field($setTotalCalls, false) .
                     csv_field($setTotalDurationSec, false) .
                     csv_field($setTotalDurationH, false) .
@@ -178,56 +174,74 @@ class CSVInvoices extends ReportGenerator {
                     csv_field(from_db_decimal_to_invoice_decimal($setTotalIncomesWithTax), false) .
                     csv_field(from_db_decimal_to_invoice_decimal($setTotalEarnsWithoutTax), false) .
                     csv_field(from_db_decimal_to_invoice_decimal($setTotalEarnsWithTax), false);
-
+            
+            fwrite($stream, $lineForCustomer);
             fwrite($stream, $line);
 
             // Write details
-
-            $lineForCustomerDetails = "\r\n" .
-                    csv_field('', true) .
-                    csv_field('', false) .
-                    csv_field($crm, false) .
-                    csv_field($organizationId, false) .
-                    csv_field('', false) .
-                    csv_field('', false) .
-                    csv_field('', false) .
-                    csv_field('', false) .
-                    csv_field('', false) .
-                    csv_field('', false) .
-                    csv_field('', false) .
-                    csv_field('', false);
-
             $details = $this->getStore()->getDetails($organizationId, $report);
             foreach ($details as $detail) {
 
-                list($groupDescr, $setTotalCalls, $setTotalDurationSec, $setTotalCostsWithoutTax, $setTotalIncomesWithoutTax) = $detail;
+                list($groupDescrD, $setTotalCallsD, $setTotalDurationSecD, $setTotalCostsWithoutTaxD, $setTotalIncomesWithoutTaxD) = $detail;
 
-                list($setTotalCostsTax, $setTotalCostsWithTax) = invoice_amount_with_vat($setTotalCostsWithoutTax, $setVatPercDecimal);
-                list($setTotalIncomesTax, $setTotalIncomesWithTax) = invoice_amount_with_vat($setTotalIncomesWithoutTax, $setVatPercDecimal);
+                list($setTotalCostsTaxD, $setTotalCostsWithTaxD) = invoice_amount_with_vat($setTotalCostsWithoutTaxD, $setVatPercDecimal);
+                list($setTotalIncomesTaxD, $setTotalIncomesWithTaxD) = invoice_amount_with_vat($setTotalIncomesWithoutTaxD, $setVatPercDecimal);
 
-                $setTotalEarnsWithoutTax = $setTotalIncomesWithoutTax - $setTotalCostsWithoutTax;
-                $setTotalEarnsWithTax = $setTotalIncomesWithTax - $setTotalCostsWithTax;
-
-                $setTotalDurationH = format_minute($setTotalDurationSec);
+                $setTotalEarnsWithoutTaxD = $setTotalIncomesWithoutTaxD - $setTotalCostsWithoutTaxD;
+                $setTotalEarnsWithTaxD = $setTotalIncomesWithTaxD - $setTotalCostsWithTaxD;
+                $setTotalDurationH = format_minute($setTotalDurationSecD);
 
                 $line = csv_field('1', false) .
-                        csv_field($groupDescr, false) .
-                        csv_field($setTotalCalls, false) .
-                        csv_field($setTotalDurationSec, false) .
+                        csv_field($groupDescrD, false) .
+                        csv_field('false', false) .
+                        csv_field($setTotalCallsD, false) .
+                        csv_field($setTotalDurationSecD, false) .
                         csv_field($setTotalDurationH, false) .
                         csv_field($setVatPercH, false) .
-                        csv_field(from_db_decimal_to_invoice_decimal($setTotalCostsWithoutTax), false) .
-                        csv_field(from_db_decimal_to_invoice_decimal($setTotalCostsTax), false) .
-                        csv_field(from_db_decimal_to_invoice_decimal($setTotalCostsWithTax), false) .
-                        csv_field(from_db_decimal_to_invoice_decimal($setTotalIncomesWithoutTax), false) .
-                        csv_field(from_db_decimal_to_invoice_decimal($setTotalIncomesTax), false) .
-                        csv_field(from_db_decimal_to_invoice_decimal($setTotalIncomesWithTax), false) .
-                        csv_field(from_db_decimal_to_invoice_decimal($setTotalEarnsWithoutTax), false) .
-                        csv_field(from_db_decimal_to_invoice_decimal($setTotalEarnsWithTax), false);
+                        csv_field(from_db_decimal_to_invoice_decimal($setTotalCostsWithoutTaxD), false) .
+                        csv_field(from_db_decimal_to_invoice_decimal($setTotalCostsTaxD), false) .
+                        csv_field(from_db_decimal_to_invoice_decimal($setTotalCostsWithTaxD), false) .
+                        csv_field(from_db_decimal_to_invoice_decimal($setTotalIncomesWithoutTaxD), false) .
+                        csv_field(from_db_decimal_to_invoice_decimal($setTotalIncomesTaxD), false) .
+                        csv_field(from_db_decimal_to_invoice_decimal($setTotalIncomesWithTaxD), false) .
+                        csv_field(from_db_decimal_to_invoice_decimal($setTotalEarnsWithoutTaxD), false) .
+                        csv_field(from_db_decimal_to_invoice_decimal($setTotalEarnsWithTaxD), false);
 
-                fwrite($stream, $lineForCustomerDetails);
+                fwrite($stream, $lineForCustomer);
                 fwrite($stream, $line);
+
+                // update the rounding correction
+                $setTotalCalls = $setTotalCalls - $setTotalCallsD;
+                $setTotalDurationSec = $setTotalDurationSec - $setTotalDurationSecD;
+                $setTotalCostsWithoutTax = $setTotalCostsWithoutTax - $setTotalCostsWithoutTaxD;
+                $setTotalIncomesWithoutTax = $setTotalIncomesWithoutTax - $setTotalIncomesWithoutTaxD;
+                $setTotalCostsTax = $setTotalCostsTax - $setTotalCostsTaxD;
+                $setTotalCostsWithTax = $setTotalCostsWithTax - $setTotalCostsWithTaxD;
+                $setTotalIncomesTax = $setTotalIncomesTax - $setTotalIncomesTaxD;
+                $setTotalIncomesWithTax = $setTotalIncomesWithTax - $setTotalIncomesWithTaxD;
+                $setTotalEarnsWithoutTax = $setTotalEarnsWithoutTax - $setTotalEarnsWithoutTaxD;
+                $setTotalEarnsWithTax = $setTotalEarnsWithTax - $setTotalEarnsWithTaxD;
             }
+
+            // report the rounding correction
+            $setTotalDurationH = format_minute($setTotalDurationSec);
+            $line = csv_field('1', false) .
+                    csv_field('Rounding corrections', false) .
+                    csv_field('true', false) .
+                    csv_field($setTotalCalls, false) .
+                    csv_field($setTotalDurationSec, false) .
+                    csv_field($setTotalDurationH, false) .
+                    csv_field($setVatPercH, false) .
+                    csv_field(from_db_decimal_to_invoice_decimal($setTotalCostsWithoutTax), false) .
+                    csv_field(from_db_decimal_to_invoice_decimal($setTotalCostsTax), false) .
+                    csv_field(from_db_decimal_to_invoice_decimal($setTotalCostsWithTax), false) .
+                    csv_field(from_db_decimal_to_invoice_decimal($setTotalIncomesWithoutTax), false) .
+                    csv_field(from_db_decimal_to_invoice_decimal($setTotalIncomesTax), false) .
+                    csv_field(from_db_decimal_to_invoice_decimal($setTotalIncomesWithTax), false) .
+                    csv_field(from_db_decimal_to_invoice_decimal($setTotalEarnsWithoutTax), false) .
+                    csv_field(from_db_decimal_to_invoice_decimal($setTotalEarnsWithTax), false);
+            fwrite($stream, $lineForCustomer);
+            fwrite($stream, $line);
 
             ArPartyPeer::clearInstancePool();
         }
@@ -247,5 +261,4 @@ class CSVInvoices extends ReportGenerator {
         $report->setProducedReportFileTypeSuffix('csv');
         $report->save();
     }
-
 }
